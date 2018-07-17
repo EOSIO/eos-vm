@@ -1,104 +1,153 @@
 #pragma once
 
+#include <eosio/wasm_backend/exceptions.hpp>
+
 namespace eosio { namespace wasm_backend {
    
-   struct detail {
-      template <size_t N>
-      struct zero_extend_varuint_impl {
-         static constexpr size_t value = (N % 7 == 0) ? N : zero_extend_varuint_impl<N+1>::value;
-      };
-   }; 
-   
    template <size_t N>
-   constexpr size_t zero_extend_varuint() {
-      return detail::zero_extend_varuint_impl<N>::value;
-   }
+   struct zero_extended_size {
+      static constexpr int value = -1;
+   };
+
+   template <>
+   struct zero_extended_size<1> {
+      static constexpr size_t value = 7;
+   };
+
+   template <>
+   struct zero_extended_size<7> {
+      static constexpr size_t value = 7;
+   };
+
+   template <>
+   struct zero_extended_size<32> {
+      static constexpr size_t value = 35;
+   };
+
+   template <>
+   struct zero_extended_size<64> {
+      static constexpr size_t value = 70;
+   };
 
    template <size_t N>
    struct varuint {
-      uint64_t raw : zero_extend_varuint<N>();
-      varuint(uint32_t n) {
-         uint64_t tmp = n;
-         uint8_t shift = N-7;
-         for (int i=N/7; i >= 0; i--) {
-            uint8_t byte = (tmp >> shift) & 0x7f;
-            shift -= 7;
-            
-         }
+      static_assert(zero_extended_size<N>::value >= 7, 
+            "varuint bit width not defined, use 1,7,32, or 64");
+      uint8_t raw[zero_extended_size<N>::value];
+      uint8_t size;
+      varuint(uint64_t n, uint8_t pad=0) {
+         set(n, pad);
       }
-   };
 
-   template <>
-   struct varuint <32> {
-      uint64_t raw;
-      explicit varuint(uint32_t n) {
-         raw = 0;
-         uint8_t* data = (uint8_t*)&raw;
-         uint32_t length = 0;
+      inline void set(uint64_t n, uint8_t pad=0) {
+         uint8_t cnt = 0;
+         uint8_t* data = raw;
+         EOS_WB_ASSERT( n < ((uint64_t)1 << N), wasm_interpreter_exception, 
+               "value too large for bit width specified" );
          do {
-            uint8_t byte = n & 0x7f;
+            uint8_t byte = n & 0x7F;
             n >>= 7;
-            if (!n) {
-               data[length++] = byte;
-               break;
-            } else {
-               data[length++] = byte | 0x80;
-            }
-         } while(true);
+            cnt++;
+            if (n != 0 || cnt < pad)
+               byte |= 0x80;
+            *data++ = byte;
+         } while (n != 0);
+         size = cnt; 
+         // pad if needed
+         if (cnt < pad) {
+            for (; cnt < pad - 1; ++cnt)
+               *data++ = 0x80;
+         }
       }
 
-      uint64_t get() {
-         uint64_t res = 0;
-         uint64_t shift = 0;
-         uint8_t  index = 0;
-         uint8_t* data = (uint8_t*)&raw;
-         while (true) {
-            std::cout << "DAT " << (uint32_t)data[index] << "\n";
-            uint8_t byte = data[index++];
-            res |= (byte & 0x7f) << shift;
-            if ((byte & 0x80) == 0x0b)
-               break;
+      inline uint64_t get() {
+         uint64_t n = 0;
+         uint8_t shift = 0;
+         const uint8_t* end = raw + size;
+         uint8_t* data = raw;
+         do {
+            EOS_WB_ASSERT( end && data != end, wasm_interpreter_exception, "malformed varuint");
+            uint64_t byte = *data & 0x7F;
+            EOS_WB_ASSERT( !(shift >= 64 || byte << shift >> shift != byte), 
+                  wasm_interpreter_exception, "varuint too big for uint64");
+            
+            n += uint64_t(*data & 0x7F) << shift;
             shift += 7;
-         }
-         return res;
+         } while (*data++ >= 128);
+         return n;
       }
    };
    
-   template <>
-   struct varuint<7> {
-      uint8_t raw : 7;
-      explicit varuint(uint8_t n) {
-         raw = n;
-      }
-
-      uint8_t get() {
-         return raw;
-      }
-   };
-
-   template <>
-   struct varuint<1> {
-      uint8_t raw : 1;
-      explicit varuint(uint8_t n) {
-         raw = n;
-      }
-
-      uint8_t get() {
-         return raw;
-      }
-   };
-
    template <size_t N>
    struct varint {
-      static_assert(N==7 || N==32 || N==64, "varint can only accept (7,32,64) bits");
-      uint64_t raw : N;
+      static_assert(zero_extended_size<N>::value >= 7, 
+            "varint bit width not defined, use 1,7,32, or 64");
+      uint8_t raw[zero_extended_size<N>::value];
+      uint8_t size;
+      varint(int64_t n, uint8_t pad=0) {
+         set(n, pad);
+      }
+
+      inline void set(int64_t n, uint8_t pad=0) {
+         uint8_t* data = raw;
+         uint8_t cnt = 0;
+         bool more;
+         if ( n >= 0 )
+            EOS_WB_ASSERT( n < ((uint64_t)1 << (N-1)), 
+               wasm_interpreter_exception,
+               "value too large for bit width specified" );
+         else
+            EOS_WB_ASSERT( n >= (int64_t)(((uint64_t)-1 << (N-1))), 
+               wasm_interpreter_exception,
+               "value too small for bit width specified" );
+         //EOS_WB_ASSERT( n < ((uint64_t)1 << (N-1)) && n >= (int64_t)(((uint64_t)-1 << (N-1))), 
+         //      wasm_interpreter_exception, "value too large for bit width specified" );
+
+         do {
+            uint8_t byte = n & 0x7F;
+            n >>= 7;
+            more = !((((n == 0) && ((byte & 0x40) == 0)) ||
+                     ((n == -1) && ((byte & 0x40) != 0))));
+            cnt++;
+
+            if (more || cnt < pad)
+               byte |= 0x80;
+            *data++ = byte;
+         } while (more);
+         size = cnt;
+         if (cnt < pad) {
+            uint8_t padded = n < 0 ? 0x7F : 0x00;
+            for (; cnt < pad - 1; ++cnt)
+               *data++ = (padded | 0x80);
+            *data++ = padded;
+         }
+      }
+
+      inline int64_t get() {
+         int64_t n = 0;
+         uint8_t shift = 0;
+         uint8_t byte;
+         const uint8_t* end = raw + size;
+         uint8_t* data = raw;
+         
+         do {
+            EOS_WB_ASSERT( end && data != end, wasm_interpreter_exception, "malformed varint");
+            byte = *data++;
+            n |= (int64_t)(byte & 0x7F) << shift;
+            shift += 7;
+         } while ( byte >= 128);
+
+         if (byte & 0x40)
+            n |= (-1ull) << shift;
+         return n;
+      }
    };
-  
+
    void str_bits(varuint<32> n) {
       for (int i=32; i >= 0; i--) {
          if (i % 8 == 0)
             std::cout << " ";
-         std::cout << (uint32_t)((n.raw>>i) & 1) << " ";
+         std::cout << (uint32_t)((n.raw[i/8] >> i%8) & 1) << " ";
       }
       std::cout << "\n";
    }
