@@ -8,12 +8,13 @@
 
 #include <eosio/wasm_backend/integer_types.hpp>
 #include <eosio/wasm_backend/wasm_interpreter.hpp>
+#include <eosio/wasm_backend/types.hpp>
 
 using namespace eosio;
 using namespace eosio::wasm_backend;
 
 BOOST_AUTO_TEST_SUITE(varint_tests)
-BOOST_AUTO_TEST_CASE(varuint_test) { 
+BOOST_AUTO_TEST_CASE(varint_test) { 
    try {
       {
          varuint<1> v(0); 
