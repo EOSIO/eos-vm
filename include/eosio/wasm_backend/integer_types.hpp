@@ -100,8 +100,6 @@ namespace eosio { namespace wasm_backend {
             EOS_WB_ASSERT( n >= (int64_t)(((uint64_t)-1 << (N-1))), 
                wasm_interpreter_exception,
                "value too small for bit width specified" );
-         //EOS_WB_ASSERT( n < ((uint64_t)1 << (N-1)) && n >= (int64_t)(((uint64_t)-1 << (N-1))), 
-         //      wasm_interpreter_exception, "value too large for bit width specified" );
 
          do {
             uint8_t byte = n & 0x7F;
