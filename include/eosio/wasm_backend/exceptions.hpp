@@ -11,4 +11,9 @@
 namespace eosio { namespace wasm_backend {
    FC_DECLARE_EXCEPTION( wasm_interpreter_exception,
                          4000000, "wasm_interpreter exception" )
+   FC_DECLARE_EXCEPTION( wasm_unreachable_exception,
+                         4000001, "wasm unreachable exception" )
+   FC_DECLARE_EXCEPTION( wasm_illegal_opcode_exception,
+                         4000002, "wasm illegal opcode exception" )
+
 }} // eosio::wasm_backend

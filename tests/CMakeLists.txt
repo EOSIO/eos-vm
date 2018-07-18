@@ -11,6 +11,7 @@ file(GLOB UNIT_TESTS "*.cpp")
 add_executable( unit_test ${UNIT_TESTS} )
 target_link_libraries( unit_test 
     fc
+    wasm_interpreter
     ${Boost_FILESYSTEM_LIBRARY}
     ${Boost_SYSTEM_LIBRARY}
     ${Boost_CHRONO_LIBRARY}

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <iostream>
+#include <cstdlib>
 #include <eosio/wasm_backend/exceptions.hpp>
 
 namespace eosio { namespace wasm_backend {
@@ -35,8 +37,44 @@ namespace eosio { namespace wasm_backend {
             "varuint bit width not defined, use 1,7,32, or 64");
       uint8_t raw[zero_extended_size<N>::value];
       uint8_t size;
+      varuint() = default;
       varuint(uint64_t n, uint8_t pad=0) {
          set(n, pad);
+      }
+      varuint( const std::vector<uint8_t>& code, size_t index ) {
+         set(code, index);
+      }
+      varuint( const varuint<N>& n ) {
+         memcpy(raw, n.raw, n.size);
+         size = n.size;
+      }
+      varuint& operator=( const varuint& n ) {
+         memcpy(raw, n.raw, n.size);
+         size = n.size;
+         return *this;
+      }
+      inline void set( const std::vector<uint8_t>& code, size_t index ) {
+         for ( int i=0; i < zero_extended_size<N>::value/7; i++ ) {
+            size++;
+            if (code[index+i] && index+i < code.size())
+               raw[i] = code[index+i];
+            else {
+               raw[i] = 0;
+               break;
+            }
+         }
+
+      }
+      inline void set( const std::vector<uint8_t>&& code, size_t index ) {
+         for ( int i=0; i < zero_extended_size<N>::value/7; i++ ) {
+            size++;
+            if (code[index+i] && index+i < code.size()) {
+               raw[i] = code[index+i];
+            }
+            else {
+               raw[i] = 0;
+            }
+         }
       }
 
       inline void set(uint64_t n, uint8_t pad=0) {
@@ -77,15 +115,59 @@ namespace eosio { namespace wasm_backend {
          return n;
       }
    };
-   
+  /* 
+   template <size_t N> 
+   std::ostream &operator <<( std::ostream& os, const varuint<N>& n ) {
+      os << n.get();
+   }
+   */
+
    template <size_t N>
    struct varint {
       static_assert(zero_extended_size<N>::value >= 7, 
             "varint bit width not defined, use 1,7,32, or 64");
       uint8_t raw[zero_extended_size<N>::value];
       uint8_t size;
+      varint() = default;
       varint(int64_t n, uint8_t pad=0) {
          set(n, pad);
+      }
+      varint( const std::vector<uint8_t>& code, size_t index ) {
+         set(code, index);
+      }
+      varint( const varint<N>& n ) {
+         memcpy(raw, n.raw, n.size);
+         size = n.size;
+      }
+      varint& operator=( const varint<N>& n ) {
+         memcpy(raw, n.raw, n.size);
+         size = n.size;
+         return *this;
+      }
+
+
+      inline void set( const std::vector<uint8_t>& code, size_t index ) {
+         for ( int i=0; i < zero_extended_size<N>::value/7; i++ ) {
+            size++;
+            if (code[index+i] && index+i < code.size()) {
+               raw[i] = code[index+i];
+            }
+            else {
+               raw[i] = 0;
+            }
+         }
+
+      }
+      inline void set( const std::vector<uint8_t>&& code, size_t index ) {
+         for ( int i=0; i < zero_extended_size<N>::value/7; i++ ) {
+            size++;
+            if (code[index+i] && index+i < code.size()) {
+               raw[i] = code[index+i];
+            }
+            else {
+               raw[i] = 0;
+            }
+         }
       }
 
       inline void set(int64_t n, uint8_t pad=0) {
@@ -121,12 +203,12 @@ namespace eosio { namespace wasm_backend {
          }
       }
 
-      inline int64_t get() {
+      inline int64_t get() const {
          int64_t n = 0;
          uint8_t shift = 0;
          uint8_t byte;
          const uint8_t* end = raw + size;
-         uint8_t* data = raw;
+         const uint8_t* data = raw;
          
          do {
             EOS_WB_ASSERT( end && data != end, wasm_interpreter_exception, "malformed varint");
@@ -141,6 +223,12 @@ namespace eosio { namespace wasm_backend {
       }
    };
 
+   template <size_t N> 
+   std::ostream &operator <<( std::ostream& os, varint<N> const& n ) {
+      os << n.get();
+   }
+
+   /*
    void str_bits(varuint<32> n) {
       for (int i=32; i >= 0; i--) {
          if (i % 8 == 0)
@@ -149,5 +237,6 @@ namespace eosio { namespace wasm_backend {
       }
       std::cout << "\n";
    }
+   */
 
 }} // namespace eosio::wasm_backend

@@ -72,10 +72,9 @@ add_subdirectory(fc)
 
 list( APPEND wasm_interpreter_sources ${wasm_interpreter_headers} )
 add_library ( wasm_interpreter STATIC ${wasm_interpreter_sources} )
-add_executable( test ${CMAKE_SOURCE_DIR}/main.cpp )
 
-target_link_libraries( test wasm_interpreter fc )
 target_include_directories( wasm_interpreter PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
-                                                    "${CMAKE_SOURCE_DIR}/fc/include" )
+                                                    "${CMAKE_SOURCE_DIR}/fc/include"
+                                                    "${Boost_INCLUDE_DIRS}" )
 
 add_subdirectory(tests)
