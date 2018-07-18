@@ -51,11 +51,11 @@ namespace eosio { namespace wasm_backend {
    
    size_t binary_parser::parse_type_section( const wasm_code& code, size_t index, std::vector<func_type>& types ) {
       const uint8_t* raw = code.data()+index; 
-      const uint32_t sec_size = *((uint32_t*)raw);
+      varuint<32> type_cnt = parse_varuint<32>( code, index );
       const uint32_t funcs = *((uint32_t*)raw+sizeof(uint32_t));
 
-      std::cout << "TYPES " << /*std::hex <<*/ sec_size << " FUNCTIONS " << funcs << "\n";
+      std::cout << "TYPES " << /*std::hex <<*/ " FUNCTIONS " << type_cnt.get() << "\n";
 
-      return sizeof(uint32_t)+sec_size;
+      return sizeof(uint32_t); //+sec_size;
    }
 }} // namespace eosio::wasm_backend
