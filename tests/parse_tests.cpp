@@ -56,7 +56,6 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          uint32_t version;
          n += bp.parse_version( code, n, version );
          BOOST_CHECK_EQUAL(version, 1);
-         std::vector<func_type> types;
          uint8_t id;
          n += bp.parse_section_id( code, n, id );
          BOOST_CHECK_EQUAL(id, 1);
@@ -65,7 +64,8 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          BOOST_CHECK_EQUAL(plen.get(), 335);
          wasm_bytes payload;
          n += bp.parse_section_payload_data( code, n, plen.get(), payload );
-         //n += bp.parse_type_section( code, n, types );
+         std::vector<func_type> types;
+         n += bp.parse_type_section( code, n, types );
       }
    } FC_LOG_AND_RETHROW() 
 }
