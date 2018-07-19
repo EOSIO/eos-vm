@@ -3,99 +3,93 @@
 #include <iostream>
 #include <cstdlib>
 #include <eosio/wasm_backend/exceptions.hpp>
+#include <eosio/wasm_backend/utils.hpp>
 
 namespace eosio { namespace wasm_backend {
    
    template <size_t N>
    struct zero_extended_size {
-      static constexpr int value = -1;
+      static constexpr int bits = -1;
+      static constexpr int bytes = -1;
    };
 
    template <>
    struct zero_extended_size<1> {
-      static constexpr size_t value = 7;
+      static constexpr size_t bits = 7;
+      static constexpr size_t bytes = 1;
    };
 
    template <>
    struct zero_extended_size<7> {
-      static constexpr size_t value = 7;
+      static constexpr size_t bits = 7;
+      static constexpr size_t bytes = 1;
    };
 
    template <>
    struct zero_extended_size<32> {
-      static constexpr size_t value = 35;
+      static constexpr size_t bits = 35;
+      static constexpr size_t bytes = 5;
    };
 
    template <>
    struct zero_extended_size<64> {
-      static constexpr size_t value = 70;
+      static constexpr size_t bits = 70;
+      static constexpr size_t bytes = 9;
    };
 
    template <size_t N>
    struct varuint {
-      static_assert(zero_extended_size<N>::value >= 7, 
+      static_assert(zero_extended_size<N>::bits >= 7, 
             "varuint bit width not defined, use 1,7,32, or 64");
-      uint8_t raw[zero_extended_size<N>::value];
-      uint8_t size;
+      uint8_t raw[zero_extended_size<N>::bytes] = {0};
+
+      uint8_t size = 0;
       varuint() = default;
-      varuint(uint64_t n, uint8_t pad=0) {
-         set(n, pad);
+      varuint(uint64_t n) {
+         set(n);
       }
       varuint( const std::vector<uint8_t>& code, size_t index ) {
          set(code, index);
       }
       varuint( const varuint<N>& n ) {
-         memcpy(raw, n.raw, n.size);
+         uint64_t* tmp = (uint64_t*)raw;
+         *tmp = *(uint64_t*)n.raw;
          size = n.size;
       }
       varuint& operator=( const varuint& n ) {
-         memcpy(raw, n.raw, n.size);
+         uint64_t* tmp = (uint64_t*)raw;
+         *tmp = *(uint64_t*)n.raw;
          size = n.size;
          return *this;
       }
+
       inline void set( const std::vector<uint8_t>& code, size_t index ) {
-         for ( int i=0; i < zero_extended_size<N>::value/7; i++ ) {
-            size++;
-            if (code[index+i] && index+i < code.size())
-               raw[i] = code[index+i];
-            else {
-               raw[i] = 0;
-               break;
-            }
-         }
-
-      }
-      inline void set( const std::vector<uint8_t>&& code, size_t index ) {
-         for ( int i=0; i < zero_extended_size<N>::value/7; i++ ) {
-            size++;
-            if (code[index+i] && index+i < code.size()) {
-               raw[i] = code[index+i];
-            }
-            else {
-               raw[i] = 0;
-            }
-         }
-      }
-
-      inline void set(uint64_t n, uint8_t pad=0) {
          uint8_t cnt = 0;
-         uint8_t* data = raw;
+         for (; cnt < zero_extended_size<N>::bytes; cnt++ ) {
+            EOS_WB_ASSERT( index+cnt < code.size(), wasm_interpreter_exception, "varuint not terminated before end of code" );
+            raw[cnt] = code[index+cnt];
+            if ((raw[cnt] & 0x80) == 0)
+               break;
+         }
+         size = cnt+1;
+      }
+
+      inline void set(uint64_t n) {
+         uint8_t cnt = 1;
+         guarded_ptr<uint8_t> data( raw, zero_extended_size<N>::bytes );
+
          EOS_WB_ASSERT( n < ((uint64_t)1 << N), wasm_interpreter_exception, 
                "value too large for bit width specified" );
-         do {
+         for (; cnt < sizeof(n); cnt++) {
             uint8_t byte = n & 0x7F;
             n >>= 7;
-            cnt++;
-            if (n != 0 || cnt < pad)
+            if (n != 0)
                byte |= 0x80;
             *data++ = byte;
-         } while (n != 0);
-         size = cnt; 
-         // pad if needed
-         if (cnt < pad) {
-            for (; cnt < pad - 1; ++cnt)
-               *data++ = 0x80;
+            if (n == 0)
+               break;
          }
+         size = cnt; 
       }
 
       inline uint64_t get() {
@@ -103,77 +97,64 @@ namespace eosio { namespace wasm_backend {
          uint8_t shift = 0;
          const uint8_t* end = raw + size;
          uint8_t* data = raw;
-         do {
+         bool quit = false;
+         for (int i=0; i < size; i++) {
             EOS_WB_ASSERT( end && data != end, wasm_interpreter_exception, "malformed varuint");
             uint64_t byte = *data & 0x7F;
             EOS_WB_ASSERT( !(shift >= 64 || byte << shift >> shift != byte), 
                   wasm_interpreter_exception, "varuint too big for uint64");
-            
-            n += uint64_t(*data & 0x7F) << shift;
+            n += byte << shift;
             shift += 7;
-         } while (*data++ >= 128);
+            if ( quit )
+               break;
+            if ( *data++ <= 0x80 )
+               quit = true;
+
+         };
          return n;
       }
    };
-  /* 
-   template <size_t N> 
-   std::ostream &operator <<( std::ostream& os, const varuint<N>& n ) {
-      os << n.get();
-   }
-   */
 
    template <size_t N>
    struct varint {
-      static_assert(zero_extended_size<N>::value >= 7, 
+      static_assert(zero_extended_size<N>::bits >= 7, 
             "varint bit width not defined, use 1,7,32, or 64");
-      uint8_t raw[zero_extended_size<N>::value];
+      uint8_t raw[zero_extended_size<N>::bytes];
       uint8_t size;
       varint() = default;
-      varint(int64_t n, uint8_t pad=0) {
-         set(n, pad);
+      varint(int64_t n) {
+         set(n);
       }
       varint( const std::vector<uint8_t>& code, size_t index ) {
          set(code, index);
       }
       varint( const varint<N>& n ) {
+         //TODO fix this
          memcpy(raw, n.raw, n.size);
          size = n.size;
       }
       varint& operator=( const varint<N>& n ) {
+         //TODO fix this
          memcpy(raw, n.raw, n.size);
          size = n.size;
          return *this;
       }
 
-
       inline void set( const std::vector<uint8_t>& code, size_t index ) {
-         for ( int i=0; i < zero_extended_size<N>::value/7; i++ ) {
-            size++;
-            if (code[index+i] && index+i < code.size()) {
-               raw[i] = code[index+i];
-            }
-            else {
-               raw[i] = 0;
-            }
-         }
-
-      }
-      inline void set( const std::vector<uint8_t>&& code, size_t index ) {
-         for ( int i=0; i < zero_extended_size<N>::value/7; i++ ) {
-            size++;
-            if (code[index+i] && index+i < code.size()) {
-               raw[i] = code[index+i];
-            }
-            else {
-               raw[i] = 0;
-            }
-         }
-      }
-
-      inline void set(int64_t n, uint8_t pad=0) {
-         uint8_t* data = raw;
          uint8_t cnt = 0;
-         bool more;
+         for (; cnt < zero_extended_size<N>::bytes; cnt++ ) {
+            EOS_WB_ASSERT( index+cnt < code.size(), wasm_interpreter_exception, "varuint not terminated before end of code" );
+            raw[cnt] = code[index+cnt];
+            if ((raw[cnt] & 0x80) == 0)
+               break;
+         }
+         size = cnt+1;
+      }
+
+      inline void set(int64_t n) {
+         uint8_t* data = raw;
+         uint8_t cnt = 1;
+         bool more = true;
          if ( n >= 0 )
             EOS_WB_ASSERT( n < ((uint64_t)1 << (N-1)), 
                wasm_interpreter_exception,
@@ -183,24 +164,19 @@ namespace eosio { namespace wasm_backend {
                wasm_interpreter_exception,
                "value too small for bit width specified" );
 
-         do {
+         for (; more && cnt < sizeof(n); cnt++) {
             uint8_t byte = n & 0x7F;
             n >>= 7;
             more = !((((n == 0) && ((byte & 0x40) == 0)) ||
                      ((n == -1) && ((byte & 0x40) != 0))));
-            cnt++;
 
-            if (more || cnt < pad)
+            if (more)
                byte |= 0x80;
             *data++ = byte;
-         } while (more);
-         size = cnt;
-         if (cnt < pad) {
-            uint8_t padded = n < 0 ? 0x7F : 0x00;
-            for (; cnt < pad - 1; ++cnt)
-               *data++ = (padded | 0x80);
-            *data++ = padded;
+            if (!more)
+               break;
          }
+         size = cnt;
       }
 
       inline int64_t get() const {
@@ -210,23 +186,20 @@ namespace eosio { namespace wasm_backend {
          const uint8_t* end = raw + size;
          const uint8_t* data = raw;
          
-         do {
+         for (int i=0; i < size; i++) {
             EOS_WB_ASSERT( end && data != end, wasm_interpreter_exception, "malformed varint");
             byte = *data++;
             n |= (int64_t)(byte & 0x7F) << shift;
             shift += 7;
-         } while ( byte >= 128);
+            if ( byte < 0x80 )
+               break;
+         };
 
          if (byte & 0x40)
             n |= (-1ull) << shift;
          return n;
       }
    };
-
-   template <size_t N> 
-   std::ostream &operator <<( std::ostream& os, varint<N> const& n ) {
-      os << n.get();
-   }
 
    /*
    void str_bits(varuint<32> n) {

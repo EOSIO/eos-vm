@@ -14,6 +14,8 @@
 #include <eosio/wasm_backend/execution_engine.hpp>
 #include <eosio/wasm_backend/opcodes.hpp>
 #include <eosio/wasm_backend/parser.hpp>
+#include <eosio/wasm_backend/constants.hpp>
+#include <eosio/wasm_backend/sections.hpp>
 
 using namespace eosio;
 using namespace eosio::wasm_backend;
@@ -58,14 +60,17 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          BOOST_CHECK_EQUAL(version, 1);
          uint8_t id;
          n += bp.parse_section_id( code, n, id );
-         BOOST_CHECK_EQUAL(id, 1);
+         BOOST_CHECK_EQUAL(id, section_id::type_section);
          varuint<32> plen;
          n += bp.parse_section_payload_len( code, n, plen );
          BOOST_CHECK_EQUAL(plen.get(), 335);
          wasm_bytes payload;
          n += bp.parse_section_payload_data( code, n, plen.get(), payload );
+         for (int i=0; i < payload.size(); i++)
+            std::cout << std::hex << (uint32_t)payload[i] << " ";
+         std::cout << "\n";
          std::vector<func_type> types;
-         n += bp.parse_type_section( code, n, types );
+        // n += bp.parse_type_section( code, n, types );
       }
    } FC_LOG_AND_RETHROW() 
 }

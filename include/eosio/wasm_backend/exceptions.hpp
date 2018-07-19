@@ -15,5 +15,7 @@ namespace eosio { namespace wasm_backend {
                          4000001, "wasm unreachable exception" )
    FC_DECLARE_EXCEPTION( wasm_illegal_opcode_exception,
                          4000002, "wasm illegal opcode exception" )
+   FC_DECLARE_EXCEPTION( guarded_ptr_exception,
+                         4000002, "pointer out of bounds" )
 
 }} // eosio::wasm_backend
