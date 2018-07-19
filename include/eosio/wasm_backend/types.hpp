@@ -27,8 +27,8 @@ namespace eosio { namespace wasm_backend {
       value_type              form;  // value for the func type constructor
       varuint<32>             param_count; 
       std::vector<value_type> param_types;
-      varuint<1>                return_count;
-      fc::optional<value_type> return_type;
+      varuint<1>              return_count;
+      value_type              return_type;
    };
 
    struct global_type {
