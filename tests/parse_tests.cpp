@@ -122,7 +122,7 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          n += bp.parse_section_payload_len( code, n, len );
          BOOST_CHECK_EQUAL(len.get(), 335);
          std::vector<func_type> types;
-         auto len2 = bp.parse_type_section( code, n, types );
+         auto len2 = bp.parse_type_section( code, n, types, len.get() );
          int i=0;
          for ( auto ft : types ) {
             BOOST_CHECK_EQUAL( ft.form, types::func );
@@ -142,9 +142,8 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          n += bp.parse_section_id( code, n, id );
          BOOST_CHECK_EQUAL(id, section_id::import_section);
 
-         return;
-         //std::vector<import_entry> imports;
-         //len = bp.parse_import_section( code, n, imports );
+         std::vector<import_entry> imports;
+         len = bp.parse_import_section( code, n, imports );
 
       }
    } FC_LOG_AND_RETHROW() 
