@@ -1,22 +1,31 @@
 #pragma once
+#include <string>
 #include <eosio/wasm_backend/integer_types.hpp>
+#include <eosio/wasm_backend/utils.hpp>
 #include <fc/optional.hpp>
 
 namespace eosio { namespace wasm_backend {
-   struct types {
-      static constexpr uint8_t i32 = 0x7F;
-      static constexpr uint8_t i64 = 0x7E;
-      static constexpr uint8_t f32 = 0x7D;
-      static constexpr uint8_t f64 = 0x7C;
-      static constexpr uint8_t anyfunc = 0x70;
-      static constexpr uint8_t func = 0x60;
-      static constexpr uint8_t pseudo = 0x40;
+   enum types {
+      i32 = 0x7f,
+      i64 = 0x7e,
+      f32 = 0x7d,
+      f64 = 0x7c,
+      anyfunc = 0x70,
+      func    = 0x60,
+      pseudo  = 0x40
    };
-   
-   using value_type = varint<7>;
-   using block_type = varint<7>;
-   using elem_type  = varint<7>;
-   
+
+   enum external_kind {
+      Function = 0,
+      Table    = 1,
+      Memory   = 2,
+      Global   = 3
+   };
+
+   typedef uint8_t value_type;
+   typedef uint8_t block_type;
+   typedef uint8_t elem_type;
+  
    struct resizable_limits {
       varuint<1>  flags;
       varuint<32> initial;
@@ -25,10 +34,18 @@ namespace eosio { namespace wasm_backend {
 
    struct func_type {
       value_type              form;  // value for the func type constructor
-      varuint<32>             param_count; 
+      uint32_t                param_count; 
       std::vector<value_type> param_types;
-      varuint<1>              return_count;
+      bool                    return_count;
       value_type              return_type;
+   };
+   
+   struct import_entry {
+      uint32_t      module_len;
+      std::string   module_str;      
+      uint32_t      field_len;
+      std::string   field_str;
+      external_kind kind;
    };
 
    struct global_type {
@@ -45,14 +62,8 @@ namespace eosio { namespace wasm_backend {
       resizable_limits limits;
    };
    
-   struct external_kind {
-      static constexpr uint8_t Function = 0;
-      static constexpr uint8_t Table = 1;
-      static constexpr uint8_t Memory = 2;
-      static constexpr uint8_t Global = 3;
-   };
-
    using wasm_code = std::vector<uint8_t>;
+   using wasm_code_ptr = guarded_ptr<uint8_t>;
    using wasm_code_iterator = std::vector<uint8_t>::iterator;
    using wasm_bytes = std::vector<uint8_t>;
    

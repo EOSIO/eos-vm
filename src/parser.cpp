@@ -50,38 +50,43 @@ namespace eosio { namespace wasm_backend {
    }
    
    size_t binary_parser::parse_type_section( const wasm_code& code, size_t index, std::vector<func_type>& types ) {
-      const uint8_t* raw = code.data()+index; 
-      varuint<32> len = parse_varuint<32>( code, index );
-      size_t orig_index = index;
-      index += len.size;
+      //varuint<32> len = parse_varuint<32>( code, index );
+      //index += len.size;
+      auto len = 335;
 
       varuint<32> type_cnt = parse_varuint<32>( code, index );
-      const uint32_t funcs = *((uint32_t*)raw+sizeof(uint32_t));
       
       index += type_cnt.size; 
 
-      for ( int i=0; i < funcs; i++ ) {
+      for ( int i=0; i < type_cnt.get(); i++ ) {
          func_type ft;
-         ft.form = parse_varint<7>( code, index );
-         std::cout << "FORM " << ft.form.get() << "\n";
-         index += ft.form.size;
-         ft.param_count = parse_varuint<32>( code, index );
-         index += ft.param_count.size;
-         for ( int i=0; i < ft.param_count.get(); i++ ) {
-            auto tmp = parse_varint<7>( code, index );
-            ft.param_types.push_back( tmp );
-            index += tmp.size; 
-         }
-         ft.return_count = parse_varuint<1>( code, index );
+         ft.form = code.at(index);
          index += 1;
-         if ( ft.return_count.get() > 0 ) {
-            ft.return_type = parse_varint<7>( code, index );
-            index += ft.return_type.size;
+         auto pc = parse_varuint<32>( code, index );
+         ft.param_count = pc.get();
+         index += pc.size;
+         ft.param_types.resize(ft.param_count);
+         for ( int j=0; j < ft.param_count; j++ ) {
+            auto tmp = code.at(index);
+            ft.param_types[j] = tmp;
+            index += 1; 
+         }
+         ft.return_count = parse_varuint<1>( code, index ).get();
+         index += 1;
+         if ( ft.return_count > 0 ) {
+            ft.return_type = code.at(index);
+            index += 1;
          }
          types.push_back( ft );
       } 
-      std::cout << "TYPES " << /*std::hex <<*/ " FUNCTIONS " << type_cnt.get() << "\n";
+      return len;
+   }
 
-      return 2*sizeof(uint32_t) + len.size;
+   size_t binary_parser::parse_import_section( const wasm_code& code, size_t index, std::vector<import_entry>& imports ) {
+      const uint8_t* raw = code.data()+index;
+      varuint<32> len = parse_varuint<32>( code, index );
+      index += len.size;
+
+      std::cout << "LEN " << len.get() << "\n";
    }
 }} // namespace eosio::wasm_backend

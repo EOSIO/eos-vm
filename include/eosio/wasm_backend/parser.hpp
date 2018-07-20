@@ -20,6 +20,7 @@ namespace eosio { namespace wasm_backend {
          size_t parse_section_payload_data( const wasm_code& code, size_t index, size_t len, wasm_bytes& bytes );
          size_t parse_custom_section( const wasm_code& code, size_t index );
          size_t parse_type_section( const wasm_code& code, size_t index, std::vector<func_type>& types );
+         size_t parse_import_section( const wasm_code& code, size_t index, std::vector<import_entry>& imports );
 
          template <size_t N>
          varint<N> parse_varint( const wasm_code& code, size_t index ) {
@@ -27,13 +28,28 @@ namespace eosio { namespace wasm_backend {
             result.set( code, index );
             return result;
          }
-
+/*
+         template <size_t N>
+         varuint<N> parse_varuint( const wasm_code_ptr& code, size_t index ) {
+            varuint<N> result(0);
+            result.set( code, index );
+            return result;
+         }
+*/
          template <size_t N>
          varuint<N> parse_varuint( const wasm_code& code, size_t index ) {
             varuint<N> result(0);
             result.set( code, index );
             return result;
          }
+/*
+         template <size_t N>
+         varuint<N> parse_varuint( const wasm_code& code, size_t index ) {
+            varuint<N> result(0);
+            result.set( code, index );
+            return result;
+         }
+*/
 
 
       private:
