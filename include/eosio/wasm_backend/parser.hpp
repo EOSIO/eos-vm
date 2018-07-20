@@ -19,7 +19,8 @@ namespace eosio { namespace wasm_backend {
          size_t parse_section_payload_len( const wasm_code& code, size_t index, varuint<32>& len );
          size_t parse_section_payload_data( const wasm_code& code, size_t index, size_t len, wasm_bytes& bytes );
          size_t parse_custom_section( const wasm_code& code, size_t index );
-         size_t parse_type_section( const wasm_code& code, size_t index, std::vector<func_type>& types );
+         //size_t parse_type_section( const wasm_code& code, size_t index, std::vector<func_type>& types );
+         size_t parse_type_section( const wasm_code& code, size_t index, std::vector<func_type>& types, size_t length );
          size_t parse_import_section( const wasm_code& code, size_t index, std::vector<import_entry>& imports );
 
          template <size_t N>

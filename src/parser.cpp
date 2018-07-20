@@ -49,37 +49,45 @@ namespace eosio { namespace wasm_backend {
       return 1+sizeof(uint32_t)+*((uint32_t*)raw);
    }
    
-   size_t binary_parser::parse_type_section( const wasm_code& code, size_t index, std::vector<func_type>& types ) {
-      //varuint<32> len = parse_varuint<32>( code, index );
-      //index += len.size;
-      auto len = 335;
+#define TEST_LENGTH( x, y, z ) \
+   x += y;                     \
+   std::cout << "X " << x << " " << y << " " << z << "\n"; \
+   EOS_WB_ASSERT( x <= z, wasm_section_length_exception, "section length overflow" );
 
+   size_t binary_parser::parse_type_section( const wasm_code& code, size_t index, std::vector<func_type>& types, size_t length ) {
       varuint<32> type_cnt = parse_varuint<32>( code, index );
-      
+      size_t sum = 0;
+      length += 10;
+      TEST_LENGTH( sum, type_cnt.size, length );
       index += type_cnt.size; 
-
+      std::cout << "TYPE_CNT " << type_cnt.get() << "\n";
       for ( int i=0; i < type_cnt.get(); i++ ) {
          func_type ft;
          ft.form = code.at(index);
+         TEST_LENGTH( sum, 1, length );
          index += 1;
          auto pc = parse_varuint<32>( code, index );
          ft.param_count = pc.get();
          index += pc.size;
+         TEST_LENGTH( sum, pc.size, length );
          ft.param_types.resize(ft.param_count);
          for ( int j=0; j < ft.param_count; j++ ) {
             auto tmp = code.at(index);
             ft.param_types[j] = tmp;
             index += 1; 
+            TEST_LENGTH( sum, 1, length );
          }
          ft.return_count = parse_varuint<1>( code, index ).get();
          index += 1;
+         TEST_LENGTH( sum, 1, length );
          if ( ft.return_count > 0 ) {
             ft.return_type = code.at(index);
             index += 1;
+            TEST_LENGTH( sum, 1, length );
          }
          types.push_back( ft );
       } 
-      return len;
+      return sum;
    }
 
    size_t binary_parser::parse_import_section( const wasm_code& code, size_t index, std::vector<import_entry>& imports ) {
