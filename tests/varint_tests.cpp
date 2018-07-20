@@ -45,7 +45,6 @@ BOOST_AUTO_TEST_CASE(varint_test) {
          BOOST_CHECK_EQUAL( v.get(), 127 );
          v.set(128); 
          BOOST_CHECK_EQUAL( v.get(), 128 );
-      return;
          v.set((1<<31)-1); 
          BOOST_CHECK_EQUAL( v.get(), (1<<31)-1 );
          BOOST_CHECK_THROW( v.set(1<<31), wasm_interpreter_exception );
@@ -89,67 +88,67 @@ BOOST_AUTO_TEST_CASE(varint_raw_test) {
    try {
       {
          varuint<1> v(0); 
-         v.set({0x00,0x00}, 0);
+         v.set(std::vector<uint8_t>{0x00,0x00}, 0);
          BOOST_CHECK_EQUAL( v.get(), 0 );
-         v.set({0x01, 0x00}, 0);
+         v.set(std::vector<uint8_t>{0x01, 0x00}, 0);
          BOOST_CHECK_EQUAL( v.get(), 1 );
-         //BOOST_CHECK_THROW( v.set({0x02, 0x00}, 0), wasm_interpreter_exception );
+         //BOOST_CHECK_THROW( v.set(std::vector<uint8_t>{0x02, 0x00}, 0), wasm_interpreter_exception );
       }
       {
          varuint<7> v(0);
-         v.set({0x00, 0x00}, 0);
+         v.set(std::vector<uint8_t>{0x00, 0x00}, 0);
          BOOST_CHECK_EQUAL( v.get(), 0 );
-         v.set({0x01, 0x00}, 0);
+         v.set(std::vector<uint8_t>{0x01, 0x00}, 0);
          BOOST_CHECK_EQUAL( v.get(), 1 );
-         v.set({0x02, 0x00}, 0);
+         v.set(std::vector<uint8_t>{0x02, 0x00}, 0);
          BOOST_CHECK_EQUAL( v.get(), 2 );
-         v.set({0x7F, 0x00}, 0); 
+         v.set(std::vector<uint8_t>{0x7F, 0x00}, 0); 
          BOOST_CHECK_EQUAL( v.get(), 127 );
          //BOOST_CHECK_THROW( v.set(128), wasm_interpreter_exception );
       }
       {
          varuint<32> v(0);
          BOOST_CHECK_EQUAL( v.get(), 0 );
-         v.set({0x01, 0x00}, 0);
+         v.set(std::vector<uint8_t>{0x01, 0x00}, 0);
          BOOST_CHECK_EQUAL( v.get(), 1 );
-         v.set({0x02, 0x00}, 0);
+         v.set(std::vector<uint8_t>{0x02, 0x00}, 0);
          BOOST_CHECK_EQUAL( v.get(), 2 );
-         v.set({0x7F, 0x00}, 0);
+         v.set(std::vector<uint8_t>{0x7F, 0x00}, 0);
          BOOST_CHECK_EQUAL( v.get(), 127 );
-         v.set({0x80, 0x01}, 0);
+         v.set(std::vector<uint8_t>{0x80, 0x01}, 0);
          BOOST_CHECK_EQUAL( v.get(), 128 );
-         v.set({0xFF, 0xFF, 0xFF, 0xFF, 0x07}, 0); 
+         v.set(std::vector<uint8_t>{0xFF, 0xFF, 0xFF, 0xFF, 0x07}, 0); 
          BOOST_CHECK_EQUAL( v.get(), (1<<31)-1 );
          //BOOST_CHECK_THROW( v.set(1<<31), wasm_interpreter_exception );
       }
       {
          varint<7> v(0);
          BOOST_CHECK_EQUAL( v.get(), 0 );
-         v.set({0x01, 0x00}, 0);
+         v.set(std::vector<uint8_t>{0x01, 0x00}, 0);
          BOOST_CHECK_EQUAL( v.get(), 1 );
-         v.set({0x02, 0x00}, 0);
+         v.set(std::vector<uint8_t>{0x02, 0x00}, 0);
          BOOST_CHECK_EQUAL( v.get(), 2 );
-         v.set({0x3F, 0x00}, 0);
+         v.set(std::vector<uint8_t>{0x3F, 0x00}, 0);
          BOOST_CHECK_EQUAL( v.get(), 63 );
          //BOOST_CHECK_THROW( v.set(64), wasm_interpreter_exception );
-         v.set({0x7F, 0x00}, 0);
+         v.set(std::vector<uint8_t>{0x7F, 0x00}, 0);
          BOOST_CHECK_EQUAL( v.get(), -1 );
-         v.set({0x40, 0x01}, 0);
+         v.set(std::vector<uint8_t>{0x40, 0x01}, 0);
          BOOST_CHECK_EQUAL( v.get(), -64 );
          //BOOST_CHECK_THROW( v.set(-65), wasm_interpreter_exception );
       }
       {
          varint<32> v(0);
          BOOST_CHECK_EQUAL( v.get(), 0 );
-         v.set({0x01, 0x00}, 0);
+         v.set(std::vector<uint8_t>{0x01, 0x00}, 0);
          BOOST_CHECK_EQUAL( v.get(), 1 );
-         v.set({0x02, 0x00}, 0);
+         v.set(std::vector<uint8_t>{0x02, 0x00}, 0);
          BOOST_CHECK_EQUAL( v.get(), 2 );
-         v.set({0xFF, 0x00}, 0);
+         v.set(std::vector<uint8_t>{0xFF, 0x00}, 0);
          BOOST_CHECK_EQUAL( v.get(), 127 );
-         v.set({0x80, 0x01}, 0);
+         v.set(std::vector<uint8_t>{0x80, 0x01}, 0);
          BOOST_CHECK_EQUAL( v.get(), 128 );
-         v.set({0xFF, 0xFF, 0xFF, 0xFF, 0x07}, 0);
+         v.set(std::vector<uint8_t>{0xFF, 0xFF, 0xFF, 0xFF, 0x07}, 0);
          BOOST_CHECK_EQUAL( v.get(), (1<<31)-1 );
          //BOOST_CHECK_THROW( v.set(((uint64_t)1<<32)), wasm_interpreter_exception );
       }

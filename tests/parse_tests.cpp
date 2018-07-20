@@ -49,28 +49,103 @@ BOOST_AUTO_TEST_CASE(parse_test) {
 }
 
 BOOST_AUTO_TEST_CASE(actual_wasm_test) { 
-   try {
+   try {  
+      static const std::vector<std::pair <std::vector<uint8_t>, std::vector<uint8_t>>> system_contract_types = {
+         {{types::i32,types::i32}, {}},
+         {{types::i32,types::i32,types::i64},{}},
+         {{types::i32},{}},
+         {{types::i32,types::i64,types::i64},{}},
+         {{types::i32,types::i64,types::i64,types::i32},{}},
+         {{types::i32,types::i64,types::i32,types::i32,types::i32},{}},
+         {{types::i32,types::i64},{}},
+         {{types::i32,types::i64,types::i64,types::i32,types::i32},{}},
+         {{types::i32,types::i64,types::i32},{}},
+         {{types::i32,types::i64,types::i64,types::i32,types::i32,types::i32},{}},
+         {{},{}},
+         {{types::i64,types::i64},{}},
+         {{types::i64},{}},
+         {{},{types::i64}},
+         {{types::i64,types::i64,types::i64,types::i64},{types::i32}},
+         {{types::i32,types::i64,types::i32,types::i32},{}},
+         {{types::i64,types::i64,types::i64,types::i32,types::i64},{types::i32}},
+         {{types::i32,types::i32,types::i32},{types::i32}},
+         {{types::i32,types::i32},{types::i64}},
+         {{types::i64,types::i64,types::i64,types::i64,types::i32,types::i32},{types::i32}},
+         {{types::i64,types::i64,types::i64,types::i64},{}},
+         {{types::i32,types::i32},{types::i32}},
+         {{types::i32},{types::i32}},
+         {{types::i64,types::i32},{}},
+         {{types::i64},{types::i32}},
+         {{types::i64,types::i64,types::i64,types::i64,types::i32},{types::i32}},
+         {{},{types::i32}},
+         {{types::i64,types::i64,types::i64,types::i32,types::i32},{types::i32}},
+         {{types::i32,types::i64,types::i64,types::i64,types::i64},{}},
+         {{types::i64,types::i64},{types::i32}},
+         {{types::i32,types::f64},{}},
+         {{types::i32,types::f32},{}},
+         {{types::i64,types::i64},{types::f64}},
+         {{types::i64,types::i64},{types::f32}},
+         {{types::i32,types::i32,types::i32},{}},
+         {{types::i32,types::i64,types::i32},{types::i32}},
+         {{types::i64,types::i64,types::i32,types::i32},{}},
+         {{types::i32,types::i32,types::i32,types::i64},{}},
+         {{types::i32,types::i32,types::i32,types::i32},{}},
+         {{types::i32,types::i32,types::i32,types::i32,types::i32},{}},
+         {{types::i32,types::i32,types::i64,types::i32},{}},
+         {{types::i32,types::i64},{types::i32}},
+         {{types::i64},{types::i64}},
+         {{types::i64,types::i64,types::i64},{}},
+         {{types::i32,types::i32,types::i32,types::i32,types::i32,types::i32},{types::i32}},
+         {{types::i32,types::i32,types::i32,types::i32},{types::i32}},
+         {{types::i32,types::i32,types::i32,types::i32,types::i32},{types::i32}},
+         {{types::i32,types::i32,types::i32,types::i32,types::i32,types::i32,types::i32,types::i32},{}},
+         {{types::f64},{types::f64}},
+         {{types::f64,types::f64},{types::f64}},
+         {{types::f64,types::i32},{types::f64}}
+      };
+
       {
          wasm_code code = read_wasm( "test.wasm" );
          binary_parser bp;
          auto n = bp.parse_magic( code );
          BOOST_CHECK_EQUAL(n, sizeof(uint32_t));
+
          uint32_t version;
          n += bp.parse_version( code, n, version );
          BOOST_CHECK_EQUAL(version, 1);
+
          uint8_t id;
          n += bp.parse_section_id( code, n, id );
          BOOST_CHECK_EQUAL(id, section_id::type_section);
-         varuint<32> plen;
-         n += bp.parse_section_payload_len( code, n, plen );
-         BOOST_CHECK_EQUAL(plen.get(), 335);
-         wasm_bytes payload;
-         n += bp.parse_section_payload_data( code, n, plen.get(), payload );
-         for (int i=0; i < payload.size(); i++)
-            std::cout << std::hex << (uint32_t)payload[i] << " ";
-         std::cout << "\n";
+
+         varuint<32> len;
+         n += bp.parse_section_payload_len( code, n, len );
+         BOOST_CHECK_EQUAL(len.get(), 335);
          std::vector<func_type> types;
-        // n += bp.parse_type_section( code, n, types );
+         auto len2 = bp.parse_type_section( code, n, types );
+         int i=0;
+         for ( auto ft : types ) {
+            BOOST_CHECK_EQUAL( ft.form, types::func );
+            BOOST_CHECK_EQUAL( ft.param_count, std::get<0>(system_contract_types[i]).size() );
+            int j=0; 
+            for ( auto type : ft.param_types ) {
+               BOOST_CHECK_EQUAL( std::get<0>(system_contract_types[i])[j++], type );
+            }
+            if ( ft.return_count )
+               BOOST_CHECK_EQUAL ( std::get<1>(system_contract_types[i])[0], ft.return_type );
+            i++;
+         }
+
+         BOOST_CHECK_EQUAL( len2, 335 );
+         n += len2;
+
+         n += bp.parse_section_id( code, n, id );
+         BOOST_CHECK_EQUAL(id, section_id::import_section);
+
+         return;
+         //std::vector<import_entry> imports;
+         //len = bp.parse_import_section( code, n, imports );
+
       }
    } FC_LOG_AND_RETHROW() 
 }
