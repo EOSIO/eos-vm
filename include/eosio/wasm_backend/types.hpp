@@ -27,9 +27,9 @@ namespace eosio { namespace wasm_backend {
    typedef uint8_t elem_type;
   
    struct resizable_limits {
-      varuint<1>  flags;
-      varuint<32> initial;
-      fc::optional<varuint<32>> maximum;
+      bool  flags;
+      uint32_t initial;
+      uint32_t maximum = 0;
    };
 
    struct func_type {
@@ -39,18 +39,10 @@ namespace eosio { namespace wasm_backend {
       bool                    return_count;
       value_type              return_type;
    };
-   
-   struct import_entry {
-      uint32_t      module_len;
-      std::string   module_str;      
-      uint32_t      field_len;
-      std::string   field_str;
-      external_kind kind;
-   };
 
    struct global_type {
       value_type content_type; 
-      varuint<1> mutability;
+      bool mutability;
    };
    
    struct table_type {
@@ -61,7 +53,24 @@ namespace eosio { namespace wasm_backend {
    struct memory_type {
       resizable_limits limits;
    };
-   
+
+   union import_type {
+      import_type() {}
+      uint32_t    func_t;
+      table_type  table_t;
+      memory_type mem_t;
+      global_type global_t;
+   };
+
+   struct import_entry {
+      uint32_t      module_len;
+      std::string   module_str;      
+      uint32_t      field_len;
+      std::string   field_str;
+      external_kind kind;
+      import_type   type;
+   };
+  
    using wasm_code = std::vector<uint8_t>;
    using wasm_code_ptr = guarded_ptr<uint8_t>;
    using wasm_code_iterator = std::vector<uint8_t>::iterator;
@@ -70,5 +79,12 @@ namespace eosio { namespace wasm_backend {
    struct function {
       func_type type;
       wasm_code code;
+   };
+
+   struct module {
+      std::vector<func_type>    types;
+      std::vector<import_entry> imports;
+      std::vector<uint32_t>     functions;
+      std::vector<table_type>   tables;
    };
 }} // namespace eosio::wasm_backend

@@ -60,7 +60,6 @@ namespace eosio { namespace wasm_backend {
       length += 10;
       TEST_LENGTH( sum, type_cnt.size, length );
       index += type_cnt.size; 
-      std::cout << "TYPE_CNT " << type_cnt.get() << "\n";
       for ( int i=0; i < type_cnt.get(); i++ ) {
          func_type ft;
          ft.form = code.at(index);
@@ -89,12 +88,123 @@ namespace eosio { namespace wasm_backend {
       } 
       return sum;
    }
+   
+   size_t binary_parser::parse_global_type( const wasm_code& code, size_t index, global_type& type ) {
+      type.content_type = code.at(index++);
+      type.mutability   = code.at(index);
+      return 2;
+   } 
+   
+   size_t binary_parser::parse_memory_type( const wasm_code& code, size_t index, memory_type& type ) {
+      const size_t orig_index = index;
+      type.limits.flags = code.at(index++);
+      auto init = parse_varuint<32>( code, index );
+      index += init.size;
+      type.limits.initial = init.get();
+      if (type.limits.flags) {
+         auto max = parse_varuint<32>( code, index );
+         index += max.size;
+         type.limits.maximum = max.get();
+      }
+      return index - orig_index;
+   }
+
+   size_t binary_parser::parse_table_type( const wasm_code& code, size_t index, table_type& type ) {
+      const size_t orig_index = index;
+      type.element_type = code.at(index++);
+      type.limits.flags = code.at(index++);
+      auto init = parse_varuint<32>( code, index );
+      index += init.size;
+      type.limits.initial = init.get();
+      if (type.limits.flags) {
+         auto max = parse_varuint<32>( code, index );
+         index += max.size;
+         type.limits.maximum = max.get();
+      }
+      return index - orig_index;
+   } 
+
+   size_t binary_parser::parse_import_entry( const wasm_code& code, size_t index, import_entry& entry ) {
+      varuint<32> module_len = parse_varuint<32>( code, index );
+      const size_t orig_index = index;
+      entry.module_len = module_len.get();
+      entry.module_str.resize(entry.module_len);
+      index += module_len.size;
+      memcpy( (char*)entry.module_str.data(), code.data()+index, entry.module_len );
+      index += entry.module_len;
+      varuint<32> field_len = parse_varuint<32>( code, index );
+      entry.field_len = field_len.get();
+      entry.field_str.resize(entry.field_len);
+      index += field_len.size;
+      memcpy( (char*)entry.field_str.data(), code.data()+index, entry.field_len );
+      index += entry.field_len;
+      entry.kind = (external_kind)code.at(index);
+      index += 1;
+      switch (entry.kind) {
+         case external_kind::Function: {
+            auto type = parse_varuint<32>( code, index );
+            entry.type.func_t = type.get();
+            index += type.size;
+            break;
+         }
+         case external_kind::Table : {
+            index += parse_table_type( code, index, entry.type.table_t );
+            break;
+         }
+         case external_kind::Global : {
+            index += parse_global_type( code, index, entry.type.global_t );
+            break;
+         }
+         case external_kind::Memory : {
+            index += parse_memory_type( code, index, entry.type.mem_t );
+            break;
+         }
+      }
+      return index - orig_index;
+   }
 
    size_t binary_parser::parse_import_section( const wasm_code& code, size_t index, std::vector<import_entry>& imports ) {
-      const uint8_t* raw = code.data()+index;
-      varuint<32> len = parse_varuint<32>( code, index );
-      index += len.size;
-
-      std::cout << "LEN " << len.get() << "\n";
+      varuint<32> count = parse_varuint<32>( code, index );
+      const size_t orig_index = index;
+      index += count.size;
+      
+      imports.resize(count.get());  
+      for ( int i=0; i < count.get(); i++ ) {
+         import_entry entry;
+         index += parse_import_entry( code, index, entry );
+         imports[i] = entry;
+      }
+      return index - orig_index;
    }
+
+   size_t binary_parser::parse_function_section( const wasm_code& code, size_t index, std::vector<uint32_t>& indices ) {
+      const size_t orig_index = index;
+      auto count = parse_varuint<32>( code, index );
+      index += count.size;
+      indices.resize( count.get() );
+      for ( int i=0; i < count.get(); i++ ) {
+         auto findex = parse_varuint<32>( code, index );
+         index += findex.size;
+         indices[i] = findex.get();
+      }
+
+      return index - orig_index;
+   }
+
+   size_t binary_parser::parse_table_section( const wasm_code& code, size_t index, std::vector<table_type>& types ) {
+      const size_t orig_index = index;
+      auto count = parse_varuint<32>( code, index );
+      index += count.size;
+      types.resize( count.get() );
+      for ( int i=0; i < count.get(); i++ ) {
+         table_type tmp;
+         std::cout << "I0 " << index << "\n";
+         index += parse_table_type( code, index, tmp );
+         std::cout << "I " << i << " INDEX " << index << "\n";
+         types[i] = tmp;
+      }
+
+      return index - orig_index;
+   }
+
 }} // namespace eosio::wasm_backend
