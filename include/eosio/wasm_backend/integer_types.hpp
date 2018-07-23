@@ -88,7 +88,6 @@ namespace eosio { namespace wasm_backend {
       inline void set(uint64_t n) {
          uint8_t cnt = 1;
          guarded_ptr<uint8_t> data( raw, zero_extended_size<N>::bytes );
-
          EOS_WB_ASSERT( n < ((uint64_t)1 << N), wasm_interpreter_exception, 
                "value too large for bit width specified" );
          for (; cnt < sizeof(n); cnt++) {

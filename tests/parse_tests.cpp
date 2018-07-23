@@ -105,6 +105,7 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
       };
 
       {
+         module mod;
          wasm_code code = read_wasm( "test.wasm" );
          binary_parser bp;
          auto n = bp.parse_magic( code );
@@ -121,10 +122,10 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          varuint<32> len;
          n += bp.parse_section_payload_len( code, n, len );
          BOOST_CHECK_EQUAL(len.get(), 335);
-         std::vector<func_type> types;
-         auto len2 = bp.parse_type_section( code, n, types, len.get() );
+
+         auto len2 = bp.parse_type_section( code, n, mod.types, len.get() );
          int i=0;
-         for ( auto ft : types ) {
+         for ( auto ft : mod.types ) {
             BOOST_CHECK_EQUAL( ft.form, types::func );
             BOOST_CHECK_EQUAL( ft.param_count, std::get<0>(system_contract_types[i]).size() );
             int j=0; 
@@ -136,15 +137,38 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
             i++;
          }
 
-         BOOST_CHECK_EQUAL( len2, 335 );
+         BOOST_CHECK_EQUAL( len2, len.get() );
          n += len2;
 
          n += bp.parse_section_id( code, n, id );
          BOOST_CHECK_EQUAL(id, section_id::import_section);
+         n += bp.parse_section_payload_len( code, n, len );
+         BOOST_CHECK_EQUAL( len.get(), 1179 ); 
 
-         std::vector<import_entry> imports;
-         len = bp.parse_import_section( code, n, imports );
+         n += bp.parse_import_section( code, n, mod.imports );
+         for (int i = 0; i < mod.imports.size(); i++ ) {
+            BOOST_CHECK_EQUAL( mod.imports[i].kind, external_kind::Function );
+         }
+         
+         n += bp.parse_section_id( code, n, id ); 
+         BOOST_CHECK_EQUAL(id, section_id::function_section);
+         n += bp.parse_section_payload_len( code, n, len );
+         BOOST_CHECK_EQUAL( len.get(), 210 );
 
+         n += bp.parse_function_section( code, n, mod.functions );
+         for ( int i=0; i < mod.functions.size(); i++ ) {
+            //std::cout << "FUNC " << mod.imports.size()+i << " : " << mod.functions[i] << "\n";
+         }
+
+         n += bp.parse_section_id( code, n, id );
+         BOOST_CHECK_EQUAL(id, section_id::table_section);
+         n += bp.parse_section_payload_len( code, n, len );
+         BOOST_CHECK_EQUAL( len.get(), 5 );
+
+         n += bp.parse_table_section( code, n, mod.tables );
+         for ( int i=0; i < mod.tables.size(); i++ ) {
+            std::cout << "TABLE " << (uint32_t)mod.tables[i].element_type << "\n";
+         }
       }
    } FC_LOG_AND_RETHROW() 
 }
