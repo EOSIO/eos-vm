@@ -2,6 +2,8 @@
 #include <string>
 #include <eosio/wasm_backend/integer_types.hpp>
 #include <eosio/wasm_backend/utils.hpp>
+#include <eosio/wasm_backend/allocator.hpp>
+#include <eosio/wasm_backend/vector.hpp>
 #include <fc/optional.hpp>
 
 namespace eosio { namespace wasm_backend {
@@ -39,12 +41,29 @@ namespace eosio { namespace wasm_backend {
       bool                    return_count;
       value_type              return_type;
    };
+   
+   union expr_value {
+      int32_t i32;
+      int64_t i64;
+      uint32_t f32;
+      uint64_t f64;
+   };
+
+   struct init_expr {
+      int8_t opcode;
+      expr_value value;
+   };
 
    struct global_type {
       value_type content_type; 
       bool mutability;
    };
    
+   struct global_variable_type {
+      global_type type;
+      
+   }; 
+
    struct table_type {
       elem_type element_type;
       resizable_limits limits;
@@ -80,11 +99,23 @@ namespace eosio { namespace wasm_backend {
       func_type type;
       wasm_code code;
    };
-
+   
+   template <typename T>
    struct module {
+      module(T& ref) : types(ref), memories(ref) {}
+      vector<func_type, T>      types;
+      std::vector<import_entry> imports;
+      std::vector<uint32_t>     functions;
+      std::vector<table_type>   tables;
+      vector<memory_type, T>  memories;
+      std::vector<global_type>  globals;
+   };
+
+   struct wasm_env {
       std::vector<func_type>    types;
       std::vector<import_entry> imports;
       std::vector<uint32_t>     functions;
       std::vector<table_type>   tables;
+      std::vector<memory_type>  memories;
    };
 }} // namespace eosio::wasm_backend
