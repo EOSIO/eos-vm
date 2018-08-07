@@ -73,18 +73,19 @@ namespace eosio { namespace wasm_backend {
          }
          size = cnt+1;
       }
-/*
-      inline void set( const guarded_ptr<uint8_t>& code, size_t index ) {
-         uint8_t cnt = 0;
-         for (; cnt < zero_extended_size<N>::bytes; cnt++ ) {
-            //EOS_WB_ASSERT( index+cnt < code.size(), wasm_interpreter_exception, "varuint not terminated before end of code" );
-            raw[cnt] = code[index+cnt];
-            if ((raw[cnt] & 0x80) == 0)
+
+      inline void set( guarded_ptr<uint8_t>& code ) {
+         for (uint8_t cnt=0; cnt < zero_extended_size<N>::bytes; cnt++ ) {
+            EOS_WB_ASSERT( code.offset()+cnt < code.bounds(), wasm_interpreter_exception, "varuint not terminated before end of code" );
+            raw[cnt] = code[cnt];
+            if ((raw[cnt] & 0x80) == 0) {
+               size = cnt+1;
+               code.add(size);
                break;
+            }
          }
-         size = cnt+1;
       }
-*/
+
       inline void set(uint64_t n) {
          uint8_t cnt = 1;
          guarded_ptr<uint8_t> data( raw, zero_extended_size<N>::bytes );

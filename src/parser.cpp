@@ -35,7 +35,11 @@ namespace eosio { namespace wasm_backend {
       len = parse_varuint<32>( code, index );
       return len.size;
    } 
-   
+
+   uint32_t binary_parser::parse_section_payload_len( wasm_code_ptr& code ) {
+      return parse_varuint<32>( code ).get();
+   } 
+  
    size_t binary_parser::parse_section_payload_data( const wasm_code& code, size_t index, size_t len, wasm_bytes& bytes ) {
       const uint8_t* raw = code.data()+index; 
       bytes.resize(len);
@@ -51,38 +55,27 @@ namespace eosio { namespace wasm_backend {
    
 #define TEST_LENGTH( x, y, z ) \
    x += y;                     \
-   std::cout << "X " << x << " " << y << " " << z << "\n"; \
    EOS_WB_ASSERT( x <= z, wasm_section_length_exception, "section length overflow" );
 
-   size_t binary_parser::parse_type_section( const wasm_code& code, size_t index, std::vector<func_type>& types, size_t length ) {
-      varuint<32> type_cnt = parse_varuint<32>( code, index );
+   size_t binary_parser::parse_type_section( wasm_code_ptr& code, binary_parser_vec<func_type>& types ) {
+      varuint<32> type_cnt = parse_varuint<32>( code );
       size_t sum = 0;
-      length += 10;
-      TEST_LENGTH( sum, type_cnt.size, length );
-      index += type_cnt.size; 
+      code.add(type_cnt.size); 
+      types.resize( type_cnt.get() );
       for ( int i=0; i < type_cnt.get(); i++ ) {
          func_type ft;
-         ft.form = code.at(index);
-         TEST_LENGTH( sum, 1, length );
-         index += 1;
-         auto pc = parse_varuint<32>( code, index );
+         ft.form = *code++;
+         auto pc = parse_varuint<32>( code );
          ft.param_count = pc.get();
-         index += pc.size;
-         TEST_LENGTH( sum, pc.size, length );
+         std::cout << "PC SIZE " << (uint32_t)pc.size << "\n";
+         code.add(pc.size);
          ft.param_types.resize(ft.param_count);
          for ( int j=0; j < ft.param_count; j++ ) {
-            auto tmp = code.at(index);
-            ft.param_types[j] = tmp;
-            index += 1; 
-            TEST_LENGTH( sum, 1, length );
+            ft.param_types[j] = *code++;
          }
-         ft.return_count = parse_varuint<1>( code, index ).get();
-         index += 1;
-         TEST_LENGTH( sum, 1, length );
+         ft.return_count = *code++;
          if ( ft.return_count > 0 ) {
-            ft.return_type = code.at(index);
-            index += 1;
-            TEST_LENGTH( sum, 1, length );
+            ft.return_type = *code++;
          }
          types.push_back( ft );
       } 
@@ -198,13 +191,34 @@ namespace eosio { namespace wasm_backend {
       types.resize( count.get() );
       for ( int i=0; i < count.get(); i++ ) {
          table_type tmp;
-         std::cout << "I0 " << index << "\n";
          index += parse_table_type( code, index, tmp );
-         std::cout << "I " << i << " INDEX " << index << "\n";
          types[i] = tmp;
       }
 
       return index - orig_index;
    }
 
+   size_t binary_parser::parse_memory_section( const wasm_code& code, size_t index, binary_parser_vec<memory_type>& types ) {
+      const size_t orig_index = index;
+      auto count = parse_varuint<32>( code, index );
+      index += count.size;
+      types.resize( count.get() );
+      for ( int i=0; i < count.get(); i++ ) {
+         memory_type tmp;
+         index += parse_memory_type( code, index, tmp );
+         types.at(i) = tmp;
+         //types[i] = tmp;
+      }
+
+      return index - orig_index;
+   }
+
+   size_t binary_parser::parse_global_section( const wasm_code& code, size_t index, std::vector<global_type>& globals ) {
+      const size_t orig_index = index;
+      auto count = parse_varuint<32>( code, index );
+      index += count.size;
+      globals.resize( count.get() );
+      for ( int i=0; i < count.get(); i++ ) {
+      }
+   }
 }} // namespace eosio::wasm_backend

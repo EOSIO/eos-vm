@@ -38,7 +38,8 @@ BOOST_AUTO_TEST_SUITE(parser_tests)
 BOOST_AUTO_TEST_CASE(parse_test) { 
    try {
       {
-         binary_parser bp;
+         wasm_allocator wa(64*1024);
+         binary_parser bp(wa);
          wasm_code error = { 0x01, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00 };
          BOOST_CHECK_THROW(bp.parse_magic( error ), wasm_interpreter_exception);
          wasm_code correct = { 0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00 };
@@ -105,9 +106,10 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
       };
 
       {
-         module mod;
+         wasm_allocator wa(64*1024);
+         binary_parser bp(wa);
+         module<binary_parser> mod(bp);
          wasm_code code = read_wasm( "test.wasm" );
-         binary_parser bp;
          auto n = bp.parse_magic( code );
          BOOST_CHECK_EQUAL(n, sizeof(uint32_t));
 
@@ -122,14 +124,18 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          varuint<32> len;
          n += bp.parse_section_payload_len( code, n, len );
          BOOST_CHECK_EQUAL(len.get(), 335);
+         wasm_code_ptr tmp(code.data()+n - len.size, len.size); 
 
-         auto len2 = bp.parse_type_section( code, n, mod.types, len.get() );
-         int i=0;
-         for ( auto ft : mod.types ) {
+         auto len3 = bp.parse_section_payload_len( tmp );
+         std::cout << "LEN3 " << len3 << "\n";
+         wasm_code_ptr code_ptr(code.data()+n, len.get());
+         auto len2 = bp.parse_type_section( code_ptr, mod.types );
+         for ( int i=0; i < mod.types.size(); i++ ) {
+            auto& ft = mod.types.at(i);
             BOOST_CHECK_EQUAL( ft.form, types::func );
             BOOST_CHECK_EQUAL( ft.param_count, std::get<0>(system_contract_types[i]).size() );
-            int j=0; 
-            for ( auto type : ft.param_types ) {
+            for ( int j=0; j < ft.param_types.size(); j++ ) {
+               auto type = ft.param_types.at(j);
                BOOST_CHECK_EQUAL( std::get<0>(system_contract_types[i])[j++], type );
             }
             if ( ft.return_count )
@@ -166,9 +172,26 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          BOOST_CHECK_EQUAL( len.get(), 5 );
 
          n += bp.parse_table_section( code, n, mod.tables );
-         for ( int i=0; i < mod.tables.size(); i++ ) {
-            std::cout << "TABLE " << (uint32_t)mod.tables[i].element_type << "\n";
-         }
+         BOOST_CHECK_EQUAL( mod.tables[0].element_type, 0x70 );
+         BOOST_CHECK_EQUAL( mod.tables[0].limits.flags, true );
+         BOOST_CHECK_EQUAL( mod.tables[0].limits.initial, 0x1A );
+         BOOST_CHECK_EQUAL( mod.tables[0].limits.maximum, 0x1A );
+
+         n += bp.parse_section_id( code, n, id );
+         BOOST_CHECK_EQUAL(id, section_id::memory_section);
+         n += bp.parse_section_payload_len( code, n, len );
+         BOOST_CHECK_EQUAL( len.get(), 3 );
+
+         wasm_env we;
+         n += bp.parse_memory_section( code, n, mod.memories );
+         BOOST_CHECK_EQUAL( mod.memories.at(0).limits.flags, false );
+         BOOST_CHECK_EQUAL( mod.memories.at(0).limits.initial, 0x01 );
+         
+         n += bp.parse_section_id( code, n, id );
+         BOOST_CHECK_EQUAL(id, section_id::global_section);
+         n += bp.parse_section_payload_len( code, n, len );
+         BOOST_CHECK_EQUAL( len.get(), 0x16 );
+
       }
    } FC_LOG_AND_RETHROW() 
 }
