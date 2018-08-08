@@ -59,9 +59,9 @@ namespace eosio { namespace wasm_backend {
       bool mutability;
    };
    
-   struct global_variable_type {
+   struct global_variable {
       global_type type;
-      
+      init_expr   init; 
    }; 
 
    struct table_type {
@@ -102,13 +102,20 @@ namespace eosio { namespace wasm_backend {
    
    template <typename T>
    struct module {
-      module(T& ref) : types(ref), memories(ref) {}
-      vector<func_type, T>      types;
-      std::vector<import_entry> imports;
-      std::vector<uint32_t>     functions;
-      std::vector<table_type>   tables;
-      vector<memory_type, T>  memories;
-      std::vector<global_type>  globals;
+      module(T& ref) : 
+         types(ref), 
+         imports(ref), 
+         functions(ref),
+         tables(ref),
+         memories(ref),
+         globals(ref) {}
+
+      vector<func_type, T>       types;
+      vector<import_entry, T>    imports;
+      vector<uint32_t, T>        functions;
+      vector<table_type, T>      tables;
+      vector<memory_type, T>     memories;
+      vector<global_variable, T> globals;
    };
 
    struct wasm_env {
