@@ -76,11 +76,11 @@ namespace eosio { namespace wasm_backend {
 
       inline void set( guarded_ptr<uint8_t>& code ) {
          for (uint8_t cnt=0; cnt < zero_extended_size<N>::bytes; cnt++ ) {
-            EOS_WB_ASSERT( code.offset()+cnt < code.bounds(), wasm_interpreter_exception, "varuint not terminated before end of code" );
+            EOS_WB_ASSERT( code.offset()+cnt < code.bounds(), wasm_interpreter_exception, "pointer out of bounds" );
             raw[cnt] = code[cnt];
             if ((raw[cnt] & 0x80) == 0) {
                size = cnt+1;
-               code.add(size);
+               code += size;
                break;
             }
          }
@@ -89,7 +89,7 @@ namespace eosio { namespace wasm_backend {
       inline void set(uint64_t n) {
          uint8_t cnt = 1;
          guarded_ptr<uint8_t> data( raw, zero_extended_size<N>::bytes );
-         EOS_WB_ASSERT( n < ((uint64_t)1 << N), wasm_interpreter_exception, 
+         EOS_WB_ASSERT( n < ((unsigned __int128)1 << N), wasm_interpreter_exception, 
                "value too large for bit width specified" );
          for (; cnt < sizeof(n); cnt++) {
             uint8_t byte = n & 0x7F;
