@@ -17,12 +17,4 @@ namespace eosio { namespace wasm_backend {
       code_section     = 10,
       data_section     = 11
    };
-
-   struct type_section {
-      varuint<32>            count;
-      std::vector<func_type> entries;
-   };
-
-   struct import_section {
-   };
 }} // eosio::wasm_backend

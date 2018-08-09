@@ -20,7 +20,7 @@ namespace eosio { namespace wasm_backend {
 
          typedef void (*op_cb)(params&& p);
          std::vector<op_cb>      dispatch_table;
-         std::vector<function>   function_table; 
+         //std::vector<function>   function_table; 
          void populate_dispatch_table();
    };
 }} // namespace eosio::wasm_backend

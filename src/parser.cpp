@@ -10,25 +10,6 @@ namespace eosio { namespace wasm_backend {
       const uint8_t* raw = code.data()+index;
       return 1+sizeof(uint32_t)+*((uint32_t*)raw);
    }
-
-   void binary_parser::parse_type_section( wasm_code_ptr& code, binary_parser_vec<func_type>& types ) {
-      auto type_cnt = parse_varuint<32>( code );
-      types.resize( type_cnt );
-      for ( int i=0; i < type_cnt; i++ ) {
-         func_type ft;
-         ft.form = *code++;
-         ft.param_count = parse_varuint<32>( code );
-         ft.param_types.resize(ft.param_count);
-         for ( int j=0; j < ft.param_count; j++ ) {
-            ft.param_types[j] = *code++;
-         }
-         ft.return_count = *code++;
-         if ( ft.return_count > 0 ) {
-            ft.return_type = *code++;
-         }
-         types.push_back( ft );
-      } 
-   }
    
    init_expr binary_parser::parse_init_expr( wasm_code_ptr& code ) {
       init_expr ie;
@@ -54,36 +35,54 @@ namespace eosio { namespace wasm_backend {
       return ie;
    }
 
-   global_variable binary_parser::parse_global_variable( wasm_code_ptr& code ) {
-      global_variable gv;
+   void binary_parser::parse_func_type( wasm_code_ptr& code, func_type& ft ) {
+      ft.form = *code++;
+      ft.param_count = parse_varuint<32>( code );
+      ft.param_types.resize( ft.param_count );
+      std::cout << "PC " << ft.param_count << "\n";
+      for ( int i=0; i < ft.param_count; i++ ) 
+         ft.param_types.at(i) = *code++;
+      ft.return_count = *code++;
+      if (ft.return_count > 0)
+         ft.return_type = *code++;
+   }
+
+   void binary_parser::parse_export_entry( wasm_code_ptr& code, export_entry& entry ) {
+      entry.field_len = parse_varuint<32>( code );
+      std::cout << "HELLO " << entry.field_len << "\n";
+      entry.field_str.resize(entry.field_len);
+      memcpy( (char*)entry.field_str.data(), code.raw(), entry.field_len );
+      std::cout << "EXPORT " << entry.field_str << "\n";
+      code += entry.field_len;
+      entry.kind = (external_kind)(*code++);
+      entry.index = parse_varuint<32>( code );
+   }
+
+   void binary_parser::parse_global_variable( wasm_code_ptr& code, global_variable& gv ) {
       gv.type.content_type = *code++; 
       gv.type.mutability = *code++;
-      return gv;
+      gv.init = parse_init_expr( code );
+      EOS_WB_ASSERT((*code++) == opcode::end, wasm_parse_exception, "no end op found");
    } 
    
-   memory_type binary_parser::parse_memory_type( wasm_code_ptr& code ) {
-      memory_type mt; 
+   void binary_parser::parse_memory_type( wasm_code_ptr& code, memory_type& mt ) {
       mt.limits.flags = *code++;
       mt.limits.initial = parse_varuint<32>( code );
       if (mt.limits.flags) {
          mt.limits.maximum = parse_varuint<32>( code );
       }
-      return mt;
    }
 
-   table_type binary_parser::parse_table_type( wasm_code_ptr& code ) {
-      table_type tt;
+   void binary_parser::parse_table_type( wasm_code_ptr& code, table_type& tt ) {
       tt.element_type = *code++;
       tt.limits.flags = *code++;
       tt.limits.initial = parse_varuint<32>( code );
       if (tt.limits.flags) {
          tt.limits.maximum = parse_varuint<32>( code );
       }
-      return tt;
    } 
 
-   import_entry binary_parser::parse_import_entry( wasm_code_ptr& code ) {
-      import_entry entry;
+   void binary_parser::parse_import_entry( wasm_code_ptr& code, import_entry& entry ) {
       auto len = parse_varuint<32>( code );
       entry.module_len = len;
       entry.module_str.resize(entry.module_len);
@@ -103,7 +102,6 @@ namespace eosio { namespace wasm_backend {
          default: 
             EOS_WB_ASSERT(false, wasm_unsupported_import_exception, "only function imports are supported");
       }
-      return entry;
    }
 
 }} // namespace eosio::wasm_backend
