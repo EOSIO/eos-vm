@@ -31,22 +31,12 @@ namespace eosio { namespace wasm_backend {
             EOS_WB_ASSERT( i < _size, wasm_vector_oob_exception, "vector read out of bounds" );
             return _data[i];
          }
-         inline T& operator[] (size_t i) const {
-            return at(i);
-         }
-
-         inline T* raw() const {
-            return _data;
-         }
-         inline size_t size() const {
-            return _size;
-         }
-         inline memory_owner& get_owner() const {
-            return *_owner;
-         }
-         inline wasm_allocator& get_allocator() const {
-            return _owner->get_allocator();
-         }
+         inline T& operator[] (size_t i) const { return at(i); }
+         inline T* raw() const { return _data; }
+         inline size_t size() const { return _size; }
+         inline void set_owner( memory_owner* owner ) { _owner = owner; }
+         inline memory_owner& get_owner() const { return *_owner; }
+         inline wasm_allocator& get_allocator() const { return _owner->get_allocator(); }
       private:
          memory_owner* _owner;
          size_t _size;

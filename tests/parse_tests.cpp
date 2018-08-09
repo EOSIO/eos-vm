@@ -138,7 +138,10 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          for ( int i=0; i < mod.types.size(); i++ ) {
             auto& ft = mod.types.at(i);
             BOOST_CHECK_EQUAL( ft.form, types::func );
-            BOOST_CHECK_EQUAL( ft.param_count, std::get<0>(system_contract_types[i]).size() );
+            //BOOST_CHECK_EQUAL( ft.param_count, std::get<0>(system_contract_types[i]).size() );
+            std::cout << "OWNER " << &(ft.param_types.get_owner()) << "\n";
+            std::cout << "SIZE " << ft.param_types.size() << "\n";
+            std::cout << "PC2 " << ft.param_count << "\n";
             for ( int j=0; j < ft.param_types.size(); j++ ) {
                auto type = ft.param_types.at(j);
                BOOST_CHECK_EQUAL( std::get<0>(system_contract_types[i])[j++], type );
