@@ -111,7 +111,7 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
       {
          wasm_allocator wa(64*1024);
          binary_parser bp(wa);
-         module<binary_parser> mod(bp);
+         module mod(&bp);
          wasm_code code = read_wasm( "test.wasm" );
          wasm_code_ptr code_ptr(code.data(), 0);
          
@@ -134,6 +134,7 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          
          code_ptr.add_bounds( len );
          bp.parse_type_section( code_ptr, mod.types );
+         std::cout << "TYPES " << mod.types.size() << "\n";
          for ( int i=0; i < mod.types.size(); i++ ) {
             auto& ft = mod.types.at(i);
             BOOST_CHECK_EQUAL( ft.form, types::func );
@@ -145,7 +146,7 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
             if ( ft.return_count )
                BOOST_CHECK_EQUAL ( std::get<1>(system_contract_types[i])[0], ft.return_type );
          }
-         
+
          code_ptr.add_bounds( constants::id_size );
          id = bp.parse_section_id( code_ptr );
          BOOST_CHECK_EQUAL( id, section_id::import_section );
@@ -215,7 +216,36 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          code_ptr.fit_bounds();
          BOOST_CHECK_EQUAL( len, 0x16 );
 
-         code_ptr.add_bounds( 
+         code_ptr.add_bounds( len );
+         bp.parse_global_section( code_ptr, mod.globals );
+
+         BOOST_CHECK_EQUAL( mod.globals.at(0).type.content_type, types::i32 );
+         BOOST_CHECK_EQUAL( mod.globals.at(1).type.content_type, types::i32 );
+         BOOST_CHECK_EQUAL( mod.globals.at(2).type.content_type, types::i32 );
+
+         BOOST_CHECK_EQUAL( mod.globals.at(0).type.mutability, true );
+         BOOST_CHECK_EQUAL( mod.globals.at(1).type.mutability, false );
+         BOOST_CHECK_EQUAL( mod.globals.at(2).type.mutability, false );
+       
+         BOOST_CHECK_EQUAL( mod.globals.at(0).init.opcode, opcode::i32_const );
+         BOOST_CHECK_EQUAL( mod.globals.at(1).init.opcode, opcode::i32_const );
+         BOOST_CHECK_EQUAL( mod.globals.at(2).init.opcode, opcode::i32_const );
+
+         BOOST_CHECK_EQUAL( mod.globals.at(0).init.value.i32, 8192 );
+         BOOST_CHECK_EQUAL( mod.globals.at(1).init.value.i32, 12244 );
+         BOOST_CHECK_EQUAL( mod.globals.at(2).init.value.i32, 12244 );
+
+         code_ptr.add_bounds( constants::id_size );
+         id = bp.parse_section_id( code_ptr );
+         BOOST_CHECK_EQUAL( id, section_id::export_section );
+
+         code_ptr.add_bounds( constants::varuint32_size );
+         len = bp.parse_section_payload_len( code_ptr );
+         code_ptr.fit_bounds();
+         BOOST_CHECK_EQUAL( len, 84 );
+         
+         code_ptr.add_bounds( len );
+         bp.parse_export_section( code_ptr, mod.exports );
       }
    } FC_LOG_AND_RETHROW() 
 }

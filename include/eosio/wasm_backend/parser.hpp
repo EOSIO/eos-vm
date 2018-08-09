@@ -7,12 +7,12 @@
 #include <eosio/wasm_backend/allocator.hpp>
 
 namespace eosio { namespace wasm_backend {
-   class binary_parser {
+   class binary_parser : public memory_owner {
       public:
          template <typename T>
-         using binary_parser_vec = vector<T, binary_parser>;
+         using vec = managed_vector<T>;
 
-         binary_parser(wasm_allocator& alloc) : _allocator(alloc) {}
+         binary_parser(wasm_allocator& alloc) : memory_owner(alloc) {}
 
          void parse( std::vector<uint8_t> code );
 
@@ -40,41 +40,43 @@ namespace eosio { namespace wasm_backend {
             return parse_varuint<32>( code );
          }
 
-         import_entry parse_import_entry( wasm_code_ptr& code );
-         table_type parse_table_type( wasm_code_ptr& code );
-         global_variable parse_global_variable( wasm_code_ptr& code );
-         memory_type parse_memory_type( wasm_code_ptr& code );
+         void parse_import_entry( wasm_code_ptr& code, import_entry& ie );
+         void parse_table_type( wasm_code_ptr& code, table_type& tt );
+         void parse_global_variable( wasm_code_ptr& code, global_variable& gv );
+         void parse_memory_type( wasm_code_ptr& code, memory_type& mt );
+         void parse_export_entry( wasm_code_ptr& code, export_entry& ee );
+         void parse_func_type( wasm_code_ptr& code, func_type& ft );
 
-         void parse_type_section( wasm_code_ptr& code, binary_parser_vec<func_type>& types );
-         inline void parse_import_section( wasm_code_ptr& code, binary_parser_vec<import_entry>& imports ) {
+
+
+         template <typename Elem, typename ParseFunc>
+         inline void parse_section( wasm_code_ptr& code, vec<Elem>& elems, ParseFunc&& elem_parse ) {
             auto count = parse_varuint<32>( code );
-            imports.resize(count);  
-            for ( int i=0; i < count; i++ ) 
-               imports.at(i) = parse_import_entry( code );
+            elems.resize(count);
+            for (int i=0; i < count; i++ )
+               elem_parse(code, elems.at(i));
          }
-         inline void parse_function_section( wasm_code_ptr& code, binary_parser_vec<uint32_t>& indices ) {
-            auto count = parse_varuint<32>( code );
-            indices.resize(count);  
-            for ( int i=0; i < count; i++ ) 
-               indices.at(i) = parse_varuint<32>( code );
+         
+         inline void parse_type_section( wasm_code_ptr& code, vec<func_type>& elems ) {
+            parse_section( code, elems, [&](wasm_code_ptr& code, func_type& ft) { parse_func_type(code, ft); } );
          }
-         inline void parse_table_section( wasm_code_ptr& code, binary_parser_vec<table_type>& types ) {
-            auto count = parse_varuint<32>( code );
-            types.resize( count );
-            for ( int i=0; i < count; i++ ) 
-               types.at(i) = parse_table_type( code );
+         inline void parse_import_section( wasm_code_ptr& code, vec<import_entry>& elems ) {
+            parse_section( code, elems, [&](wasm_code_ptr& code, import_entry& ie) { parse_import_entry(code, ie); } );
          }
-         inline void parse_memory_section( wasm_code_ptr& code, binary_parser_vec<memory_type>& types ) {
-            auto count = parse_varuint<32>( code );
-            types.resize( count );
-            for ( int i=0; i < count; i++ ) 
-               types.at(i) = parse_memory_type( code );
+         inline void parse_function_section( wasm_code_ptr& code, vec<uint32_t>& elems ) {
+            parse_section( code, elems, [&](wasm_code_ptr& code, uint32_t& elem) { elem = parse_varuint<32>( code ); } );
          }
-         inline void parse_global_section( wasm_code_ptr& code, binary_parser_vec<global_variable>& types ) {
-            auto count = parse_varuint<32>( code );
-            types.resize( count );
-            for ( int i=0; i < count; i++ ) 
-               types.at(i) = parse_global_variable( code );
+         inline void parse_table_section( wasm_code_ptr& code, vec<table_type>& elems ) {
+            parse_section( code, elems, [&](wasm_code_ptr& code, table_type& tt) { parse_table_type( code, tt ); } );
+         }
+         inline void parse_memory_section( wasm_code_ptr& code, vec<memory_type>& elems ) {
+            parse_section( code, elems, [&](wasm_code_ptr& code, memory_type& mt) { parse_memory_type( code, mt ); } );
+         }
+         inline void parse_global_section( wasm_code_ptr& code, vec<global_variable>& elems ) {
+            parse_section( code, elems, [&](wasm_code_ptr& code, global_variable& gv) { parse_global_variable( code, gv ); } );
+         }
+         inline void parse_export_section( wasm_code_ptr& code, vec<export_entry>& elems ) {
+            parse_section( code, elems, [&](wasm_code_ptr& code, export_entry& ee) { parse_export_entry( code, ee ); } );
          }
 
          init_expr parse_init_expr( wasm_code_ptr& code );
@@ -102,7 +104,7 @@ namespace eosio { namespace wasm_backend {
             return result;
          }
 */
-         wasm_allocator& get_allocator() {
+         wasm_allocator* get_allocator() {
             return _allocator;
          }
 
@@ -110,6 +112,6 @@ namespace eosio { namespace wasm_backend {
       private:
          //std::vector<uint8_t> _code;
          //std::vector<uint8_t> _decoded;
-         wasm_allocator& _allocator;
+         wasm_allocator* _allocator;
    };
 }} // namespace eosio::wasm_backend

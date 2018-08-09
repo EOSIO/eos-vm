@@ -1,9 +1,15 @@
 #pragma once
+
+/*
+ * definitions from https://github.com/WebAssembly/design/blob/master/BinaryEncoding.md
+ */
+
 #include <string>
 #include <eosio/wasm_backend/integer_types.hpp>
 #include <eosio/wasm_backend/utils.hpp>
 #include <eosio/wasm_backend/allocator.hpp>
 #include <eosio/wasm_backend/vector.hpp>
+#include <eosio/wasm_backend/memory_owner.hpp>
 #include <fc/optional.hpp>
 
 namespace eosio { namespace wasm_backend {
@@ -33,13 +39,14 @@ namespace eosio { namespace wasm_backend {
       uint32_t initial;
       uint32_t maximum = 0;
    };
-
+   
    struct func_type {
-      value_type              form;  // value for the func type constructor
-      uint32_t                param_count; 
-      std::vector<value_type> param_types;
-      bool                    return_count;
-      value_type              return_type;
+      func_type( memory_owner* owner ) : param_types(owner) {}
+      value_type                 form;  // value for the func type constructor
+      uint32_t                   param_count; 
+      managed_vector<value_type> param_types;
+      bool                       return_count;
+      value_type                 return_type;
    };
    
    union expr_value {
@@ -80,7 +87,7 @@ namespace eosio { namespace wasm_backend {
       memory_type mem_t;
       global_type global_t;
    };
-
+   
    struct import_entry {
       uint32_t      module_len;
       std::string   module_str;      
@@ -89,40 +96,42 @@ namespace eosio { namespace wasm_backend {
       external_kind kind;
       import_type   type;
    };
-  
+   
+   struct export_entry {
+      uint32_t      field_len;
+      std::string   field_str;
+      external_kind kind;
+      uint32_t      index;
+   };
+
    using wasm_code = std::vector<uint8_t>;
    using wasm_code_ptr = guarded_ptr<uint8_t>;
    using wasm_code_iterator = std::vector<uint8_t>::iterator;
    using wasm_bytes = std::vector<uint8_t>;
    
    struct function {
+      function(memory_owner* ref) : type(ref) {}
       func_type type;
       wasm_code code;
    };
    
-   template <typename T>
    struct module {
-      module(T& ref) : 
+      module(memory_owner* ref) : 
          types(ref), 
          imports(ref), 
          functions(ref),
          tables(ref),
          memories(ref),
-         globals(ref) {}
+         globals(ref),
+         exports(ref) {}
 
-      vector<func_type, T>       types;
-      vector<import_entry, T>    imports;
-      vector<uint32_t, T>        functions;
-      vector<table_type, T>      tables;
-      vector<memory_type, T>     memories;
-      vector<global_variable, T> globals;
+      managed_vector<func_type>       types;
+      managed_vector<import_entry>    imports;
+      managed_vector<uint32_t>        functions;
+      managed_vector<table_type>      tables;
+      managed_vector<memory_type>     memories;
+      managed_vector<global_variable> globals;
+      managed_vector<export_entry>    exports;
    };
 
-   struct wasm_env {
-      std::vector<func_type>    types;
-      std::vector<import_entry> imports;
-      std::vector<uint32_t>     functions;
-      std::vector<table_type>   tables;
-      std::vector<memory_type>  memories;
-   };
 }} // namespace eosio::wasm_backend
