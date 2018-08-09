@@ -38,6 +38,8 @@ namespace eosio { namespace wasm_backend {
    void binary_parser::parse_func_type( wasm_code_ptr& code, func_type& ft ) {
       ft.form = *code++;
       ft.param_count = parse_varuint<32>( code );
+      ft.param_types.set_owner(this);
+      std::cout << "OWNS " << &(ft.param_types.get_owner()) << "\n";
       ft.param_types.resize( ft.param_count );
       std::cout << "PC " << ft.param_count << "\n";
       for ( int i=0; i < ft.param_count; i++ ) 
