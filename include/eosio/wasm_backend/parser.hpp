@@ -58,7 +58,23 @@ namespace eosio { namespace wasm_backend {
          }
          
          inline void parse_type_section( wasm_code_ptr& code, vec<func_type>& elems ) {
-            parse_section( code, elems, [&](wasm_code_ptr& code, func_type& ft) { parse_func_type(code, ft); } );
+            //parse_section( code, elems, [&](wasm_code_ptr& code, func_type& ft) { parse_func_type(code, ft); } );
+            auto count = parse_varuint<32>( code );
+            elems.resize( count );
+            for (int i=0; i < count; i++) {
+               auto& ft = elems[i];
+               ft.form = *code++;
+               ft.param_count = parse_varuint<32>( code );
+               ft.param_types.set_owner(this);
+               std::cout << "OWNS " << &(ft.param_types.get_owner()) << "\n";
+               ft.param_types.resize( ft.param_count );
+               std::cout << "PC " << ft.param_count << "\n";
+               for ( int i=0; i < ft.param_count; i++ ) 
+                  ft.param_types.at(i) = *code++;
+               ft.return_count = *code++;
+               if (ft.return_count > 0)
+                  ft.return_type = *code++;
+            }
          }
          inline void parse_import_section( wasm_code_ptr& code, vec<import_entry>& elems ) {
             parse_section( code, elems, [&](wasm_code_ptr& code, import_entry& ie) { parse_import_entry(code, ie); } );

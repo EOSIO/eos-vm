@@ -2,17 +2,13 @@
 
 #include <utility>
 #include <eosio/wasm_backend/exceptions.hpp>
-#include <eosio/wasm_backend/allocator.hpp>
-#include <eosio/wasm_backend/memory_owner.hpp>
 
 namespace eosio { namespace wasm_backend {
    
-   template <typename T> 
+   class memory_manager; 
+   template <typename T, typename MemoryManager=memory_manager> 
    class managed_vector {
       public:
-         managed_vector( memory_owner* owner, size_t size=0 ) : _owner(owner), _size(size) {
-            _data = _owner->get_allocator().template alloc<T>( _size );
-         }
          inline void resize( size_t size ) {
             _size = size;
             _data = _owner->get_allocator().template alloc<T>( _size );
@@ -34,11 +30,14 @@ namespace eosio { namespace wasm_backend {
          inline T& operator[] (size_t i) const { return at(i); }
          inline T* raw() const { return _data; }
          inline size_t size() const { return _size; }
-         inline void set_owner( memory_owner* owner ) { _owner = owner; }
-         inline memory_owner& get_owner() const { return *_owner; }
-         inline wasm_allocator& get_allocator() const { return _owner->get_allocator(); }
+         inline MemoryManager& get_manager() const { return *_owner; }
+         friend class managed_memory;
+      protected:
+         managed_vector( MemoryManager* owner, size_t size=0 ) : _owner(owner), _size(size) {
+            _data = _owner->get_allocator().template alloc<T>( _size );
+         }
       private:
-         memory_owner* _owner;
+         MemoryManager* _owner;
          size_t _size;
          T*     _data;
          size_t _index;
