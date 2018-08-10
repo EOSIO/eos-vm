@@ -8,8 +8,8 @@
 #include <eosio/wasm_backend/integer_types.hpp>
 #include <eosio/wasm_backend/utils.hpp>
 #include <eosio/wasm_backend/allocator.hpp>
-#include <eosio/wasm_backend/vector.hpp>
-#include <eosio/wasm_backend/memory_owner.hpp>
+//#include <eosio/wasm_backend/vector.hpp>
+#include <eosio/wasm_backend/memory_manager.hpp>
 #include <fc/optional.hpp>
 
 namespace eosio { namespace wasm_backend {
@@ -41,10 +41,9 @@ namespace eosio { namespace wasm_backend {
    };
    
    struct func_type {
-      func_type( memory_owner* owner ) : param_types(owner) {}
       value_type                 form;  // value for the func type constructor
       uint32_t                   param_count; 
-      managed_vector<value_type> param_types;
+      //managed_vector<value_type> param_types;
       bool                       return_count;
       value_type                 return_type;
    };
@@ -110,20 +109,19 @@ namespace eosio { namespace wasm_backend {
    using wasm_bytes = std::vector<uint8_t>;
    
    struct function {
-      function(memory_owner* ref) : type(ref) {}
       func_type type;
       wasm_code code;
    };
-   
+  /* 
    struct module {
-      module(memory_owner* ref) : 
-         types(ref), 
-         imports(ref), 
-         functions(ref),
-         tables(ref),
-         memories(ref),
-         globals(ref),
-         exports(ref) {}
+      module(memory_manager* ref) : 
+         types(ref->get_vector<func_type>()), 
+         imports(ref->get_vector<import_entry>()), 
+         functions(ref->get_vector<uint32_t>()),
+         tables(ref->get_vector<table_type>()),
+         memories(ref->get_vector<memory_type>()),
+         globals(ref->get_vector<global_variable>()),
+         exports(ref->get_vector<export_entry>()) {}
 
       managed_vector<func_type>       types;
       managed_vector<import_entry>    imports;
@@ -133,5 +131,5 @@ namespace eosio { namespace wasm_backend {
       managed_vector<global_variable> globals;
       managed_vector<export_entry>    exports;
    };
-
+*/
 }} // namespace eosio::wasm_backend

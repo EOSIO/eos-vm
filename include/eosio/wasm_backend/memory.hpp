@@ -1,12 +1,12 @@
 #pragma once
 
-#include <vector>
 
 #include <eosio/wasm_backend/constants.hpp>
+#include <eosio/wasm_backend/vector.hpp>
 
 namespace eosio { namespace wasm_backend {
    struct stack {
-      std::vector<uint8_t> memory;
+      man> memory;
       size_t max = constant::max_stack;
    };
 
