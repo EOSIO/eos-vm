@@ -2,25 +2,32 @@
 
 #include <utility>
 #include <eosio/wasm_backend/exceptions.hpp>
+#include <eosio/wasm_backend/memory_manager.hpp>
 
 namespace eosio { namespace wasm_backend {
    
-   class memory_manager; 
-   template <typename T, typename MemoryManager=memory_manager> 
+   template <typename T, size_t Type> 
    class managed_vector {
       public:
+         managed_vector(size_t size=0) : _size(size) {
+            _data = memory_manager::get_allocator<Type>().template alloc<T>( _size );
+         }
          inline void resize( size_t size ) {
+            if (size > _size) {
+               T* old_data = _data;
+               _data = memory_manager::get_allocator<Type>().template alloc<T>( size );
+               memcpy(_data, old_data, _size);
+            }
             _size = size;
-            _data = _owner->get_allocator().template alloc<T>( _size );
          }
 
          inline void push_back( const T& val ) {
-            EOS_WB_ASSERT( _index + 1  <= _size, wasm_vector_oob_exception, "vector write out of bounds" );
+            EOS_WB_ASSERT( _index  < _size, wasm_vector_oob_exception, "vector write out of bounds" );
             _data[_index++] = val;
          }
 
          inline void emplace_back( T&& val ) {
-            EOS_WB_ASSERT( _index + 1 <= _size, wasm_vector_oob_exception, "vector write out of bounds" );
+            EOS_WB_ASSERT( _index < _size, wasm_vector_oob_exception, "vector write out of bounds" );
             _data[_index++] = std::move(val);
          }
          inline T& at( size_t i ) const {
@@ -30,16 +37,9 @@ namespace eosio { namespace wasm_backend {
          inline T& operator[] (size_t i) const { return at(i); }
          inline T* raw() const { return _data; }
          inline size_t size() const { return _size; }
-         inline MemoryManager& get_manager() const { return *_owner; }
-         friend class managed_memory;
-      protected:
-         managed_vector( MemoryManager* owner, size_t size=0 ) : _owner(owner), _size(size) {
-            _data = _owner->get_allocator().template alloc<T>( _size );
-         }
       private:
-         MemoryManager* _owner;
-         size_t _size;
+         size_t _size = 0;
          T*     _data;
-         size_t _index;
+         size_t _index = 0;
    };
 }} // namespace eosio::wasm_backend

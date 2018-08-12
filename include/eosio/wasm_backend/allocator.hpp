@@ -4,19 +4,17 @@
 #include <eosio/wasm_backend/exceptions.hpp>
 
 namespace eosio { namespace wasm_backend {
-   // simple allocator
    class native_allocator {
       public:
          template <typename T>
          T* alloc(size_t size=1) {
-            EOS_WB_ASSERT( (sizeof(T)*size)+index < mem_size, wasm_bad_alloc, "wasm failed to allocate" );
+            EOS_WB_ASSERT( (sizeof(T)*size)+index <= mem_size, wasm_bad_alloc, "wasm failed to allocate" );
             T* ret = (T*)(raw.get()+index);
             index += sizeof(T)*size;
             return ret;
          }
-         template <typename T>
          void free() {
-            EOS_WB_ASSERT( index <= 0, wasm_double_free, "double free" );
+            EOS_WB_ASSERT( index > 0, wasm_double_free, "double free" );
             index = 0;
          }
          native_allocator(size_t size) {
@@ -33,14 +31,13 @@ namespace eosio { namespace wasm_backend {
       public:
          template <typename T>
          T* alloc(size_t size=1) {
-            EOS_WB_ASSERT( (sizeof(T)*size)+index < mem_size, wasm_bad_alloc, "wasm failed to allocate" );
-            T* ret = (T*)(raw+(sizeof(T)*size)+index);
+            EOS_WB_ASSERT( (sizeof(T)*size)+index <= mem_size, wasm_bad_alloc, "wasm failed to allocate" );
+            T* ret = (T*)(raw+index);
             index += sizeof(T)*size;
             return ret;
          }
-         template <typename T>
          void free() {
-            EOS_WB_ASSERT( index <= 0, wasm_double_free, "double free" );
+            EOS_WB_ASSERT( index > 0, wasm_double_free, "double free" );
             index = 0;
          }
          simple_allocator(uint8_t* ptr, size_t size) {

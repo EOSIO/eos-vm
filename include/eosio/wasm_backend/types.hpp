@@ -8,8 +8,7 @@
 #include <eosio/wasm_backend/integer_types.hpp>
 #include <eosio/wasm_backend/utils.hpp>
 #include <eosio/wasm_backend/allocator.hpp>
-//#include <eosio/wasm_backend/vector.hpp>
-#include <eosio/wasm_backend/memory_manager.hpp>
+#include <eosio/wasm_backend/vector.hpp>
 #include <fc/optional.hpp>
 
 namespace eosio { namespace wasm_backend {
@@ -33,7 +32,10 @@ namespace eosio { namespace wasm_backend {
    typedef uint8_t value_type;
    typedef uint8_t block_type;
    typedef uint8_t elem_type;
-  
+   
+   template <typename T>
+   using native_vector = managed_vector<T, memory_manager::types::native>;
+
    struct resizable_limits {
       bool  flags;
       uint32_t initial;
@@ -43,7 +45,7 @@ namespace eosio { namespace wasm_backend {
    struct func_type {
       value_type                 form;  // value for the func type constructor
       uint32_t                   param_count; 
-      //managed_vector<value_type> param_types;
+      native_vector<value_type>  param_types;
       bool                       return_count;
       value_type                 return_type;
    };
@@ -89,18 +91,36 @@ namespace eosio { namespace wasm_backend {
    
    struct import_entry {
       uint32_t      module_len;
-      std::string   module_str;      
+      native_vector<uint8_t> module_str;      
       uint32_t      field_len;
-      std::string   field_str;
+      native_vector<uint8_t> field_str;
       external_kind kind;
       import_type   type;
    };
    
    struct export_entry {
       uint32_t      field_len;
-      std::string   field_str;
+      native_vector<uint8_t> field_str;
       external_kind kind;
       uint32_t      index;
+   };
+
+   struct elem_segment {
+      uint32_t index;
+      init_expr offset;
+      native_vector<uint32_t> elems;
+   };
+   
+   struct local_entry {
+      uint32_t count;
+      value_type type;
+   };
+
+   struct function_body {
+      uint32_t body_size;
+      uint32_t local_count;
+      native_vector<local_entry> locals;
+      native_vector<uint8_t> code;
    };
 
    using wasm_code = std::vector<uint8_t>;
@@ -112,24 +132,18 @@ namespace eosio { namespace wasm_backend {
       func_type type;
       wasm_code code;
    };
-  /* 
-   struct module {
-      module(memory_manager* ref) : 
-         types(ref->get_vector<func_type>()), 
-         imports(ref->get_vector<import_entry>()), 
-         functions(ref->get_vector<uint32_t>()),
-         tables(ref->get_vector<table_type>()),
-         memories(ref->get_vector<memory_type>()),
-         globals(ref->get_vector<global_variable>()),
-         exports(ref->get_vector<export_entry>()) {}
 
-      managed_vector<func_type>       types;
-      managed_vector<import_entry>    imports;
-      managed_vector<uint32_t>        functions;
-      managed_vector<table_type>      tables;
-      managed_vector<memory_type>     memories;
-      managed_vector<global_variable> globals;
-      managed_vector<export_entry>    exports;
+   struct module {
+      module(){}
+      native_vector<func_type>       types;
+      native_vector<import_entry>    imports;
+      native_vector<uint32_t>        functions;
+      native_vector<table_type>      tables;
+      native_vector<memory_type>     memories;
+      native_vector<global_variable> globals;
+      native_vector<export_entry>    exports;
+      uint32_t                       start;
+      native_vector<elem_segment>    elements;
+      native_vector<function_body>   bodies;
    };
-*/
 }} // namespace eosio::wasm_backend

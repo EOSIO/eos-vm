@@ -32,16 +32,14 @@ namespace eosio { namespace wasm_backend {
          default:
             EOS_WB_ASSERT(false, wasm_illegal_opcode_exception, "initializer expression can only acception i32.const, i64.const, f32.const and f64.const");
       }
+      EOS_WB_ASSERT((*code++) == opcode::end, wasm_parse_exception, "no end op found");
       return ie;
    }
 
    void binary_parser::parse_func_type( wasm_code_ptr& code, func_type& ft ) {
       ft.form = *code++;
       ft.param_count = parse_varuint<32>( code );
-      ft.param_types.set_owner(this);
-      std::cout << "OWNS " << &(ft.param_types.get_owner()) << "\n";
       ft.param_types.resize( ft.param_count );
-      std::cout << "PC " << ft.param_count << "\n";
       for ( int i=0; i < ft.param_count; i++ ) 
          ft.param_types.at(i) = *code++;
       ft.return_count = *code++;
@@ -51,20 +49,27 @@ namespace eosio { namespace wasm_backend {
 
    void binary_parser::parse_export_entry( wasm_code_ptr& code, export_entry& entry ) {
       entry.field_len = parse_varuint<32>( code );
-      std::cout << "HELLO " << entry.field_len << "\n";
       entry.field_str.resize(entry.field_len);
-      memcpy( (char*)entry.field_str.data(), code.raw(), entry.field_len );
-      std::cout << "EXPORT " << entry.field_str << "\n";
+      memcpy( (char*)entry.field_str.raw(), code.raw(), entry.field_len );
       code += entry.field_len;
       entry.kind = (external_kind)(*code++);
       entry.index = parse_varuint<32>( code );
+   }
+   
+   void binary_parser::parse_elem_segment( wasm_code_ptr& code, elem_segment& es ) {
+      es.index = parse_varuint<32>( code );
+      EOS_WB_ASSERT(es.index == 0, wasm_parse_exception, "only table index of 0 is supported");
+      es.offset = parse_init_expr( code );
+      uint32_t size = parse_varuint<32>( code );
+      es.elems.resize( size );
+      for (uint32_t i=0; i < size; i++)
+         es.elems.at(i) = parse_varuint<32>( code );
    }
 
    void binary_parser::parse_global_variable( wasm_code_ptr& code, global_variable& gv ) {
       gv.type.content_type = *code++; 
       gv.type.mutability = *code++;
       gv.init = parse_init_expr( code );
-      EOS_WB_ASSERT((*code++) == opcode::end, wasm_parse_exception, "no end op found");
    } 
    
    void binary_parser::parse_memory_type( wasm_code_ptr& code, memory_type& mt ) {
@@ -88,12 +93,12 @@ namespace eosio { namespace wasm_backend {
       auto len = parse_varuint<32>( code );
       entry.module_len = len;
       entry.module_str.resize(entry.module_len);
-      memcpy( (char*)entry.module_str.data(), code.raw(), entry.module_len );
+      memcpy( (char*)entry.module_str.raw(), code.raw(), entry.module_len );
       code += entry.module_len;
       len = parse_varuint<32>( code );
       entry.field_len = len;
       entry.field_str.resize(entry.field_len);
-      memcpy( (char*)entry.field_str.data(), code.raw(), entry.field_len );
+      memcpy( (char*)entry.field_str.raw(), code.raw(), entry.field_len );
       code += entry.field_len;
       entry.kind = (external_kind)(*code++);
       auto type = parse_varuint<32>( code );
