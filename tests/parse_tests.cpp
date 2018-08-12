@@ -38,8 +38,7 @@ BOOST_AUTO_TEST_SUITE(parser_tests)
 BOOST_AUTO_TEST_CASE(parse_test) { 
    try {
       {
-         wasm_allocator wa(64*1024);
-         binary_parser bp(wa);
+         binary_parser bp;
          wasm_code error = { 0x01, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00 };
          wasm_code_ptr error_ptr( error.data(), 4 );
          auto n = bp.parse_magic( error_ptr );
@@ -109,9 +108,8 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
       };
 
       {
-         wasm_allocator wa(64*1024);
-         binary_parser bp(wa);
-         module mod(&bp);
+         binary_parser bp;
+         module mod;
          wasm_code code = read_wasm( "test.wasm" );
          wasm_code_ptr code_ptr(code.data(), 0);
          
@@ -134,14 +132,10 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          
          code_ptr.add_bounds( len );
          bp.parse_type_section( code_ptr, mod.types );
-         std::cout << "TYPES " << mod.types.size() << "\n";
          for ( int i=0; i < mod.types.size(); i++ ) {
             auto& ft = mod.types.at(i);
             BOOST_CHECK_EQUAL( ft.form, types::func );
-            //BOOST_CHECK_EQUAL( ft.param_count, std::get<0>(system_contract_types[i]).size() );
-            std::cout << "OWNER " << &(ft.param_types.get_owner()) << "\n";
-            std::cout << "SIZE " << ft.param_types.size() << "\n";
-            std::cout << "PC2 " << ft.param_count << "\n";
+            BOOST_CHECK_EQUAL( ft.param_count, std::get<0>(system_contract_types[i]).size() );
             for ( int j=0; j < ft.param_types.size(); j++ ) {
                auto type = ft.param_types.at(j);
                BOOST_CHECK_EQUAL( std::get<0>(system_contract_types[i])[j++], type );
@@ -249,6 +243,63 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          
          code_ptr.add_bounds( len );
          bp.parse_export_section( code_ptr, mod.exports );
+         BOOST_CHECK( memcmp((char*)mod.exports.at(0).field_str.raw(), "memory", mod.exports.at(0).field_len) == 0 && 
+               mod.exports.at(0).kind == external_kind::Memory );
+         BOOST_CHECK( memcmp((char*)mod.exports.at(1).field_str.raw(), "__heap_base", mod.exports.at(1).field_len) == 0 &&
+               mod.exports.at(1).kind == external_kind::Global );
+         BOOST_CHECK( memcmp((char*)mod.exports.at(2).field_str.raw(), "__data_end", mod.exports.at(2).field_len) == 0 &&
+               mod.exports.at(2).kind == external_kind::Global );
+         BOOST_CHECK( memcmp((char*)mod.exports.at(3).field_str.raw(), "apply", mod.exports.at(3).field_len) == 0 &&
+               mod.exports.at(3).kind == external_kind::Function );
+         BOOST_CHECK( memcmp((char*)mod.exports.at(4).field_str.raw(), "_ZdlPv", mod.exports.at(4).field_len) == 0 &&
+               mod.exports.at(4).kind == external_kind::Function );
+         BOOST_CHECK( memcmp((char*)mod.exports.at(5).field_str.raw(), "_Znwj", mod.exports.at(5).field_len) == 0 &&
+               mod.exports.at(5).kind == external_kind::Function );
+         BOOST_CHECK( memcmp((char*)mod.exports.at(6).field_str.raw(), "_Znaj", mod.exports.at(6).field_len) == 0 &&
+               mod.exports.at(6).kind == external_kind::Function );
+         BOOST_CHECK( memcmp((char*)mod.exports.at(7).field_str.raw(), "_ZdaPv", mod.exports.at(7).field_len) == 0 &&
+               mod.exports.at(7).kind == external_kind::Function );
+         /* 
+         code_ptr.add_bounds( constants::id_size);
+         id = bp.parse_section_id( code_ptr );
+         BOOST_CHECK_EQUAL( id, section_id::start_section );
+
+         code_ptr.add_bounds( constants::varuint32_size );
+         len = bp.parse_section_payload_len( code_ptr );
+         code_ptr.fit_bounds();
+
+         code_ptr.add_bounds( len );
+         bp.parse_start_section( code_ptr, mod.start );
+         */ 
+
+         code_ptr.add_bounds( constants::id_size );
+         id = bp.parse_section_id( code_ptr );  
+         BOOST_CHECK_EQUAL( id, section_id::element_section );
+
+         code_ptr.add_bounds( constants::varuint32_size );
+         len = bp.parse_section_payload_len( code_ptr );
+         code_ptr.fit_bounds();
+         
+         code_ptr.add_bounds( len );
+         bp.parse_element_section( code_ptr, mod.elements );
+         
+         uint32_t indices[] = {73, 60, 169, 92, 80, 124, 131, 152, 176, 177, 178, 164, 153, 122, 136, 156, 158, 83, 184, 123, 129, 185, 154, 155, 121};
+
+         for (int i=0; i < mod.elements.size(); i++) {
+            for (int j=0; j < mod.elements[i].elems.size(); j++)
+               BOOST_CHECK_EQUAL(mod.elements[i].elems[j], indices[j]);
+         }
+
+         code_ptr.add_bounds( constants::id_size );
+         id = bp.parse_section_id( code_ptr );
+         BOOST_CHECK_EQUAL( id, section_id::code_section );
+
+         code_ptr.add_bounds( constants::varuin32_size );
+         len = bp.parse_section_id( code_ptr );
+         code_ptr.fit_bounds();
+
+         code_ptr.add_bounds( len );
+         bp.parse_code_section( code_ptr, mod.code );
       }
    } FC_LOG_AND_RETHROW() 
 }

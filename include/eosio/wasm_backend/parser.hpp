@@ -4,15 +4,12 @@
 
 #include <eosio/wasm_backend/types.hpp>
 #include <eosio/wasm_backend/vector.hpp>
-#include <eosio/wasm_backend/allocator.hpp>
 
 namespace eosio { namespace wasm_backend {
-   class binary_parser : public memory_owner {
+   class binary_parser {
       public:
          template <typename T>
-         using vec = managed_vector<T>;
-
-         binary_parser(wasm_allocator& alloc) : memory_owner(alloc) {}
+         using vec = native_vector<T>;
 
          void parse( std::vector<uint8_t> code );
 
@@ -46,6 +43,7 @@ namespace eosio { namespace wasm_backend {
          void parse_memory_type( wasm_code_ptr& code, memory_type& mt );
          void parse_export_entry( wasm_code_ptr& code, export_entry& ee );
          void parse_func_type( wasm_code_ptr& code, func_type& ft );
+         void parse_elem_segment( wasm_code_ptr& code, elem_segment& es );
 
 
 
@@ -56,25 +54,9 @@ namespace eosio { namespace wasm_backend {
             for (int i=0; i < count; i++ )
                elem_parse(code, elems.at(i));
          }
-         
+
          inline void parse_type_section( wasm_code_ptr& code, vec<func_type>& elems ) {
-            //parse_section( code, elems, [&](wasm_code_ptr& code, func_type& ft) { parse_func_type(code, ft); } );
-            auto count = parse_varuint<32>( code );
-            elems.resize( count );
-            for (int i=0; i < count; i++) {
-               auto& ft = elems[i];
-               ft.form = *code++;
-               ft.param_count = parse_varuint<32>( code );
-               ft.param_types.set_owner(this);
-               std::cout << "OWNS " << &(ft.param_types.get_owner()) << "\n";
-               ft.param_types.resize( ft.param_count );
-               std::cout << "PC " << ft.param_count << "\n";
-               for ( int i=0; i < ft.param_count; i++ ) 
-                  ft.param_types.at(i) = *code++;
-               ft.return_count = *code++;
-               if (ft.return_count > 0)
-                  ft.return_type = *code++;
-            }
+            parse_section( code, elems, [&](wasm_code_ptr& code, func_type& ft) { parse_func_type( code, ft ); } );
          }
          inline void parse_import_section( wasm_code_ptr& code, vec<import_entry>& elems ) {
             parse_section( code, elems, [&](wasm_code_ptr& code, import_entry& ie) { parse_import_entry(code, ie); } );
@@ -94,7 +76,12 @@ namespace eosio { namespace wasm_backend {
          inline void parse_export_section( wasm_code_ptr& code, vec<export_entry>& elems ) {
             parse_section( code, elems, [&](wasm_code_ptr& code, export_entry& ee) { parse_export_entry( code, ee ); } );
          }
-
+         inline void parse_start_section( wasm_code_ptr& code, uint32_t& start ) {
+            start = parse_varuint<32>( code );
+         }
+         inline void parse_element_section( wasm_code_ptr& code, vec<elem_segment>& elems ) {
+            parse_section( code, elems, [&](wasm_code_ptr& code, elem_segment& es) { parse_elem_segment( code, es ); } );
+         }
          init_expr parse_init_expr( wasm_code_ptr& code );
 
          size_t parse_custom_section( const wasm_code& code, size_t index );
@@ -120,14 +107,9 @@ namespace eosio { namespace wasm_backend {
             return result;
          }
 */
-         wasm_allocator* get_allocator() {
-            return _allocator;
-         }
-
 
       private:
          //std::vector<uint8_t> _code;
          //std::vector<uint8_t> _decoded;
-         wasm_allocator* _allocator;
    };
 }} // namespace eosio::wasm_backend
