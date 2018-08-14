@@ -44,8 +44,8 @@ namespace eosio { namespace wasm_backend {
          void parse_export_entry( wasm_code_ptr& code, export_entry& ee );
          void parse_func_type( wasm_code_ptr& code, func_type& ft );
          void parse_elem_segment( wasm_code_ptr& code, elem_segment& es );
-
-
+         void parse_init_expr( wasm_code_ptr& code, init_expr& ie );
+         void parse_function_body( wasm_code_ptr& code, function_body& fb );
 
          template <typename Elem, typename ParseFunc>
          inline void parse_section( wasm_code_ptr& code, vec<Elem>& elems, ParseFunc&& elem_parse ) {
@@ -82,8 +82,9 @@ namespace eosio { namespace wasm_backend {
          inline void parse_element_section( wasm_code_ptr& code, vec<elem_segment>& elems ) {
             parse_section( code, elems, [&](wasm_code_ptr& code, elem_segment& es) { parse_elem_segment( code, es ); } );
          }
-         init_expr parse_init_expr( wasm_code_ptr& code );
-
+         inline void parse_code_section( wasm_code_ptr& code, vec<function_body>& elems ) {
+            parse_section( code, elems, [&](wasm_code_ptr& code, function_body& fb) { parse_function_body( code, fb ); } );
+         }
          size_t parse_custom_section( const wasm_code& code, size_t index );
 
          template <size_t N>

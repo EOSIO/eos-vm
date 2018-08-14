@@ -11,8 +11,7 @@ namespace eosio { namespace wasm_backend {
       return 1+sizeof(uint32_t)+*((uint32_t*)raw);
    }
    
-   init_expr binary_parser::parse_init_expr( wasm_code_ptr& code ) {
-      init_expr ie;
+   void binary_parser::parse_init_expr( wasm_code_ptr& code, init_expr& ie ) {
       ie.opcode = *code++;
       switch ( ie.opcode ) {
          case opcode::i32_const:
@@ -33,7 +32,6 @@ namespace eosio { namespace wasm_backend {
             EOS_WB_ASSERT(false, wasm_illegal_opcode_exception, "initializer expression can only acception i32.const, i64.const, f32.const and f64.const");
       }
       EOS_WB_ASSERT((*code++) == opcode::end, wasm_parse_exception, "no end op found");
-      return ie;
    }
 
    void binary_parser::parse_func_type( wasm_code_ptr& code, func_type& ft ) {
@@ -59,7 +57,7 @@ namespace eosio { namespace wasm_backend {
    void binary_parser::parse_elem_segment( wasm_code_ptr& code, elem_segment& es ) {
       es.index = parse_varuint<32>( code );
       EOS_WB_ASSERT(es.index == 0, wasm_parse_exception, "only table index of 0 is supported");
-      es.offset = parse_init_expr( code );
+      parse_init_expr( code, es.offset );
       uint32_t size = parse_varuint<32>( code );
       es.elems.resize( size );
       for (uint32_t i=0; i < size; i++)
@@ -69,7 +67,7 @@ namespace eosio { namespace wasm_backend {
    void binary_parser::parse_global_variable( wasm_code_ptr& code, global_variable& gv ) {
       gv.type.content_type = *code++; 
       gv.type.mutability = *code++;
-      gv.init = parse_init_expr( code );
+      parse_init_expr( code, gv.init );
    } 
    
    void binary_parser::parse_memory_type( wasm_code_ptr& code, memory_type& mt ) {
@@ -110,5 +108,32 @@ namespace eosio { namespace wasm_backend {
             EOS_WB_ASSERT(false, wasm_unsupported_import_exception, "only function imports are supported");
       }
    }
-
+   
+   void binary_parser::parse_function_body( wasm_code_ptr& code, function_body& fb ) {
+      auto before = code.raw();
+      auto body_size = parse_varuint<32>( code );
+      auto local_cnt = parse_varuint<32>( code );
+      std::cout << "locals " << local_cnt << " " << body_size << "\n";
+      fb.locals.resize(local_cnt);
+      // parse the local entries
+      for ( size_t i=0; i < local_cnt; i++ ) {
+         fb.locals[i].count = parse_varuint<32>( code );
+         fb.locals[i].type  = *code++;
+      }
+      auto locals_offset = code.raw() - before;
+      auto beforee = code.raw();
+      std::cout << "OF0 " << (uint32_t*)beforee - (uint32_t*)before << "\n";
+      for ( size_t index=0; index < body_size; index++ ) {
+         if ( *code++ == 0x0B ) {
+            std::cout << "OFF " << std::hex << code.offset() << "\n";
+            fb.code.set( beforee, index );
+            beforee = code.raw();
+            return;
+         }
+      }
+      EOS_WB_ASSERT(false, wasm_parse_exception, "failed parsing function body, expected 'end'");
+      //fb.code.resize(index+1);
+      //memcpy( fb.code.raw(), code.raw(), index+1 ); 
+      //code += 2; 
+   }
 }} // namespace eosio::wasm_backend

@@ -37,6 +37,7 @@ namespace eosio { namespace wasm_backend {
          inline T& operator[] (size_t i) const { return at(i); }
          inline T* raw() const { return _data; }
          inline size_t size() const { return _size; }
+         inline void set( T* data, size_t size ) { _size = size; _data = data; _index = size-1; }
       private:
          size_t _size = 0;
          T*     _data;
