@@ -144,6 +144,6 @@ namespace eosio { namespace wasm_backend {
       native_vector<export_entry>    exports;
       uint32_t                       start;
       native_vector<elem_segment>    elements;
-      native_vector<function_body>   bodies;
+      native_vector<function_body>   code;
    };
 }} // namespace eosio::wasm_backend

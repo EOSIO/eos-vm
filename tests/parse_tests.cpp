@@ -110,6 +110,7 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
       {
          binary_parser bp;
          module mod;
+         memory_manager::set_memory_limits( 128*1024, 64*1024 );
          wasm_code code = read_wasm( "test.wasm" );
          wasm_code_ptr code_ptr(code.data(), 0);
          
@@ -129,9 +130,10 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          auto len = bp.parse_section_payload_len( code_ptr );
          code_ptr.fit_bounds();
          BOOST_CHECK_EQUAL(len, 335);
-         
+
          code_ptr.add_bounds( len );
          bp.parse_type_section( code_ptr, mod.types );
+
          for ( int i=0; i < mod.types.size(); i++ ) {
             auto& ft = mod.types.at(i);
             BOOST_CHECK_EQUAL( ft.form, types::func );
@@ -167,7 +169,7 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          len = bp.parse_section_payload_len( code_ptr );
          code_ptr.fit_bounds();
          BOOST_CHECK_EQUAL( len, 210 );
-         
+
          code_ptr.add_bounds(len); 
          bp.parse_function_section( code_ptr, mod.functions );
          for ( int i=0; i < mod.functions.size(); i++ ) {
@@ -259,7 +261,8 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
                mod.exports.at(6).kind == external_kind::Function );
          BOOST_CHECK( memcmp((char*)mod.exports.at(7).field_str.raw(), "_ZdaPv", mod.exports.at(7).field_len) == 0 &&
                mod.exports.at(7).kind == external_kind::Function );
-         /* 
+
+#if 0
          code_ptr.add_bounds( constants::id_size);
          id = bp.parse_section_id( code_ptr );
          BOOST_CHECK_EQUAL( id, section_id::start_section );
@@ -270,7 +273,7 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
 
          code_ptr.add_bounds( len );
          bp.parse_start_section( code_ptr, mod.start );
-         */ 
+#endif
 
          code_ptr.add_bounds( constants::id_size );
          id = bp.parse_section_id( code_ptr );  
@@ -294,12 +297,17 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          id = bp.parse_section_id( code_ptr );
          BOOST_CHECK_EQUAL( id, section_id::code_section );
 
-         code_ptr.add_bounds( constants::varuin32_size );
-         len = bp.parse_section_id( code_ptr );
+         code_ptr.add_bounds( constants::varuint32_size );
+         len = bp.parse_section_payload_len( code_ptr );
          code_ptr.fit_bounds();
 
          code_ptr.add_bounds( len );
          bp.parse_code_section( code_ptr, mod.code );
+        /* 
+         code_ptr.add_bounds( constants::id_size );
+         id = bp.parse_section_id( code_ptr );
+         BOOST_CHECK_EQUAL( id, section_id::data_section );
+         */
       }
    } FC_LOG_AND_RETHROW() 
 }

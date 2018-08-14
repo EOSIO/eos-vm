@@ -27,6 +27,8 @@ namespace eosio { namespace wasm_backend {
                          4000006, "wasm_interpreter only accepts function imports" )
    FC_DECLARE_EXCEPTION( wasm_parse_exception,
                          4000007, "wasm parse exception" )
+   FC_DECLARE_EXCEPTION( wasm_memory_exception,
+                         4000008, "wasm memory exception" )
 
    FC_DECLARE_EXCEPTION( guarded_ptr_exception,
                          4010000, "pointer out of bounds" )

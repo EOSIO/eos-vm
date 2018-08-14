@@ -17,26 +17,22 @@ namespace eosio { namespace wasm_backend {
 
          template <size_t Type>
          static auto get_allocator() -> std::enable_if_t<Type == native, native_allocator&> { 
-            if ( instance == nullptr )
-               instance.reset(new memory_manager());
+            EOS_WB_ASSERT( instance != nullptr, wasm_memory_exception, "must set memory limits first" );
             return instance->_nalloc; 
          }
          template <size_t Type>
          static auto get_allocator() -> std::enable_if_t<Type == linear_memory, simple_allocator&> { 
-            if ( instance == nullptr )
-               instance.reset(new memory_manager());
+            EOS_WB_ASSERT( instance != nullptr, wasm_memory_exception, "must set memory limits first" );
             return instance->_lmalloc; 
          }
          
       private:
-         memory_manager( uint64_t native_size=default_native_memory_size, 
-                         uint64_t linmem_size=default_linear_memory_size ) : 
+         memory_manager( uint64_t native_size, 
+                         uint64_t linmem_size ) : 
             _nalloc(native_size+linmem_size),
             _lmalloc(_nalloc.alloc<uint8_t>(linmem_size), linmem_size) { 
          }
          static std::unique_ptr<memory_manager> instance;
-         static constexpr uint64_t default_native_memory_size = 64*1024;
-         static constexpr uint64_t default_linear_memory_size = 64*1024; 
          native_allocator _nalloc;
          simple_allocator _lmalloc;
    };
