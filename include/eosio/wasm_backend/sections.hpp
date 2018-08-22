@@ -15,6 +15,7 @@ namespace eosio { namespace wasm_backend {
       start_section    = 8,
       element_section  = 9,
       code_section     = 10,
-      data_section     = 11
+      data_section     = 11,
+      num_of_elems
    };
 }} // eosio::wasm_backend
