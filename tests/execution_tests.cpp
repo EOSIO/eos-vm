@@ -34,24 +34,14 @@ std::vector<uint8_t> read_wasm( const std::string& fname ) {
    return wasm;
 }
 
-BOOST_AUTO_TEST_SUITE(parser_tests)
-BOOST_AUTO_TEST_CASE(parse_test) { 
+BOOST_AUTO_TEST_SUITE(execution_tests)
+BOOST_AUTO_TEST_CASE(hello_world_wasm_test) { 
    try {
-      {
-         binary_parser bp;
-         wasm_code error = { 0x01, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00 };
-         wasm_code_ptr error_ptr( error.data(), 4 );
-         auto n = bp.parse_magic( error_ptr );
-         BOOST_CHECK(n != constants::magic);
-         wasm_code correct = { 0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00 };
-         wasm_code_ptr correct_ptr( correct.data(), 4 );
-         n = bp.parse_magic( correct_ptr );
-         BOOST_CHECK_EQUAL(n, constants::magic);
-      }
    } FC_LOG_AND_RETHROW() 
 }
 
-BOOST_AUTO_TEST_CASE(actual_wasm_test) { 
+#if 0
+BOOST_AUTO_TEST_CASE(hello_world_wasm_test) { 
    try {  
       static const std::vector<std::pair <std::vector<uint8_t>, std::vector<uint8_t>>> system_contract_types = {
          {{types::i32,types::i32}, {}},
@@ -198,5 +188,6 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
       }
    } FC_LOG_AND_RETHROW() 
 }
+#endif
 BOOST_AUTO_TEST_SUITE_END()
 

@@ -122,6 +122,13 @@ namespace eosio { namespace wasm_backend {
       native_vector<local_entry> locals;
       native_vector<uint8_t> code;
    };
+   
+   struct data_segment {
+      uint32_t  index;
+      init_expr offset;
+      uint32_t  size;
+      native_vector<uint8_t> data;
+   };
 
    using wasm_code = std::vector<uint8_t>;
    using wasm_code_ptr = guarded_ptr<uint8_t>;
@@ -145,5 +152,6 @@ namespace eosio { namespace wasm_backend {
       uint32_t                       start;
       native_vector<elem_segment>    elements;
       native_vector<function_body>   code;
+      native_vector<data_segment>    data;
    };
 }} // namespace eosio::wasm_backend

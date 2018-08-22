@@ -5,12 +5,6 @@
 #include <eosio/wasm_backend/sections.hpp>
 
 namespace eosio { namespace wasm_backend {
-   // TODO: figure out if we can omit this. currently just ignore 
-   size_t binary_parser::parse_custom_section( const wasm_code& code, size_t index ) {
-      const uint8_t* raw = code.data()+index;
-      return 1+sizeof(uint32_t)+*((uint32_t*)raw);
-   }
-   
    void binary_parser::parse_init_expr( wasm_code_ptr& code, init_expr& ie ) {
       ie.opcode = *code++;
       switch ( ie.opcode ) {
@@ -110,30 +104,82 @@ namespace eosio { namespace wasm_backend {
    }
    
    void binary_parser::parse_function_body( wasm_code_ptr& code, function_body& fb ) {
-      auto before = code.raw();
       auto body_size = parse_varuint<32>( code );
+      auto before = code.offset();
       auto local_cnt = parse_varuint<32>( code );
-      std::cout << "locals " << local_cnt << " " << body_size << "\n";
       fb.locals.resize(local_cnt);
       // parse the local entries
       for ( size_t i=0; i < local_cnt; i++ ) {
-         fb.locals[i].count = parse_varuint<32>( code );
-         fb.locals[i].type  = *code++;
+         fb.locals.at(i).count = parse_varuint<32>( code );
+         fb.locals.at(i).type  = *code++;
       }
-      auto locals_offset = code.raw() - before;
-      auto beforee = code.raw();
-      std::cout << "OF0 " << (uint32_t*)beforee - (uint32_t*)before << "\n";
-      for ( size_t index=0; index < body_size; index++ ) {
-         if ( *code++ == 0x0B ) {
-            std::cout << "OFF " << std::hex << code.offset() << "\n";
-            fb.code.set( beforee, index );
-            beforee = code.raw();
-            return;
+      size_t bytes = body_size - (code.offset() - before) - 1; // -1 is 'end' 0xb byte
+      fb.code.set( code.raw(), bytes ); 
+      memcpy( (char*)fb.code.raw(), (const char*)code.raw(), bytes );
+      code += bytes;
+      EOS_WB_ASSERT( *code++ == 0x0B, wasm_parse_exception, "failed parsing function body, expected 'end'");
+   }
+
+   void binary_parser::parse_data_segment( wasm_code_ptr& code, data_segment& ds ) {
+      ds.index  = parse_varuint<32>( code );
+      parse_init_expr( code, ds.offset );
+      ds.size   = parse_varuint<32>( code );
+      ds.data.set( code.raw(), ds.size );
+      code += ds.size;
+   }
+   
+   void binary_parser::parse_module( wasm_code& code, module& mod ) {
+      wasm_code_ptr code_ptr( code.data(), 0 );
+      EOS_WB_ASSERT(parse_magic( code_ptr ) == constants::magic, wasm_parse_exception, "magic number did not match");
+      EOS_WB_ASSERT(parse_version( code_ptr ) == constants::version, wasm_parse_exception, "version number did not match");
+      for ( int i=0; i < section_id::num_of_elems; i++ ) {
+         code_ptr.add_bounds( constants::id_size );
+         auto id = parse_section_id( code_ptr );
+         code_ptr.add_bounds( constants::varuint32_size );
+         auto len = parse_section_payload_len( code_ptr );
+         code_ptr.fit_bounds(len);
+
+         switch ( id ) {
+            case section_id::custom_section:
+               code_ptr += len;
+               break;
+            case section_id::type_section:
+               parse_section<section_id::type_section>( code_ptr, mod.types );
+               break;
+            case section_id::import_section:
+               parse_section<section_id::import_section>( code_ptr, mod.imports );
+               break;
+            case section_id::function_section:
+               parse_section<section_id::function_section>( code_ptr, mod.functions );
+               break;
+            case section_id::table_section:
+               parse_section<section_id::table_section>( code_ptr, mod.tables );
+               break;
+            case section_id::memory_section:
+               parse_section<section_id::memory_section>( code_ptr, mod.memories );
+               break;
+            case section_id::global_section:
+               parse_section<section_id::global_section>( code_ptr, mod.globals );
+               break;
+            case section_id::export_section:
+               parse_section<section_id::export_section>( code_ptr, mod.exports );
+               break;
+            case section_id::start_section:
+               parse_section<section_id::start_section>( code_ptr, mod.start );
+               break;
+            case section_id::element_section:
+               parse_section<section_id::element_section>( code_ptr, mod.elements );
+               break;
+            case section_id::code_section:
+               parse_section<section_id::code_section>( code_ptr, mod.code );
+               break;
+            case section_id::data_section:
+               parse_section<section_id::data_section>( code_ptr, mod.data );
+               break;
+            default:
+               EOS_WB_ASSERT(false, wasm_parse_exception, "error invalid section id");
          }
       }
-      EOS_WB_ASSERT(false, wasm_parse_exception, "failed parsing function body, expected 'end'");
-      //fb.code.resize(index+1);
-      //memcpy( fb.code.raw(), code.raw(), index+1 ); 
-      //code += 2; 
    }
+
 }} // namespace eosio::wasm_backend

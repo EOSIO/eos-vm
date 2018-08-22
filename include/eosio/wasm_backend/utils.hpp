@@ -71,6 +71,10 @@ namespace eosio { namespace wasm_backend {
       inline void fit_bounds() {
          bnds = raw_ptr;
       }
+      
+      inline void fit_bounds(size_t n) {
+         bnds = raw_ptr + n;
+      }
 
       inline size_t bounds() {
          return bnds - orig_ptr;
