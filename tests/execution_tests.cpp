@@ -20,23 +20,19 @@
 using namespace eosio;
 using namespace eosio::wasm_backend;
 
-std::vector<uint8_t> read_wasm( const std::string& fname ) {
-   std::ifstream wasm_file(fname, std::ios::binary);
-   FC_ASSERT( wasm_file.is_open(), "wasm file cannot be found" );
-   wasm_file.seekg(0, std::ios::end);
-   std::vector<uint8_t> wasm; 
-   int len = wasm_file.tellg();
-   FC_ASSERT( len >= 0, "wasm file length is -1" );
-   wasm.resize(len);
-   wasm_file.seekg(0, std::ios::beg);
-   wasm_file.read((char*)wasm.data(), wasm.size());
-   wasm_file.close();
-   return wasm;
-}
+extern std::vector<uint8_t> read_wasm( const std::string& );
 
 BOOST_AUTO_TEST_SUITE(execution_tests)
 BOOST_AUTO_TEST_CASE(hello_world_wasm_test) { 
    try {
+      memory_manager::set_memory_limits( 32*1024*1024, 64*1024 );
+      binary_parser bp;
+      module mod;
+      wasm_code code = read_wasm( "test.wasm" );
+      wasm_code_ptr code_ptr(code.data(), 0);
+      bp.parse_module( code, mod );
+      execution_engine ee(mod);
+      ee.execute();
    } FC_LOG_AND_RETHROW() 
 }
 

@@ -51,8 +51,18 @@ if ("${OPENSSL_ROOT_DIR}" STREQUAL "")
    endif()
 endif()
 
+set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_C_FLAGS} -O3 -mllvm -use-clf-aa-in-codegen=both" )
+
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+   if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
+      set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mllvm -use-cfl-aa-in-codegen=both" )
+   endif()
+   set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto" )
+endif()
+
 if ( APPLE )
-   set( CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -Wall -Wno-deprecated-declarations" )
+   set( CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -O3 -Wall -Wno-deprecated-declarations -mllvm -use-cfl-aa-in-codegen=both" )
+   set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto" )
 else()
    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall" )
    set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++ -static-libgcc" )
@@ -73,8 +83,14 @@ add_subdirectory(fc)
 list( APPEND wasm_interpreter_sources ${wasm_interpreter_headers} )
 add_library ( wasm_interpreter STATIC ${wasm_interpreter_sources} )
 
+#add_executable( wasm_t ${CMAKE_SOURCE_DIR}/tests/fuzz/fuzz_parser.cpp ${fc} ${wasm_interpreter} ${filesystem} ${chrono} ${date_time})
+
 target_include_directories( wasm_interpreter PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
                                                     "${CMAKE_SOURCE_DIR}/fc/include"
                                                     "${Boost_INCLUDE_DIRS}" )
+                                                 #target_include_directories( wasm_t PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                                                 #   "${CMAKE_SOURCE_DIR}/fc/include"
+                                                 #   "${Boost_INCLUDE_DIRS}" )
 
 add_subdirectory(tests)
+#add_subdirectory(tests/fuzz)

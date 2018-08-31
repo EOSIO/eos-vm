@@ -11,7 +11,6 @@
 #include <eosio/wasm_backend/integer_types.hpp>
 #include <eosio/wasm_backend/wasm_interpreter.hpp>
 #include <eosio/wasm_backend/types.hpp>
-#include <eosio/wasm_backend/execution_engine.hpp>
 #include <eosio/wasm_backend/opcodes.hpp>
 #include <eosio/wasm_backend/parser.hpp>
 #include <eosio/wasm_backend/constants.hpp>
@@ -110,7 +109,7 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
       {
          binary_parser bp;
          module mod;
-         memory_manager::set_memory_limits( 128*1024, 64*1024 );
+         memory_manager::set_memory_limits( 32*1024*1024, 64*1024 );
          wasm_code code = read_wasm( "test.wasm" );
          wasm_code_ptr code_ptr(code.data(), 0);
          bp.parse_module( code, mod );

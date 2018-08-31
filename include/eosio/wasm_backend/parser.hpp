@@ -14,12 +14,19 @@ namespace eosio { namespace wasm_backend {
          using vec = native_vector<T>;
 
          template <size_t N>
-         uint32_t parse_varuint( wasm_code_ptr& code ) {
+         static inline uint32_t parse_varuint( wasm_code_ptr& code ) {
             varuint<N> result(0);
             result.set( code );
             return result.get();
          }
-         
+
+         template <size_t N>
+         static inline uint32_t parse_varint( wasm_code_ptr& code ) {
+            varint<N> result(0);
+            result.set( code );
+            return result.get();
+         }
+        
          void parse_module( wasm_code& code, module& mod );
 
          inline uint32_t parse_magic( wasm_code_ptr& code ) {
@@ -50,6 +57,7 @@ namespace eosio { namespace wasm_backend {
          void parse_elem_segment( wasm_code_ptr& code, elem_segment& es );
          void parse_init_expr( wasm_code_ptr& code, init_expr& ie );
          void parse_function_body( wasm_code_ptr& code, function_body& fb );
+         void parse_function_body_code( wasm_code_ptr& code, size_t bounds, native_vector<uint8_t>& code_bytes );
          void parse_data_segment( wasm_code_ptr& code, data_segment& ds );
 
          template <typename Elem, typename ParseFunc>
@@ -145,17 +153,5 @@ namespace eosio { namespace wasm_backend {
             result.set( code, index );
             return result;
          }
-/*
-         template <size_t N>
-         varuint<N> parse_varuint( const wasm_code& code, size_t index ) {
-            varuint<N> result(0);
-            result.set( code, index );
-            return result;
-         }
-*/
-
-      private:
-         //std::vector<uint8_t> _code;
-         //std::vector<uint8_t> _decoded;
    };
 }} // namespace eosio::wasm_backend
