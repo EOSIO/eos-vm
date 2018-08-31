@@ -103,6 +103,14 @@ namespace eosio { namespace wasm_backend {
       }
    }
    
+   void binary_parser::parse_function_body_code( wasm_code_ptr& code, size_t bounds, native_vector<uint8_t>& fb ) {
+      for (size_t i=0; i < bounds; i++) {
+         //std::cout << "CODE " << code << "\n";
+         //switch ( *code ) {
+         //} 
+      }
+   }
+
    void binary_parser::parse_function_body( wasm_code_ptr& code, function_body& fb ) {
       auto body_size = parse_varuint<32>( code );
       auto before = code.offset();
@@ -114,8 +122,10 @@ namespace eosio { namespace wasm_backend {
          fb.locals.at(i).type  = *code++;
       }
       size_t bytes = body_size - (code.offset() - before) - 1; // -1 is 'end' 0xb byte
-      fb.code.set( code.raw(), bytes ); 
-      memcpy( (char*)fb.code.raw(), (const char*)code.raw(), bytes );
+      fb.code.resize( bytes );
+      //parse_function_body_code( code, bytes, fb.code );
+      //fb.code.set( code.raw(), bytes ); 
+      memcpy( (char*)fb.code.raw(), (char*)code.raw(), bytes );
       code += bytes;
       EOS_WB_ASSERT( *code++ == 0x0B, wasm_parse_exception, "failed parsing function body, expected 'end'");
    }

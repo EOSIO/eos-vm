@@ -35,6 +35,8 @@ namespace eosio { namespace wasm_backend {
    
    template <typename T>
    using native_vector = managed_vector<T, memory_manager::types::native>;
+   template <typename T>
+   using stack64_vector = managed_vector<T, memory_manager::types::stack64>;
 
    struct resizable_limits {
       bool  flags;
@@ -129,6 +131,19 @@ namespace eosio { namespace wasm_backend {
       uint32_t  size;
       native_vector<uint8_t> data;
    };
+   
+   struct control {
+      uint8_t  ret_type : 8;
+      uint8_t opcode    : 8;
+   };
+   struct control_stack {
+      control_stack() { cs.resize( 1000 ); }
+      inline void push( uint64_t c ) { cs.at(index++) = c; }
+      inline uint64_t peek() { return cs.at(index); }
+      inline void pop() { index--; }
+      stack64_vector<uint64_t> cs;
+      size_t index=0;
+   };
 
    using wasm_code = std::vector<uint8_t>;
    using wasm_code_ptr = guarded_ptr<uint8_t>;
@@ -153,5 +168,6 @@ namespace eosio { namespace wasm_backend {
       native_vector<elem_segment>    elements;
       native_vector<function_body>   code;
       native_vector<data_segment>    data;
+      uint32_t                       apply_index;
    };
 }} // namespace eosio::wasm_backend
