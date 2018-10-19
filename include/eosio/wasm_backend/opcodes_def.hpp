@@ -1,5 +1,5 @@
 #pragma once
-#define OPCODES(opcode_macro) \
+#define CONTROL_FLOW_OPS(opcode_macro) \
       opcode_macro(unreachable, 0x00) \
       opcode_macro(nop, 0x01) \
       opcode_macro(block, 0x02) \
@@ -8,18 +8,24 @@
       opcode_macro(else_, 0x05) \
       opcode_macro(end, 0x0B) \
       opcode_macro(br, 0x0C) \
-      opcode_macro(br_if, 0x0D) \
-      opcode_macro(br_table, 0x0E) \
-      opcode_macro(return_, 0x0F) \
+      opcode_macro(br_if, 0x0D)
+#define BR_TABLE_OP(opcode_macro) \
+      opcode_macro(br_table, 0x0E)
+#define RETURN_OP(opcode_macro) \
+      opcode_macro(return_, 0x0F)
+#define CALL_OPS(opcode_macro) \
       opcode_macro(call, 0x10) \
-      opcode_macro(call_indirect, 0x11) \
+      opcode_macro(call_indirect, 0x11)
+#define PARAMETRIC_OPS(opcode_macro) \
       opcode_macro(drop, 0x1A) \
-      opcode_macro(select, 0x1B) \
+      opcode_macro(select, 0x1B)
+#define VARIABLE_ACCESS_OPS(opcode_macro) \
       opcode_macro(get_local, 0x20) \
       opcode_macro(set_local, 0x21) \
       opcode_macro(tee_local, 0x22) \
       opcode_macro(get_global, 0x23) \
-      opcode_macro(set_global, 0x24) \
+      opcode_macro(set_global, 0x24) 
+#define MEMORY_OPS(opcode_macro) \
       opcode_macro(i32_load, 0x28) \
       opcode_macro(i64_load, 0x29) \
       opcode_macro(f32_load, 0x2A) \
@@ -44,11 +50,16 @@
       opcode_macro(i64_store16, 0x3D) \
       opcode_macro(i64_store32, 0x3E) \
       opcode_macro(current_memory, 0x3F) \
-      opcode_macro(grow_memory, 0x40) \
-      opcode_macro(i32_const, 0x41) \
-      opcode_macro(i64_const, 0x42) \
-      opcode_macro(f32_const, 0x43) \
-      opcode_macro(f64_const, 0x44) \
+      opcode_macro(grow_memory, 0x40)
+#define I32_CONSTANT_OPS(opcode_macro) \
+      opcode_macro(i32_const, 0x41) 
+#define I64_CONSTANT_OPS(opcode_macro) \
+      opcode_macro(i64_const, 0x42) 
+#define F32_CONSTANT_OPS(opcode_macro) \
+      opcode_macro(f32_const, 0x43) 
+#define F64_CONSTANT_OPS(opcode_macro) \
+      opcode_macro(f64_const, 0x44) 
+#define COMPARISON_OPS(opcode_macro) \
       opcode_macro(i32_eqz, 0x45) \
       opcode_macro(i32_eq, 0x46) \
       opcode_macro(i32_ne, 0x47) \
@@ -82,7 +93,8 @@
       opcode_macro(f64_lt, 0x63) \
       opcode_macro(f64_gt, 0x64) \
       opcode_macro(f64_le, 0x65) \
-      opcode_macro(f64_ge, 0x66) \
+      opcode_macro(f64_ge, 0x66) 
+#define NUMERIC_OPS(opcode_macro) \
       opcode_macro(i32_clz, 0x67) \
       opcode_macro(i32_ctz, 0x68) \
       opcode_macro(i32_popcnt, 0x69) \
@@ -146,7 +158,8 @@
       opcode_macro(f64_div, 0xA3) \
       opcode_macro(f64_min, 0xA4) \
       opcode_macro(f64_max, 0xA5) \
-      opcode_macro(f64_copysign, 0xA6) \
+      opcode_macro(f64_copysign, 0xA6) 
+#define CONVERSION_OPS(opcode_macro) \
       opcode_macro(i32_wrap_i64, 0xA7) \
       opcode_macro(i32_trunc_s_f32, 0xA8) \
       opcode_macro(i32_trunc_u_f32, 0xA9) \
@@ -171,8 +184,9 @@
       opcode_macro(i32_reinterpret_f32, 0xBC) \
       opcode_macro(i64_reinterpret_f64, 0xBD) \
       opcode_macro(f32_reinterpret_i32, 0xBE) \
-      opcode_macro(f64_reinterpret_i64, 0xBF) \
-      opcode_macro(error, 0xF) 
+      opcode_macro(f64_reinterpret_i64, 0xBF) 
+#define ERROR_OPS(opcode_macro) \
+      opcode_macro(error, 0xC0) 
 
 #define CREATE_ENUM(name, code) \
    name = code,
@@ -182,3 +196,61 @@
 
 #define CREATE_MAP(name, code) \
   {code, #name},
+
+#define CREATE_CONTROL_FLOW_TYPES(name, code) \
+   struct name##_t {                          \
+      uint32_t data;                          \
+   };
+
+#define CREATE_BR_TABLE_TYPE(name, code)    \
+   struct name##_t {                        \
+      managed_vector<uint32_t, memory_manager::types::native> target_table; \
+      uint32_t              default_target; \
+   };
+
+#define CREATE_TYPES(name, code) \
+   struct name##_t {};
+
+#define CREATE_CALL_TYPES(name, code) \
+   struct name##_t {                  \
+      uint32_t index;                 \
+   };
+
+#define CREATE_VARIABLE_ACCESS_TYPES(name, code) \
+   struct name##_t {                             \
+      uint32_t index;                            \
+   };
+
+#define CREATE_MEMORY_TYPES(name, code) \
+   struct name##_t {                    \
+      uint32_t flags;                   \
+      uint32_t offset;                  \
+   };
+
+#define CREATE_I32_CONSTANT_TYPE(name, code) \
+   struct name##_t {                         \
+      uint32_t data;                         \
+   };
+
+#define CREATE_I64_CONSTANT_TYPE(name, code) \
+   struct name##_t {                         \
+      uint64_t data;                         \
+   };
+
+#define CREATE_F32_CONSTANT_TYPE(name, code) \
+   struct name##_t {                         \
+      uint32_t data;                         \
+   };
+
+#define CREATE_F64_CONSTANT_TYPE(name, code) \
+   struct name##_t {                         \
+      uint64_t data;                         \
+   };
+
+#define IDENTITY(name, code) \
+   eosio::wasm_backend::name##_t,
+#define IDENTITY_END(name, code) \
+   eosio::wasm_backend::name##_t
+
+#define VISIT(name, code) \
+   void operator()( name##_t ) { std::cout << "Found an " << #name << "\n"; }

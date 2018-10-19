@@ -8,11 +8,12 @@ namespace eosio { namespace wasm_backend {
    }
    
    void execution_engine::call( size_t index ) { 
-
+#if 0
       if ( index >= mod->imports.size() ) {
          wasm_code_ptr wcp( mod->code.at(index).code.raw(), mod->code.at(index).code.size() );
          call(wcp, mod->code.at(index).code.size());
       }
+#endif
       /*
       else {
          call_import(
@@ -28,50 +29,50 @@ namespace eosio { namespace wasm_backend {
    }
    
    void execution_engine::eval( wasm_code_ptr& code ) {
-      opcode expect = opcode::nop;
+      opcodes expect = opcodes::nop;
       switch ( *code++ ) {
          // CONTROL FLOW OPERATORS
-         case opcode::unreachable:
-            //FC_THROW_EXCEPTION(wasm_unreachable_exception, "unreachable opcode"); 
+         case opcodes::unreachable:
+            //FC_THROW_EXCEPTION(wasm_unreachable_exception, "unreachable opcodes"); 
             break;
-         case opcode::nop:
-            eval<opcode::nop>( code ); break;
-         case opcode::end:
-            eval<opcode::end>( code ); break;
-         case opcode::return_:
-            eval<opcode::return_>( code ); break;
-         case opcode::block:
-            eval<opcode::block>( code ); break;
-         case opcode::loop:
-            eval<opcode::loop>( code ); break;
-         case opcode::if_:
-            eval<opcode::if_>( code ); break;
-         case opcode::else_:
-            eval<opcode::else_>( code ); break;
-         case opcode::br:
-            eval<opcode::br>( code ); break;
-         case opcode::br_if:
-            eval<opcode::br_if>( code ); break;
-         case opcode::br_table:
-            eval<opcode::br_table>( code ); break;
-         case opcode::call:
-            eval<opcode::call>( code ); break;
-         case opcode::call_indirect:
-            eval<opcode::call_indirect>( code ); break;
-         case opcode::drop:
-            eval<opcode::drop>( code ); break;
-         case opcode::select:
-            eval<opcode::select>( code ); break;
-         case opcode::get_local:
-            eval<opcode::get_local>( code ); break;
-         case opcode::set_local:
-            eval<opcode::set_local>( code ); break;
-         case opcode::tee_local:
-            eval<opcode::tee_local>( code ); break;
-         case opcode::get_global:
-            eval<opcode::get_global>( code ); break;
-         case opcode::set_global:
-            eval<opcode::set_global>( code ); break;
+         case opcodes::nop:
+            eval<opcodes::nop>( code ); break;
+         case opcodes::end:
+            eval<opcodes::end>( code ); break;
+         case opcodes::return_:
+            eval<opcodes::return_>( code ); break;
+         case opcodes::block:
+            eval<opcodes::block>( code ); break;
+         case opcodes::loop:
+            eval<opcodes::loop>( code ); break;
+         case opcodes::if_:
+            eval<opcodes::if_>( code ); break;
+         case opcodes::else_:
+            eval<opcodes::else_>( code ); break;
+         case opcodes::br:
+            eval<opcodes::br>( code ); break;
+         case opcodes::br_if:
+            eval<opcodes::br_if>( code ); break;
+         case opcodes::br_table:
+            eval<opcodes::br_table>( code ); break;
+         case opcodes::call:
+            eval<opcodes::call>( code ); break;
+         case opcodes::call_indirect:
+            eval<opcodes::call_indirect>( code ); break;
+         case opcodes::drop:
+            eval<opcodes::drop>( code ); break;
+         case opcodes::select:
+            eval<opcodes::select>( code ); break;
+         case opcodes::get_local:
+            eval<opcodes::get_local>( code ); break;
+         case opcodes::set_local:
+            eval<opcodes::set_local>( code ); break;
+         case opcodes::tee_local:
+            eval<opcodes::tee_local>( code ); break;
+         case opcodes::get_global:
+            eval<opcodes::get_global>( code ); break;
+         case opcodes::set_global:
+            eval<opcodes::set_global>( code ); break;
 
          default:
             break;
@@ -82,23 +83,23 @@ namespace eosio { namespace wasm_backend {
       dispatch_table.reserve(257);
       
       auto error_func = [](params&&) {
-        FC_THROW_EXCEPTION(wasm_illegal_opcode_exception, "illegal opcode"); 
+        FC_THROW_EXCEPTION(wasm_illegal_opcode_exception, "illegal opcodes"); 
       };
 
       for (int i=0; i < 257; i++)
         dispatch_table[i] = error_func;
 
-      // fill in for each opcode, sorry quite large function
-      dispatch_table[opcode::unreachable] = [](params&&) { 
-         FC_THROW_EXCEPTION(wasm_unreachable_exception, "unreachable opcode"); 
+      // fill in for each opcodes, sorry quite large function
+      dispatch_table[opcodes::unreachable] = [](params&&) { 
+         FC_THROW_EXCEPTION(wasm_unreachable_exception, "unreachable opcodes"); 
       };
 
-      dispatch_table[opcode::nop] = [](params&&) { 
+      dispatch_table[opcodes::nop] = [](params&&) { 
          std::cout << "NOP\n";
       };
-      dispatch_table[opcode::block] = [](params&& p) {
+      dispatch_table[opcodes::block] = [](params&& p) {
       }; 
-      dispatch_table[opcode::call] = [](params&& p) {
+      dispatch_table[opcodes::call] = [](params&& p) {
       };
    }
    

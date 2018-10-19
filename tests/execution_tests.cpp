@@ -32,7 +32,7 @@ BOOST_AUTO_TEST_CASE(hello_world_wasm_test) {
       wasm_code_ptr code_ptr(code.data(), 0);
       bp.parse_module( code, mod );
       execution_engine ee(mod);
-      ee.execute();
+      //ee.execute();
    } FC_LOG_AND_RETHROW() 
 }
 

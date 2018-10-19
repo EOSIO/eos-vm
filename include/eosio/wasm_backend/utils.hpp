@@ -41,7 +41,6 @@ namespace eosio { namespace wasm_backend {
       }
       
       inline T& operator* () {
-         //std::cout << "* " << (uint64_t)raw_ptr << " OP " << (uint64_t)orig_ptr << " BOUNDS " << (uint64_t)bnds << "\n";
          return *raw_ptr;
       }
       
@@ -81,7 +80,6 @@ namespace eosio { namespace wasm_backend {
       }
 
       inline T at(size_t index) const {
-         //std::cout << "at " << (uint64_t)raw_ptr << " OP " << (uint64_t)orig_ptr << " BOUNDS " << (uint64_t)bnds << " INDEX " << index << "\n";
          EOS_WB_ASSERT(orig_ptr + index <= bnds, guarded_ptr_exception, "accessing out of bounds");
          return raw_ptr[index];
       }
@@ -91,7 +89,6 @@ namespace eosio { namespace wasm_backend {
       }
 
       inline T operator[](size_t index) const {
-         //std::cout << "[] " << (uint64_t)raw_ptr << " OP " << (uint64_t)orig_ptr << " BOUNDS " << (uint64_t)bnds << " INDEX " << index << "\n";
          EOS_WB_ASSERT(orig_ptr + index <= bnds, guarded_ptr_exception, "accessing out of bounds");
          return raw_ptr[index];
       }

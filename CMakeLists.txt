@@ -5,8 +5,8 @@ set( VERSION_MAJOR 0 )
 set( VERSION_MINOR 0 )
 set( VERSION_PATCH 0 )
 
-set( CMAKE_CXX_STANDARD 14 )
-set( CXX_STANDARD_REQUIRED ON )
+#set( CMAKE_CXX_STANDARD 17 )
+#set( CXX_STANDARD_REQUIRED ON )
 
 find_package( Gperftools QUIET )
 if( GPERFTOOLS_FOUND )
@@ -35,23 +35,7 @@ FIND_PACKAGE(Boost 1.67 REQUIRED COMPONENTS
     iostreams)
 
 
-# add defaults for openssl
-if ("${OPENSSL_ROOT_DIR}" STREQUAL "")
-   if (NOT "$ENV{OPENSSL_ROOT_DIR}" STREQUAL "")
-      set(OPENSSL_ROOT_DIR $ENV{OPENSSL_ROOT_DIR})
-      set(OPENSSL_INCLUDE_DIR ${OPENSSL_ROOT_DIR}/include)
-   elseif (APPLE)
-      set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")
-      set(OPENSSL_INCLUDE_DIR "/usr/local/opt/openssl/include")
-   elseif(UNIX AND NOT APPLE)
-      set(OPENSSL_ROOT_DIR "/usr/include/openssl")
-      set(OPENSSL_INCLUDE_DIR "/usr/include/openssl/include")
-   else()
-      message(FATAL_ERROR "openssl not found and don't know where to look, please specify OPENSSL_ROOT_DIR")
-   endif()
-endif()
-
-set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_C_FLAGS} -O3 -mllvm -use-clf-aa-in-codegen=both" )
+set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_C_FLAGS} -O3 -std=c++17" ) # -mllvm -use-clf-aa-in-codegen=both" )
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
    if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)

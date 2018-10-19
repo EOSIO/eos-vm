@@ -6,7 +6,6 @@ set( VERSION_PATCH 0 )
 
 enable_testing()
 
-#file(GLOB UNIT_TESTS "*.cpp")
 file(GLOB UNIT_TESTS "*.cpp")
 
 add_executable( unit_test ${UNIT_TESTS} )
