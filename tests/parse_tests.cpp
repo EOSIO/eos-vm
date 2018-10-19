@@ -107,9 +107,9 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
       };
 
       {
+         memory_manager::set_memory_limits( 32*1024*1024, 64*1024 );
          binary_parser bp;
          module mod;
-         memory_manager::set_memory_limits( 32*1024*1024, 64*1024 );
          wasm_code code = read_wasm( "test.wasm" );
          wasm_code_ptr code_ptr(code.data(), 0);
          bp.parse_module( code, mod );
@@ -150,9 +150,9 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          BOOST_CHECK_EQUAL( mod.globals.at(1).type.mutability, false );
          BOOST_CHECK_EQUAL( mod.globals.at(2).type.mutability, false );
        
-         BOOST_CHECK_EQUAL( mod.globals.at(0).init.opcode, opcode::i32_const );
-         BOOST_CHECK_EQUAL( mod.globals.at(1).init.opcode, opcode::i32_const );
-         BOOST_CHECK_EQUAL( mod.globals.at(2).init.opcode, opcode::i32_const );
+         BOOST_CHECK_EQUAL( mod.globals.at(0).init.opcode, opcodes::i32_const );
+         BOOST_CHECK_EQUAL( mod.globals.at(1).init.opcode, opcodes::i32_const );
+         BOOST_CHECK_EQUAL( mod.globals.at(2).init.opcode, opcodes::i32_const );
 
          BOOST_CHECK_EQUAL( mod.globals.at(0).init.value.i32, 8192 );
          BOOST_CHECK_EQUAL( mod.globals.at(1).init.value.i32, 12244 );

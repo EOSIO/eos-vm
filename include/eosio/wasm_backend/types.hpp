@@ -9,6 +9,7 @@
 #include <eosio/wasm_backend/utils.hpp>
 #include <eosio/wasm_backend/allocator.hpp>
 #include <eosio/wasm_backend/vector.hpp>
+#include <eosio/wasm_backend/opcodes.hpp>
 #include <fc/optional.hpp>
 
 namespace eosio { namespace wasm_backend {
@@ -122,7 +123,7 @@ namespace eosio { namespace wasm_backend {
       uint32_t body_size;
       uint32_t local_count;
       native_vector<local_entry> locals;
-      native_vector<uint8_t> code;
+      native_vector<opcode> code;
    };
    
    struct data_segment {
@@ -149,11 +150,6 @@ namespace eosio { namespace wasm_backend {
    using wasm_code_ptr = guarded_ptr<uint8_t>;
    using wasm_code_iterator = std::vector<uint8_t>::iterator;
    using wasm_bytes = std::vector<uint8_t>;
-   
-   struct function {
-      func_type type;
-      wasm_code code;
-   };
 
    struct module {
       module(){}

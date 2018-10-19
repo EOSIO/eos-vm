@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+//#include <variant>
 
 #include <eosio/wasm_backend/types.hpp>
 #include <eosio/wasm_backend/vector.hpp>
@@ -57,7 +58,7 @@ namespace eosio { namespace wasm_backend {
          void parse_elem_segment( wasm_code_ptr& code, elem_segment& es );
          void parse_init_expr( wasm_code_ptr& code, init_expr& ie );
          void parse_function_body( wasm_code_ptr& code, function_body& fb );
-         void parse_function_body_code( wasm_code_ptr& code, size_t bounds, native_vector<uint8_t>& code_bytes );
+         void parse_function_body_code( wasm_code_ptr& code, size_t bounds, native_vector<opcode>& code_bytes );
          void parse_data_segment( wasm_code_ptr& code, data_segment& ds );
 
          template <typename Elem, typename ParseFunc>
@@ -139,14 +140,14 @@ namespace eosio { namespace wasm_backend {
                vec<typename std::enable_if_t<id == section_id::data_section, data_segment>>& elems ) {
             parse_section_impl( code, elems, [&](wasm_code_ptr& code, data_segment& ds) { parse_data_segment( code, ds ); } );
          }
-
+         
          template <size_t N>
          varint<N> parse_varint( const wasm_code& code, size_t index ) {
             varint<N> result(0);
             result.set( code, index );
             return result;
          }
-
+         
          template <size_t N>
          varuint<N> parse_varuint( const wasm_code& code, size_t index ) {
             varuint<N> result(0);
