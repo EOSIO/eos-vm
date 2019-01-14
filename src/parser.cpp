@@ -3,6 +3,7 @@
 #include <eosio/wasm_backend/opcodes.hpp>
 #include <eosio/wasm_backend/constants.hpp>
 #include <eosio/wasm_backend/sections.hpp>
+#include <eosio/wasm_backend/disassembly_visitor.hpp>
 
 namespace eosio { namespace wasm_backend {
    void binary_parser::parse_init_expr( wasm_code_ptr& code, init_expr& ie ) {
@@ -32,7 +33,7 @@ namespace eosio { namespace wasm_backend {
       ft.form = *code++;
       ft.param_count = parse_varuint<32>( code );
       ft.param_types.resize( ft.param_count );
-      for ( int i=0; i < ft.param_count; i++ ) 
+      for ( size_t i=0; i < ft.param_count; i++ ) 
          ft.param_types.at(i) = *code++;
       ft.return_count = *code++;
       if (ft.return_count > 0)
@@ -108,7 +109,7 @@ namespace eosio { namespace wasm_backend {
       auto parse_br_table = []( wasm_code_ptr& code, br_table_t& bt ) {
          size_t table_size = parse_varuint<32>( code );
          bt.target_table.resize(table_size);
-         for ( size_t i; i < table_size; i++ )
+         for ( size_t i=0; i < table_size; i++ )
             bt.target_table[i] = parse_varuint<32>( code );
          bt.default_target = parse_varuint<32>( code );
       };
@@ -471,7 +472,7 @@ namespace eosio { namespace wasm_backend {
          } 
       }
    }
-   
+/*   
    template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
    template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
    
@@ -492,7 +493,7 @@ namespace eosio { namespace wasm_backend {
       CONVERSION_OPS(VISIT)
       ERROR_OPS(VISIT)
    };
-
+*/
    void binary_parser::parse_function_body( wasm_code_ptr& code, function_body& fb ) {
       auto body_size = parse_varuint<32>( code );
       auto before = code.offset();
@@ -509,8 +510,8 @@ namespace eosio { namespace wasm_backend {
       parse_function_body_code( fb_code, bytes, fb.code );
       //fb.code.set( code.raw(), bytes ); 
       //memcpy( (char*)fb.code.raw(), (char*)code.raw(), bytes );
+      disassembly_visitor v;
       for ( size_t i; i < fb.code.size(); i++ ) {
-         visitor v;
          std::visit(v, fb.code[i]);
    //      std::visit(overloaded{
    //               [](if__t) { std::cout << "Found an if\n";},

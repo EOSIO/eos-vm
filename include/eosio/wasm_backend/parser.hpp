@@ -15,14 +15,14 @@ namespace eosio { namespace wasm_backend {
          using vec = native_vector<T>;
 
          template <size_t N>
-         static inline uint32_t parse_varuint( wasm_code_ptr& code ) {
+         static inline uint64_t parse_varuint( wasm_code_ptr& code ) {
             varuint<N> result(0);
             result.set( code );
             return result.get();
          }
 
          template <size_t N>
-         static inline uint32_t parse_varint( wasm_code_ptr& code ) {
+         static inline uint64_t parse_varint( wasm_code_ptr& code ) {
             varint<N> result(0);
             result.set( code );
             return result.get();

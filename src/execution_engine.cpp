@@ -29,7 +29,6 @@ namespace eosio { namespace wasm_backend {
    }
    
    void execution_engine::eval( wasm_code_ptr& code ) {
-      opcodes expect = opcodes::nop;
       switch ( *code++ ) {
          // CONTROL FLOW OPERATORS
          case opcodes::unreachable:
