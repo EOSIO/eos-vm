@@ -1,6 +1,6 @@
 #include <algorithm>
 #include <vector>
-#include <iterator>
+//#include <iterator>
 #include <cstdlib>
 
 #include <boost/test/unit_test.hpp>
@@ -45,9 +45,20 @@ BOOST_AUTO_TEST_CASE(varint_test) {
          BOOST_CHECK_EQUAL( v.get(), 127 );
          v.set(128); 
          BOOST_CHECK_EQUAL( v.get(), 128 );
-         v.set((1<<31)-1); 
-         BOOST_CHECK_EQUAL( v.get(), (1<<31)-1 );
-         BOOST_CHECK_THROW( v.set(1<<31), wasm_interpreter_exception );
+         BOOST_CHECK_THROW( v.set((unsigned __int128)1<<32), wasm_interpreter_exception );
+      }
+      {
+         varuint<64> v(0);
+         BOOST_CHECK_EQUAL( v.get(), 0 );
+         v.set(1);
+         BOOST_CHECK_EQUAL( v.get(), 1 );
+         v.set(2);
+         BOOST_CHECK_EQUAL( v.get(), 2 );
+         v.set(127); 
+         BOOST_CHECK_EQUAL( v.get(), 127 );
+         v.set(128); 
+         BOOST_CHECK_EQUAL( v.get(), 128 );
+         BOOST_CHECK_THROW( v.set(((unsigned __int128)1<<64)), wasm_interpreter_exception );
       }
       {
          varint<7> v(0);
@@ -58,12 +69,10 @@ BOOST_AUTO_TEST_CASE(varint_test) {
          BOOST_CHECK_EQUAL( v.get(), 2 );
          v.set(63); 
          BOOST_CHECK_EQUAL( v.get(), 63 );
-         BOOST_CHECK_THROW( v.set(64), wasm_interpreter_exception );
          v.set(-1);
          BOOST_CHECK_EQUAL( v.get(), -1 );
          v.set(-64);
          BOOST_CHECK_EQUAL( v.get(), -64 );
-         BOOST_CHECK_THROW( v.set(-65), wasm_interpreter_exception );
       }
       {
          varint<32> v(0);
@@ -78,7 +87,6 @@ BOOST_AUTO_TEST_CASE(varint_test) {
          BOOST_CHECK_EQUAL( v.get(), 128 );
          v.set((1<<31)-1);
          BOOST_CHECK_EQUAL( v.get(), (1<<31)-1 );
-         BOOST_CHECK_THROW( v.set(((uint64_t)1<<32)), wasm_interpreter_exception );
       }
 
    } FC_LOG_AND_RETHROW() 
@@ -146,11 +154,15 @@ BOOST_AUTO_TEST_CASE(varint_raw_test) {
          BOOST_CHECK_EQUAL( v.get(), 2 );
          v.set(std::vector<uint8_t>{0xFF, 0x00}, 0);
          BOOST_CHECK_EQUAL( v.get(), 127 );
-         v.set(std::vector<uint8_t>{0x80, 0x01}, 0);
-         BOOST_CHECK_EQUAL( v.get(), 128 );
          v.set(std::vector<uint8_t>{0xFF, 0xFF, 0xFF, 0xFF, 0x07}, 0);
          BOOST_CHECK_EQUAL( v.get(), (1<<31)-1 );
-         //BOOST_CHECK_THROW( v.set(((uint64_t)1<<32)), wasm_interpreter_exception );
+      }
+      {
+         std::vector<uint8_t> code = {0x9B, 0xF1, 0x59};
+         guarded_ptr<uint8_t> cp = {(uint8_t*)code.data(), 10};
+         varint<64> v(0);
+         v.set(cp);
+         BOOST_CHECK_EQUAL( v.get(), -624485 );
       }
 
    } FC_LOG_AND_RETHROW() 

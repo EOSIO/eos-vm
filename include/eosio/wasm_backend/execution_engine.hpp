@@ -60,18 +60,17 @@ namespace eosio { namespace wasm_backend {
          // nop
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
-            -> std::enable_if_t<Op == opcodes::nop, void> { /* do nothing */ }
+            -> std::enable_if_t<Op == opcodes::nop, void> { return; }
 
          // end
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
-            -> std::enable_if_t<Op == opcodes::end, bool> { /* do nothing */ }
+            -> std::enable_if_t<Op == opcodes::end, bool> { return false; }
 
          // return
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
-            -> std::enable_if_t<Op == opcodes::return_, uint64_t> {
-         }
+            -> std::enable_if_t<Op == opcodes::return_, uint64_t> { return 0; }
 
          // block
          template <opcodes Op>
