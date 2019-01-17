@@ -5,7 +5,7 @@
  */
 
 #include <string>
-#include <eosio/wasm_backend/integer_types.hpp>
+#include <eosio/wasm_backend/leb128.hpp>
 #include <eosio/wasm_backend/utils.hpp>
 #include <eosio/wasm_backend/allocator.hpp>
 #include <eosio/wasm_backend/vector.hpp>

@@ -8,7 +8,7 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/test/framework.hpp>
 
-#include <eosio/wasm_backend/integer_types.hpp>
+#include <eosio/wasm_backend/leb128.hpp>
 #include <eosio/wasm_backend/wasm_interpreter.hpp>
 #include <eosio/wasm_backend/types.hpp>
 #include <eosio/wasm_backend/execution_engine.hpp>

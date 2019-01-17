@@ -16,16 +16,12 @@ namespace eosio { namespace wasm_backend {
 
          template <size_t N>
          static inline uint64_t parse_varuint( wasm_code_ptr& code ) {
-            varuint<N> result(0);
-            result.set( code );
-            return result.get();
+            return varuint<N>(code).to();
          }
 
          template <size_t N>
          static inline uint64_t parse_varint( wasm_code_ptr& code ) {
-            varint<N> result(0);
-            result.set( code );
-            return result.get();
+            return varint<N>(code).to();
          }
         
          void parse_module( wasm_code& code, module& mod );
@@ -65,7 +61,7 @@ namespace eosio { namespace wasm_backend {
          inline void parse_section_impl( wasm_code_ptr& code, vec<Elem>& elems, ParseFunc&& elem_parse ) {
             auto count = parse_varuint<32>( code );
             elems.resize(count);
-            for (int i=0; i < count; i++ )
+            for (size_t i=0; i < count; i++ )
                elem_parse(code, elems.at(i));
          }
          

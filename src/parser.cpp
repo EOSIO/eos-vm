@@ -10,10 +10,10 @@ namespace eosio { namespace wasm_backend {
       ie.opcode = *code++;
       switch ( ie.opcode ) {
          case opcodes::i32_const:
-            ie.value.i32 = parse_varuint<32>( code );
+            ie.value.i32 = parse_varint<32>( code );
             break;
          case opcodes::i64_const:
-            ie.value.i64 = parse_varuint<64>( code );
+            ie.value.i64 = parse_varint<64>( code );
             break;
          case opcodes::f32_const:
             ie.value.f32 = *((uint32_t*)code.raw());
