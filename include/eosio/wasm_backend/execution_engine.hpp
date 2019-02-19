@@ -8,30 +8,6 @@
 #include <eosio/wasm_backend/parser.hpp>
 
 namespace eosio { namespace wasm_backend {
-   /*
-   template <uint16_t opcodes>
-   struct execute_op {
-      inline static ret_type exec( wasm_code_ptr& code ) { 
-         EOS_WB_ASSERT( false, wasm_illegal_opcodes_exception, "unsupported opcodes" ); 
-      }
-   };
-   template <>
-   struct execute_op<unreachable> {
-      inline static ret_type exec( wasm_code_ptr& code ) { 
-         EOS_WB_ASSERT( false, wasm_unreachable_exception, "unreachable opcodes" ); 
-      }
-   };
-   template <>
-   struct execute_op<nop> {
-      inline static ret_type exec( wasm_code_ptr& code ) { 
-      }
-   };
-   template <>
-   struct execute_op<block> {
-      inline static ret_type exec( wasm_code_ptr& code ) { 
-      }
-   };
-   */
 
    class execution_engine {
       public:
@@ -46,7 +22,6 @@ namespace eosio { namespace wasm_backend {
          template <uint16_t op>
          inline auto exec( wasm_code_ptr& code ) 
             -> std::enable_if_t<op == opcodes::unreachable, void> {
-            EOS_WB_ASSERT( false, wasm_unreachable_exception, "unreachable opcodes" ); 
          }
          template <uint16_t op>
          inline auto exec( wasm_code_ptr& code ) 
@@ -76,21 +51,21 @@ namespace eosio { namespace wasm_backend {
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::block, void> {
-            cs.push( *code++ );
+            //cs.push( *code++ );
          }
 
          // loop
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::loop, void> {
-            cs.push( *code++ );
+            //cs.push( *code++ );
          }
 
          // if
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::if_, void> {
-            cs.push( *code++ );
+            //cs.push( *code++ );
          }
 
          // else
@@ -103,14 +78,14 @@ namespace eosio { namespace wasm_backend {
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::br, void> {
-            binary_parser::parse_varuint<32>( code ); 
+            binary_parser::parse_varuint32( code ); 
          }
 
          // br_if
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::br_if, void> {
-            binary_parser::parse_varuint<32>( code ); 
+            binary_parser::parse_varuint32( code ); 
          }
 
          // br_table
@@ -118,25 +93,25 @@ namespace eosio { namespace wasm_backend {
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::br_table, void> {
-            auto len = binary_parser::parse_varuint<32>( code ); 
+            auto len = binary_parser::parse_varuint32( code ); 
             for ( size_t i=0; i < len; i++ ) {
-               binary_parser::parse_varuint<32>( code );
+               binary_parser::parse_varuint32( code );
             }
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // call
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::call, void> {
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // call_indirect
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::call_indirect, void> {
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
             *code++; //MVP always 0
          }
 
@@ -156,219 +131,219 @@ namespace eosio { namespace wasm_backend {
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::get_local, void> {
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // set_local
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::set_local, void> {
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // tee_local
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::tee_local, void> {
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // get_global
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::get_global, void> {
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // set_global
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::set_global, void> {
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
          }
          
          // i32.load
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::i32_load, void> {
-            binary_parser::parse_varuint<32>( code );
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // i64.load
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::i64_load, void> {
-            binary_parser::parse_varuint<32>( code );
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // f32.load
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::f32_load, void> {
-            binary_parser::parse_varuint<32>( code );
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // f64.load
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::f64_load, void> {
-            binary_parser::parse_varuint<32>( code );
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // i32.load8_s 
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::i32_load8_s, void> {
-            binary_parser::parse_varuint<32>( code );
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // i32.load8_u 
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::i32_load8_u, void> {
-            binary_parser::parse_varuint<32>( code );
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // i32.load16_s 
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::i32_load16_s, void> {
-            binary_parser::parse_varuint<32>( code );
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // i32.load16_u 
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::i32_load16_u, void> {
-            binary_parser::parse_varuint<32>( code );
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // i64.load8_s 
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::i64_load8_s, void> {
-            binary_parser::parse_varuint<32>( code );
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // i64.load8_u 
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::i64_load8_u, void> {
-            binary_parser::parse_varuint<32>( code );
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // i64.load16_s 
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::i64_load16_s, void> {
-            binary_parser::parse_varuint<32>( code );
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // i64.load16_u 
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::i64_load16_u, void> {
-            binary_parser::parse_varuint<32>( code );
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // i64.load32_s 
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::i64_load32_s, void> {
-            binary_parser::parse_varuint<32>( code );
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // i64.load32_u 
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::i64_load32_u, void> {
-            binary_parser::parse_varuint<32>( code );
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // i32.store
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::i32_store, void> {
-            binary_parser::parse_varuint<32>( code );
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // i64.store
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::i64_store, void> {
-            binary_parser::parse_varuint<32>( code );
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // f32.store
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::f32_store, void> {
-            binary_parser::parse_varuint<32>( code );
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // f64.store
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::f64_store, void> {
-            binary_parser::parse_varuint<32>( code );
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // i32.store8
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::i32_store8, void> {
-            binary_parser::parse_varuint<32>( code );
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // i32.store16
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::i32_store16, void> {
-            binary_parser::parse_varuint<32>( code );
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // i64.store8
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::i64_store8, void> {
-            binary_parser::parse_varuint<32>( code );
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // i64.store16
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::i64_store16, void> {
-            binary_parser::parse_varuint<32>( code );
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // i64.store32
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::i64_store32, void> {
-            binary_parser::parse_varuint<32>( code );
-            binary_parser::parse_varuint<32>( code );
+            binary_parser::parse_varuint32( code );
+            binary_parser::parse_varuint32( code );
          }
 
          // current_memory 
@@ -389,14 +364,14 @@ namespace eosio { namespace wasm_backend {
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::i32_const, void> {
-            binary_parser::parse_varint<32>( code );
+            binary_parser::parse_varint32( code );
          }
 
          // i64.const
          template <opcodes Op>
          inline auto eval( wasm_code_ptr& code )
             -> std::enable_if_t<Op == opcodes::i64_const, void> {
-            binary_parser::parse_varint<64>( code );
+            binary_parser::parse_varint64( code );
          }
 
          // f32.const
@@ -785,7 +760,7 @@ namespace eosio { namespace wasm_backend {
          typedef void (*op_cb)(params&& p);
          std::vector<op_cb>      dispatch_table;
          module*                 mod;
-         control_stack           cs;
+         //control_stack           cs;
          size_t                  apply_index;
          //std::vector<function>   function_table; 
          void populate_dispatch_table();

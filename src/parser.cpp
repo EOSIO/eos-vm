@@ -10,10 +10,10 @@ namespace eosio { namespace wasm_backend {
       ie.opcode = *code++;
       switch ( ie.opcode ) {
          case opcodes::i32_const:
-            ie.value.i32 = parse_varint<32>( code );
+            ie.value.i32 = parse_varint32( code );
             break;
          case opcodes::i64_const:
-            ie.value.i64 = parse_varint<64>( code );
+            ie.value.i64 = parse_varint64( code );
             break;
          case opcodes::f32_const:
             ie.value.f32 = *((uint32_t*)code.raw());
@@ -24,14 +24,14 @@ namespace eosio { namespace wasm_backend {
             code += sizeof(uint64_t);
             break;
          default:
-            EOS_WB_ASSERT(false, wasm_illegal_opcode_exception, "initializer expression can only acception i32.const, i64.const, f32.const and f64.const");
+            EOS_WB_ASSERT(false, wasm_parse_exception, "initializer expression can only acception i32.const, i64.const, f32.const and f64.const");
       }
       EOS_WB_ASSERT((*code++) == opcodes::end, wasm_parse_exception, "no end op found");
    }
 
    void binary_parser::parse_func_type( wasm_code_ptr& code, func_type& ft ) {
       ft.form = *code++;
-      ft.param_count = parse_varuint<32>( code );
+      ft.param_count = parse_varuint32( code );
       ft.param_types.resize( ft.param_count );
       for ( size_t i=0; i < ft.param_count; i++ ) 
          ft.param_types.at(i) = *code++;
@@ -41,22 +41,22 @@ namespace eosio { namespace wasm_backend {
    }
 
    void binary_parser::parse_export_entry( wasm_code_ptr& code, export_entry& entry ) {
-      entry.field_len = parse_varuint<32>( code );
+      entry.field_len = parse_varuint32( code );
       entry.field_str.resize(entry.field_len);
       memcpy( (char*)entry.field_str.raw(), code.raw(), entry.field_len );
       code += entry.field_len;
       entry.kind = (external_kind)(*code++);
-      entry.index = parse_varuint<32>( code );
+      entry.index = parse_varuint32( code );
    }
    
    void binary_parser::parse_elem_segment( wasm_code_ptr& code, elem_segment& es ) {
-      es.index = parse_varuint<32>( code );
+      es.index = parse_varuint32( code );
       EOS_WB_ASSERT(es.index == 0, wasm_parse_exception, "only table index of 0 is supported");
       parse_init_expr( code, es.offset );
-      uint32_t size = parse_varuint<32>( code );
+      uint32_t size = parse_varuint32( code );
       es.elems.resize( size );
       for (uint32_t i=0; i < size; i++)
-         es.elems.at(i) = parse_varuint<32>( code );
+         es.elems.at(i) = parse_varuint32( code );
    }
 
    void binary_parser::parse_global_variable( wasm_code_ptr& code, global_variable& gv ) {
@@ -67,34 +67,34 @@ namespace eosio { namespace wasm_backend {
    
    void binary_parser::parse_memory_type( wasm_code_ptr& code, memory_type& mt ) {
       mt.limits.flags = *code++;
-      mt.limits.initial = parse_varuint<32>( code );
+      mt.limits.initial = parse_varuint32( code );
       if (mt.limits.flags) {
-         mt.limits.maximum = parse_varuint<32>( code );
+         mt.limits.maximum = parse_varuint32( code );
       }
    }
 
    void binary_parser::parse_table_type( wasm_code_ptr& code, table_type& tt ) {
       tt.element_type = *code++;
       tt.limits.flags = *code++;
-      tt.limits.initial = parse_varuint<32>( code );
+      tt.limits.initial = parse_varuint32( code );
       if (tt.limits.flags) {
-         tt.limits.maximum = parse_varuint<32>( code );
+         tt.limits.maximum = parse_varuint32( code );
       }
    } 
 
    void binary_parser::parse_import_entry( wasm_code_ptr& code, import_entry& entry ) {
-      auto len = parse_varuint<32>( code );
+      auto len = parse_varuint32( code );
       entry.module_len = len;
       entry.module_str.resize(entry.module_len);
       memcpy( (char*)entry.module_str.raw(), code.raw(), entry.module_len );
       code += entry.module_len;
-      len = parse_varuint<32>( code );
+      len = parse_varuint32( code );
       entry.field_len = len;
       entry.field_str.resize(entry.field_len);
       memcpy( (char*)entry.field_str.raw(), code.raw(), entry.field_len );
       code += entry.field_len;
       entry.kind = (external_kind)(*code++);
-      auto type = parse_varuint<32>( code );
+      auto type = parse_varuint32( code );
       switch ((uint8_t)entry.kind) {
          case external_kind::Function:
             entry.type.func_t = type;
@@ -107,15 +107,14 @@ namespace eosio { namespace wasm_backend {
    void binary_parser::parse_function_body_code( wasm_code_ptr& code, size_t bounds, native_vector<opcode>& fb ) {
       size_t op_index = 0;
       auto parse_br_table = []( wasm_code_ptr& code, br_table_t& bt ) {
-         size_t table_size = parse_varuint<32>( code );
+         size_t table_size = parse_varuint32( code );
          bt.target_table.resize(table_size);
          for ( size_t i=0; i < table_size; i++ )
-            bt.target_table[i] = parse_varuint<32>( code );
-         bt.default_target = parse_varuint<32>( code );
+            bt.target_table[i] = parse_varuint32( code );
+         bt.default_target = parse_varuint32( code );
       };
 
       while (code.offset() < bounds) {
-         //std::cout << "CODE " << code << "\n";
          switch ( *code++ ) {
             // CONTROL FLOW OPERATORS
             case opcodes::unreachable:
@@ -135,9 +134,9 @@ namespace eosio { namespace wasm_backend {
             case opcodes::else_:
                fb[op_index++] = else__t{}; break;
             case opcodes::br:
-               fb[op_index++] = br_t{parse_varuint<32>(code)}; break;
+               fb[op_index++] = br_t{parse_varuint32(code)}; break;
             case opcodes::br_if:
-               fb[op_index++] = br_if_t{parse_varuint<32>(code)}; break;
+               fb[op_index++] = br_if_t{parse_varuint32(code)}; break;
             case opcodes::br_table:
                {
                   br_table_t bt;
@@ -146,77 +145,85 @@ namespace eosio { namespace wasm_backend {
                }
                break;
             case opcodes::call:
-               fb[op_index++] = call_t{parse_varuint<32>(code)}; break;
+               fb[op_index++] = call_t{parse_varuint32(code)}; break;
             case opcodes::call_indirect:
-               fb[op_index++] = call_indirect_t{parse_varuint<32>(code)}; code++; break;
+               fb[op_index++] = call_indirect_t{parse_varuint32(code)}; code++; break;
             case opcodes::drop:
                fb[op_index++] = drop_t{}; break;
             case opcodes::select:
                fb[op_index++] = select_t{}; break;
             case opcodes::get_local:
-               fb[op_index++] = get_local_t{parse_varuint<32>(code)}; break;
+               fb[op_index++] = get_local_t{parse_varuint32(code)}; break;
             case opcodes::set_local:
-               fb[op_index++] = set_local_t{parse_varuint<32>(code)}; break;
+               fb[op_index++] = set_local_t{parse_varuint32(code)}; break;
             case opcodes::tee_local:
-               fb[op_index++] = tee_local_t{parse_varuint<32>(code)}; break;
+               fb[op_index++] = tee_local_t{parse_varuint32(code)}; break;
             case opcodes::get_global:
-               fb[op_index++] = get_global_t{parse_varuint<32>(code)}; break;
+               fb[op_index++] = get_global_t{parse_varuint32(code)}; break;
             case opcodes::set_global:
-               fb[op_index++] = set_global_t{parse_varuint<32>(code)}; break;
+               fb[op_index++] = set_global_t{parse_varuint32(code)}; break;
             case opcodes::i32_load:
-               fb[op_index++] = i32_load_t{parse_varuint<32>(code), parse_varuint<32>(code)}; break;
+               fb[op_index++] = i32_load_t{parse_varuint32(code), parse_varuint32(code)}; break;
             case opcodes::i64_load:
-               fb[op_index++] = i64_load_t{parse_varuint<32>(code), parse_varuint<32>(code)}; break;
+               fb[op_index++] = i64_load_t{parse_varuint32(code), parse_varuint32(code)}; break;
             case opcodes::f32_load:
-               fb[op_index++] = f32_load_t{parse_varuint<32>(code), parse_varuint<32>(code)}; break;
+               fb[op_index++] = f32_load_t{parse_varuint32(code), parse_varuint32(code)}; break;
             case opcodes::f64_load:
-               fb[op_index++] = f64_load_t{parse_varuint<32>(code), parse_varuint<32>(code)}; break;
+               fb[op_index++] = f64_load_t{parse_varuint32(code), parse_varuint32(code)}; break;
             case opcodes::i32_load8_s:
-               fb[op_index++] = i32_load8_s_t{parse_varuint<32>(code), parse_varuint<32>(code)}; break;
+               fb[op_index++] = i32_load8_s_t{parse_varuint32(code), parse_varuint32(code)}; break;
             case opcodes::i32_load16_s:
-               fb[op_index++] = i32_load16_s_t{parse_varuint<32>(code), parse_varuint<32>(code)}; break;
+               fb[op_index++] = i32_load16_s_t{parse_varuint32(code), parse_varuint32(code)}; break;
             case opcodes::i32_load8_u:
-               fb[op_index++] = i32_load8_u_t{parse_varuint<32>(code), parse_varuint<32>(code)}; break;
+               fb[op_index++] = i32_load8_u_t{parse_varuint32(code), parse_varuint32(code)}; break;
             case opcodes::i32_load16_u:
-               fb[op_index++] = i32_load16_u_t{parse_varuint<32>(code), parse_varuint<32>(code)}; break;
+               fb[op_index++] = i32_load16_u_t{parse_varuint32(code), parse_varuint32(code)}; break;
             case opcodes::i64_load8_s:
-               fb[op_index++] = i64_load8_s_t{parse_varuint<32>(code), parse_varuint<32>(code)}; break;
+               fb[op_index++] = i64_load8_s_t{parse_varuint32(code), parse_varuint32(code)}; break;
             case opcodes::i64_load16_s:
-               fb[op_index++] = i64_load16_s_t{parse_varuint<32>(code), parse_varuint<32>(code)}; break;
+               fb[op_index++] = i64_load16_s_t{parse_varuint32(code), parse_varuint32(code)}; break;
             case opcodes::i64_load32_s:
-               fb[op_index++] = i64_load32_s_t{parse_varuint<32>(code), parse_varuint<32>(code)}; break;
+               fb[op_index++] = i64_load32_s_t{parse_varuint32(code), parse_varuint32(code)}; break;
             case opcodes::i64_load8_u:
-               fb[op_index++] = i64_load8_u_t{parse_varuint<32>(code), parse_varuint<32>(code)}; break;
+               fb[op_index++] = i64_load8_u_t{parse_varuint32(code), parse_varuint32(code)}; break;
             case opcodes::i64_load16_u:
-               fb[op_index++] = i64_load16_u_t{parse_varuint<32>(code), parse_varuint<32>(code)}; break;
+               fb[op_index++] = i64_load16_u_t{parse_varuint32(code), parse_varuint32(code)}; break;
             case opcodes::i64_load32_u:
-               fb[op_index++] = i64_load32_u_t{parse_varuint<32>(code), parse_varuint<32>(code)}; break;
+               fb[op_index++] = i64_load32_u_t{parse_varuint32(code), parse_varuint32(code)}; break;
             case opcodes::i32_store:
-               fb[op_index++] = i32_store_t{parse_varuint<32>(code), parse_varuint<32>(code)}; break;
+               fb[op_index++] = i32_store_t{parse_varuint32(code), parse_varuint32(code)}; break;
             case opcodes::i64_store:
-               fb[op_index++] = i64_store_t{parse_varuint<32>(code), parse_varuint<32>(code)}; break;
+               fb[op_index++] = i64_store_t{parse_varuint32(code), parse_varuint32(code)}; break;
             case opcodes::f32_store:
-               fb[op_index++] = f32_store_t{parse_varuint<32>(code), parse_varuint<32>(code)}; break;
+               fb[op_index++] = f32_store_t{parse_varuint32(code), parse_varuint32(code)}; break;
             case opcodes::f64_store:
-               fb[op_index++] = f64_store_t{parse_varuint<32>(code), parse_varuint<32>(code)}; break;
+               fb[op_index++] = f64_store_t{parse_varuint32(code), parse_varuint32(code)}; break;
             case opcodes::i32_store8:
-               fb[op_index++] = i32_store8_t{parse_varuint<32>(code), parse_varuint<32>(code)}; break;
+               fb[op_index++] = i32_store8_t{parse_varuint32(code), parse_varuint32(code)}; break;
             case opcodes::i32_store16:
-               fb[op_index++] = i32_store16_t{parse_varuint<32>(code), parse_varuint<32>(code)}; break;
+               fb[op_index++] = i32_store16_t{parse_varuint32(code), parse_varuint32(code)}; break;
             case opcodes::i64_store8:
-               fb[op_index++] = i64_store8_t{parse_varuint<32>(code), parse_varuint<32>(code)}; break;
+               fb[op_index++] = i64_store8_t{parse_varuint32(code), parse_varuint32(code)}; break;
             case opcodes::i64_store16:
-               fb[op_index++] = i64_store16_t{parse_varuint<32>(code), parse_varuint<32>(code)}; break;
+               fb[op_index++] = i64_store16_t{parse_varuint32(code), parse_varuint32(code)}; break;
             case opcodes::i64_store32:
-               fb[op_index++] = i64_store32_t{parse_varuint<32>(code), parse_varuint<32>(code)}; break;
+               fb[op_index++] = i64_store32_t{parse_varuint32(code), parse_varuint32(code)}; break;
             case opcodes::current_memory:
                fb[op_index++] = current_memory_t{}; code++; break;
             case opcodes::grow_memory:
                fb[op_index++] = grow_memory_t{}; code++; break;
-            case opcodes::i32_const:
-               fb[op_index++] = i32_const_t{parse_varint<32>(code)}; break;
+            case opcodes::i32_const: 
+               {
+                  auto op = parse_varint32(code);
+                  fb[op_index++] = i32_const_t{*(uint32_t*)&op}; 
+                  break;
+               }
             case opcodes::i64_const:
-               fb[op_index++] = i64_const_t{parse_varint<64>(code)}; break;
+               {
+                  auto op = parse_varint64(code);
+                  fb[op_index++] = i64_const_t{*(uint64_t*)&op}; 
+                  break;
+               }
             case opcodes::f32_const:
                fb[op_index++] = f32_const_t{(uint32_t)*code}; code += 4; break;
             case opcodes::f64_const:
@@ -471,61 +478,31 @@ namespace eosio { namespace wasm_backend {
                fb[op_index++] = error_t{}; break;
          } 
       }
+      fb.resize(op_index);
    }
-/*   
-   template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-   template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-   
-   struct visitor {
-      CONTROL_FLOW_OPS(VISIT)
-      BR_TABLE_OP(VISIT)
-      RETURN_OP(VISIT)
-      CALL_OPS(VISIT)
-      PARAMETRIC_OPS(VISIT)
-      VARIABLE_ACCESS_OPS(VISIT)
-      MEMORY_OPS(VISIT)
-      I32_CONSTANT_OPS(VISIT)
-      I64_CONSTANT_OPS(VISIT)
-      F32_CONSTANT_OPS(VISIT)
-      F64_CONSTANT_OPS(VISIT)
-      COMPARISON_OPS(VISIT)
-      NUMERIC_OPS(VISIT)
-      CONVERSION_OPS(VISIT)
-      ERROR_OPS(VISIT)
-   };
-*/
+
    void binary_parser::parse_function_body( wasm_code_ptr& code, function_body& fb ) {
-      auto body_size = parse_varuint<32>( code );
+      auto body_size = parse_varuint32( code );
       auto before = code.offset();
-      auto local_cnt = parse_varuint<32>( code );
+      auto local_cnt = parse_varuint32( code );
       fb.locals.resize(local_cnt);
       // parse the local entries
       for ( size_t i=0; i < local_cnt; i++ ) {
-         fb.locals.at(i).count = parse_varuint<32>( code );
+         fb.locals.at(i).count = parse_varuint32( code );
          fb.locals.at(i).type  = *code++;
       }
       size_t bytes = body_size - (code.offset() - before) - 1; // -1 is 'end' 0xb byte
-      fb.code.resize(bytes*2); // TODO, find a better way to constrain this
+      fb.code.resize(bytes);
       wasm_code_ptr fb_code(code.raw(), bytes);
       parse_function_body_code( fb_code, bytes, fb.code );
-      //fb.code.set( code.raw(), bytes ); 
-      //memcpy( (char*)fb.code.raw(), (char*)code.raw(), bytes );
-      disassembly_visitor v;
-      for ( size_t i; i < fb.code.size(); i++ ) {
-         std::visit(v, fb.code[i]);
-   //      std::visit(overloaded{
-   //               [](if__t) { std::cout << "Found an if\n";},
-   //               [](end_t) { std::cout << "Found an end\n";},
-   //               [](auto t) { std::cout << "Found something else\n"; }}, fb.code[i]);
-      }
       code += bytes;
       EOS_WB_ASSERT( *code++ == 0x0B, wasm_parse_exception, "failed parsing function body, expected 'end'");
    }
 
    void binary_parser::parse_data_segment( wasm_code_ptr& code, data_segment& ds ) {
-      ds.index  = parse_varuint<32>( code );
+      ds.index  = parse_varuint32( code );
       parse_init_expr( code, ds.offset );
-      ds.size   = parse_varuint<32>( code );
+      ds.size   = parse_varuint32( code );
       ds.data.set( code.raw(), ds.size );
       code += ds.size;
    }

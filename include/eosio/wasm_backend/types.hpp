@@ -49,7 +49,7 @@ namespace eosio { namespace wasm_backend {
       value_type                 form;  // value for the func type constructor
       uint32_t                   param_count; 
       native_vector<value_type>  param_types;
-      bool                       return_count;
+      uint8_t                    return_count;
       value_type                 return_type;
    };
    
@@ -132,24 +132,11 @@ namespace eosio { namespace wasm_backend {
       uint32_t  size;
       native_vector<uint8_t> data;
    };
-   
-   struct control {
-      uint8_t  ret_type : 8;
-      uint8_t opcode    : 8;
-   };
-   struct control_stack {
-      control_stack() { cs.resize( 1000 ); }
-      inline void push( uint64_t c ) { cs.at(index++) = c; }
-      inline uint64_t peek() { return cs.at(index); }
-      inline void pop() { index--; }
-      stack64_vector<uint64_t> cs;
-      size_t index=0;
-   };
 
-   using wasm_code = std::vector<uint8_t>;
-   using wasm_code_ptr = guarded_ptr<uint8_t>;
+   using wasm_code          = std::vector<uint8_t>;
+   using wasm_code_ptr      = guarded_ptr<uint8_t>;
    using wasm_code_iterator = std::vector<uint8_t>::iterator;
-   using wasm_bytes = std::vector<uint8_t>;
+   using wasm_bytes         = std::vector<uint8_t>;
 
    struct module {
       module(){}

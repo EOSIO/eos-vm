@@ -11,24 +11,20 @@
 namespace eosio { namespace wasm_backend {
    FC_DECLARE_EXCEPTION( wasm_interpreter_exception,
                          4000000, "wasm_interpreter exception" )
-   FC_DECLARE_EXCEPTION( wasm_unreachable_exception,
-                         4000001, "wasm unreachable exception" )
-   FC_DECLARE_EXCEPTION( wasm_illegal_opcode_exception,
-                         4000002, "wasm illegal opcode exception" )
    FC_DECLARE_EXCEPTION( wasm_section_length_exception,
-                         4000002, "wasm section length exception" )
+                         4000001, "wasm section length exception" )
    FC_DECLARE_EXCEPTION( wasm_bad_alloc,
-                         4000003, "wasm allocation failed" )
+                         4000002, "wasm allocation failed" )
    FC_DECLARE_EXCEPTION( wasm_double_free,
-                         4000004, "wasm free failed" )
+                         4000003, "wasm free failed" )
    FC_DECLARE_EXCEPTION( wasm_vector_oob_exception,
-                         4000005, "wasm vector out of bounds" )
+                         4000004, "wasm vector out of bounds" )
    FC_DECLARE_EXCEPTION( wasm_unsupported_import_exception,
-                         4000006, "wasm_interpreter only accepts function imports" )
+                         4000005, "wasm_interpreter only accepts function imports" )
    FC_DECLARE_EXCEPTION( wasm_parse_exception,
-                         4000007, "wasm parse exception" )
+                         4000006, "wasm parse exception" )
    FC_DECLARE_EXCEPTION( wasm_memory_exception,
-                         4000008, "wasm memory exception" )
+                         4000007, "wasm memory exception" )
 
    FC_DECLARE_EXCEPTION( guarded_ptr_exception,
                          4010000, "pointer out of bounds" )

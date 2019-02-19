@@ -49,17 +49,19 @@ namespace eosio { namespace wasm_backend {
          }
          
          inline constexpr void from( guarded_ptr<uint8_t>& code ) {
-            for (uint8_t cnt=0; cnt < bytes_needed<N>(); cnt++) {
+            uint8_t cnt = 0;
+            for (; cnt < bytes_needed<N>(); cnt++) {
                EOS_WB_ASSERT( code.offset()+cnt < code.bounds(), wasm_interpreter_exception, "pointer out of bounds" );
                storage[cnt] = code[cnt];
                if ((storage[cnt] & 0x80) == 0) {
-                  bytes_used = cnt+1;
-                  code += bytes_used;
                   break;
                }
             }
-
+            code += cnt+1;
+            bytes_used = cnt+1;
          }
+
+         size_t size()const { return bytes_used; }
 
          template <size_t M=N, typename = typename std::enable_if_t<M == 1, int>>
          inline constexpr bool to() { return storage[0]; }
@@ -114,16 +116,19 @@ namespace eosio { namespace wasm_backend {
          }
          
          inline constexpr void from( guarded_ptr<uint8_t>& code ) {
-            for (uint8_t cnt=0; cnt < bytes_needed<N>(); cnt++) {
+            uint8_t cnt = 0;
+            for (; cnt < bytes_needed<N>(); cnt++) {
                EOS_WB_ASSERT( code.offset()+cnt < code.bounds(), wasm_interpreter_exception, "pointer out of bounds" );
                storage[cnt] = code[cnt];
                if ((storage[cnt] & 0x80) == 0) {
-                  bytes_used = cnt+1;
-                  code += bytes_used;
                   break;
                }
             }
+            code += cnt+1;
+            bytes_used = cnt+1;
          }
+         
+         size_t size()const { return bytes_used; }
 
          template <size_t M=N, typename = typename std::enable_if_t<M == 1, int>>
          inline constexpr bool to() { return storage[0]; }

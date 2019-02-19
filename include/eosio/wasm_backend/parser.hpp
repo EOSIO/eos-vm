@@ -14,16 +14,30 @@ namespace eosio { namespace wasm_backend {
          template <typename T>
          using vec = native_vector<T>;
 
-         template <size_t N>
-         static inline uint64_t parse_varuint( wasm_code_ptr& code ) {
-            return varuint<N>(code).to();
+         static inline uint8_t parse_varuint1( wasm_code_ptr& code ) {
+            return varuint<1>(code).to();
          }
 
-         template <size_t N>
-         static inline uint64_t parse_varint( wasm_code_ptr& code ) {
-            return varint<N>(code).to();
+         static inline uint8_t parse_varuint7( wasm_code_ptr& code ) {
+            return varuint<7>(code).to();
          }
-        
+
+         static inline uint32_t parse_varuint32( wasm_code_ptr& code ) {
+            return varuint<32>(code).to();
+         }
+
+         static inline int8_t parse_varint7( wasm_code_ptr& code ) {
+            return varint<7>(code).to();
+         }
+
+         static inline int32_t parse_varint32( wasm_code_ptr& code ) {
+            return varint<32>(code).to();
+         }
+
+         static inline int64_t parse_varint64( wasm_code_ptr& code ) {
+            return varint<64>(code).to();
+         }
+      
          void parse_module( wasm_code& code, module& mod );
 
          inline uint32_t parse_magic( wasm_code_ptr& code ) {
@@ -42,7 +56,7 @@ namespace eosio { namespace wasm_backend {
             return *code++;
          }
          inline uint32_t parse_section_payload_len( wasm_code_ptr& code ) {
-            return parse_varuint<32>( code );
+            return parse_varuint32( code );
          }
 
          void parse_import_entry( wasm_code_ptr& code, import_entry& ie );
@@ -59,7 +73,7 @@ namespace eosio { namespace wasm_backend {
 
          template <typename Elem, typename ParseFunc>
          inline void parse_section_impl( wasm_code_ptr& code, vec<Elem>& elems, ParseFunc&& elem_parse ) {
-            auto count = parse_varuint<32>( code );
+            auto count = parse_varuint32( code );
             elems.resize(count);
             for (size_t i=0; i < count; i++ )
                elem_parse(code, elems.at(i));
@@ -94,7 +108,7 @@ namespace eosio { namespace wasm_backend {
          template <uint8_t id> 
          inline void parse_section( wasm_code_ptr& code,
                vec<typename std::enable_if_t<id == section_id::function_section, uint32_t>>& elems ) {
-            parse_section_impl( code, elems, [&](wasm_code_ptr& code, uint32_t& elem) { elem = parse_varuint<32>( code ); } );
+            parse_section_impl( code, elems, [&](wasm_code_ptr& code, uint32_t& elem) { elem = parse_varuint32( code ); } );
          }
          template <uint8_t id> 
          inline void parse_section( wasm_code_ptr& code,
@@ -119,7 +133,7 @@ namespace eosio { namespace wasm_backend {
          template <uint8_t id> 
          inline void parse_section( wasm_code_ptr& code, 
                typename std::enable_if_t<id == section_id::start_section, uint32_t>& start ) {
-            start = parse_varuint<32>( code );
+            start = parse_varuint32( code );
          }
          template <uint8_t id> 
          inline void parse_section( wasm_code_ptr& code,
