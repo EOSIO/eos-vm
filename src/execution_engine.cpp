@@ -82,7 +82,7 @@ namespace eosio { namespace wasm_backend {
       dispatch_table.reserve(257);
       
       auto error_func = [](params&&) {
-        FC_THROW_EXCEPTION(wasm_illegal_opcode_exception, "illegal opcodes"); 
+        //FC_THROW_EXCEPTION(wasm_illegal_opcode_exception, "illegal opcodes"); 
       };
 
       for (int i=0; i < 257; i++)
@@ -90,7 +90,7 @@ namespace eosio { namespace wasm_backend {
 
       // fill in for each opcodes, sorry quite large function
       dispatch_table[opcodes::unreachable] = [](params&&) { 
-         FC_THROW_EXCEPTION(wasm_unreachable_exception, "unreachable opcodes"); 
+         //FC_THROW_EXCEPTION(wasm_unreachable_exception, "unreachable opcodes"); 
       };
 
       dispatch_table[opcodes::nop] = [](params&&) { 

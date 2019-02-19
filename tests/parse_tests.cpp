@@ -15,6 +15,8 @@
 #include <eosio/wasm_backend/parser.hpp>
 #include <eosio/wasm_backend/constants.hpp>
 #include <eosio/wasm_backend/sections.hpp>
+#include <eosio/wasm_backend/disassembly_visitor.hpp>
+#include <eosio/wasm_backend/interpret_visitor.hpp>
 
 using namespace eosio;
 using namespace eosio::wasm_backend;
@@ -194,7 +196,15 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
             for (int j=0; j < mod.elements[i].elems.size(); j++)
                BOOST_CHECK_EQUAL(mod.elements[i].elems[j], indices[j]);
          }
+         //disassembly_visitor v;
+         interpret_visitor v;
+         for (uint32_t i=0; i < mod.code.size(); i++) {
+            for (uint32_t j=0; j < mod.code[i].code.size(); j++) {
+               std::visit(v, mod.code[i].code[j]);
+            }
+         }
       }
+
    } FC_LOG_AND_RETHROW() 
 }
 BOOST_AUTO_TEST_SUITE_END()
