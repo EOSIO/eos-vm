@@ -10,7 +10,6 @@
 #include <eosio/wasm_backend/allocator.hpp>
 #include <eosio/wasm_backend/vector.hpp>
 #include <eosio/wasm_backend/opcodes.hpp>
-#include <fc/optional.hpp>
 
 namespace eosio { namespace wasm_backend {
    enum types {

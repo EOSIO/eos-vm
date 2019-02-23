@@ -159,7 +159,7 @@ namespace eosio { namespace wasm_backend {
             for (; i < bytes_needed<N>(); i++) {
                storage[i] = v & 0x7f;
                v >>= 7;
-               if (v == 0 && !is_neg || v == -1 && !is_neg) {
+               if ((v == 0 && !is_neg) || (v == -1 && !is_neg)) {
                   break;
                } else {
                   storage[i] |= 0x80;

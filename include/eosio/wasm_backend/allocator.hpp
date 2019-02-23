@@ -1,6 +1,9 @@
 #pragma once
 
+#include <sys/mman.h>
+#include <signal.h>
 #include <memory>
+#include <iostream>
 #include <eosio/wasm_backend/exceptions.hpp>
 
 namespace eosio { namespace wasm_backend {
@@ -22,9 +25,9 @@ namespace eosio { namespace wasm_backend {
             raw = std::unique_ptr<uint8_t[]>(new uint8_t[mem_size]);
             memset(raw.get(), 0, mem_size);
          }
-        size_t mem_size;
-        std::unique_ptr<uint8_t[]> raw;
-        size_t index = 0;
+         size_t mem_size;
+         std::unique_ptr<uint8_t[]> raw;
+         size_t index = 0;
    };
 
    class simple_allocator {
@@ -44,9 +47,49 @@ namespace eosio { namespace wasm_backend {
             mem_size = size;
             raw = ptr;
          }
-        size_t mem_size;
-        uint8_t* raw;
-        size_t index = 0;
+         size_t mem_size;
+         uint8_t* raw;
+         size_t index = 0;
+   };
+
+   class wasm_allocator {
+      public:
+         template <typename T>
+         T* alloc(size_t size=1) {
+            std::cout <<  (sizeof(T)*size)+index << " " << (page_size << page) << '\n';
+            if ((sizeof(T)*size)+index >= (page_size << page)) {
+               mprotect(raw+(page_size << page), page_size, PROT_READ|PROT_WRITE);
+               page++;
+            }
+            T* ret = (T*)(raw+index);
+            index += sizeof(T)*size;
+            return ret;
+         }
+         void free() {
+            // nop
+         }
+         wasm_allocator() {
+            raw = (uint8_t*)mmap(NULL, max_memory, PROT_NONE, MAP_PRIVATE|MAP_ANON, -1, 0);
+            mprotect(raw, page_size, PROT_READ|PROT_WRITE);
+            sigemptyset(&sa.sa_mask);
+            sigaddset(&sa.sa_mask, SIGSEGV);
+            sigaddset(&sa.sa_mask, SIGBUS);
+            sa.sa_sigaction = [](int sig, siginfo_t*, void*) { 
+               EOS_WB_ASSERT( false, wasm_bad_alloc, "wasm failed to allocate wasm memory" ); 
+            };
+            sa.sa_flags   = SA_NODEFER | SA_SIGINFO;
+            sigaction(SIGSEGV, &sa, NULL);
+            sigaction(SIGBUS, &sa, NULL);
+         }
+         void reset() {
+            memset(raw, 0, page_size << page);
+         }
+         static constexpr uint64_t max_memory = 4ull << 31;
+         static constexpr uint64_t page_size  = 64ull * 1024;
+         struct sigaction sa;
+         size_t page = 0;
+         uint8_t* raw;
+         size_t index = 0;
    };
 
    class stack64_allocator {

@@ -2,6 +2,14 @@
 
 #include <eosio/wasm_backend/exceptions.hpp>
 
+#if __has_builtin(__builtin_expect)
+#define LIKELY(x) __builtin_expect(!!(x), 1)
+#define UNLIKELY(x) __builtin_expect(!!(x), 0)
+#else
+#define LIKELY(x) x 
+#define UNLIKELY(x) x
+#endif
+
 namespace eosio { namespace wasm_backend {
    template <typename T>
    struct guarded_ptr {

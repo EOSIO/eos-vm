@@ -5,7 +5,7 @@ set( VERSION_MAJOR 0 )
 set( VERSION_MINOR 0 )
 set( VERSION_PATCH 0 )
 
-#set( CMAKE_CXX_STANDARD 17 )
+set( CMAKE_CXX_STANDARD 17 )
 #set( CXX_STANDARD_REQUIRED ON )
 
 find_package( Gperftools QUIET )
@@ -61,16 +61,12 @@ set( CMAKE_C_FLAGS " -Wall -Werror-implicit-function-declaration -Wno-conversion
 file( GLOB wasm_interpreter_sources "${CMAKE_SOURCE_DIR}/src/*.cpp" )
 file( GLOB wasm_interpreter_headers "${CMAKE_SOURCE_DIR}/include/eosio/wasm_backend/*.hpp" )
 
-list( APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/fc/CMakeModules" )
-add_subdirectory(fc)
-
 list( APPEND wasm_interpreter_sources ${wasm_interpreter_headers} )
 add_library ( wasm_interpreter STATIC ${wasm_interpreter_sources} )
 
 #add_executable( wasm_t ${CMAKE_SOURCE_DIR}/tests/fuzz/fuzz_parser.cpp ${fc} ${wasm_interpreter} ${filesystem} ${chrono} ${date_time})
 
 target_include_directories( wasm_interpreter PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
-                                                    "${CMAKE_SOURCE_DIR}/fc/include"
                                                     "${Boost_INCLUDE_DIRS}" )
                                                  #target_include_directories( wasm_t PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
                                                  #   "${CMAKE_SOURCE_DIR}/fc/include"
