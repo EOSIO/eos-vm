@@ -2,6 +2,7 @@
 #include <vector>
 #include <iterator>
 #include <cstdlib>
+#include <iostream>
 
 #include <boost/test/unit_test.hpp>
 #include <boost/test/framework.hpp>
@@ -67,15 +68,29 @@ BOOST_AUTO_TEST_CASE(allocator_tests) {
 BOOST_AUTO_TEST_CASE(memory_manager_tests) { 
    try {
       {
-         memory_manager::set_memory_limits( 1, 30 );
+         memory_manager::set_memory_limits( 0, 30 );
          auto& nalloc = memory_manager::get_allocator<memory_manager::types::native>();
          auto& lmalloc = memory_manager::get_allocator<memory_manager::types::linear_memory>();
          BOOST_CHECK_EQUAL( nalloc.raw.get(), lmalloc.raw );
-         BOOST_CHECK_THROW( nalloc.alloc<uint16_t>(), wasm_bad_alloc );
+         BOOST_CHECK_THROW( nalloc.alloc<uint16_t>(1), wasm_bad_alloc );
       }
    } FC_LOG_AND_RETHROW() 
 }
 
+BOOST_AUTO_TEST_CASE(wasm_allocator_tests) { 
+   try {
+      {
+         memory_manager::set_memory_limits( 1, 30 );
+         auto& walloc = memory_manager::get_allocator<memory_manager::types::wasm>();
+         uint8_t* p = walloc.alloc<uint8_t>((64*1024)-1);
+         for (int i=0; i < (64*1024); i++) {
+            *p++ = 3;
+         }
+         walloc.alloc<uint8_t>(1);
+         BOOST_CHECK_THROW( [&](){*p = 1;}(), wasm_bad_alloc );
+      }
+   } FC_LOG_AND_RETHROW() 
+}
 struct test_struct {
    uint32_t i;
    uint64_t l;
