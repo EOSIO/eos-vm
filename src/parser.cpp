@@ -1,3 +1,4 @@
+#include <stack>
 #include <eosio/wasm_backend/parser.hpp>
 #include <eosio/wasm_backend/exceptions.hpp>
 #include <eosio/wasm_backend/opcodes.hpp>
@@ -114,6 +115,8 @@ namespace eosio { namespace wasm_backend {
          bt.default_target = parse_varuint32( code );
       };
 
+      std::stack<uint32_t> pc_stack;
+
       while (code.offset() < bounds) {
          switch ( *code++ ) {
             // CONTROL FLOW OPERATORS
@@ -122,17 +125,55 @@ namespace eosio { namespace wasm_backend {
             case opcodes::nop:
                fb[op_index++] = nop_t{}; break;
             case opcodes::end:
-               fb[op_index++] = end_t{}; break;
+               {
+                  fb[op_index++] = end_t{};
+                  auto& el = fb[pc_stack.top()];
+                  std::visit(overloaded {
+                     [=](block_t& bt) {
+                        bt.pc = op_index;
+                     }, [=](loop_t& lt) {
+                        lt.pc = op_index;
+                     }, [=](if__t& it) {
+                        it.pc = op_index;
+                     }, [=](auto&&) {
+                        throw wasm_invalid_element{"invalid element when popping pc stack"};
+                     }
+                  }, el);
+                  pc_stack.pop();
+                  break;
+               }
             case opcodes::return_:
                fb[op_index++] = return__t{}; break;
             case opcodes::block:
-               fb[op_index++] = block_t{*code++}; break;
+               pc_stack.push(op_index);
+               fb[op_index++] = block_t{*code++, 0};
+               break;
             case opcodes::loop:
-               fb[op_index++] = loop_t{*code++}; break;
+               pc_stack.push(op_index);
+               fb[op_index++] = loop_t{*code++, 0};
+               break;
             case opcodes::if_:
-               fb[op_index++] = if__t{*code++}; break;
+               pc_stack.push(op_index);
+               fb[op_index++] = if__t{*code++, 0};
+               break;
             case opcodes::else_:
-               fb[op_index++] = else__t{}; break;
+               {
+                  fb[op_index++] = else__t{};
+                  auto& el = fb[pc_stack.top()];
+                  std::visit(overloaded {
+                     [=](block_t& bt) {
+                        bt.pc = op_index;
+                     }, [=](loop_t& lt) {
+                        lt.pc = op_index;
+                     }, [=](if__t& it) {
+                        it.pc = op_index;
+                     }, [=](auto&&) {
+                        throw wasm_invalid_element{"invalid element when popping pc stack"};
+                     }
+                  }, el);
+                  pc_stack.pop();
+                  break;
+               }
             case opcodes::br:
                fb[op_index++] = br_t{parse_varuint32(code)}; break;
             case opcodes::br_if:
