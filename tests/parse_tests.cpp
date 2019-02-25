@@ -111,7 +111,7 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
       };
 
       {
-         memory_manager::set_memory_limits( 32*1024*1024, 64*1024 );
+         memory_manager::set_memory_limits( 32*1024*1024 );
          binary_parser bp;
          module mod;
          wasm_code code = read_wasm( "test.wasm" );
@@ -200,11 +200,20 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          }
          //disassembly_visitor v;
          interpret_visitor v;
+         uint32_t index = mod.get_exported_function("apply");
+         std::cout << "SIZE " << mod.code[index].code.size() << '\n';
+         for (uint32_t i=0; i < mod.code[index].code.size(); i++) {
+            std::visit(v, mod.code[index].code[i]);
+         }
+         std::cout << v.dbg_output.str() << '\n';
+         /*
          for (uint32_t i=0; i < mod.code.size(); i++) {
             for (uint32_t j=0; j < mod.code[i].code.size(); j++) {
                std::visit(v, mod.code[i].code[j]);
             }
          }
+         */
+         //std::cout << v.dbg_output.str() << '\n';
       }
 
    } FC_LOG_AND_RETHROW() 

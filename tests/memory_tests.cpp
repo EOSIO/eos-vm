@@ -68,10 +68,9 @@ BOOST_AUTO_TEST_CASE(allocator_tests) {
 BOOST_AUTO_TEST_CASE(memory_manager_tests) { 
    try {
       {
-         memory_manager::set_memory_limits( 0, 30 );
+         memory_manager::set_memory_limits( 0 );
          auto& nalloc = memory_manager::get_allocator<memory_manager::types::native>();
-         auto& lmalloc = memory_manager::get_allocator<memory_manager::types::linear_memory>();
-         BOOST_CHECK_EQUAL( nalloc.raw.get(), lmalloc.raw );
+         //auto& lmalloc = memory_manager::get_allocator<memory_manager::types::linear_memory>();
          BOOST_CHECK_THROW( nalloc.alloc<uint16_t>(1), wasm_bad_alloc );
       }
    } FC_LOG_AND_RETHROW() 
@@ -79,18 +78,45 @@ BOOST_AUTO_TEST_CASE(memory_manager_tests) {
 
 BOOST_AUTO_TEST_CASE(wasm_allocator_tests) { 
    try {
-      {
-         memory_manager::set_memory_limits( 1, 30 );
-         auto& walloc = memory_manager::get_allocator<memory_manager::types::wasm>();
-         uint8_t* p = walloc.alloc<uint8_t>((64*1024)-1);
-         for (int i=0; i < (64*1024); i++) {
-            *p++ = 3;
-         }
-         walloc.alloc<uint8_t>(1);
-         BOOST_CHECK_THROW( [&](){*p = 1;}(), wasm_bad_alloc );
+      memory_manager::set_memory_limits( 1 );
+      auto& walloc = memory_manager::get_allocator<memory_manager::types::wasm>();
+      constexpr uint64_t max_pages = constants::max_pages;
+      uint8_t* p = walloc.alloc<uint8_t>(max_pages);
+      for (int i=0; i < constants::max_useable_memory; i++) {
+         p[i] = 3;
       }
+      for (int i=0; i < constants::max_useable_memory; i++) {
+         BOOST_CHECK_EQUAL(p[i], 3);
+      }
+
+      BOOST_CHECK_THROW(walloc.alloc<uint8_t>(1), wasm_bad_alloc);
+
+      walloc.reset();
+      walloc.alloc<uint8_t>(max_pages);
+      BOOST_CHECK_EQUAL(walloc.get_current_page(), constants::max_pages);
+      BOOST_CHECK_THROW(walloc.alloc<uint8_t>(1), wasm_bad_alloc);
+
+      walloc.reset();
+      BOOST_CHECK_THROW(walloc.alloc<uint8_t>(max_pages+1), wasm_bad_alloc);
+
+      walloc.reset();
+      for (int i=0; i < max_pages; i++) {
+         walloc.alloc<uint8_t>(1);
+      }
+      BOOST_CHECK_EQUAL(walloc.get_current_page(), constants::max_pages);
+      BOOST_CHECK_THROW(walloc.alloc<uint64_t>(1), wasm_bad_alloc);
+
+      walloc.reset();
+      *(p+constants::page_size-1) = 3;
+      BOOST_CHECK_THROW(*(p+constants::page_size) = 3, wasm_memory_exception);
+      walloc.reset();
+      walloc.alloc<uint8_t>(1);
+      *(p+constants::page_size) = 3;
+      *(p+(2*constants::page_size)-1) = 3;
+      BOOST_CHECK_THROW(*(p+(2*constants::page_size)) = 3, wasm_memory_exception);
    } FC_LOG_AND_RETHROW() 
 }
+
 struct test_struct {
    uint32_t i;
    uint64_t l;
@@ -101,26 +127,22 @@ struct test_struct {
 BOOST_AUTO_TEST_CASE(vector_tests) {
    try {
       {
-         memory_manager::set_memory_limits( sizeof(uint32_t), sizeof(test_struct) );
-         managed_vector<uint32_t, memory_manager::types::native> nvec(1);
-         managed_vector<test_struct, memory_manager::types::linear_memory> lmvec(1);
-         nvec.push_back( 33 );
-         lmvec.push_back( { 33, 10, 33.3f, 10.10 } );
-         BOOST_CHECK_EQUAL( nvec[0], 33 );
-         BOOST_CHECK( lmvec[0].i == 33 && lmvec[0].l == 10 && lmvec[0].f == 33.3f && lmvec[0].d == 10.10 );
-         BOOST_CHECK_THROW( nvec.push_back( 0 ), wasm_vector_oob_exception );
-         BOOST_CHECK_THROW( lmvec.push_back( {0,0,0,0} ), wasm_vector_oob_exception );
-         BOOST_CHECK_THROW( nvec.resize(3), wasm_bad_alloc );
-         BOOST_CHECK_THROW( lmvec.resize(3), wasm_bad_alloc );
-
-         memory_manager::set_memory_limits( sizeof(uint32_t)*3, sizeof(test_struct)*3 );
+         memory_manager::set_memory_limits( sizeof(test_struct)*3 );
+         managed_vector<test_struct, memory_manager::types::native> nvec(1);
+         nvec.push_back( { 33, 33, 33.0f, 33.0 } );
+         BOOST_CHECK( nvec[0].i == 33 && nvec[0].l == 33 && nvec[0].f == 33.0f && nvec[0].d == 33.0 );
+         BOOST_CHECK_THROW( nvec.push_back( {0,0,0,0} ), wasm_vector_oob_exception );
          nvec.resize(3);
-         lmvec.resize(3);
-         nvec.push_back(22);
-         nvec.push_back(11);
-         BOOST_CHECK( nvec[0] == 33 && nvec[1] == 22 && nvec[2] == 11 );
+         nvec.push_back({22, 22, 22.0f, 22.0});
+         nvec.push_back({11, 11, 11.0f, 11.0});
+         BOOST_CHECK( nvec[0].i == 33 && nvec[0].l == 33 && nvec[0].f == 33.0f && nvec[0].d == 33.0 );
+         BOOST_CHECK( nvec[1].i == 22 && nvec[1].l == 22 && nvec[1].f == 22.0f && nvec[1].d == 22.0 );
+         BOOST_CHECK( nvec[2].i == 11 && nvec[2].l == 11 && nvec[2].f == 11.0f && nvec[2].d == 11.0 );
          nvec.resize(2);
          BOOST_CHECK_THROW( nvec[2], wasm_vector_oob_exception );
+
+         memory_manager::set_memory_limits( sizeof(test_struct)*3 );
+         //BOOST_CHECK_THROW( nvec.resize(4), wasm_bad_alloc );
       }
    } FC_LOG_AND_RETHROW()
 }

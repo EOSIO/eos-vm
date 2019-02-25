@@ -5,6 +5,7 @@
  */
 
 #include <string>
+#include <cstring>
 #include <eosio/wasm_backend/leb128.hpp>
 #include <eosio/wasm_backend/utils.hpp>
 #include <eosio/wasm_backend/allocator.hpp>
@@ -150,6 +151,17 @@ namespace eosio { namespace wasm_backend {
       native_vector<elem_segment>    elements;
       native_vector<function_body>   code;
       native_vector<data_segment>    data;
-      uint32_t                       apply_index;
+      uint32_t get_exported_function(const std::string& str) {
+         uint32_t index = std::numeric_limits<uint32_t>::max();
+         for (int i=0; i < exports.size(); i++) {
+            if (exports[i].kind == external_kind::Function &&
+                memcmp((const char*)str.c_str(), (const char*)exports[i].field_str.raw(), exports[i].field_str.size()) == 0) {
+               index = exports[i].index;
+               break;
+            }
+         }
+         return index;
+      }
    };
+
 }} // namespace eosio::wasm_backend

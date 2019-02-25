@@ -2,9 +2,11 @@
 
 #include <sys/mman.h>
 #include <signal.h>
+#include <cstring>
 #include <memory>
 #include <iostream>
 #include <eosio/wasm_backend/exceptions.hpp>
+#include <eosio/wasm_backend/constants.hpp>
 
 namespace eosio { namespace wasm_backend {
    class native_allocator {
@@ -53,43 +55,49 @@ namespace eosio { namespace wasm_backend {
    };
 
    class wasm_allocator {
+      private:
+         uint8_t* raw       = nullptr;
+         uint8_t* _previous = raw;
+         size_t page        = 0;
+
+         void set_up_signals() {
+            struct sigaction sa;
+            sa.sa_sigaction = [](int sig, siginfo_t*, void*) { throw wasm_memory_exception{"wasm memory out-of-bounds"}; };
+            sigemptyset(&sa.sa_mask);
+            sa.sa_flags   = SA_NODEFER | SA_SIGINFO;
+            sigaction(SIGSEGV, &sa, NULL);
+            sigaction(SIGBUS, &sa, NULL);
+         }
       public:
          template <typename T>
-         T* alloc(size_t size=1) {
-            std::cout <<  (sizeof(T)*size)+index << " " << (page_size << page) << '\n';
-            if ((sizeof(T)*size)+index >= (page_size << page)) {
-               mprotect(raw+(page_size << page), page_size, PROT_READ|PROT_WRITE);
-               page++;
-            }
-            T* ret = (T*)(raw+index);
-            index += sizeof(T)*size;
-            return ret;
+         T* alloc(size_t size=1 /*in pages*/) {
+            EOS_WB_ASSERT(page + size <= max_pages, wasm_bad_alloc, "exceeded max number of pages");
+            mprotect(raw + (page_size * (page+1)), (page_size * size), PROT_READ|PROT_WRITE);
+            page += size;
+            T* ptr = (T*)_previous;
+            _previous = (raw + (page_size * page));
+            return ptr;
          }
          void free() {
             // nop
          }
          wasm_allocator() {
-            raw = (uint8_t*)mmap(NULL, max_memory, PROT_NONE, MAP_PRIVATE|MAP_ANON, -1, 0);
+            raw = (uint8_t*)mmap(NULL, max_memory, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+            _previous = raw;
             mprotect(raw, page_size, PROT_READ|PROT_WRITE);
-            sigemptyset(&sa.sa_mask);
-            sigaddset(&sa.sa_mask, SIGSEGV);
-            sigaddset(&sa.sa_mask, SIGBUS);
-            sa.sa_sigaction = [](int sig, siginfo_t*, void*) { 
-               EOS_WB_ASSERT( false, wasm_bad_alloc, "wasm failed to allocate wasm memory" ); 
-            };
-            sa.sa_flags   = SA_NODEFER | SA_SIGINFO;
-            sigaction(SIGSEGV, &sa, NULL);
-            sigaction(SIGBUS, &sa, NULL);
+            set_up_signals();
          }
          void reset() {
-            memset(raw, 0, page_size << page);
+            uint64_t size = page_size * page;
+            _previous = raw;
+            memset(raw, 0, size);
+            page = 0;
+            mprotect(raw, size, PROT_NONE);
+            mprotect(raw, page_size, PROT_READ|PROT_WRITE);
+            set_up_signals();
          }
-         static constexpr uint64_t max_memory = 4ull << 31;
-         static constexpr uint64_t page_size  = 64ull * 1024;
-         struct sigaction sa;
-         size_t page = 0;
-         uint8_t* raw;
-         size_t index = 0;
+         inline void* get_base_ptr()const { return (void*)raw; }
+         inline uint64_t get_current_page()const { return page; }
    };
 
    class stack64_allocator {

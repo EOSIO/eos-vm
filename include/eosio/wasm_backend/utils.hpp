@@ -1,16 +1,21 @@
 #pragma once
 
+#include <limits>
 #include <eosio/wasm_backend/exceptions.hpp>
 
 #if __has_builtin(__builtin_expect)
 #define LIKELY(x) __builtin_expect(!!(x), 1)
 #define UNLIKELY(x) __builtin_expect(!!(x), 0)
 #else
-#define LIKELY(x) x 
-#define UNLIKELY(x) x
+#define LIKELY(x) !!(x)
+#define UNLIKELY(x) !!(x)
 #endif
 
 namespace eosio { namespace wasm_backend {
+   // helpers for std::visit
+   template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+   template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+   
    template <typename T>
    struct guarded_ptr {
       T* raw_ptr;
@@ -25,13 +30,13 @@ namespace eosio { namespace wasm_backend {
       }
 
       inline guarded_ptr& operator+=(size_t i) {
-         EOS_WB_ASSERT(raw_ptr + i <= bnds, guarded_ptr_exception, "overbounding pointer");
+         EOS_WB_ASSERT((uintptr_t)raw_ptr + i <= (uintptr_t)bnds, guarded_ptr_exception, "overbounding pointer");
          raw_ptr += i;
          return *this;
       }
 
       inline guarded_ptr& operator++() {
-         EOS_WB_ASSERT(raw_ptr + 1 <= bnds, guarded_ptr_exception, "overbounding pointer");
+         EOS_WB_ASSERT((uintptr_t)raw_ptr + 1 <= (uintptr_t)bnds, guarded_ptr_exception, "overbounding pointer");
          raw_ptr += 1;
          return *this;
       }
@@ -88,7 +93,7 @@ namespace eosio { namespace wasm_backend {
       }
 
       inline T at(size_t index) const {
-         EOS_WB_ASSERT(orig_ptr + index <= bnds, guarded_ptr_exception, "accessing out of bounds");
+         EOS_WB_ASSERT((uintptr_t)orig_ptr + index <= (uintptr_t)bnds, guarded_ptr_exception, "accessing out of bounds");
          return raw_ptr[index];
       }
       
@@ -97,7 +102,7 @@ namespace eosio { namespace wasm_backend {
       }
 
       inline T operator[](size_t index) const {
-         EOS_WB_ASSERT(orig_ptr + index <= bnds, guarded_ptr_exception, "accessing out of bounds");
+         EOS_WB_ASSERT((uintptr_t)orig_ptr + index <= (uintptr_t)bnds, guarded_ptr_exception, "accessing out of bounds");
          return raw_ptr[index];
       }
    };

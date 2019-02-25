@@ -5,7 +5,7 @@ set( VERSION_MAJOR 0 )
 set( VERSION_MINOR 0 )
 set( VERSION_PATCH 0 )
 
-set( CMAKE_CXX_STANDARD 17 )
+#set( CMAKE_CXX_STANDARD 17 )
 #set( CXX_STANDARD_REQUIRED ON )
 
 find_package( Gperftools QUIET )
@@ -20,7 +20,8 @@ IF( WIN32 )
   set(Boost_USE_MULTITHREADED ON)
   set(BOOST_ALL_DYN_LINK OFF) # force dynamic linking for all libraries
 ENDIF(WIN32)
-FIND_PACKAGE(Boost 1.67 REQUIRED COMPONENTS
+#FIND_PACKAGE(Boost 1.67 REQUIRED COMPONENTS
+FIND_PACKAGE(Boost 1.50 REQUIRED COMPONENTS
     thread
     date_time
     filesystem
@@ -48,7 +49,7 @@ if ( APPLE )
    set( CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -O3 -Wall -Wno-deprecated-declarations -mllvm -use-cfl-aa-in-codegen=both" )
    set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto" )
 else()
-   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall" )
+   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -g" )
    set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++ -static-libgcc" )
 endif()
 

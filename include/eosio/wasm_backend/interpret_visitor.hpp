@@ -1,20 +1,51 @@
 #pragma once
 
+#include <eosio/wasm_backend/utils.hpp>
 #include <eosio/wasm_backend/opcodes.hpp>
-#include <eosio/wasm_backend/control_stack.hpp>
+#include <eosio/wasm_backend/wasm_stack.hpp>
 #include <iostream>
 #include <variant>
+#include <sstream>
 
 #define dbg_print print
 //#define dbg_print
 
 namespace eosio { namespace wasm_backend {
+
 struct interpret_visitor {
-   control_stack cs;
+   control_stack      cons;
+   operand_stack      ops;
+   call_stack         calls;
+   std::stringstream  dbg_output;
+
+   struct stack_elem_visitor {
+      std::stringstream& dbg_output;
+      stack_elem_visitor(std::stringstream& ss) : dbg_output(ss) {}
+      void operator()(const uint32_t& pc) {
+         dbg_output << "PC : " << pc << "\n";
+      }
+      void operator()(const i32_const_t& val) {
+      }
+      void operator()(const i64_const_t& val) {
+      }
+      void operator()(const f32_const_t& val) {
+      }
+      void operator()(const f64_const_t& val) {
+      }
+      void operator()(const block_t& ctrl) {
+         dbg_output << "block : " << std::to_string(ctrl.data) << "\n";
+      }
+      void operator()(const loop_t& ctrl) {
+         dbg_output << "loop : " << std::to_string(ctrl.data) << "\n";
+      }
+      void operator()(const if__t& ctrl) {
+         dbg_output << "if : " << std::to_string(ctrl.data) << "\n";
+      }
+   } _elem_visitor{dbg_output};
 
    void print(const std::string& s) {
       //std::string tb(tab_width, '\t');
-      std::cout << s << '\n';
+      dbg_output << s << '\n';
    }
    void operator()(unreachable_t) {
       //EOS_WB_ASSERT(false, wasm_interpreter_exception, "unreachable");
@@ -23,27 +54,27 @@ struct interpret_visitor {
       dbg_print("nop");
    }
    void operator()(end_t) {
-      control c = cs.pop();
+      stack_elem c = cons.pop();
+      std::visit(_elem_visitor, c);
       dbg_print("end");
    }
    void operator()(return__t) {
-      std::cout << "ret " << (uint64_t)cs.size() << '\n';
       dbg_print("return");
    }
    void operator()(block_t bt) {
-      cs.push({block_c, (uint8_t)bt.data});
+      cons.push(bt);
       dbg_print("block : "+std::to_string(bt.data));
    }
    void operator()(loop_t lt) {
-      cs.push({loop_c, (uint8_t)lt.data});
+      cons.push(lt);
       dbg_print("loop : "+std::to_string(lt.data));
    }
    void operator()(if__t it) {
-      cs.push({if_c, (uint8_t)it.data});
+      cons.push(it);
       dbg_print("if : "+std::to_string(it.data));
    }
    void operator()(else__t et) {
-      //cs.push({else_c, (uint8_t)et.data});
+      //ws.push({else_c, (uint8_t)et.data});
       dbg_print("else : "+std::to_string(et.data));
    }
    void operator()(br_t b) {
