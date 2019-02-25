@@ -25,7 +25,7 @@ extern std::vector<uint8_t> read_wasm( const std::string& );
 BOOST_AUTO_TEST_SUITE(execution_tests)
 BOOST_AUTO_TEST_CASE(hello_world_wasm_test) { 
    try {
-      memory_manager::set_memory_limits( 32*1024*1024, 64*1024 );
+      memory_manager::set_memory_limits( 32*1024*1024 );
       binary_parser bp;
       module mod;
       wasm_code code = read_wasm( "test.wasm" );
@@ -96,7 +96,7 @@ BOOST_AUTO_TEST_CASE(hello_world_wasm_test) {
       {
          binary_parser bp;
          module mod;
-         memory_manager::set_memory_limits( 128*1024, 64*1024 );
+         memory_manager::set_memory_limits( 128*1024 );
          wasm_code code = read_wasm( "test.wasm" );
          wasm_code_ptr code_ptr(code.data(), 0);
          bp.parse_module( code, mod );

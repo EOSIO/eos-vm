@@ -42,4 +42,7 @@ namespace eosio { namespace wasm_backend {
          native_vector<control> _cs;
          uint8_t                _index = 0;
    };
+
+   class operand_stack {
+   };
 }} // namespace eosio::wasm_backend
