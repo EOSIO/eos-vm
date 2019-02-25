@@ -3,6 +3,7 @@
 #include <eosio/wasm_backend/utils.hpp>
 #include <eosio/wasm_backend/opcodes.hpp>
 #include <eosio/wasm_backend/wasm_stack.hpp>
+#include <eosio/wasm_backend/execution_context.hpp>
 #include <iostream>
 #include <variant>
 #include <sstream>
@@ -13,9 +14,8 @@
 namespace eosio { namespace wasm_backend {
 
 struct interpret_visitor {
-   control_stack      cons;
-   operand_stack      ops;
-   call_stack         calls;
+   interpret_visitor(execution_context& ec) : context(ec) {}
+   execution_context& context;
    std::stringstream  dbg_output;
 
    struct stack_elem_visitor {
@@ -54,24 +54,24 @@ struct interpret_visitor {
       dbg_print("nop");
    }
    void operator()(end_t) {
-      stack_elem c = cons.pop();
+      stack_elem c = context.pop_label();
       std::visit(_elem_visitor, c);
-      dbg_print("end");
+      dbg_print("end "+std::to_string(context.get_pc()));
    }
    void operator()(return__t) {
       dbg_print("return");
    }
    void operator()(block_t bt) {
-      cons.push(bt);
-      dbg_print("block : "+std::to_string(bt.data));
+      context.push_label(bt);
+      dbg_print("block : "+std::to_string(bt.data)+" "+std::to_string(bt.pc));
    }
    void operator()(loop_t lt) {
-      cons.push(lt);
-      dbg_print("loop : "+std::to_string(lt.data));
+      context.push_label(lt);
+      dbg_print("loop : "+std::to_string(lt.data)+" "+std::to_string(lt.pc));
    }
    void operator()(if__t it) {
-      cons.push(it);
-      dbg_print("if : "+std::to_string(it.data));
+      context.push_label(it);
+      dbg_print("if : "+std::to_string(it.data)+" "+std::to_string(it.pc));
    }
    void operator()(else__t et) {
       //ws.push({else_c, (uint8_t)et.data});

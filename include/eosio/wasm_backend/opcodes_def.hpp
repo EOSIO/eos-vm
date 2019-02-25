@@ -200,6 +200,7 @@
 #define CREATE_CONTROL_FLOW_TYPES(name, code) \
    struct name##_t {                          \
       uint32_t data;                          \
+      uint32_t pc;                            \
    };
 
 #define CREATE_BR_TABLE_TYPE(name, code)    \
