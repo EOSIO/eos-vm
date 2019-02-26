@@ -4,9 +4,62 @@
 #include <eosio/wasm_backend/wasm_stack.hpp>
 
 namespace eosio { namespace wasm_backend {
+      template <char... Str>
+      struct host_function_name {
+        static constexpr const char value[] = {Str...};
+      };
+
+      template <typename T, T... Str>
+      static constexpr host_function_name<Str...> operator ""_hfn() {
+        constexpr auto hfn = host_function_name<Str...>{};
+        return hfn;
+      }
+
+      template <typename C, auto C::*MP, typename Name>
+      struct registered_member_function {
+         static constexpr auto function = MP;
+         static constexpr auto name = Name{};
+         using name_t = Name;
+         static constexpr bool is_member = true; 
+      };
+
+      template <auto F, typename Name>
+      struct registered_function {
+        static constexpr auto function = F;
+        static constexpr auto name = Name{};
+        using name_t = Name;
+        static constexpr bool is_member = false; 
+      };
+      
+      template <typename... Registered_Funcs>
+      struct registered_host_functions {
+        template <typename HostFuncName, typename RF, typename... RFs>
+        struct which_func {
+        };
+
+        template <typename HostFuncName, typename RF, typename... RFs>
+        struct which_func<, RF, RFs...> {
+          static constexpr auto value = RF::function;
+        };
+
+        template <typename HostFuncName, typename RF>
+        struct which_func<HostFuncName, RF> {
+          static_assert(std::is_same_v<HostFuncName, typename RF::name_t>);
+          static constexpr auto value = RF::function;
+        };
+
+        template <typename HostFuncName, typename... Args>
+        static constexpr auto call(HostFuncName hfn, Args... args) {
+          return std::invoke(which_func<HostFuncName, Registered_Funcs...>::value, args...);
+        }
+      };
+
       class execution_context {
          public:
             execution_context(module& m) : _mod(m) {}
+            template <typename F>
+            inline void register_host_function( F&& host_func ) {
+            }
             inline module& get_module() { return _mod; }
             inline void push_label( const stack_elem& el ) { _cs.push(el); }
             inline void push_operand( const stack_elem& el ) { _os.push(el); }
@@ -23,6 +76,9 @@ namespace eosio { namespace wasm_backend {
                      }
                   }, el);
                return ret_val;
+            }
+            stack_elem invoke(uint32_t func_index, const func_type& ftype) {
+              //if (_mod.
             }
             inline stack_elem pop_call() { return _as.pop(); }
             inline uint32_t get_pc()const { return _pc; }

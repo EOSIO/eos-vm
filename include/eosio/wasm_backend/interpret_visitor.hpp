@@ -13,6 +13,9 @@
 
 namespace eosio { namespace wasm_backend {
 
+   struct test {
+      void hello() { std::cout << "HELLO\n"; }
+   };
 struct interpret_visitor {
    interpret_visitor(execution_context& ec) : context(ec) {}
    execution_context& context;
@@ -51,53 +54,63 @@ struct interpret_visitor {
       throw wasm_interpreter_exception{"unreachable"};
    }
    void operator()(nop_t) {
-      dbg_print("nop");
+      dbg_output << "nop {" << context.get_pc() << "}\n";
    }
    void operator()(end_t) {
       stack_elem c = context.pop_label();
       std::visit(_elem_visitor, c);
-      dbg_print("end "+std::to_string(context.get_pc()));
+      dbg_output << "end {" << context.get_pc() << "}\n";
    }
    void operator()(return__t) {
-      dbg_print("return");
+      dbg_output << "return {" << context.get_pc() << "}\n";
    }
    void operator()(block_t bt) {
       context.push_label(bt);
       dbg_print("block : "+std::to_string(bt.data)+" "+std::to_string(bt.pc));
+      dbg_output << "block {" << context.get_pc() << "} " << bt.data << " " << bt.pc << "\n";
    }
    void operator()(loop_t lt) {
       context.push_label(lt);
-      dbg_print("loop : "+std::to_string(lt.data)+" "+std::to_string(lt.pc));
+      dbg_output << "loop {" << context.get_pc() << "} " << lt.data << " " << lt.pc << "\n";
    }
    void operator()(if__t it) {
       context.push_label(it);
-      dbg_print("if : "+std::to_string(it.data)+" "+std::to_string(it.pc));
+      dbg_output << "if {" << context.get_pc() << "} " << it.data << " " << it.pc << "\n";
    }
    void operator()(else__t et) {
       context.set_pc(et.pc);
-      dbg_print("else : "+std::to_string(et.data));
+      dbg_output << "else {" << context.get_pc() << "} " << et.data << " " << et.pc << "\n";
    }
    void operator()(br_t b) {
       context.jump(b.data);
-      dbg_print("br : "+std::to_string(b.data));
+      dbg_output << "br {" << context.get_pc() << "} " << b.data << "\n";
    }
    void operator()(br_if_t b) {
       const auto& val = context.pop_operand();
       if (context.is_true(val))
          context.jump(b.data);
-      dbg_print("br.if : "+std::to_string(b.data));
+      dbg_output << "br.if {" << context.get_pc() << "} " << b.data << "\n";
    }
    void operator()(br_table_t b) {
-      dbg_print("br.table : ");
+      dbg_output << "br.table {" << context.get_pc() << "} " << b.default_target << "\n\t";
+      for (int i=0; i < b.target_table.size(); i++) {
+         dbg_output << ", " << b.target_table[i];
+      }
+      dbg_output << "\n";
    }
    void operator()(call_t b) {
-      EOS_WB_ASSERT(b.index < context.get_module().get_functions_total(), wasm_interpreter_exception, "call index out of bounds");
-      std::cout << "SS " << context.get_module().functions.size() << "\n";
-      for (int i=0; i << context.get_module().functions.size(); i++)
-         std::cout << "FUNC " << context.get_module().functions[i] << "\n";
-      //const auto& func = context.get_module().code[b.index];
-      //switch (context.get_module().types[b.index])
-      dbg_print("call : "+std::to_string(b.index));
+      const uint32_t& funcs_size = context.get_module().get_functions_total();
+      EOS_WB_ASSERT(b.index < funcs_size, wasm_interpreter_exception, "call index out of bounds");
+      const auto& ftype = context.get_module().get_function_type(b.index);
+      auto ret_val = context.invoke(b.index, ftype);
+      if (ftype.return_count > 0) {
+         EOS_WB_ASSERT(ftype.return_count <= 1, wasm_interpreter_exception, "mvp only supports single value returns");
+         context.push_operand(ret_val);
+      }
+      //test t;
+      //registered_function<test, &test::hello, decltype("hello"_hfn)> rf;
+      //std::invoke(rf.member_pointer, t);
+      dbg_output << "call {" << context.get_pc() << "} " << b.index << "\n";
    }
    void operator()(call_indirect_t b) {
       dbg_print("call_indirect : "+std::to_string(b.index));

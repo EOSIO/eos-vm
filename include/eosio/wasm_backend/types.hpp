@@ -94,7 +94,7 @@ namespace eosio { namespace wasm_backend {
    
    struct import_entry {
       uint32_t      module_len;
-      native_vector<uint8_t> module_str;      
+      native_vector<uint8_t> module_str;
       uint32_t      field_len;
       native_vector<uint8_t> field_str;
       external_kind kind;
@@ -151,6 +151,11 @@ namespace eosio { namespace wasm_backend {
       native_vector<elem_segment>    elements;
       native_vector<function_body>   code;
       native_vector<data_segment>    data;
+      func_type& get_function_type(uint32_t index) {
+         if (index < get_imported_functions_size())
+            return types[imports[index].type.func_t];
+         return types[functions[index-get_imported_functions_size()]];
+      }
       uint32_t _get_imported_functions_size()const {
          uint32_t number_of_imports = 0;
          for (int i=0; i < imports.size(); i++) {
