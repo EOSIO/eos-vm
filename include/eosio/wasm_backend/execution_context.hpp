@@ -33,25 +33,43 @@ namespace eosio { namespace wasm_backend {
       
       template <typename... Registered_Funcs>
       struct registered_host_functions {
-        template <typename HostFuncName, typename RF, typename... RFs>
-        struct which_func {
-        };
 
-        template <typename HostFuncName, typename RF, typename... RFs>
-        struct which_func<, RF, RFs...> {
-          static constexpr auto value = RF::function;
-        };
-
-        template <typename HostFuncName, typename RF>
-        struct which_func<HostFuncName, RF> {
-          static_assert(std::is_same_v<HostFuncName, typename RF::name_t>);
-          static constexpr auto value = RF::function;
-        };
-
-        template <typename HostFuncName, typename... Args>
-        static constexpr auto call(HostFuncName hfn, Args... args) {
-          return std::invoke(which_func<HostFuncName, Registered_Funcs...>::value, args...);
+        template <size_t Index, typename RF, typename... _RFs>
+        static void _resolve( module& mod ) {
+          size_t name_size = sizeof(RF::typename name_t::value);
+          if (Index >= mod.imports.size())
+            return;
+          else {
+            bool found_import = false;
+            for (int i=0; i < mod.imports.size(); i++) {
+              if (mod.imports[i].kind != external_kind::Function)
+                continue;
+              if (mod.imports[i].field_len == name_size) {
+                if (memcmp(mod.imports[i].field_str, RF::typename name_t::value, name_size) == 0) {
+                  mod.import_functions[i] = Index;
+                }
+              }
+            }
+          }
         }
+
+        template <typename RF, typename... _RFs>
+        static void resolve( module& mod ) {
+          _resolve<0, RF, RFs...>(mod);
+        }
+
+        template <size_t N>
+        static constexpr void _call(uint32_t index) {
+          if constexpr(index == N)
+            std::invoke(std::get<N>(registered));
+          else
+            _call<N+1>(index);
+        }
+
+        static constexpr void call(uint32_t index) {
+           call<0>(index);
+        }
+        static constexpr const std::tuple<Registered_Funcs...> registered;
       };
 
       class execution_context {
