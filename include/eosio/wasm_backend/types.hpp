@@ -151,12 +151,32 @@ namespace eosio { namespace wasm_backend {
       native_vector<elem_segment>    elements;
       native_vector<function_body>   code;
       native_vector<data_segment>    data;
+      uint32_t _get_imported_functions_size()const {
+         uint32_t number_of_imports = 0;
+         for (int i=0; i < imports.size(); i++) {
+            if (imports[i].kind == external_kind::Function)
+               number_of_imports++;
+         }
+         return number_of_imports;
+      }
+      uint32_t get_imported_functions_size()const {
+         thread_local uint32_t imports_size = _get_imported_functions_size();
+         return imports_size;
+      }
+      uint32_t get_functions_size()const {
+         thread_local uint32_t funcs_size = code.size();
+         return funcs_size;
+      }
+      uint32_t get_functions_total()const {
+         thread_local uint32_t ret_val = get_imported_functions_size() + get_functions_size();
+         return ret_val;
+      }
       uint32_t get_exported_function(const std::string& str) {
          uint32_t index = std::numeric_limits<uint32_t>::max();
          for (int i=0; i < exports.size(); i++) {
             if (exports[i].kind == external_kind::Function &&
                 memcmp((const char*)str.c_str(), (const char*)exports[i].field_str.raw(), exports[i].field_str.size()) == 0) {
-               index = exports[i].index;
+               index = exports[i].index - get_imported_functions_size();
                break;
             }
          }

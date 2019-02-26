@@ -134,13 +134,17 @@ namespace eosio { namespace wasm_backend {
          inline constexpr bool to() { return storage[0]; }
 
          template <size_t M=N, typename = typename std::enable_if_t<M == 7, int>>
-         inline constexpr int8_t to() { return storage[0]; }
+         inline constexpr int8_t to() {
+            if (storage[0] & 0x40)
+               return storage[0] | (~0u << 7);
+            return storage[0];
+         }
 
          template <size_t M=N, typename = typename std::enable_if_t<M == 32, int>>
-         inline constexpr int32_t to() { return _to(); }
+         inline constexpr int32_t to() { return _to<int32_t>(); }
 
          template <size_t M=N, typename = typename std::enable_if_t<M == 64, int>>
-         inline constexpr int64_t to() { return _to(); }
+         inline constexpr int64_t to() { return _to<int64_t>(); }
 
          void print()const {
             for (int i=0; i < bytes_used; i++) {
@@ -152,41 +156,41 @@ namespace eosio { namespace wasm_backend {
       private:
          template <typename T>
          inline constexpr void _from(T v) {
-            constexpr size_t shift = (sizeof(T) << 3) - 1;
-            is_neg = (v >> shift) & 1;
+            bool is_neg = v < 0;
             int i=0;
             #pragma unroll
             for (; i < bytes_needed<N>(); i++) {
                storage[i] = v & 0x7f;
                v >>= 7;
-               if ((v == 0 && !is_neg) || (v == -1 && !is_neg)) {
+               if (is_neg)
+                  v |= (~0u << (N - 7));
+               if ((v == 0 && !(v & 0x40)) || (v == -1 && (v & 0x40))) {
                   break;
                } else {
                   storage[i] |= 0x80;
                }
             }
-            bytes_used = ++i;
+            bytes_used = i+1;
          }
 
-         inline constexpr int64_t _to() { 
-            constexpr size_t shift = 63;
-            int64_t ret = 0;
+         template <typename T>
+         inline constexpr T _to() {
+            typename std::make_unsigned<T>::type ret = 0;
             #pragma unroll
             for (int i=bytes_used-1; i >= 0; i--) {
                ret <<= 7;
                ret |= storage[i] & 0x7f;
             }
-            return is_neg ? clear_last_bit(ret) | (~(uint64_t)0 << shift) : ret;
-         }
-         
-         inline constexpr int64_t clear_last_bit(int64_t v) {
-            const size_t shift = (32 - __builtin_clz(v));
-            return v & ~((int64_t)1 << shift);
+            if (bytes_used >= 1) {
+               size_t shift = ((bytes_used) * 7);
+               if (storage[bytes_used-1] & 0x40)
+                  ret |= (-1ull) << shift;
+            }
+            return *(T*)&ret;
          }
 
          std::array<uint8_t, bytes_needed<N>()> storage;
          uint8_t bytes_used = bytes_needed<N>(); 
-         bool    is_neg     = false;
    };
 
 }} // ns eosio::wasm_backend

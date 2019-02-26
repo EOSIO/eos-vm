@@ -532,13 +532,14 @@ namespace eosio { namespace wasm_backend {
          fb.locals.at(i).count = parse_varuint32( code );
          fb.locals.at(i).type  = *code++;
       }
+
       size_t bytes = body_size - (code.offset() - before) - 1; // -1 is 'end' 0xb byte
       fb.code.resize(bytes);
       wasm_code_ptr fb_code(code.raw(), bytes);
       parse_function_body_code( fb_code, bytes, fb.code );
       code += bytes;
       EOS_WB_ASSERT( *code++ == 0x0B, wasm_parse_exception, "failed parsing function body, expected 'end'");
-   }
+   };
 
    void binary_parser::parse_data_segment( wasm_code_ptr& code, data_segment& ds ) {
       ds.index  = parse_varuint32( code );

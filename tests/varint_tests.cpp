@@ -13,159 +13,134 @@
 using namespace eosio;
 using namespace eosio::wasm_backend;
 
-BOOST_AUTO_TEST_SUITE(varint_tests)
-BOOST_AUTO_TEST_CASE(varint_test) { 
+BOOST_AUTO_TEST_SUITE(leb128_tests)
+BOOST_AUTO_TEST_CASE(varuint_test) { 
    try {
       {
-         varuint<1> v(false); 
-         BOOST_CHECK_EQUAL( v.to(), 0 );
-         v.from(static_cast<bool>(1));
-         BOOST_CHECK_EQUAL( v.to(), 1 );
-         BOOST_CHECK_THROW( v.from(static_cast<uint8_t>(2)), wasm_interpreter_exception );
-      }
-      {
-         varuint<7> v(static_cast<uint8_t>(0));
-         BOOST_CHECK_EQUAL( v.to(), 0 );
-         v.from(static_cast<uint8_t>(1));
-         BOOST_CHECK_EQUAL( v.to(), 1 );
-         v.from(static_cast<uint8_t>(2));
-         BOOST_CHECK_EQUAL( v.to(), 2 );
-         v.from(static_cast<uint8_t>(127)); 
-         BOOST_CHECK_EQUAL( v.to(), 127 );
-         BOOST_CHECK_THROW( v.from(static_cast<uint8_t>(128)), wasm_interpreter_exception );
-      }
-      /*
-      {
-         varuint<32> v(0);
-         BOOST_CHECK_EQUAL( v.to(), 0 );
-         v.set(1);
-         BOOST_CHECK_EQUAL( v.to(), 1 );
-         v.set(2);
-         BOOST_CHECK_EQUAL( v.to(), 2 );
-         v.set(127); 
-         BOOST_CHECK_EQUAL( v.to(), 127 );
-         v.set(128); 
-         BOOST_CHECK_EQUAL( v.to(), 128 );
-         BOOST_CHECK_THROW( v.from((unsigned __int128)1<<32), wasm_interpreter_exception );
-      }
-      {
-         varuint<64> v(0);
-         BOOST_CHECK_EQUAL( v.get(), 0 );
-         v.set(1);
-         BOOST_CHECK_EQUAL( v.get(), 1 );
-         v.set(2);
-         BOOST_CHECK_EQUAL( v.get(), 2 );
-         v.set(127); 
-         BOOST_CHECK_EQUAL( v.get(), 127 );
-         v.set(128); 
-         BOOST_CHECK_EQUAL( v.get(), 128 );
-         BOOST_CHECK_THROW( v.set(((unsigned __int128)1<<64)), wasm_interpreter_exception );
-      }
-      {
-         varint<7> v(0);
-         BOOST_CHECK_EQUAL( v.get(), 0 );
-         v.set(1);
-         BOOST_CHECK_EQUAL( v.get(), 1 );
-         v.set(2);
-         BOOST_CHECK_EQUAL( v.get(), 2 );
-         v.set(63); 
-         BOOST_CHECK_EQUAL( v.get(), 63 );
-         v.set(-1);
-         BOOST_CHECK_EQUAL( v.get(), -1 );
-         v.set(-64);
-         BOOST_CHECK_EQUAL( v.get(), -64 );
-      }
-      {
-         varint<32> v(0);
-         BOOST_CHECK_EQUAL( v.get(), 0 );
-         v.set(1);
-         BOOST_CHECK_EQUAL( v.get(), 1 );
-         v.set(2);
-         BOOST_CHECK_EQUAL( v.get(), 2 );
-         v.set(127); 
-         BOOST_CHECK_EQUAL( v.get(), 127 );
-         v.set(128); 
-         BOOST_CHECK_EQUAL( v.get(), 128 );
-         v.set((1<<31)-1);
-         BOOST_CHECK_EQUAL( v.get(), (1<<31)-1 );
+         std::vector<uint8_t> tv = {0};
+         guarded_ptr<uint8_t> gp1_0(tv.data(), 5);
+         guarded_ptr<uint8_t> gp7_0(tv.data(), 5);
+         guarded_ptr<uint8_t> gp32_0(tv.data(), 5);
+         varuint<1> v1(gp1_0); 
+         varuint<7> v7(gp7_0); 
+         varuint<32> v32(gp32_0); 
+
+         BOOST_CHECK_EQUAL( v1.to(),  0 );
+         BOOST_CHECK_EQUAL( v7.to(),  0 );
+         BOOST_CHECK_EQUAL( v32.to(), 0 );
+
+         tv[0] = 1;
+         guarded_ptr<uint8_t> gp1_1(tv.data(), 5);
+         guarded_ptr<uint8_t> gp7_1(tv.data(), 5);
+         guarded_ptr<uint8_t> gp32_1(tv.data(), 5);
+
+         varuint<1> v1_1(gp1_1); 
+         varuint<7> v7_1(gp7_1); 
+         varuint<32> v32_1(gp32_1); 
+         BOOST_CHECK_EQUAL( v1_1.to(),  1 );
+         BOOST_CHECK_EQUAL( v7_1.to(),  1 );
+         BOOST_CHECK_EQUAL( v32_1.to(), 1 );
       }
 
-   } FC_LOG_AND_RETHROW() 
+      {
+         std::vector<uint8_t> tv = {0x7f};
+         guarded_ptr<uint8_t> gp7_0(tv.data(), 5);
+         guarded_ptr<uint8_t> gp32_0(tv.data(), 5);
+         varuint<7> v7(gp7_0); 
+         varuint<32> v32(gp32_0); 
+
+         BOOST_CHECK_EQUAL( v7.to(),  127 );
+         BOOST_CHECK_EQUAL( v32.to(), 127 );
+
+         tv[0] = 1;
+         std::vector<uint8_t> tv2 = {0x80, 0x7f};
+         guarded_ptr<uint8_t> gp7_1(tv2.data(), 5);
+         guarded_ptr<uint8_t> gp32_1(tv2.data(), 5);
+
+         varuint<7> v7_1(gp7_1); 
+         varuint<32> v32_1(gp32_1); 
+         BOOST_CHECK_EQUAL( v32_1.to(), 16256 );
+      }
+
+      {
+         std::vector<uint8_t> tv0 = {0xb4, 0x7};
+         guarded_ptr<uint8_t> gp32_0(tv0.data(), 5);
+
+         std::vector<uint8_t> tv1 = {0x8c, 0x8};
+         guarded_ptr<uint8_t> gp32_1(tv1.data(), 5);
+
+         std::vector<uint8_t> tv2 = {0xff, 0xff, 0xff, 0xff, 0xf};
+         guarded_ptr<uint8_t> gp32_2(tv2.data(), 5);
+
+         varuint<32> v32_0(gp32_0); 
+         varuint<32> v32_1(gp32_1); 
+         varuint<32> v32_2(gp32_2); 
+
+         BOOST_CHECK_EQUAL( v32_0.to(), 0x3b4 );
+         BOOST_CHECK_EQUAL( v32_1.to(), 0x40c );
+         BOOST_CHECK_EQUAL( v32_2.to(), 0xffffffff );
+      }
+
+   } FC_LOG_AND_RETHROW()
 }
 
-BOOST_AUTO_TEST_CASE(varint_raw_test) {
+BOOST_AUTO_TEST_CASE(varint_test) {
    try {
       {
-         varuint<1> v(0); 
-         v.set(std::vector<uint8_t>{0x00,0x00}, 0);
-         BOOST_CHECK_EQUAL( v.get(), 0 );
-         v.set(std::vector<uint8_t>{0x01, 0x00}, 0);
-         BOOST_CHECK_EQUAL( v.get(), 1 );
-         //BOOST_CHECK_THROW( v.set(std::vector<uint8_t>{0x02, 0x00}, 0), wasm_interpreter_exception );
+         std::vector<uint8_t> tv0 = {0x0};
+         std::vector<uint8_t> tv1 = {0x1};
+         std::vector<uint8_t> tv2 = {0x7f};
+
+         guarded_ptr<uint8_t> gp0(tv0.data(), 5);
+         guarded_ptr<uint8_t> gp1(tv1.data(), 5);
+         guarded_ptr<uint8_t> gp2(tv2.data(), 5);
+
+         varint<7> v0(gp0);
+         varint<7> v1(gp1);
+         varint<7> v2(gp2);
+
+         BOOST_CHECK_EQUAL( v0.to(), 0 );
+         BOOST_CHECK_EQUAL( v1.to(), 1 );
+         BOOST_CHECK_EQUAL( (int32_t)v2.to(), -1 );
       }
+
       {
-         varuint<7> v(0);
-         v.set(std::vector<uint8_t>{0x00, 0x00}, 0);
-         BOOST_CHECK_EQUAL( v.get(), 0 );
-         v.set(std::vector<uint8_t>{0x01, 0x00}, 0);
-         BOOST_CHECK_EQUAL( v.get(), 1 );
-         v.set(std::vector<uint8_t>{0x02, 0x00}, 0);
-         BOOST_CHECK_EQUAL( v.get(), 2 );
-         v.set(std::vector<uint8_t>{0x7F, 0x00}, 0); 
-         BOOST_CHECK_EQUAL( v.get(), 127 );
-         //BOOST_CHECK_THROW( v.set(128), wasm_interpreter_exception );
+         std::vector<uint8_t> tv0 = {0x0};
+         std::vector<uint8_t> tv1 = {0x1};
+         std::vector<uint8_t> tv2 = {0x7f};
+         std::vector<uint8_t> tv3 = {0x80, 0x7f};
+
+         guarded_ptr<uint8_t> gp0(tv0.data(), 5);
+         guarded_ptr<uint8_t> gp1(tv1.data(), 5);
+         guarded_ptr<uint8_t> gp2(tv2.data(), 5);
+         guarded_ptr<uint8_t> gp3(tv3.data(), 5);
+
+         varint<32> v0(gp0);
+         varint<32> v1(gp1);
+         varint<32> v2(gp2);
+
+         BOOST_CHECK_EQUAL( v0.to(), 0 );
+         BOOST_CHECK_EQUAL( v1.to(), 1 );
+         BOOST_CHECK_EQUAL( v2.to(), -1 );
       }
+
       {
-         varuint<32> v(0);
-         BOOST_CHECK_EQUAL( v.get(), 0 );
-         v.set(std::vector<uint8_t>{0x01, 0x00}, 0);
-         BOOST_CHECK_EQUAL( v.get(), 1 );
-         v.set(std::vector<uint8_t>{0x02, 0x00}, 0);
-         BOOST_CHECK_EQUAL( v.get(), 2 );
-         v.set(std::vector<uint8_t>{0x7F, 0x00}, 0);
-         BOOST_CHECK_EQUAL( v.get(), 127 );
-         v.set(std::vector<uint8_t>{0x80, 0x01}, 0);
-         BOOST_CHECK_EQUAL( v.get(), 128 );
-         v.set(std::vector<uint8_t>{0xFF, 0xFF, 0xFF, 0xFF, 0x07}, 0); 
-         BOOST_CHECK_EQUAL( v.get(), (1<<31)-1 );
-         //BOOST_CHECK_THROW( v.set(1<<31), wasm_interpreter_exception );
+         std::vector<uint8_t> tv0 = {0x0};
+         std::vector<uint8_t> tv1 = {0x1};
+         std::vector<uint8_t> tv2 = {0x7f};
+
+         guarded_ptr<uint8_t> gp0(tv0.data(), 5);
+         guarded_ptr<uint8_t> gp1(tv1.data(), 5);
+         guarded_ptr<uint8_t> gp2(tv2.data(), 5);
+
+         varint<64> v0(gp0);
+         varint<64> v1(gp1);
+         varint<64> v2(gp2);
+
+         BOOST_CHECK_EQUAL( v0.to(), 0 );
+         BOOST_CHECK_EQUAL( v1.to(), 1 );
+         BOOST_CHECK_EQUAL( v2.to(), -1 );
       }
-      {
-         varint<7> v(0);
-         BOOST_CHECK_EQUAL( v.get(), 0 );
-         v.set(std::vector<uint8_t>{0x01, 0x00}, 0);
-         BOOST_CHECK_EQUAL( v.get(), 1 );
-         v.set(std::vector<uint8_t>{0x02, 0x00}, 0);
-         BOOST_CHECK_EQUAL( v.get(), 2 );
-         v.set(std::vector<uint8_t>{0x3F, 0x00}, 0);
-         BOOST_CHECK_EQUAL( v.get(), 63 );
-         //BOOST_CHECK_THROW( v.set(64), wasm_interpreter_exception );
-         v.set(std::vector<uint8_t>{0x7F, 0x00}, 0);
-         BOOST_CHECK_EQUAL( v.get(), -1 );
-         v.set(std::vector<uint8_t>{0x40, 0x01}, 0);
-         BOOST_CHECK_EQUAL( v.get(), -64 );
-         //BOOST_CHECK_THROW( v.set(-65), wasm_interpreter_exception );
-      }
-      {
-         varint<32> v(0);
-         BOOST_CHECK_EQUAL( v.get(), 0 );
-         v.set(std::vector<uint8_t>{0x01, 0x00}, 0);
-         BOOST_CHECK_EQUAL( v.get(), 1 );
-         v.set(std::vector<uint8_t>{0x02, 0x00}, 0);
-         BOOST_CHECK_EQUAL( v.get(), 2 );
-         v.set(std::vector<uint8_t>{0xFF, 0x00}, 0);
-         BOOST_CHECK_EQUAL( v.get(), 127 );
-         v.set(std::vector<uint8_t>{0xFF, 0xFF, 0xFF, 0xFF, 0x07}, 0);
-         BOOST_CHECK_EQUAL( v.get(), (1<<31)-1 );
-      }
-      {
-         std::vector<uint8_t> code = {0x9B, 0xF1, 0x59};
-         guarded_ptr<uint8_t> cp = {(uint8_t*)code.data(), 10};
-         varint<64> v(0);
-         v.set(cp);
-         BOOST_CHECK_EQUAL( v.get(), -624485 );
-      }
-*/
    } FC_LOG_AND_RETHROW() 
 }
 
