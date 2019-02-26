@@ -199,10 +199,10 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
                BOOST_CHECK_EQUAL(mod.elements[i].elems[j], indices[j]);
          }
          //disassembly_visitor v;
-         execution_context ec;
+         execution_context ec(mod);
          interpret_visitor v(ec);
          uint32_t index = mod.get_exported_function("apply");
-         std::cout << "SIZE " << mod.code[index].code.size() << '\n';
+         std::cout << "FUNC " << index <<  " SIZE " << mod.code[index].code.size() << '\n';
          for (uint32_t i=0; i < mod.code[index].code.size(); i++) {
             ec.set_pc(i);
             std::visit(v, mod.code[index].code[i]);

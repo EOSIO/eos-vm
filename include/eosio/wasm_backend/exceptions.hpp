@@ -19,23 +19,23 @@
 #define LIKELY(x) __builtin_expect(!!(x), 1)
 #define UNLIKELY(x) __builtin_expect(!!(x), 0)
 #else
-#define LIKELY(x) x 
-#define UNLIKELY(x) x
+#define LIKELY(x) !!(x) 
+#define UNLIKELY(x) !!(x)
 #endif
 
 #define EOS_WB_ASSERT( expr, exc_type, msg ) \
-   if (!UNLIKELY(expr)) {                     \
+   if (!UNLIKELY(expr)) {                    \
       throw exc_type{msg};                   \
    }
 
-#define DECLARE_EXCEPTION(name, _code, _what)                      \
-   struct name : public std::exception {                           \
-      name(std::string msg) : msg(msg) {}              \
-      virtual const char* what()const throw() {             \
+#define DECLARE_EXCEPTION(name, _code, _what)                                     \
+   struct name : public std::exception {                                          \
+      name(std::string msg) : msg(msg) {}                                         \
+      virtual const char* what()const throw() {                                   \
          return std::string(std::string(std::string(_what) + " ") + msg).c_str(); \
-      } \
-      uint32_t code()const { return _code; }                       \
-      std::string msg;                                   \
+      }                                                                           \
+      uint32_t code()const { return _code; }                                      \
+      std::string msg;                                                            \
    };
 
 namespace eosio { namespace wasm_backend {

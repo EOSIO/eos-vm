@@ -48,7 +48,7 @@ struct interpret_visitor {
       dbg_output << s << '\n';
    }
    void operator()(unreachable_t) {
-      //EOS_WB_ASSERT(false, wasm_interpreter_exception, "unreachable");
+      throw wasm_interpreter_exception{"unreachable"};
    }
    void operator()(nop_t) {
       dbg_print("nop");
@@ -74,19 +74,29 @@ struct interpret_visitor {
       dbg_print("if : "+std::to_string(it.data)+" "+std::to_string(it.pc));
    }
    void operator()(else__t et) {
-      //ws.push({else_c, (uint8_t)et.data});
+      context.set_pc(et.pc);
       dbg_print("else : "+std::to_string(et.data));
    }
    void operator()(br_t b) {
+      context.jump(b.data);
       dbg_print("br : "+std::to_string(b.data));
    }
    void operator()(br_if_t b) {
+      const auto& val = context.pop_operand();
+      if (context.is_true(val))
+         context.jump(b.data);
       dbg_print("br.if : "+std::to_string(b.data));
    }
    void operator()(br_table_t b) {
-      dbg_print("br.table : "); //+std::to_string(b.data);
+      dbg_print("br.table : ");
    }
    void operator()(call_t b) {
+      EOS_WB_ASSERT(b.index < context.get_module().get_functions_total(), wasm_interpreter_exception, "call index out of bounds");
+      std::cout << "SS " << context.get_module().functions.size() << "\n";
+      for (int i=0; i << context.get_module().functions.size(); i++)
+         std::cout << "FUNC " << context.get_module().functions[i] << "\n";
+      //const auto& func = context.get_module().code[b.index];
+      //switch (context.get_module().types[b.index])
       dbg_print("call : "+std::to_string(b.index));
    }
    void operator()(call_indirect_t b) {
@@ -189,15 +199,19 @@ struct interpret_visitor {
       dbg_print("grow_memory ");
    }
    void operator()(i32_const_t b) {
-      dbg_print("i32.const : "+std::to_string(b.data));
+      context.push_operand(b);
+      dbg_print("i32.const : "+std::to_string(*(int32_t*)&b.data));
    }
    void operator()(i64_const_t b) {
-      dbg_print("i64.const : "+std::to_string(b.data));
+      context.push_operand(b);
+      dbg_print("i64.const : "+std::to_string(*(int64_t*)&b.data));
    }
    void operator()(f32_const_t b) {
+      context.push_operand(b);
       dbg_print("f32.const : "+std::to_string(*((float*)&b.data)));
    }
    void operator()(f64_const_t b) {
+      context.push_operand(b);
       dbg_print("f64.const : "+std::to_string(*((double*)&b.data)));
    }
    void operator()(i32_eqz_t b) {
