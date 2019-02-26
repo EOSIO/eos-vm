@@ -199,6 +199,21 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
                BOOST_CHECK_EQUAL(mod.elements[i].elems[j], indices[j]);
          }
          //disassembly_visitor v;
+
+         struct test {
+            void hello() { std::cout << "hello\n"; }
+            static void hello2() { std::cout << "Hello2\n"; }
+         };
+
+         test t;
+         registered_member_function<test, &test::hello, decltype("hello"_hfn)> rf;
+         std::invoke(rf.function, t);
+
+         registered_function<&test::hello2, decltype("hello2"_hfn)> rf2;
+         std::invoke(rf2.function);
+
+         using rhf = registered_host_functions<decltype(rf), decltype(rf2)>;
+         rhf::call("hello2"_hfn);
          execution_context ec(mod);
          interpret_visitor v(ec);
          uint32_t index = mod.get_exported_function("apply");
