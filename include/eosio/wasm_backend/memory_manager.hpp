@@ -8,7 +8,6 @@ namespace eosio { namespace wasm_backend {
       public:
          enum types {
             native,
-            linear_memory,
             wasm,
             stack64
          };
@@ -22,13 +21,7 @@ namespace eosio { namespace wasm_backend {
             EOS_WB_ASSERT( instance.get() != nullptr, wasm_memory_exception, "must set memory limits first" );
             return instance->_nalloc; 
          }
-      /*
-         template <size_t Type>
-         static auto get_allocator() -> std::enable_if_t<Type == linear_memory, simple_allocator&> { 
-            EOS_WB_ASSERT( instance.get() != nullptr, wasm_memory_exception, "must set memory limits first" );
-            return instance->_lmalloc; 
-         }
-      */
+
          template <size_t Type>
          static auto get_allocator() -> std::enable_if_t<Type == wasm, wasm_allocator&> { 
             EOS_WB_ASSERT( instance.get() != nullptr, wasm_memory_exception, "must set memory limits first" );
@@ -38,14 +31,11 @@ namespace eosio { namespace wasm_backend {
       private:
       //static constexpr size_t stack64_size = 8000;
          memory_manager( uint64_t native_size) :
-            //            uint64_t linmem_size ) : 
-            _nalloc(native_size), //+linmem_size+stack64_size),
-            //            _lmalloc(_nalloc.alloc<uint8_t>(linmem_size), linmem_size),
+            _nalloc(native_size),
             _walloc() {
          }
          static std::unique_ptr<memory_manager> instance;
          native_allocator _nalloc;
-         //simple_allocator _lmalloc;
          wasm_allocator   _walloc;
    };
 }} // namespace eosio::wasm_backend

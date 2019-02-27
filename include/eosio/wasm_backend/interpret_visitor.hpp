@@ -90,7 +90,6 @@ struct interpret_visitor {
       dbg_output << "else {" << context.get_pc() << "} " << et.data << " " << et.pc << "\n";
    }
    void operator()(br_t b) {
-      context.inc_pc();
       context.jump(b.data);
       dbg_output << "br {" << context.get_pc() << "} " << b.data << "\n";
    }
@@ -98,15 +97,20 @@ struct interpret_visitor {
       const auto& val = context.pop_operand();
       if (context.is_true(val))
          context.jump(b.data);
-      context.inc_pc();
       dbg_output << "br.if {" << context.get_pc() << "} " << b.data << "\n";
    }
    void operator()(br_table_t b) {
+      const auto& val = context.pop_operand();
+      EOS_WB_ASSERT(std::holds_alternative<i32_const_t>(val), wasm_interpreter_exception, "br_table expected i32");
+      const auto& i32_v = std::get<i32_const_t>(val);
+      if (i32_v.data < b.target_table.size())
+         context.jump(b.target_table[i32_v.data]);
+      else
+         context.jump(b.target_table[b.default_target]);
       dbg_output << "br.table {" << context.get_pc() << "} " << b.default_target << "\n\t";
       for (int i=0; i < b.target_table.size(); i++) {
          dbg_output << ", " << b.target_table[i];
       }
-      context.inc_pc();
       dbg_output << "\n";
    }
    void operator()(call_t b) {
@@ -128,13 +132,21 @@ struct interpret_visitor {
    }
    void operator()(call_indirect_t b) {
       context.inc_pc();
-      dbg_print("call_indirect : "+std::to_string(b.index));
+      dbg_output << "call_indirect " << b.index << " " << context.get_module().tables[b.index].element_type << "\n";
    }
    void operator()(drop_t b) {
+      context.pop_operand();
       context.inc_pc();
       dbg_print("drop");
    }
    void operator()(select_t b) {
+      const auto& c = context.pop_operand();
+      EOS_WB_ASSERT(std::holds_alternative<i32_const_t>(c), wasm_interpreter_exception, "select expected i32 on stack");
+      const auto& v2 = context.pop_operand();
+      if (std::get<i32_const_t>(c).data == 0) {
+         context.pop_operand();
+         context.push_operand(v2);
+      }
       context.inc_pc();
       dbg_print("select");
    }
