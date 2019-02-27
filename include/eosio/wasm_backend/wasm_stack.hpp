@@ -23,6 +23,14 @@ namespace eosio { namespace wasm_backend {
          void push(stack_elem e) {
             _s[_index++] = e;
          }
+         stack_elem& get(uint32_t index)const {
+            EOS_WB_ASSERT(index <= _index, wasm_interpreter_exception, "invalid stack index");
+            return _s[index];
+         }
+         void set(uint32_t index, const stack_elem& el) {
+            EOS_WB_ASSERT(index <= _index, wasm_interpreter_exception, "invalid stack index");
+            _s[index] = el;
+         }
          stack_elem pop() {
             EOS_WB_ASSERT(_index > 0, wasm_interpreter_exception, "empty stack");
             return _s[--_index];

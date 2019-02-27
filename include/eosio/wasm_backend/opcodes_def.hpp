@@ -224,7 +224,7 @@
 
 #define CREATE_MEMORY_TYPES(name, code) \
    struct name##_t {                    \
-      uint32_t flags;                   \
+      uint32_t flags_align;             \
       uint32_t offset;                  \
    };
 
