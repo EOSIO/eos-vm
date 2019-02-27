@@ -203,6 +203,7 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          struct test {
             void hello() { std::cout << "hello\n"; }
             static void hello2() { std::cout << "Hello2\n"; }
+            static void func() { std::cout << "func\n"; }
          };
 
          test t;
@@ -212,9 +213,14 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          registered_function<&test::hello2, decltype("hello2"_hfn)> rf2;
          std::invoke(rf2.function);
 
-         using rhf = registered_host_functions<decltype(rf), decltype(rf2)>;
-         rhf::call("hello2"_hfn);
-         execution_context ec(mod);
+         registered_function<&test::func, decltype("eosio_assert"_hfn)> rf3;
+
+         using rhf = registered_host_functions<decltype(rf), decltype(rf2), decltype(rf3)>;
+         rhf::resolve(mod);
+         //rhf::call("hello2"_hfn);
+         execution_context<interpret_visitor> ec(mod);
+         ec.execute("apply");
+         /*
          interpret_visitor v(ec);
          uint32_t index = mod.get_exported_function("apply");
          std::cout << "FUNC " << index <<  " SIZE " << mod.code[index].code.size() << '\n';
@@ -223,6 +229,7 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
             std::visit(v, mod.code[index].code[i]);
          }
          std::cout << v.dbg_output.str() << '\n';
+         */
          /*
          for (uint32_t i=0; i < mod.code.size(); i++) {
             for (uint32_t j=0; j < mod.code[i].code.size(); j++) {

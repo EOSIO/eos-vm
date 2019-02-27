@@ -94,7 +94,7 @@ namespace eosio { namespace wasm_backend {
    
    struct import_entry {
       uint32_t      module_len;
-      native_vector<uint8_t> module_str;
+      native_vector<uint8_t> module_str;      
       uint32_t      field_len;
       native_vector<uint8_t> field_str;
       external_kind kind;
@@ -151,11 +151,8 @@ namespace eosio { namespace wasm_backend {
       native_vector<elem_segment>    elements;
       native_vector<function_body>   code;
       native_vector<data_segment>    data;
-      func_type& get_function_type(uint32_t index) {
-         if (index < get_imported_functions_size())
-            return types[imports[index].type.func_t];
-         return types[functions[index-get_imported_functions_size()]];
-      }
+      native_vector<uint32_t>        import_functions;  // not part of the spec for WASM, used for the mappings to host functions
+      native_vector<uint32_t>        function_sizes;    // not part of the spec for WASM, used for caching total function sizes at function N
       uint32_t _get_imported_functions_size()const {
          uint32_t number_of_imports = 0;
          for (int i=0; i < imports.size(); i++) {
@@ -164,24 +161,28 @@ namespace eosio { namespace wasm_backend {
          }
          return number_of_imports;
       }
-      uint32_t get_imported_functions_size()const {
+      inline uint32_t get_imported_functions_size()const {
          thread_local uint32_t imports_size = _get_imported_functions_size();
          return imports_size;
       }
-      uint32_t get_functions_size()const {
+      inline uint32_t get_functions_size()const {
          thread_local uint32_t funcs_size = code.size();
          return funcs_size;
       }
-      uint32_t get_functions_total()const {
-         thread_local uint32_t ret_val = get_imported_functions_size() + get_functions_size();
-         return ret_val;
+      inline uint32_t get_functions_total()const {
+         return get_imported_functions_size() + get_functions_size();
       }
-      uint32_t get_exported_function(const std::string& str) {
+      func_type get_function_type(uint32_t index)const {
+         if (index < get_imported_functions_size())
+            return types[imports[index].type.func_t];
+         return types[functions[index]];
+      } 
+      uint32_t get_exported_function(const std::string_view str) {
          uint32_t index = std::numeric_limits<uint32_t>::max();
          for (int i=0; i < exports.size(); i++) {
             if (exports[i].kind == external_kind::Function &&
-                memcmp((const char*)str.c_str(), (const char*)exports[i].field_str.raw(), exports[i].field_str.size()) == 0) {
-               index = exports[i].index - get_imported_functions_size();
+               memcmp((const char*)str.data(), (const char*)exports[i].field_str.raw(), exports[i].field_str.size()) == 0) {
+               index = exports[i].index;
                break;
             }
          }
