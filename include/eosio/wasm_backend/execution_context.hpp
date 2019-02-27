@@ -89,7 +89,8 @@ namespace eosio { namespace wasm_backend {
       template <typename Visitor>
       class execution_context {
          public:
-            execution_context(module& m) : _mod(m) {
+            execution_context(module& m) :
+              _mod(m), _alloc(memory_manager::get_allocator<memory_manager::types::wasm>()) {
                _mod.import_functions.resize(_mod.get_imported_functions_size());
                _mod.function_sizes.resize(_mod.get_functions_total());
                const size_t import_size = _mod.get_imported_functions_size();
@@ -98,7 +99,7 @@ namespace eosio { namespace wasm_backend {
                   _mod.function_sizes[i] = total_so_far;
                   total_so_far += _mod.code[i-import_size].code.size();
                }
-
+               _linear_memory = _alloc.alloc<uint8_t>(1); // allocate an initial wasm page
             }
             inline module& get_module() { return _mod; }
             inline void push_label( const stack_elem& el ) { _cs.push(el); }
@@ -278,7 +279,9 @@ namespace eosio { namespace wasm_backend {
             uint32_t      _code_index       = 0;
             uint32_t      _current_offset   = 0;
             bool          _executing        = false;
-            module&       _mod;
+            uint8_t*      _linear_memory    = nullptr;
+        module&       _mod;
+            wasm_allocator& _alloc;
             control_stack _cs;
             operand_stack _os;
             call_stack    _as;
