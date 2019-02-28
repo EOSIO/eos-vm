@@ -5,11 +5,11 @@
 
 #define __BACKEND_GET_ARG(ARG, X, EXPECTED)  \
   std::visit( overloaded {                   \
-    [&](EXPECTED v) {                 \
+    [&](const EXPECTED& v) {                 \
       ARG = v.data;                          \
     }, [&](auto) {                                                    \
       throw wasm_interpreter_exception{"invalid host function arg"};  \
-    }                                        \
+    }                                                                 \
   }, X )
 
 namespace eosio { namespace wasm_backend {
@@ -295,34 +295,100 @@ namespace eosio { namespace wasm_backend {
                const void* func_ptr = _host_functions[index];
                uint64_t args[6] = {0};
 
-               std::cout << "PARAM COUNT " << ftype.param_count << "\n";
                for (int i=0; i < ftype.param_count; i++) {
-                 const auto& op = pop_operand();
-                 std::cout << "PARAM TYPE " << (int)ftype.param_types[i] << "\n";
-                 switch (ftype.param_types[i]) {
-                  case types::i32: 
-                    {
-                      __BACKEND_GET_ARG(args[i], op, i32_const_t);
-                    }
-                  case types::i64: 
-                    {
-                      __BACKEND_GET_ARG(args[i], op, i64_const_t);
-                    }
-                  case types::f32: 
-                    {
-                      __BACKEND_GET_ARG(args[i], op, f32_const_t);
-                    }
-                  case types::f64: 
-                    {
-                      __BACKEND_GET_ARG(args[i], op, f64_const_t);
-                    }
-                 }
+                  const auto& op = pop_operand();
+                  switch (ftype.param_types[i]) {
+                      case types::i32: 
+                        {
+                          __BACKEND_GET_ARG(args[i], op, i32_const_t);
+                          break;
+                        }
+                      case types::i64: 
+                        {
+                          __BACKEND_GET_ARG(args[i], op, i64_const_t);
+                          break;
+                        }
+                      case types::f32: 
+                        {
+                          __BACKEND_GET_ARG(args[i], op, f32_const_t);
+                          break;
+                        }
+                      case types::f64: 
+                        {
+                          __BACKEND_GET_ARG(args[i], op, f64_const_t);
+                          break;
+                        }
+                  }
                }
 
-               asm("movq %1, %%rdi \n\t"
-                   "callq *%0\n\t"
-                   :
-                   : "a"(func_ptr), "g"(args[0]));
+               switch (ftype.param_count) {
+                  case 0:
+                    asm( "callq *%0\n\t"
+                        :
+                        : "a"(func_ptr));
+                    break;
+                  case 1:
+                    asm("movq %1, %%rdi\n\t"
+                        "callq *%0\n\t"
+                        :
+                        : "a"(func_ptr), "g"(args[0]));
+                    break;
+                  case 2:
+                    asm("movq %1, %%rdi\n\t"
+                        "movq %2, %%rsi\n\t"
+                        "callq *%0\n\t"
+                        :
+                        : "a"(func_ptr), "g"(args[0]), "g"(args[1]));
+                    break;
+                  case 3:
+                    asm("movq %1, %%rdi\n\t"
+                        "movq %2, %%rsi\n\t"
+                        "movq %3, %%rdx\n\t"
+                        "callq *%0\n\t"
+                        :
+                        : "a"(func_ptr), "g"(args[0]), "g"(args[1]), "g"(args[2]));
+                    break;
+                  case 4:
+                    asm("movq %1, %%rdi\n\t"
+                        "movq %2, %%rsi\n\t"
+                        "movq %3, %%rdx\n\t"
+                        "movq %4, %%rcx\n\t"
+                        "callq *%0\n\t"
+                        :
+                        : "a"(func_ptr), "g"(args[0]), "g"(args[1]), "g"(args[2]), "g"(args[3]));
+                    break;
+                  case 5:
+                    asm("movq %1, %%rdi\n\t"
+                        "movq %2, %%rsi\n\t"
+                        "movq %3, %%rdx\n\t"
+                        "movq %4, %%rcx\n\t"
+                        "movq %5, %%r8\n\t"
+                        "callq *%0\n\t"
+                        :
+                        : "a"(func_ptr), "g"(args[0]), "g"(args[1]), "g"(args[2]), "g"(args[3]), "g"(args[4]));
+                    break;
+                  case 6:
+                    asm("movq %1, %%rdi\n\t"
+                        "movq %2, %%rsi\n\t"
+                        "movq %3, %%rdx\n\t"
+                        "movq %4, %%rcx\n\t"
+                        "movq %5, %%r8\n\t"
+                        "movq %6, %%r9\n\t"
+                        "callq *%0\n\t"
+                        :
+                        : "a"(func_ptr), "g"(args[0]), "g"(args[1]), "g"(args[2]), "g"(args[3]), "g"(args[4]), "g"(args[5]));
+                    break;
+                  default:
+                    asm("movq %1, %%rdi\n\t"
+                        "movq %2, %%rsi\n\t"
+                        "movq %3, %%rdx\n\t"
+                        "movq %4, %%rcx\n\t"
+                        "movq %5, %%r8\n\t"
+                        "movq %6, %%r9\n\t"
+                        "callq *%0\n\t"
+                        :
+                        : "a"(func_ptr), "g"(args[0]), "g"(args[1]), "g"(args[2]), "g"(args[3]), "g"(args[4]), "g"(args[5]));
+               }
             }
 
             uint32_t      _pc               = 0;

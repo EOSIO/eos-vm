@@ -202,7 +202,7 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
 
          struct test {
             void hello() { std::cout << "hello\n"; }
-            static void hello2(int i) { std::cout << "Hello2 " << i << "\n"; }
+            static void hello2(int i, uint64_t l, uint32_t b) { std::cout << "Hello2 " << i << " " << l << " " << b << "\n"; }
             static void func() { std::cout << "func is called\n"; }
          };
 
