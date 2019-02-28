@@ -477,7 +477,20 @@ struct interpret_visitor {
       EOS_WB_ASSERT(is_a<i32_const_t>(op1), wasm_interpreter_exception, "i32.sub arg 1 expected i32 on the stack");
       dbg_output << "i32.sub " << TO_UINT32(op1) << " - " << TO_UINT32(op2);
       TO_UINT32(op1) -= TO_UINT32(op2);
-      context._call(); 
+
+      func_type ft;
+      ft.param_count = 3;
+      ft.param_types.resize(3);
+      ft.param_types[0] = types::i32;
+      ft.param_types[1] = types::i64;
+      ft.param_types[2] = types::i32;
+      i32_const_t arg0{313};
+      i64_const_t arg1{400};
+      i32_const_t arg2{131};
+      context.push_operand(arg0);
+      context.push_operand(arg1);
+      context.push_operand(arg2);
+      context._call(1, ft); 
       dbg_output << " = " << TO_UINT32(op1) << "\n";
    }
    void operator()(i32_mul_t) {

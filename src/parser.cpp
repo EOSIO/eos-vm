@@ -34,9 +34,14 @@ namespace eosio { namespace wasm_backend {
       ft.form = *code++;
       ft.param_count = parse_varuint32( code );
       ft.param_types.resize( ft.param_count );
-      for ( size_t i=0; i < ft.param_count; i++ ) 
-         ft.param_types.at(i) = *code++;
+      for ( size_t i=0; i < ft.param_count; i++ ) {
+         uint8_t pt = *code++;
+         ft.param_types.at(i) = pt;
+         EOS_WB_ASSERT(pt == types::i32 || pt == types::i64 ||
+                       pt == types::f32 || pt == types::f64, wasm_parse_exception, "invalid function param type");
+      }
       ft.return_count = *code++;
+      EOS_WB_ASSERT(ft.return_count < 2, wasm_parse_exception, "invalid function return count");
       if (ft.return_count > 0)
          ft.return_type = *code++;
    }
@@ -61,7 +66,11 @@ namespace eosio { namespace wasm_backend {
    }
 
    void binary_parser::parse_global_variable( wasm_code_ptr& code, global_variable& gv ) {
-      gv.type.content_type = *code++; 
+      uint8_t ct = *code++;
+      gv.type.content_type = ct; 
+      EOS_WB_ASSERT(ct == types::i32 || ct == types::i64 ||
+                    ct == types::f32 || ct == types::f64, wasm_parse_exception, "invalid global content type");
+
       gv.type.mutability = *code++;
       parse_init_expr( code, gv.init );
    } 
