@@ -219,6 +219,7 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          rhf::resolve(mod);
          //rhf::call("hello2"_hfn);
          execution_context<interpret_visitor> ec(mod);
+         ec.set_host_functions<&test::func>();
          ec.execute("apply");
          /*
          interpret_visitor v(ec);

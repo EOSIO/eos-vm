@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+#include <eosio/wasm_backend/host_function.hpp>
 #include <eosio/wasm_backend/types.hpp>
 #include <eosio/wasm_backend/wasm_stack.hpp>
 
@@ -79,15 +81,12 @@ namespace eosio { namespace wasm_backend {
             else
                _call<N+1>(index);
          }
-
-         static constexpr void call(uint32_t index) {
-            //call<0>(index);
-         }
          static constexpr const std::tuple<Registered_Funcs...> registered;
       };
 
       template <typename Visitor>
       class execution_context {
+         //using registered_hosts = registered_host_functions<Registered_Funcs...>;
          public:
             execution_context(module& m) :
               _mod(m), _alloc(memory_manager::get_allocator<memory_manager::types::wasm>()) {
@@ -99,8 +98,14 @@ namespace eosio { namespace wasm_backend {
                   _mod.function_sizes[i] = total_so_far;
                   total_so_far += _mod.code[i-import_size].code.size();
                }
+               //registered_hosts::resolve(mod);
                _linear_memory = _alloc.alloc<uint8_t>(1); // allocate an initial wasm page
             }
+            template <auto... Funcs>
+            inline void set_host_functions() {
+               _host_functions = {(void*)Funcs...}; 
+            }
+            inline void _call() { call(); }
             inline module& get_module() { return _mod; }
             inline void push_label( const stack_elem& el ) { _cs.push(el); }
             inline void push_operand( const stack_elem& el ) { _os.push(el); }
@@ -110,6 +115,7 @@ namespace eosio { namespace wasm_backend {
             inline stack_elem pop_call() { return _as.pop(); }
             inline stack_elem pop_label() { return _cs.pop(); }
             inline stack_elem pop_operand() { return _os.pop(); }
+            inline stack_elem& peek_operand() { return _os.peek(); }
             inline stack_elem get_global(uint32_t index) {
                EOS_WB_ASSERT( index < _mod.globals.size(), wasm_interpreter_exception, "global index out of range" );
                const auto& gl = _mod.globals[index];
@@ -158,7 +164,7 @@ namespace eosio { namespace wasm_backend {
             }
 
             inline stack_elem invoke( uint32_t index, const func_type& ftype ) {
-               return {};
+               //return invoke<0>( index, ftype );
             }
             inline bool is_true( const stack_elem& el )  {
                bool ret_val = false;
@@ -208,6 +214,9 @@ namespace eosio { namespace wasm_backend {
                   }, el);
             }
          private:
+            template <size_t N>
+            stack_elem invoke( uint32_t index, const func_type& ftype ) {
+            }
             inline void setup_call(uint32_t index) {
                const auto& fn_ty = _mod.get_function_type(index);
                const auto& fn = _mod.code[index-_mod.get_imported_functions_size()];
@@ -273,6 +282,15 @@ namespace eosio { namespace wasm_backend {
                      _executing = false;
                } while (_executing);
             }
+
+            void call() {
+               const void* hf = _host_functions[0];
+               asm( "mov rax, %P0\n\t"
+                    "call rax\n\t"
+                    : 
+                    : "m" (hf)
+                    );
+            }
             uint32_t      _pc               = 0;
             uint32_t      _exit_pc          = 0;
             uint32_t      _current_function = 0;
@@ -280,7 +298,8 @@ namespace eosio { namespace wasm_backend {
             uint32_t      _current_offset   = 0;
             bool          _executing        = false;
             uint8_t*      _linear_memory    = nullptr;
-        module&       _mod;
+            module&       _mod;
+            std::array<void*, 256> _host_functions;
             wasm_allocator& _alloc;
             control_stack _cs;
             operand_stack _os;
