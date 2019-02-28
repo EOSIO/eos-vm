@@ -1,6 +1,7 @@
 #pragma once
 
 #include <utility>
+#include <initializer_list>
 #include <eosio/wasm_backend/exceptions.hpp>
 #include <eosio/wasm_backend/memory_manager.hpp>
 

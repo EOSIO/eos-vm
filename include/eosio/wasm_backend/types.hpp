@@ -20,7 +20,8 @@ namespace eosio { namespace wasm_backend {
       f64 = 0x7c,
       anyfunc = 0x70,
       func    = 0x60,
-      pseudo  = 0x40
+      pseudo  = 0x40,
+      ret_void
    };
 
    enum external_kind {

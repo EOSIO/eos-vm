@@ -26,8 +26,9 @@
 namespace eosio { namespace wasm_backend {
 
    struct test {
-      void hello() { std::cout << "HELLO\n"; }
+      static void hello() { std::cout << "HELLO\n"; }
    };
+   void tests() { std::cout << "HELLOtests\n"; };
 
 struct interpret_visitor {
    interpret_visitor(execution_context<interpret_visitor>& ec) : context(ec) {}
@@ -478,6 +479,7 @@ struct interpret_visitor {
       dbg_output << "i32.sub " << TO_UINT32(op1) << " - " << TO_UINT32(op2);
       TO_UINT32(op1) -= TO_UINT32(op2);
 
+      /*
       func_type ft;
       ft.param_count = 3;
       ft.param_types.resize(3);
@@ -491,6 +493,11 @@ struct interpret_visitor {
       context.push_operand(arg1);
       context.push_operand(arg2);
       context._call(1, ft); 
+      */
+      //registered_host_functions<registered_function<&test::hello, "hello"_hfn>> rhf();
+      registered_host_functions rhf;
+      rhf.add<&tests>("hello");
+      dbg_output << " FP " << &test::hello << " " << rhf.host_functions[0].ptr << "\n";
       dbg_output << " = " << TO_UINT32(op1) << "\n";
    }
    void operator()(i32_mul_t) {
