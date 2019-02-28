@@ -2,6 +2,7 @@
 
 #include <eosio/wasm_backend/types.hpp>
 #include <eosio/wasm_backend/wasm_stack.hpp>
+#include <eosio/wasm_backend/host_function.hpp>
 
 #define __BACKEND_GET_ARG(ARG, X, EXPECTED)  \
   std::visit( overloaded {                   \
@@ -13,87 +14,9 @@
   }, X )
 
 namespace eosio { namespace wasm_backend {
-      template <char... Str>
-      struct host_function_name {
-         static constexpr const char value[] = {Str...};
-         static constexpr size_t len = sizeof...(Str); 
-         static constexpr bool is_same(const char* nm, size_t l) {
-            if (len == l) {
-               bool is_not_same = false;
-               for (int i=0; i < len; i++) {
-                  is_not_same |= nm[i] != value[i];
-               } 
-               return !is_not_same;
-            }
-            return false;
-         }
-      };
-
-      template <typename T, T... Str>
-      static constexpr host_function_name<Str...> operator ""_hfn() {
-         constexpr auto hfn = host_function_name<Str...>{};
-         return hfn;
-      }
-
-      template <typename C, auto C::*MP, typename Name>
-      struct registered_member_function {
-         static constexpr auto function = MP;
-         static constexpr auto name = Name{};
-         using name_t = Name;
-         static constexpr bool is_member = true; 
-      };
-
-      template <auto F, typename Name>
-      struct registered_function {
-         static constexpr auto function = F;
-         static constexpr auto name = Name{};
-         using name_t = Name;
-         static constexpr bool is_member = false; 
-      };
-
-      template <typename... Registered_Funcs>
-      struct registered_host_functions {
-
-         template <size_t Index, typename RF, typename... RFs>
-         static void _resolve( module& mod ) {
-            size_t name_size = RF::name_t::len;
-            if (Index >= mod.import_functions.size())
-               return;
-            else {
-               bool found_import = false;
-               for (int i=0; i < mod.imports.size(); i++) {
-                  if (mod.imports[i].kind != external_kind::Function)
-                     continue;
-                  if (RF::name_t::is_same((const char*)mod.imports[i].field_str.raw(), mod.imports[i].field_len)) {
-                     mod.import_functions[i] = Index;
-                     found_import = true;
-                     std::cout << "Found it " << RF::name_t::value << "\n";
-                  }
-               }
-               //EOS_WB_ASSERT(found_import, wasm_interpreter_exception, "unresolved import");
-               if constexpr (sizeof...(RFs) >= 1)
-                  _resolve<Index+1, RFs...>(mod);
-            }
-         }
-
-         static void resolve( module& mod ) {
-            mod.import_functions.resize(mod.get_imported_functions_size());
-            _resolve<0, Registered_Funcs...>(mod);
-         }
-
-         template <size_t N>
-         static constexpr void _call(uint32_t index) {
-            if constexpr(index == N)
-               std::invoke(std::get<N>(registered));
-            else
-               _call<N+1>(index);
-         }
-         static constexpr const std::tuple<Registered_Funcs...> registered;
-      };
 
       template <typename Visitor>
       class execution_context {
-         //using registered_hosts = registered_host_functions<Registered_Funcs...>;
          public:
             execution_context(module& m) :
               _mod(m), _alloc(memory_manager::get_allocator<memory_manager::types::wasm>()) {
@@ -105,12 +28,15 @@ namespace eosio { namespace wasm_backend {
                   _mod.function_sizes[i] = total_so_far;
                   total_so_far += _mod.code[i-import_size].code.size();
                }
-               //registered_hosts::resolve(mod);
                _linear_memory = _alloc.alloc<uint8_t>(1); // allocate an initial wasm page
             }
-            template <auto... Funcs>
+            template <typename... Registered_Funcs>
             inline void set_host_functions() {
-               _host_functions = {(void*)Funcs...}; 
+               _host_functions = {(void*)Registered_Funcs::function...}; 
+               _host_functions_index = sizeof...(Registered_Funcs);
+            }
+            template <typename Registered_Func>
+            inline void add_host_function() {
             }
             inline void _call(uint32_t index, const func_type& ftype) { host_call(index, ftype); }
             inline module& get_module() { return _mod; }
@@ -128,21 +54,13 @@ namespace eosio { namespace wasm_backend {
                const auto& gl = _mod.globals[index];
                switch (gl.type.content_type) {
                   case types::i32: 
-                     {
-                        return i32_const_t{*(uint32_t*)&gl.init.value.i32}; 
-                     }
+                     return i32_const_t{*(uint32_t*)&gl.init.value.i32}; 
                   case types::i64: 
-                     {
-                        return i64_const_t{*(uint64_t*)&gl.init.value.i64}; 
-                     }
+                     return i64_const_t{*(uint64_t*)&gl.init.value.i64}; 
                   case types::f32: 
-                     {
-                        return f32_const_t{gl.init.value.f32}; 
-                     }
+                     return f32_const_t{gl.init.value.f32}; 
                   case types::f64: 
-                     {
-                        return f64_const_t{gl.init.value.f64}; 
-                     }
+                     return f64_const_t{gl.init.value.f64}; 
                   default:
                      throw wasm_interpreter_exception{"invalid global type"};
                }
@@ -291,11 +209,12 @@ namespace eosio { namespace wasm_backend {
             }
 
             void host_call(uint32_t index, const func_type& ftype) {
+               static constexpr size_t calling_conv_arg_cnt = 6;
                static_assert(__x86_64__, "currently only supports x86_64");
                const void* func_ptr = _host_functions[index];
-               uint64_t args[6] = {0};
+               uint64_t args[calling_conv_arg_cnt] = {0};
 
-               for (int i=0; i < ftype.param_count; i++) {
+               for (int i=0; i < ftype.param_count && i < calling_conv_arg_cnt; i++) {
                   const auto& op = pop_operand();
                   switch (ftype.param_types[i]) {
                       case types::i32: 
@@ -319,6 +238,10 @@ namespace eosio { namespace wasm_backend {
                           break;
                         }
                   }
+               }
+
+               if (ftype.param_count > calling_conv_arg_cnt) {
+                   
                }
 
                switch (ftype.param_count) {
@@ -400,6 +323,7 @@ namespace eosio { namespace wasm_backend {
             uint8_t*      _linear_memory    = nullptr;
             module&       _mod;
             std::array<void*, 256> _host_functions;
+            size_t                 _host_functions_index = 0;
             wasm_allocator& _alloc;
             control_stack _cs;
             operand_stack _os;
