@@ -1,9 +1,16 @@
 #pragma once
 
-#include <functional>
-#include <eosio/wasm_backend/host_function.hpp>
 #include <eosio/wasm_backend/types.hpp>
 #include <eosio/wasm_backend/wasm_stack.hpp>
+
+#define __BACKEND_GET_ARG(ARG, X, EXPECTED)  \
+  std::visit( overloaded {                   \
+    [&](EXPECTED v) {                 \
+      ARG = v.data;                          \
+    }, [&](auto) {                                                    \
+      throw wasm_interpreter_exception{"invalid host function arg"};  \
+    }                                        \
+  }, X )
 
 namespace eosio { namespace wasm_backend {
       template <char... Str>
@@ -105,7 +112,7 @@ namespace eosio { namespace wasm_backend {
             inline void set_host_functions() {
                _host_functions = {(void*)Funcs...}; 
             }
-            inline void _call() { call(); }
+            inline void _call(uint32_t index, const func_type& ftype) { host_call(index, ftype); }
             inline module& get_module() { return _mod; }
             inline void push_label( const stack_elem& el ) { _cs.push(el); }
             inline void push_operand( const stack_elem& el ) { _os.push(el); }
@@ -283,14 +290,41 @@ namespace eosio { namespace wasm_backend {
                } while (_executing);
             }
 
-            void call() {
-               const void* hf = _host_functions[0];
-               asm( "mov rax, %P0\n\t"
-                    "call rax\n\t"
-                    : 
-                    : "m" (hf)
-                    );
+            void host_call(uint32_t index, const func_type& ftype) {
+               static_assert(__x86_64__, "currently only supports x86_64");
+               const void* func_ptr = _host_functions[index];
+               uint64_t args[6] = {0};
+
+               std::cout << "PARAM COUNT " << ftype.param_count << "\n";
+               for (int i=0; i < ftype.param_count; i++) {
+                 const auto& op = pop_operand();
+                 std::cout << "PARAM TYPE " << (int)ftype.param_types[i] << "\n";
+                 switch (ftype.param_types[i]) {
+                  case types::i32: 
+                    {
+                      __BACKEND_GET_ARG(args[i], op, i32_const_t);
+                    }
+                  case types::i64: 
+                    {
+                      __BACKEND_GET_ARG(args[i], op, i64_const_t);
+                    }
+                  case types::f32: 
+                    {
+                      __BACKEND_GET_ARG(args[i], op, f32_const_t);
+                    }
+                  case types::f64: 
+                    {
+                      __BACKEND_GET_ARG(args[i], op, f64_const_t);
+                    }
+                 }
+               }
+
+               asm("movq %1, %%rdi \n\t"
+                   "callq *%0\n\t"
+                   :
+                   : "a"(func_ptr), "g"(args[0]));
             }
+
             uint32_t      _pc               = 0;
             uint32_t      _exit_pc          = 0;
             uint32_t      _current_function = 0;

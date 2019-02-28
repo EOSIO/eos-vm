@@ -202,11 +202,12 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
 
          struct test {
             void hello() { std::cout << "hello\n"; }
-            static void hello2() { std::cout << "Hello2\n"; }
-            static void func() { std::cout << "func\n"; }
+            static void hello2(int i) { std::cout << "Hello2 " << i << "\n"; }
+            static void func() { std::cout << "func is called\n"; }
          };
 
          test t;
+         /*
          registered_member_function<test, &test::hello, decltype("hello"_hfn)> rf;
          std::invoke(rf.function, t);
 
@@ -217,9 +218,10 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
 
          using rhf = registered_host_functions<decltype(rf), decltype(rf2), decltype(rf3)>;
          rhf::resolve(mod);
+         */
          //rhf::call("hello2"_hfn);
          execution_context<interpret_visitor> ec(mod);
-         ec.set_host_functions<&test::func>();
+         ec.set_host_functions<&test::func, &test::hello2>();
          ec.execute("apply");
          /*
          interpret_visitor v(ec);
