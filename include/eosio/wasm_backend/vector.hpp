@@ -13,6 +13,7 @@ namespace eosio { namespace wasm_backend {
          managed_vector(size_t size=0) : _size(size) {
             _data = memory_manager::get_allocator<Type>().template alloc<T>( _size );
          }
+
          inline void resize( size_t size ) {
             if (size > _size) {
                T* old_data = _data;
