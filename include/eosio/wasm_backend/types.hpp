@@ -53,7 +53,7 @@ namespace eosio { namespace wasm_backend {
       uint8_t                    return_count;
       value_type                 return_type;
    };
-   
+    
    union expr_value {
       int32_t i32;
       int64_t i64;

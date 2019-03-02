@@ -4,15 +4,6 @@
 #include <eosio/wasm_backend/wasm_stack.hpp>
 #include <eosio/wasm_backend/host_function.hpp>
 
-#define __BACKEND_GET_ARG(ARG, X, EXPECTED)  \
-  std::visit( overloaded {                   \
-    [&](const EXPECTED& v) {                 \
-      ARG = v.data;                          \
-    }, [&](auto) {                                                    \
-      throw wasm_interpreter_exception{"invalid host function arg"};  \
-    }                                                                 \
-  }, X )
-
 namespace eosio { namespace wasm_backend {
 
       template <typename Visitor>
@@ -30,15 +21,16 @@ namespace eosio { namespace wasm_backend {
                }
                _linear_memory = _alloc.alloc<uint8_t>(1); // allocate an initial wasm page
             }
-            template <typename... Registered_Funcs>
-            inline void set_host_functions() {
-               _host_functions = {(void*)Registered_Funcs::function...}; 
-               _host_functions_index = sizeof...(Registered_Funcs);
+            template <auto Registered_Func>
+            inline void add_host_function(const std::string& name) {
+               _rhf.add<Registered_Func>(name);
             }
-            template <typename Registered_Func>
-            inline void add_host_function() {
+            inline std::optional<stack_elem> call(uint32_t index) {
+               return _rhf(*this, index);
             }
-            inline void _call(uint32_t index, const func_type& ftype) { host_call(index, ftype); }
+            inline void call(const std::string& f) {
+               _rhf(*this, f);
+            } 
             inline module& get_module() { return _mod; }
             inline void push_label( const stack_elem& el ) { _cs.push(el); }
             inline void push_operand( const stack_elem& el ) { _os.push(el); }
@@ -207,113 +199,6 @@ namespace eosio { namespace wasm_backend {
                      _executing = false;
                } while (_executing);
             }
-
-            void host_call(uint32_t index, const func_type& ftype) {
-               static constexpr size_t calling_conv_arg_cnt = 6;
-               static_assert(__x86_64__, "currently only supports x86_64");
-               const void* func_ptr = _host_functions[index];
-               uint64_t args[calling_conv_arg_cnt] = {0};
-
-               for (int i=0; i < ftype.param_count && i < calling_conv_arg_cnt; i++) {
-                  const auto& op = pop_operand();
-                  switch (ftype.param_types[i]) {
-                      case types::i32: 
-                        {
-                          __BACKEND_GET_ARG(args[i], op, i32_const_t);
-                          break;
-                        }
-                      case types::i64: 
-                        {
-                          __BACKEND_GET_ARG(args[i], op, i64_const_t);
-                          break;
-                        }
-                      case types::f32: 
-                        {
-                          __BACKEND_GET_ARG(args[i], op, f32_const_t);
-                          break;
-                        }
-                      case types::f64: 
-                        {
-                          __BACKEND_GET_ARG(args[i], op, f64_const_t);
-                          break;
-                        }
-                  }
-               }
-
-               if (ftype.param_count > calling_conv_arg_cnt) {
-                   
-               }
-
-               switch (ftype.param_count) {
-                  case 0:
-                    asm( "callq *%0\n\t"
-                        :
-                        : "a"(func_ptr));
-                    break;
-                  case 1:
-                    asm("movq %1, %%rdi\n\t"
-                        "callq *%0\n\t"
-                        :
-                        : "a"(func_ptr), "g"(args[0]));
-                    break;
-                  case 2:
-                    asm("movq %1, %%rdi\n\t"
-                        "movq %2, %%rsi\n\t"
-                        "callq *%0\n\t"
-                        :
-                        : "a"(func_ptr), "g"(args[0]), "g"(args[1]));
-                    break;
-                  case 3:
-                    asm("movq %1, %%rdi\n\t"
-                        "movq %2, %%rsi\n\t"
-                        "movq %3, %%rdx\n\t"
-                        "callq *%0\n\t"
-                        :
-                        : "a"(func_ptr), "g"(args[0]), "g"(args[1]), "g"(args[2]));
-                    break;
-                  case 4:
-                    asm("movq %1, %%rdi\n\t"
-                        "movq %2, %%rsi\n\t"
-                        "movq %3, %%rdx\n\t"
-                        "movq %4, %%rcx\n\t"
-                        "callq *%0\n\t"
-                        :
-                        : "a"(func_ptr), "g"(args[0]), "g"(args[1]), "g"(args[2]), "g"(args[3]));
-                    break;
-                  case 5:
-                    asm("movq %1, %%rdi\n\t"
-                        "movq %2, %%rsi\n\t"
-                        "movq %3, %%rdx\n\t"
-                        "movq %4, %%rcx\n\t"
-                        "movq %5, %%r8\n\t"
-                        "callq *%0\n\t"
-                        :
-                        : "a"(func_ptr), "g"(args[0]), "g"(args[1]), "g"(args[2]), "g"(args[3]), "g"(args[4]));
-                    break;
-                  case 6:
-                    asm("movq %1, %%rdi\n\t"
-                        "movq %2, %%rsi\n\t"
-                        "movq %3, %%rdx\n\t"
-                        "movq %4, %%rcx\n\t"
-                        "movq %5, %%r8\n\t"
-                        "movq %6, %%r9\n\t"
-                        "callq *%0\n\t"
-                        :
-                        : "a"(func_ptr), "g"(args[0]), "g"(args[1]), "g"(args[2]), "g"(args[3]), "g"(args[4]), "g"(args[5]));
-                    break;
-                  default:
-                    asm("movq %1, %%rdi\n\t"
-                        "movq %2, %%rsi\n\t"
-                        "movq %3, %%rdx\n\t"
-                        "movq %4, %%rcx\n\t"
-                        "movq %5, %%r8\n\t"
-                        "movq %6, %%r9\n\t"
-                        "callq *%0\n\t"
-                        :
-                        : "a"(func_ptr), "g"(args[0]), "g"(args[1]), "g"(args[2]), "g"(args[3]), "g"(args[4]), "g"(args[5]));
-               }
-            }
-
             uint32_t      _pc               = 0;
             uint32_t      _exit_pc          = 0;
             uint32_t      _current_function = 0;
@@ -322,12 +207,11 @@ namespace eosio { namespace wasm_backend {
             bool          _executing        = false;
             uint8_t*      _linear_memory    = nullptr;
             module&       _mod;
-            std::array<void*, 256> _host_functions;
-            size_t                 _host_functions_index = 0;
             wasm_allocator& _alloc;
             control_stack _cs;
             operand_stack _os;
             call_stack    _as;
             Visitor       _visitor{*this};
+            registered_host_functions _rhf;
       };
 }} // ns eosio::wasm_backend

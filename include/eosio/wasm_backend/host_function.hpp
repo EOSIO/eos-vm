@@ -2,17 +2,20 @@
 
 #include <unordered_map>
 #include <string_view>
+#include <optional>
 
+#define __BACKEND_GET_ARG(ARG, X, EXPECTED)                                \
+   std::visit( overloaded {                                                \
+      [&](const EXPECTED& v) {                                             \
+         ARG = v.data;                                                     \
+      }, [&](auto) {                                                       \
+         throw wasm_interpreter_exception{"invalid host function arg"};    \
+      }                                                                    \
+   }, X)
+ 
 namespace eosio { namespace wasm_backend {
 
    namespace detail {
-      /*
-      template <typename R, typename Act, typename... Args>
-      auto get_args(R(Act::*p)(Args...)) { return std::tuple<std::decay_t<Args>...>{}; }
-
-      typename <auto Func>
-      using deduced_args = decltype(get_args(Func));
-      */
 
       template <typename T>
       constexpr auto to_wasm_type() -> std::enable_if_t<std::is_integral<T>::value, uint8_t> {
@@ -56,16 +59,36 @@ namespace eosio { namespace wasm_backend {
    constexpr auto is_return_void_v = detail::is_return_void<T>();
 
    template <typename Ret, typename... Args>
-   auto function_type_provider( Ret(Args...) ) {
-      func_type ft;
+   void function_types_provider(func_type& ft, Ret(Args...) ) {
+      constexpr size_t arg_cnt = sizeof...(Args);
+      constexpr std::array<uint8_t, arg_cnt> args = {to_wasm_type_v<Args>...};
       ft.form = 0;
-      ft.param_count = sizeof...(Args);
-      ft.param_types.resize(sizeof...(Args));
-      for (int i=0; i < sizeof...(Args); i++)
-         ft.param_types.at(i) = detail::to_wasm_type_array<Args...>::value[i];
-      ft.return_count = is_return_void_v<Ret>;
-      ft.return_type  = to_wasm_type_v<Ret>;
-      return ft;
+      ft.param_count = arg_cnt;
+      ft.param_types.resize(arg_cnt);
+      int i=0;
+      for (uint8_t arg : args)
+         ft.param_types[i] = arg;
+      constexpr uint8_t ret = to_wasm_type_v<Ret>;
+      if constexpr (ret == types::ret_void) {
+         ft.return_count = 0;
+      } else {
+         ft.return_count = 1;
+      }
+      ft.return_type = ret;
+   }
+
+   struct host_function {
+      void*                   ptr;
+      std::vector<value_type> params;
+      std::vector<value_type> ret;
+   };
+
+   template <typename Ret, typename... Args>
+   void function_types_provider( host_function& hf, Ret(Args...) ) {
+      hf.params = {to_wasm_type_v<Args>...};
+      if constexpr (to_wasm_type_v<Ret> != types::ret_void) {
+         hf.ret = {to_wasm_type_v<Ret>};
+      }
    }
 
    template <char... Str>
@@ -86,10 +109,10 @@ namespace eosio { namespace wasm_backend {
 
    #if defined __clang__
    #pragma clang diagnostic push
-   #pragma clang diagnostic "-Wgnu-string-literal-operator-template"
+   #pragma clang diagnostic ignored "-Wgnu-string-literal-operator-template"
    #elif defined __GNUC__
    #pragma GCC diagnostic push
-   #pragma GCC diagnostic "-Wgnu-string-literal-operator-template"
+   #pragma GCC diagnostic ignored "-Wgnu-string-literal-operator-template"
    #endif
    template <typename T, T... Str>
    static constexpr host_function_name<Str...> operator ""_hfn() {
@@ -118,66 +141,173 @@ namespace eosio { namespace wasm_backend {
       static constexpr bool is_member = false; 
    };
 
-   struct host_function {
-      void*                ptr;
-      std::vector<uint8_t> arg_types;
-      std::vector<uint8_t> ret_types;
-   };
 
    struct registered_host_functions {
-      template <typename... Registered_Funcs>
-      registered_host_functions() {
-         //host_functions = { {(void*)Registered_Funcs::function, function_type_provider<Registered_Funcs>::type()}... }; 
-      }
-      registered_host_functions() {
-      }
-
       template <auto Func>
-      constexpr void add(std::string_view name) {
-         host_functions.emplace_back( (void*)Func, function_type_provider(Func) ); 
+      void add(const std::string& name) {
+         thread_local size_t index = 0;
+         host_function hf;
+         hf.ptr = (void*)Func;
+         function_types_provider(hf, Func); 
+         host_functions.push_back( std::move(hf) ); 
+         named_mapping[name] = index++;
       }
-      /*
-      template <size_t Index, typename RF, typename... RFs>
-      static void _resolve( module& mod ) {
-         size_t name_size = RF::name_t::len;
-         if (Index >= mod.import_functions.size())
-            return;
-         else {
-            bool found_import = false;
-            for (int i=0; i < mod.imports.size(); i++) {
-               if (mod.imports[i].kind != external_kind::Function)
-                  continue;
-               if (RF::name_t::is_same((const char*)mod.imports[i].field_str.raw(), mod.imports[i].field_len)) {
-                  mod.import_functions[i] = Index;
-                  found_import = true;
-                  std::cout << "Found it " << RF::name_t::value << "\n";
-               }
-            }
-            //EOS_WB_ASSERT(found_import, wasm_interpreter_exception, "unresolved import");
-            if constexpr (sizeof...(RFs) >= 1)
-               _resolve<Index+1, RFs...>(mod);
-         }
-      }
-      */
 
       static void resolve( module& mod ) {
          mod.import_functions.resize(mod.get_imported_functions_size());
-         //_resolve<0, Registered_Funcs...>(mod);
       }
 
-      /*
-      template <size_t N>
-      static constexpr void _call(uint32_t index) {
-         if constexpr(index == N)
-            std::invoke(std::get<N>(registered));
-         else
-            _call<N+1>(index);
-      }
-      */
+      template <typename Execution_Context>
+      std::optional<stack_elem> operator()(Execution_Context& ctx, uint32_t index) {
+         static constexpr size_t calling_conv_arg_cnt = 6;
+#if not defined __x86_64__ and (__APPLE__ or __linux__)
+         static_assert(false, "currently only supporting x86_64 on Linux and Apple");
+#endif
+         const auto& func = host_functions[index];
+         uint64_t args[calling_conv_arg_cnt] = {0};
 
+         int i=0;
+         for (;i < func.params.size() && i < calling_conv_arg_cnt; i++) {
+            const auto& op = ctx.pop_operand();
+            switch (func.params[i]) {
+                  case types::i32: 
+                  {
+                     __BACKEND_GET_ARG(args[i], op, i32_const_t);
+                     break;
+                  }
+                  case types::i64: 
+                  {
+                     __BACKEND_GET_ARG(args[i], op, i64_const_t);
+                     break;
+                  }
+                  case types::f32: 
+                  {
+                     __BACKEND_GET_ARG(args[i], op, f32_const_t);
+                     break;
+                  }
+                  case types::f64: 
+                  {
+                     __BACKEND_GET_ARG(args[i], op, f64_const_t);
+                     break;
+                  }
+            }
+         }
+
+         const size_t param_cnt = func.params.size();
+         const size_t amt = (param_cnt-i)*8;
+         const bool   needs_stack = func.params.size() > calling_conv_arg_cnt;
+         if (needs_stack) {
+            for (int i=i; i < param_cnt; i++) {
+               const auto& stack_op = args[i];
+               asm( "pushq %0"
+                    :
+                    : "a"(stack_op));
+            }
+         }
+
+         uint64_t return_val = 0;
+         switch (func.params.size()) {
+            case 0:
+               asm( "callq *%1\n\t"
+                    "movq %%rax, %0"
+                  : "=r"(return_val)
+                  : "a"(func.ptr));
+               break;
+            case 1:
+               asm("movq %2, %%rdi\n\t"
+                   "callq *%1\n\t"
+                   "movq %%rax, %0"
+                  : "=r"(return_val)
+                  : "a"(func.ptr), "g"(args[0]));
+               break;
+            case 2:
+               asm("movq %2, %%rdi\n\t"
+                   "movq %3, %%rsi\n\t"
+                   "callq *%1\n\t"
+                   "movq %%rax, %0"
+                  : "=r"(return_val)
+                  : "a"(func.ptr), "g"(args[0]), "g"(args[1]));
+               break;
+            case 3:
+               asm("movq %2, %%rdi\n\t"
+                   "movq %3, %%rsi\n\t"
+                   "movq %4, %%rdx\n\t"
+                   "callq *%1\n\t"
+                   "movq %%rax, %0"
+                  : "=r"(return_val)
+                  : "a"(func.ptr), "g"(args[0]), "g"(args[1]), "g"(args[2]));
+               break;
+            case 4:
+               asm("movq %2, %%rdi\n\t"
+                   "movq %3, %%rsi\n\t"
+                   "movq %4, %%rdx\n\t"
+                   "movq %5, %%rcx\n\t"
+                   "callq *%1\n\t"
+                   "movq %%rax, %0"
+                  : "=r"(return_val)
+                  : "a"(func.ptr), "g"(args[0]), "g"(args[1]), "g"(args[2]), "g"(args[3]));
+               break;
+            case 5:
+               asm("movq %2, %%rdi\n\t"
+                   "movq %3, %%rsi\n\t"
+                   "movq %4, %%rdx\n\t"
+                   "movq %5, %%rcx\n\t"
+                   "movq %6, %%r8\n\t"
+                   "callq *%1\n\t"
+                   "movq %%rax, %0"
+                  : "=r"(return_val)
+                  : "a"(func.ptr), "g"(args[0]), "g"(args[1]), "g"(args[2]), "g"(args[3]), "g"(args[4]));
+               break;
+            case 6:
+               asm("movq %2, %%rdi\n\t"
+                   "movq %3, %%rsi\n\t"
+                   "movq %4, %%rdx\n\t"
+                   "movq %5, %%rcx\n\t"
+                   "movq %6, %%r8\n\t"
+                   "movq %7, %%r9\n\t"
+                   "callq *%1\n\t"
+                   "movq %%rax, %0"
+                  : "=r"(return_val)
+                  : "a"(func.ptr), "g"(args[0]), "g"(args[1]), "g"(args[2]), "g"(args[3]), "g"(args[4]), "g"(args[5]));
+               break;
+            default:
+               asm("movq %2, %%rdi\n\t"
+                   "movq %3, %%rsi\n\t"
+                   "movq %4, %%rdx\n\t"
+                   "movq %5, %%rcx\n\t"
+                   "movq %6, %%r8\n\t"
+                   "movq %7, %%r9\n\t"
+                   "callq *%1\n\t"
+                   "movq %%rax, %0"
+                  : "=r"(return_val)
+                  : "a"(func.ptr), "g"(args[0]), "g"(args[1]), "g"(args[2]), "g"(args[3]), "g"(args[4]), "g"(args[5]));
+         }
+
+         if (func.ret.size()) {
+            switch (func.ret[0]) {
+               case types::i32: 
+                  return i32_const_t{static_cast<uint32_t>(return_val)};
+               case types::i64: 
+                  return i64_const_t{return_val};
+               case types::f32: 
+                  return f32_const_t{static_cast<uint32_t>(return_val)};
+               case types::f64: 
+                  return f64_const_t{return_val};
+            }
+         }
+
+         if (needs_stack) {
+            // add back amount needed from rsp
+            asm( "addq %0, %%rsp\n\t"
+                 :
+                 : "a"(amt));
+         }
+
+         return false;
+      }
+ 
       std::unordered_map<std::string, uint32_t> named_mapping;
       std::vector<host_function>                host_functions;
-      //static constexpr const std::tuple<Registered_Funcs...> registered;
    };
 
       /*
