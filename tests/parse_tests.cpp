@@ -222,7 +222,7 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          //rhf::call("hello2"_hfn);
          execution_context<interpret_visitor> ec(mod);
          //ec.set_host_functions<&test::func, &test::hello2>();
-         ec.execute("apply");
+         ec.execute("apply", (uint64_t)0, (uint64_t)0, (uint64_t)0);
          /*
          interpret_visitor v(ec);
          uint32_t index = mod.get_exported_function("apply");

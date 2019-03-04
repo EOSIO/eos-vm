@@ -11,6 +11,16 @@
 #define dbg_print print
 //#define dbg_print
 
+struct float32_t {
+   uint32_t data;
+};
+
+namespace std {
+   template <>
+   struct is_floating_point<float32_t> {
+      static constexpr bool value = true;
+   };
+}
 #define TO_INT32(X) \
    *(int32_t*)&std::get<i32_const_t>(X).data
 
@@ -28,7 +38,8 @@ namespace eosio { namespace wasm_backend {
    struct test {
       static void hello() { std::cout << "HELLO\n"; }
    };
-      uint32_t tests(int a) { std::cout << "HELLO tests" << a << "\n"; return 42; };
+   uint32_t tests(int a) { std::cout << "HELLO tests" << a << "\n"; return 42; };
+   float32_t test2(float32_t f) { std::cout << "Hoop " << *(float*)&f+13.3f << "\n"; *(float*)&f += 42.22f; return f; }
 
 struct interpret_visitor {
    interpret_visitor(execution_context<interpret_visitor>& ec) : context(ec) {}
@@ -38,17 +49,6 @@ struct interpret_visitor {
    struct stack_elem_visitor {
       std::stringstream& dbg_output;
       stack_elem_visitor(std::stringstream& ss) : dbg_output(ss) {}
-      void operator()(const uint32_t& pc) {
-         dbg_output << "PC : " << pc << "\n";
-      }
-      void operator()(const i32_const_t& val) {
-      }
-      void operator()(const i64_const_t& val) {
-      }
-      void operator()(const f32_const_t& val) {
-      }
-      void operator()(const f64_const_t& val) {
-      }
       void operator()(const block_t& ctrl) {
          dbg_output << "block : " << std::to_string(ctrl.data) << "\n";
       }
@@ -57,6 +57,9 @@ struct interpret_visitor {
       }
       void operator()(const if__t& ctrl) {
          dbg_output << "if : " << std::to_string(ctrl.data) << "\n";
+      }
+      template <typename T>
+      void operator()(T) {
       }
    } _elem_visitor{dbg_output};
 
@@ -73,13 +76,23 @@ struct interpret_visitor {
       dbg_output << "nop {" << context.get_pc() << "}\n";
    }
    void operator()(end_t) {
-      context.inc_pc();
+      // TODO create fend instruction for function end vs normal end (remove the need for pushing to the label stack)
       stack_elem c = context.pop_label();
+      context.inc_pc();
+      if (std::holds_alternative<uint32_t>(c)) {
+         context.apply_pop_call(); 
+         context.pop_label();
+      }
       std::visit(_elem_visitor, c);
       dbg_output << "end {" << context.get_pc() << "}\n";
    }
    void operator()(return__t) {
-      context.inc_pc();
+      const auto& _pc = context.pop_call();
+      if (std::holds_alternative<uint32_t>(_pc)) {
+         context.set_pc(std::get<uint32_t>(_pc));
+      } else {
+         throw wasm_interpreter_exception{"expected pc on call stack"};
+      }
       dbg_output << "return {" << context.get_pc() << "}\n";
    }
    void operator()(block_t bt) {
@@ -107,10 +120,11 @@ struct interpret_visitor {
       dbg_output << "br {" << context.get_pc() << "} " << b.data << "\n";
    }
    void operator()(br_if_t b) {
+      dbg_output << "br.if {" << context.get_pc() << "} " << b.data << "\n";
       const auto& val = context.pop_operand();
       if (context.is_true(val))
          context.jump(b.data);
-      dbg_output << "br.if {" << context.get_pc() << "} " << b.data << "\n";
+      dbg_output << "PC " << context.get_pc() << "\n";
    }
    void operator()(br_table_t b) {
       const auto& val = context.pop_operand();
@@ -127,18 +141,15 @@ struct interpret_visitor {
       dbg_output << "\n";
    }
    void operator()(call_t b) {
-      const uint32_t& funcs_size = context.get_module().get_functions_total();
+      context.call(b.index);
+      // TODO place these in parser
       //EOS_WB_ASSERT(b.index < funcs_size, wasm_interpreter_exception, "call index out of bounds");
-      const auto& ftype = context.get_module().get_function_type(b.index);
-      auto ret_val = context.invoke(b.index, ftype);
+      /*
       if (ftype.return_count > 0) {
          EOS_WB_ASSERT(ftype.return_count <= 1, wasm_interpreter_exception, "mvp only supports single value returns");
          context.push_operand(ret_val);
       }
-      context.inc_pc();
-      //test t;
-      //registered_function<test, &test::hello, decltype("hello"_hfn)> rf;
-      //std::invoke(rf.member_pointer, t);
+      */
       dbg_output << "call {" << context.get_pc() << "} " << b.index << "\n";
    }
    void operator()(call_indirect_t b) {
@@ -312,24 +323,59 @@ struct interpret_visitor {
       context.push_operand(b);
       dbg_output << "f64.const " << *(double*)&b.data << "\n";
    }
-   void operator()(i32_eqz_t b) {
+   void operator()(i32_eqz_t i) {
       context.inc_pc();
+      auto& op = context.peek_operand();
+      EOS_WB_ASSERT(std::holds_alternative<i32_const_t>(op), wasm_interpreter_exception, "expected i32 operand");
+      auto& t = std::get<i32_const_t>(op);
+      if (t.data == 0)
+         t.data = 1;
+      else
+         t.data = 0;
       dbg_print("i32.eqz");
    }
    void operator()(i32_eq_t b) {
       context.inc_pc();
+      const auto& rhs = context.pop_operand();
+      EOS_WB_ASSERT(std::holds_alternative<i32_const_t>(rhs), wasm_interpreter_exception, "expected i32 operand");
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(std::holds_alternative<i32_const_t>(lhs), wasm_interpreter_exception, "expected i32 operand");
+      auto& t = std::get<i32_const_t>(lhs);
+
+      if (std::get<i32_const_t>(rhs).data == t.data)
+         t.data = 1;
+      else
+         t.data = 0;
+
       dbg_print("i32.eq");
    }
    void operator()(i32_ne_t b) {
       context.inc_pc();
+      const auto& rhs = context.pop_operand();
+      EOS_WB_ASSERT(std::holds_alternative<i32_const_t>(rhs), wasm_interpreter_exception, "expected i32 operand");
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(std::holds_alternative<i32_const_t>(lhs), wasm_interpreter_exception, "expected i32 operand");
+      auto& t = std::get<i32_const_t>(lhs);
+
+      if (std::get<i32_const_t>(rhs).data != t.data)
+         t.data = 1;
+      else
+         t.data = 0;
+
       dbg_print("i32.ne");
    }
    void operator()(i32_lt_s_t b) {
       context.inc_pc();
+      const auto& op = context.pop_operand();
+      EOS_WB_ASSERT(std::holds_alternative<i32_const_t>(op), wasm_interpreter_exception, "expected i32 operand");
+
       dbg_print("i32.lt_s");
    }
    void operator()(i32_lt_u_t b) {
       context.inc_pc();
+      const auto& op = context.pop_operand();
+      EOS_WB_ASSERT(std::holds_alternative<i32_const_t>(op), wasm_interpreter_exception, "expected i32 operand");
+
       dbg_print("i32.lt_u");
    }
    void operator()(i32_le_s_t b) {
@@ -366,7 +412,17 @@ struct interpret_visitor {
    }
    void operator()(i64_ne_t b) {
       context.inc_pc();
-      dbg_print("i64.ne");
+      const auto& rhs = context.pop_operand();
+      EOS_WB_ASSERT(std::holds_alternative<i64_const_t>(rhs), wasm_interpreter_exception, "expected i64 operand");
+      const auto& lhs = context.pop_operand();
+      EOS_WB_ASSERT(std::holds_alternative<i64_const_t>(lhs), wasm_interpreter_exception, "expected i64 operand");
+
+      if (std::get<i64_const_t>(rhs).data != std::get<i64_const_t>(lhs).data)
+         context.push_operand(i32_const_t{1});
+      else
+         context.push_operand(i32_const_t{0});
+
+      dbg_output << "i64.ne : " << (std::get<i64_const_t>(rhs).data != std::get<i64_const_t>(lhs).data) << "\n";
    }
    void operator()(i64_lt_s_t b) {
       context.inc_pc();
@@ -478,28 +534,6 @@ struct interpret_visitor {
       EOS_WB_ASSERT(is_a<i32_const_t>(op1), wasm_interpreter_exception, "i32.sub arg 1 expected i32 on the stack");
       dbg_output << "i32.sub " << TO_UINT32(op1) << " - " << TO_UINT32(op2);
       TO_UINT32(op1) -= TO_UINT32(op2);
-
-      /*
-      func_type ft;
-      ft.param_count = 3;
-      ft.param_types.resize(3);
-      ft.param_types[0] = types::i32;
-      ft.param_types[1] = types::i64;
-      ft.param_types[2] = types::i32;
-      i32_const_t arg0{313};
-      i64_const_t arg1{400};
-      i32_const_t arg2{131};
-      context.push_operand(arg0);
-      context.push_operand(arg1);
-      context.push_operand(arg2);
-      context._call(1, ft); 
-      */
-      i32_const_t arg0{313};
-      context.push_operand(arg0);
-      context.add_host_function<&tests>("hello");
-      const auto& ret = context.call(0);
-      if (ret)
-         dbg_output << " RET " << ret.value() << "\n";
       dbg_output << " = " << TO_UINT32(op1) << "\n";
    }
    void operator()(i32_mul_t) {

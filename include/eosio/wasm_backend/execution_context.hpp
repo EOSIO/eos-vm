@@ -25,8 +25,24 @@ namespace eosio { namespace wasm_backend {
             inline void add_host_function(const std::string& name) {
                _rhf.add<Registered_Func>(name);
             }
-            inline std::optional<stack_elem> call(uint32_t index) {
-               return _rhf(*this, index);
+            inline void call(uint32_t index) {
+                // TODO validate index is valid
+               if (index < _mod.get_imported_functions_size()) {
+                  // TODO validate only importing functions
+                  const auto& ft = _mod.types[_mod.imports[index].type.func_t];
+                  type_check(ft);
+                  _rhf(*this, index);
+               } else {
+                  const auto& ft = _mod.types[_mod.functions[index - _mod.get_imported_functions_size()]];
+                  type_check_and_push(ft);
+                  setup_locals(index);
+                  push_call();
+                  push_label(uint32_t{0});
+                  const uint32_t& pc = _mod.function_sizes[index];
+                  set_pc( pc );
+                  _current_offset = pc;
+                  _code_index = index - _mod.get_imported_functions_size();
+               }
             }
             inline void call(const std::string& f) {
                _rhf(*this, f);
@@ -34,13 +50,28 @@ namespace eosio { namespace wasm_backend {
             inline module& get_module() { return _mod; }
             inline void push_label( const stack_elem& el ) { _cs.push(el); }
             inline void push_operand( const stack_elem& el ) { _os.push(el); }
-            inline stack_elem get_operand( uint32_t index )const { return _os.get(index); }
+          inline stack_elem get_operand( uint32_t index )const { std::cout << "SIZE " << index << " " << (int)_os.size() << "\n"; return _os.get(index); }
             inline void set_operand( uint32_t index, const stack_elem& el ) { _os.set(index, el); }
             inline void push_call( const stack_elem& el ) { _as.push(el); }
             inline stack_elem pop_call() { return _as.pop(); }
+            inline void push_call() {
+                _as.push(activation_frame{_pc+1, _current_offset, _code_index});
+            }
+            inline void apply_pop_call() {
+               const auto& afv = _as.pop();
+               if (std::holds_alternative<activation_frame>(afv)) {
+                  const auto& af = std::get<activation_frame>(afv);
+                  _current_offset = af.offset;
+                  _pc             = af.pc;
+                  _code_index     = af.index;
+               } else {
+                  throw wasm_interpreter_exception{"expected activation frame"};
+               }
+            }
+
             inline stack_elem pop_label() { return _cs.pop(); }
             inline stack_elem pop_operand() { return _os.pop(); }
-            inline stack_elem& peek_operand() { return _os.peek(); }
+            inline stack_elem& peek_operand(size_t i=0) { return _os.peek(i); }
             inline stack_elem get_global(uint32_t index) {
                EOS_WB_ASSERT( index < _mod.globals.size(), wasm_interpreter_exception, "global index out of range" );
                const auto& gl = _mod.globals[index];
@@ -89,18 +120,65 @@ namespace eosio { namespace wasm_backend {
                      [&](const i32_const_t& i32) {
                         ret_val = i32.data;
                      }, [&](auto) {
-                           //throw wasm_invalid_element{"should be an i32 type"};
+                        throw wasm_invalid_element{"should be an i32 type"};
                      }
                   }, el);
                return ret_val;
             }
 
             inline uint32_t get_pc()const { return _pc; }
+            inline void type_check( const func_type& ft ) {
+              // TODO validate param_count is less than 256
+              for (int i=0; i < ft.param_count; i++) {
+                const auto& op = peek_operand(i);
+                std::visit(overloaded {
+                    [&](const i32_const_t&) {
+                      EOS_WB_ASSERT(ft.param_types[i] == types::i32, wasm_interpreter_exception, "function param type mismatch");
+                    }, [&](const f32_const_t&) {
+                      EOS_WB_ASSERT(ft.param_types[i] == types::f32, wasm_interpreter_exception, "function param type mismatch");
+                    }, [&](const i64_const_t&) {
+                      EOS_WB_ASSERT(ft.param_types[i] == types::i64, wasm_interpreter_exception, "function param type mismatch");
+                    }, [&](const f64_const_t&) {
+                      EOS_WB_ASSERT(ft.param_types[i] == types::f64, wasm_interpreter_exception, "function param type mismatch");
+                    }, [&](auto) {
+                      throw wasm_interpreter_exception{"function param invalid type"};
+                    }
+                }, op);
+              }
+            }
+
+            inline void type_check_and_push( const func_type& ft ) {
+              stack_elem elems[256];
+              int i=0;
+              // TODO validate param_count is less than 256
+              for (; i < ft.param_count; i++) {
+                elems[i] = pop_operand();
+                std::cout << "PARAM " << (int)ft.param_types[i] << "\n";
+                std::visit(overloaded {
+                    [&](const i32_const_t&) {
+                      EOS_WB_ASSERT(ft.param_types[i] == types::i32, wasm_interpreter_exception, "function param type mismatch");
+                    }, [&](const f32_const_t&) {
+                      EOS_WB_ASSERT(ft.param_types[i] == types::f32, wasm_interpreter_exception, "function param type mismatch");
+                    }, [&](const i64_const_t&) {
+                      EOS_WB_ASSERT(ft.param_types[i] == types::i64, wasm_interpreter_exception, "function param type mismatch");
+                    }, [&](const f64_const_t&) {
+                      EOS_WB_ASSERT(ft.param_types[i] == types::f64, wasm_interpreter_exception, "function param type mismatch");
+                    }, [&](auto) {
+                      throw wasm_interpreter_exception{"function param invalid type"};
+                    }
+                }, elems[i]);
+              }
+              for (int j=0; j < i; j++) {
+                push_operand(elems[i]);
+              }
+            }
             inline void set_pc( uint32_t pc ) { _pc = pc; }
             inline void inc_pc() { _pc++; }
             inline void exit()const { _executing = false; }
             inline bool executing()const { _executing; }
-            inline void execute(const std::string_view func) {
+
+            template <typename... Args>
+            inline void execute(const std::string_view func, Args... args) {
                uint32_t func_index = _mod.get_exported_function(func);
                EOS_WB_ASSERT(func_index < std::numeric_limits<uint32_t>::max(), wasm_interpreter_exception, "cannot execute function, function not found");
                _current_function = func_index;
@@ -109,24 +187,26 @@ namespace eosio { namespace wasm_backend {
                _pc               = _current_offset;
                _exit_pc          = _current_offset + _mod.code[_current_function-_mod.import_functions.size()].code.size();
                _executing        = true;
-               setup_call(func_index);
+               push_args(args...);
+               //type_check_and_push(_mod.types[_mod.imports[func_index].type.func_t]);
+               setup_locals(func_index);
                execute();
             }
 
             inline void jump( uint32_t label ) { 
                stack_elem el;
-               for (int i=0; i < label; i++) {
-                  // el = _cs.pop();
+               for (int i=0; i < label+1; i++) {
+                  el = _cs.pop();
                }
                std::visit(overloaded {
                      [&](const block_t& bt) {
-                        _pc = bt.pc;
+                        _pc = _current_offset + bt.pc;
                      }, [&](const loop_t& lt) {
-                        _pc = lt.pc;
+                        _pc = _current_offset + lt.pc;
                      }, [&](const if__t& it) {
-                        _pc = it.pc;
+                        _pc = _current_offset + it.pc;
                      }, [&](auto) {
-                           //throw wasm_invalid_element{"invalid element when popping control stack"};
+                        throw wasm_invalid_element{"invalid element when popping control stack"};
                      }
                   }, el);
             }
@@ -134,57 +214,46 @@ namespace eosio { namespace wasm_backend {
             template <size_t N>
             stack_elem invoke( uint32_t index, const func_type& ftype ) {
             }
-            inline void setup_call(uint32_t index) {
-               const auto& fn_ty = _mod.get_function_type(index);
+
+            template <typename Arg, typename... Args>
+            void _push_args(Arg&& arg, Args&&... args) {
+               if constexpr (to_wasm_type_v<Arg> == types::i32)
+                  push_operand(i32_const_t{static_cast<uint32_t>(arg)});
+               else if constexpr (to_wasm_type_v<Arg> == types::f32)
+                  push_operand(f32_const_t{static_cast<uint32_t>(arg)});
+               else if constexpr (to_wasm_type_v<Arg> == types::i64)
+                  push_operand(i64_const_t{static_cast<uint64_t>(arg)});
+               else
+                 push_operand(f64_const_t{static_cast<uint64_t>(arg)});
+               if constexpr (sizeof...(Args) > 0)
+                  _push_args(args...);
+            }
+
+            template <typename... Args>
+            void push_args(Args&&... args) {
+               if constexpr (sizeof...(Args) > 0)
+                 _push_args(args...);
+            }
+
+            inline void setup_locals(uint32_t index) {
                const auto& fn = _mod.code[index-_mod.get_imported_functions_size()];
-               for (int i=0; i < fn_ty.param_count; i++) {
-                  switch (fn_ty.param_types[i]) {
-                     case types::i32:
-                        {
-                           push_operand(i32_const_t{0});
-                           break;
-                        }
-                     case types::i64:
-                        {
-                           push_operand(i64_const_t{0});
-                           break;
-                        }
-                     case types::f32:
-                        {
-                           push_operand(f32_const_t{0});
-                           break;
-                        }
-                     case types::f64:
-                        {
-                           push_operand(f64_const_t{0});
-                           break;
-                        }
-                     default:
-                        throw wasm_interpreter_exception{"invalid function param type"};
-                  }
-               }
+               std::cout << "FN " << fn.local_count << " " << index << "\n";
                for (int i=0; i < fn.local_count; i++) {
-                  for (int j=0; j < fn.locals.size(); j++) {
-                     switch (fn.locals[i].type) {
-                        case types::i32: 
-                           {
-                              push_operand(i32_const_t{0});
-                           }
-                        case types::i64: 
-                           {
-                              push_operand(i64_const_t{0});
-                           }
-                        case types::f32: 
-                           {
-                              push_operand(f32_const_t{0});
-                           }
-                        case types::f64: 
-                           {
-                              push_operand(f64_const_t{0});
-                           }
-                        default:
-                           throw wasm_interpreter_exception{"invalid function param type"};
-                     }
+                  switch (fn.locals[i].type) {
+                    case types::i32: 
+                       push_operand(i32_const_t{0});
+                       break;
+                    case types::i64: 
+                       push_operand(i64_const_t{0});
+                       break;
+                    case types::f32: 
+                       push_operand(f32_const_t{0});
+                       break;
+                    case types::f64: 
+                       push_operand(f64_const_t{0});
+                       break;
+                    default:
+                        throw wasm_interpreter_exception{"invalid function param type"};
                   }
                }
             }

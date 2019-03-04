@@ -9,7 +9,7 @@
 #include <eosio/wasm_backend/exceptions.hpp>
 
 void translate_exception(const std::exception &e) {
-   std::cerr << "\033[33m" <<  e.what() << "\033[0m" << std::endl;
+   std::cout << "\033[33m WHAT " <<  e.what() << "\033[0m" << std::endl;
 
    BOOST_FAIL("Caught Unexpected Exception");
 }

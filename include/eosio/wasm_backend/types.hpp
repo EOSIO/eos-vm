@@ -6,6 +6,7 @@
 
 #include <string>
 #include <cstring>
+#include <vector>
 #include <eosio/wasm_backend/leb128.hpp>
 #include <eosio/wasm_backend/utils.hpp>
 #include <eosio/wasm_backend/allocator.hpp>
@@ -39,6 +40,12 @@ namespace eosio { namespace wasm_backend {
    using native_vector = managed_vector<T, memory_manager::types::native>;
    template <typename T>
    using stack64_vector = managed_vector<T, memory_manager::types::stack64>;
+
+   struct activation_frame {
+      uint32_t pc;
+      uint32_t offset;
+      uint32_t index;
+   };
 
    struct resizable_limits {
       bool  flags;
