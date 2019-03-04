@@ -136,19 +136,21 @@ namespace eosio { namespace wasm_backend {
             case opcodes::end:
                {
                   fb[op_index++] = end_t{};
-                  auto& el = fb[pc_stack.top()];
-                  std::visit(overloaded {
-                     [=](block_t& bt) {
-                        bt.pc = op_index;
-                     }, [=](loop_t& lt) {
-                        lt.pc = op_index;
-                     }, [=](if__t& it) {
-                        it.pc = op_index;
-                     }, [=](auto&&) {
-                        throw wasm_invalid_element{"invalid element when popping pc stack"};
-                     }
-                  }, el);
-                  pc_stack.pop();
+                  if (pc_stack.size()) {
+                     auto& el = fb[pc_stack.top()];
+                     std::visit(overloaded {
+                        [=](block_t& bt) {
+                           bt.pc = op_index;
+                        }, [=](loop_t& lt) {
+                           lt.pc = op_index;
+                        }, [=](if__t& it) {
+                           it.pc = op_index;
+                        }, [=](auto&&) {
+                           throw wasm_invalid_element{"invalid element when popping pc stack"};
+                        }
+                     }, el);
+                     pc_stack.pop();
+                  }
                   break;
                }
             case opcodes::return_:
@@ -532,9 +534,10 @@ namespace eosio { namespace wasm_backend {
    }
 
    void binary_parser::parse_function_body( wasm_code_ptr& code, function_body& fb ) {
-      auto body_size = parse_varuint32( code );
-      auto before = code.offset();
-      auto local_cnt = parse_varuint32( code );
+      const auto& body_size = parse_varuint32( code );
+      const auto& before = code.offset();
+      const auto& local_cnt = parse_varuint32( code );
+      fb.local_count = local_cnt;
       fb.locals.resize(local_cnt);
       // parse the local entries
       for ( size_t i=0; i < local_cnt; i++ ) {
@@ -542,11 +545,11 @@ namespace eosio { namespace wasm_backend {
          fb.locals.at(i).type  = *code++;
       }
 
-      size_t bytes = body_size - (code.offset() - before) - 1; // -1 is 'end' 0xb byte
+      size_t bytes = body_size - (code.offset() - before); // -1 is 'end' 0xb byte
       fb.code.resize(bytes);
       wasm_code_ptr fb_code(code.raw(), bytes);
       parse_function_body_code( fb_code, bytes, fb.code );
-      code += bytes;
+      code += bytes-1;
       EOS_WB_ASSERT( *code++ == 0x0B, wasm_parse_exception, "failed parsing function body, expected 'end'");
    };
 

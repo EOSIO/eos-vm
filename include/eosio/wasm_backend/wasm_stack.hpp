@@ -10,9 +10,10 @@
 #include <eosio/wasm_backend/allocator.hpp>
 #include <eosio/wasm_backend/vector.hpp>
 #include <eosio/wasm_backend/exceptions.hpp>
+#include <eosio/wasm_backend/types.hpp>
 
 namespace eosio { namespace wasm_backend {
-   using stack_elem = std::variant<uint32_t, i32_const_t, i64_const_t, f32_const_t, f64_const_t, block_t, loop_t, if__t>;
+   using stack_elem = std::variant<uint32_t, activation_frame, i32_const_t, i64_const_t, f32_const_t, f64_const_t, block_t, loop_t, if__t>;
 
    template <typename T>
    inline bool is_a( const stack_elem& el ){ return std::holds_alternative<T>(el); }
@@ -31,6 +32,7 @@ namespace eosio { namespace wasm_backend {
          }
          void set(uint32_t index, const stack_elem& el) {
             EOS_WB_ASSERT(index <= _index, wasm_interpreter_exception, "invalid stack index");
+            EOS_WB_ASSERT(el.index() == _s[index].index(), wasm_invalid_element, "set element must match the type of held element");
             _s[index] = el;
          }
          stack_elem pop() {
@@ -38,6 +40,9 @@ namespace eosio { namespace wasm_backend {
          }
          stack_elem& peek() {
             return _s[_index-1];
+         }
+         stack_elem& peek(size_t i) {
+            return _s[_index-1-i];
          }
          uint8_t size()const {
             return _index;
@@ -55,9 +60,9 @@ namespace eosio { namespace wasm_backend {
             }, [&](const i64_const_t& i){
                os << "i64:" << i.data;
             }, [&](const f32_const_t& f){
-               os << "f32:" << f.data;
+               os << "f32:" << *(float*)&f.data;
             }, [&](const f64_const_t& f){
-               os << "f64:" << f.data;
+               os << "f64:" << *(double*)&f.data;
             }, [&](auto){
                throw wasm_interpreter_exception{"stream error"};
             }

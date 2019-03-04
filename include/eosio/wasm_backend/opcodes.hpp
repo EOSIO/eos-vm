@@ -1,5 +1,6 @@
 #pragma once
 #include <eosio/wasm_backend/opcodes_def.hpp>
+#include <eosio/wasm_backend/vector.hpp>
 #include <map>
 #include <variant>
 

@@ -30,21 +30,20 @@
 
 #define DECLARE_EXCEPTION(name, _code, _what)                                     \
    struct name : public std::exception {                                          \
-      name(std::string msg) : msg(msg) {}                                         \
-      virtual const char* what()const throw() {                                   \
-         return std::string(std::string(std::string(_what) + " ") + msg).c_str(); \
-      }                                                                           \
+      name(const char* msg) : msg(msg) {}                                         \
+      virtual const char* what()const throw() { return _what; }                   \
+      virtual const char* detail()const throw() { return msg; }                   \
       uint32_t code()const { return _code; }                                      \
-      std::string msg;                                                            \
+      const char* msg;                                                            \
    };
 
 namespace eosio { namespace wasm_backend {
-   DECLARE_EXCEPTION( wasm_interpreter_exception,        4000000, "wasm_interpreter exception" )
+   DECLARE_EXCEPTION( wasm_interpreter_exception,        4000000, "wasm interpreter exception" )
    DECLARE_EXCEPTION( wasm_section_length_exception,     4000001, "wasm section length exception" )
    DECLARE_EXCEPTION( wasm_bad_alloc,                    4000002, "wasm allocation failed" )
    DECLARE_EXCEPTION( wasm_double_free,                  4000003, "wasm free failed" )
    DECLARE_EXCEPTION( wasm_vector_oob_exception,         4000004, "wasm vector out of bounds" )
-   DECLARE_EXCEPTION( wasm_unsupported_import_exception, 4000005, "wasm_interpreter only accepts function imports" )
+   DECLARE_EXCEPTION( wasm_unsupported_import_exception, 4000005, "wasm interpreter only accepts function imports" )
    DECLARE_EXCEPTION( wasm_parse_exception,              4000006, "wasm parse exception" )
    DECLARE_EXCEPTION( wasm_memory_exception,             4000007, "wasm memory exception" )
    DECLARE_EXCEPTION( wasm_invalid_element,              4000008, "wasm invalid_element" )
