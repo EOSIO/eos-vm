@@ -121,9 +121,12 @@ struct interpret_visitor {
    }
    void operator()(br_if_t b) {
       dbg_output << "br.if {" << context.get_pc() << "} " << b.data << "\n";
+      context.inc_pc();
       const auto& val = context.pop_operand();
       if (context.is_true(val))
          context.jump(b.data);
+      else
+         context.inc_pc();
       dbg_output << "PC " << context.get_pc() << "\n";
    }
    void operator()(br_table_t b) {
@@ -205,59 +208,88 @@ struct interpret_visitor {
    }
    void operator()(i32_load_t b) {
       context.inc_pc();
-      dbg_output << "i32.load " << " align " << b.flags_align << " offset " << b.offset << "\n";
+      uint32_t val = *(uint32_t*)(context.linear_memory()+b.offset);
+      context.push_operand(i32_const_t{val});
+      dbg_output << "i32.load " << " align " << b.flags_align << " offset " << b.offset << " value " << val << "\n";
    }
    void operator()(i32_load8_s_t b) {
       context.inc_pc();
-      dbg_print("i32.load8_s : "); //+std::to_string(b.index);
+      int8_t val = *(int8_t*)(context.linear_memory()+b.offset);
+      context.push_operand(i32_const_t{*(uint32_t*)&val});
+      dbg_output << "i32.load8_s " << " align " << b.flags_align << " offset " << b.offset << " value " << (int)val << "\n";
    }
    void operator()(i32_load16_s_t b) {
       context.inc_pc();
-      dbg_print("i32.load16_s : "); //+std::to_string(b.index);
+      int16_t val = *(int16_t*)(context.linear_memory()+b.offset);
+      context.push_operand(i32_const_t{*(uint32_t*)&val});
+      dbg_output << "i32.load16_s " << " align " << b.flags_align << " offset " << b.offset << " value " << (int)val << "\n";
    }
    void operator()(i32_load8_u_t b) {
       context.inc_pc();
+      uint8_t val = *(uint8_t*)(context.linear_memory()+b.offset);
+      context.push_operand(i32_const_t{val});
       dbg_print("i32.load8_u : "); //+std::to_string(b.index);
+      dbg_output << "i32.load8_u " << " align " << b.flags_align << " offset " << b.offset << " value " << (int)val << "\n";
    }
    void operator()(i32_load16_u_t b) {
       context.inc_pc();
-      dbg_print("i32.load16_u : "); //+std::to_string(b.index);
+      uint16_t val = *(uint16_t*)(context.linear_memory()+b.offset);
+      context.push_operand(i32_const_t{val});
+      dbg_output << "i32.load16_u " << " align " << b.flags_align << " offset " << b.offset << " value " << (int)val << "\n";
    }
    void operator()(i64_load_t b) {
       context.inc_pc();
-      dbg_output << "i64.load " << " align " << b.flags_align << " offset " << b.offset << "\n";
+      uint64_t val = *(uint64_t*)(context.linear_memory()+b.offset);
+      context.push_operand(i64_const_t{val});
+      dbg_output << "i64.load " << " align " << b.flags_align << " offset " << b.offset << " value " << val << "\n";
    }
    void operator()(i64_load8_s_t b) {
       context.inc_pc();
-      dbg_print("i64.load8_s : "); //+std::to_string(b.index);
+      int8_t val = *(int8_t*)(context.linear_memory()+b.offset);
+      context.push_operand(i64_const_t{*(uint64_t*)&val});
+      dbg_output << "i64.load8_s " << " align " << b.flags_align << " offset " << b.offset << " value " << (long long)val << "\n";
    }
    void operator()(i64_load16_s_t b) {
       context.inc_pc();
-      dbg_print("i64.load16_s : "); //+std::to_string(b.index);
+      int16_t val = *(int16_t*)(context.linear_memory()+b.offset);
+      context.push_operand(i64_const_t{*(uint64_t*)&val});
+      dbg_output << "i64.load16_s " << " align " << b.flags_align << " offset " << b.offset << " value " << (long long)val << "\n";
    }
    void operator()(i64_load32_s_t b) {
       context.inc_pc();
-      dbg_print("i64.load32_s : "); //+std::to_string(b.index);
+      int32_t val = *(int32_t*)(context.linear_memory()+b.offset);
+      context.push_operand(i64_const_t{*(uint64_t*)&val});
+      dbg_output << "i64.load32_s " << " align " << b.flags_align << " offset " << b.offset << " value " << (long long)val << "\n";
    }
    void operator()(i64_load8_u_t b) {
       context.inc_pc();
-      dbg_print("i64.load8_u : "); //+std::to_string(b.index);
+      uint8_t val = *(uint8_t*)(context.linear_memory()+b.offset);
+      context.push_operand(i64_const_t{val});
+      dbg_output << "i64.load8_u " << " align " << b.flags_align << " offset " << b.offset << " value " << (long long)val << "\n";
    }
    void operator()(i64_load16_u_t b) {
       context.inc_pc();
-      dbg_print("i64.load16_u : "); //+std::to_string(b.index);
+      uint16_t val = *(uint16_t*)(context.linear_memory()+b.offset);
+      context.push_operand(i64_const_t{val});
+      dbg_output << "i64.load16_u " << " align " << b.flags_align << " offset " << b.offset << " value " << (long long)val << "\n";
    }
    void operator()(i64_load32_u_t b) {
       context.inc_pc();
-      dbg_print("i64.load32_u : "); //+std::to_string(b.index);
+      uint32_t val = *(uint32_t*)(context.linear_memory()+b.offset);
+      context.push_operand(i64_const_t{val});
+      dbg_output << "i64.load32_u " << " align " << b.flags_align << " offset " << b.offset << " value " << (long long)val << "\n";
    }
    void operator()(f32_load_t b) {
       context.inc_pc();
-      dbg_print("f32.load : "); //+std::to_string(b.index);
+      uint32_t val = *(uint32_t*)(context.linear_memory()+b.offset);
+      context.push_operand(f32_const_t{val});
+      dbg_output << "f32.load " << " align " << b.flags_align << " offset " << b.offset << " value " << *(float*)&val << "\n";
    }
    void operator()(f64_load_t b) {
       context.inc_pc();
-      dbg_print("f64.load : "); //+std::to_string(b.index);
+      uint64_t val = *(uint64_t*)(context.linear_memory()+b.offset);
+      context.push_operand(f64_const_t{val});
+      dbg_output << "f64.load " << " align " << b.flags_align << " offset " << b.offset << " value " << *(double*)&val << "\n";
    }
    void operator()(i32_store_t b) {
       context.inc_pc();
@@ -404,11 +436,28 @@ struct interpret_visitor {
    }
    void operator()(i64_eqz_t b) {
       context.inc_pc();
+      const auto& op = context.pop_operand();
+      EOS_WB_ASSERT(std::holds_alternative<i64_const_t>(op), wasm_interpreter_exception, "expected i64 operand");
+      if (std::get<i64_const_t>(op).data == 0)
+         context.push_operand(i32_const_t{1});
+      else
+         context.push_operand(i32_const_t{0});
+
       dbg_print("i64.eqz");
    }
    void operator()(i64_eq_t b) {
       context.inc_pc();
-      dbg_print("i64.eq");
+      const auto& rhs = context.pop_operand();
+      EOS_WB_ASSERT(std::holds_alternative<i64_const_t>(rhs), wasm_interpreter_exception, "expected i64 operand");
+      const auto& lhs = context.pop_operand();
+      EOS_WB_ASSERT(std::holds_alternative<i64_const_t>(lhs), wasm_interpreter_exception, "expected i64 operand");
+
+      if (std::get<i64_const_t>(rhs).data == std::get<i64_const_t>(lhs).data)
+         context.push_operand(i32_const_t{1});
+      else
+         context.push_operand(i32_const_t{0});
+ 
+      dbg_output << "i64.eq : " << (std::get<i64_const_t>(rhs).data == std::get<i64_const_t>(lhs).data) << "\n";
    }
    void operator()(i64_ne_t b) {
       context.inc_pc();

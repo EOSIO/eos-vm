@@ -20,6 +20,12 @@ namespace eosio { namespace wasm_backend {
                   total_so_far += _mod.code[i-import_size].code.size();
                }
                _linear_memory = _alloc.alloc<uint8_t>(1); // allocate an initial wasm page
+
+               for (int i=0; i < _mod.data.size(); i++) {
+                  const auto& data_seg = _mod.data[i];
+                  //TODO validate only use memory idx 0 in parse
+                  memcpy((char*)_linear_memory+data_seg.offset.value.i64, data_seg.data.raw(), data_seg.size);
+               }
             }
             template <auto Registered_Func>
             inline void add_host_function(const std::string& name) {
@@ -47,10 +53,18 @@ namespace eosio { namespace wasm_backend {
             inline void call(const std::string& f) {
                _rhf(*this, f);
             } 
+            void print_stack() {
+               std::cout << "STACK { ";
+               for (int i=0; i < _os.size(); i++) {
+                  std::cout << _os.get(i) << ", "; 
+               }
+               std::cout << " }\n";
+            }
             inline module& get_module() { return _mod; }
+            inline uint8_t* linear_memory() { return _linear_memory; }
             inline void push_label( const stack_elem& el ) { _cs.push(el); }
             inline void push_operand( const stack_elem& el ) { _os.push(el); }
-          inline stack_elem get_operand( uint32_t index )const { std::cout << "SIZE " << index << " " << (int)_os.size() << "\n"; return _os.get(index); }
+            inline stack_elem get_operand( uint32_t index )const { return _os.get(index); }
             inline void set_operand( uint32_t index, const stack_elem& el ) { _os.set(index, el); }
             inline void push_call( const stack_elem& el ) { _as.push(el); }
             inline stack_elem pop_call() { return _as.pop(); }
@@ -153,7 +167,6 @@ namespace eosio { namespace wasm_backend {
               // TODO validate param_count is less than 256
               for (; i < ft.param_count; i++) {
                 elems[i] = pop_operand();
-                std::cout << "PARAM " << (int)ft.param_types[i] << "\n";
                 std::visit(overloaded {
                     [&](const i32_const_t&) {
                       EOS_WB_ASSERT(ft.param_types[i] == types::i32, wasm_interpreter_exception, "function param type mismatch");
@@ -185,7 +198,7 @@ namespace eosio { namespace wasm_backend {
                _code_index       = func_index - _mod.import_functions.size();
                _current_offset   = _mod.function_sizes[_current_function];
                _pc               = _current_offset;
-               _exit_pc          = _current_offset + _mod.code[_current_function-_mod.import_functions.size()].code.size();
+               _exit_pc          = _current_offset + _mod.code[_current_function-_mod.import_functions.size()].code.size()-1;
                _executing        = true;
                push_args(args...);
                //type_check_and_push(_mod.types[_mod.imports[func_index].type.func_t]);
@@ -217,11 +230,12 @@ namespace eosio { namespace wasm_backend {
 
             template <typename Arg, typename... Args>
             void _push_args(Arg&& arg, Args&&... args) {
-               if constexpr (to_wasm_type_v<Arg> == types::i32)
+               if constexpr (to_wasm_type_v<std::decay_t<Arg>> == types::i32) {
                   push_operand(i32_const_t{static_cast<uint32_t>(arg)});
-               else if constexpr (to_wasm_type_v<Arg> == types::f32)
+                  }
+               else if constexpr (to_wasm_type_v<std::decay_t<Arg>> == types::f32)
                   push_operand(f32_const_t{static_cast<uint32_t>(arg)});
-               else if constexpr (to_wasm_type_v<Arg> == types::i64)
+               else if constexpr (to_wasm_type_v<std::decay_t<Arg>> == types::i64)
                   push_operand(i64_const_t{static_cast<uint64_t>(arg)});
                else
                  push_operand(f64_const_t{static_cast<uint64_t>(arg)});
@@ -237,24 +251,25 @@ namespace eosio { namespace wasm_backend {
 
             inline void setup_locals(uint32_t index) {
                const auto& fn = _mod.code[index-_mod.get_imported_functions_size()];
-               std::cout << "FN " << fn.local_count << " " << index << "\n";
                for (int i=0; i < fn.local_count; i++) {
-                  switch (fn.locals[i].type) {
-                    case types::i32: 
-                       push_operand(i32_const_t{0});
-                       break;
-                    case types::i64: 
-                       push_operand(i64_const_t{0});
-                       break;
-                    case types::f32: 
-                       push_operand(f32_const_t{0});
-                       break;
-                    case types::f64: 
-                       push_operand(f64_const_t{0});
-                       break;
-                    default:
-                        throw wasm_interpreter_exception{"invalid function param type"};
-                  }
+                  std::cout << "LOCAL " << (int)fn.locals[i].type << "\n";
+                  for (int j=0; j < fn.locals[i].count; j++)
+                     switch (fn.locals[i].type) {
+                        case types::i32: 
+                           push_operand(i32_const_t{0});
+                           break;
+                        case types::i64: 
+                           push_operand(i64_const_t{0});
+                           break;
+                        case types::f32: 
+                           push_operand(f32_const_t{0});
+                           break;
+                        case types::f64: 
+                           push_operand(f64_const_t{0});
+                           break;
+                        default:
+                           throw wasm_interpreter_exception{"invalid function param type"};
+                     }
                }
             }
 
@@ -264,6 +279,7 @@ namespace eosio { namespace wasm_backend {
                   std::visit(_visitor, _mod.code[_code_index].code[offset]);
                   std::cout << _visitor.dbg_output.str() << "\n";
                   _visitor.dbg_output.str("");
+                  std::cout << "PC " << _pc << "\n";
                   if (_pc == _exit_pc)
                      _executing = false;
                } while (_executing);
