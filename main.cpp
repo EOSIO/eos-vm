@@ -26,17 +26,18 @@ std::vector<uint8_t> read_wasm( const std::string& fname ) {
 }
 
 
-int main() {
+int main(int argc, char** argv) {
    auto t1 = std::chrono::high_resolution_clock::now();
    memory_manager::set_memory_limits( 32 * 1024 * 1024 );
    binary_parser bp;
    module mod;
-   wasm_code code = read_wasm("test.wasm");
+   wasm_code code = read_wasm(argv[1]);
    bp.parse_module( code, mod );
    auto t2 = std::chrono::high_resolution_clock::now();
    execution_context<interpret_visitor> ctx(mod);
    try {
-      ctx.execute("apply", (uint64_t)0, (uint64_t)0, (uint64_t)0);
+      //ctx.execute("apply", (uint64_t)12, (uint64_t)13, (uint64_t)14);
+      ctx.execute("main");
    } catch ( const wasm_interpreter_exception& ex ) {
       std::cerr << ex.what() << " : " << ex.detail() << "\n";
    } catch ( const wasm_invalid_element& ex ) {

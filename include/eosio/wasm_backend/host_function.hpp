@@ -40,6 +40,15 @@ namespace eosio { namespace wasm_backend {
          return types::i32;
       }
       template <typename T>
+      constexpr auto to_wasm_type() -> std::enable_if_t<std::is_rvalue_reference<T>::value, uint8_t> {
+         if constexpr (sizeof(std::decay_t<T>) == 4)
+            return types::i32;
+         else if constexpr (sizeof(std::decay_t<T>) == 8)
+            return types::i64;
+         else
+            throw wasm_parse_exception {"incompatible type"};
+      }
+      template <typename T>
       constexpr auto to_wasm_type() -> std::enable_if_t<std::is_pointer<T>::value, uint8_t> {
          return types::i32;
       }
