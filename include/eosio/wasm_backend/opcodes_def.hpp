@@ -228,24 +228,45 @@
       uint32_t offset;                  \
    };
 
-#define CREATE_I32_CONSTANT_TYPE(name, code) \
-   struct name##_t {                         \
-      uint32_t data;                         \
+
+#define CREATE_I32_CONSTANT_TYPE(name, code)          \
+   struct name##_t {                                  \
+      explicit name##_t (uint32_t n) { data.ui = n; } \
+      explicit name##_t (int32_t n) { data.i = n; }   \
+      union {                                         \
+         uint32_t ui;                                 \
+         int32_t  i;                                  \
+      } data;                                         \
    };
 
-#define CREATE_I64_CONSTANT_TYPE(name, code) \
-   struct name##_t {                         \
-      uint64_t data;                         \
+#define CREATE_I64_CONSTANT_TYPE(name, code)          \
+   struct name##_t {                                  \
+      explicit name##_t (uint64_t n) { data.ui = n; } \
+      explicit name##_t (int64_t n) { data.i = n; }   \
+      union {                                         \
+         uint64_t ui;                                 \
+         int64_t  i;                                  \
+      } data;                                         \
    };
 
-#define CREATE_F32_CONSTANT_TYPE(name, code) \
-   struct name##_t {                         \
-      uint32_t data;                         \
+#define CREATE_F32_CONSTANT_TYPE(name, code)          \
+   struct name##_t {                                  \
+      explicit name##_t (uint32_t n) { data.ui = n; } \
+      explicit name##_t (float n) { data.f = n; }     \
+      union {                                         \
+         uint32_t ui;                                 \
+         float f;                                     \
+      } data;                                         \
    };
 
-#define CREATE_F64_CONSTANT_TYPE(name, code) \
-   struct name##_t {                         \
-      uint64_t data;                         \
+#define CREATE_F64_CONSTANT_TYPE(name, code)          \
+   struct name##_t {                                  \
+      explicit name##_t (uint64_t n) { data.ui = n; } \
+      explicit name##_t (double n) { data.f = n; }    \
+      union {                                         \
+         uint64_t ui;                                 \
+         double f;                                    \
+      } data;                                         \
    };
 
 #define IDENTITY(name, code) \

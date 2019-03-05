@@ -38,6 +38,7 @@ int main(int argc, char** argv) {
    try {
       //ctx.execute("apply", (uint64_t)12, (uint64_t)13, (uint64_t)14);
       ctx.execute("main");
+      //ctx.execute("dothedew");
    } catch ( const wasm_interpreter_exception& ex ) {
       std::cerr << ex.what() << " : " << ex.detail() << "\n";
    } catch ( const wasm_invalid_element& ex ) {

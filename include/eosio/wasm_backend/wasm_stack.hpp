@@ -56,13 +56,13 @@ namespace eosio { namespace wasm_backend {
    Stream& operator<<(Stream& os, const stack_elem& el) {
       std::visit(overloaded {
             [&](const i32_const_t& i){
-               os << "i32:" << i.data;
+               os << "i32:" << i.data.i;
             }, [&](const i64_const_t& i){
-               os << "i64:" << i.data;
+               os << "i64:" << i.data.i;
             }, [&](const f32_const_t& f){
-               os << "f32:" << *(float*)&f.data;
+               os << "f32:" << f.data.f;
             }, [&](const f64_const_t& f){
-               os << "f64:" << *(double*)&f.data;
+               os << "f64:" << f.data.f;
             }, [&](auto){
                throw wasm_interpreter_exception{"stream error"};
             }
