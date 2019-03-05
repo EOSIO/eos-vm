@@ -15,7 +15,7 @@
 #include <eosio/wasm_backend/parser.hpp>
 #include <eosio/wasm_backend/constants.hpp>
 #include <eosio/wasm_backend/sections.hpp>
-#include <eosio/wasm_backend/disassembly_visitor.hpp>
+//#include <eosio/wasm_backend/disassembly_visitor.hpp>
 //#include <eosio/wasm_backend/interpret_visitor.hpp>
 
 using namespace eosio;

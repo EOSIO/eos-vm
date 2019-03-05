@@ -109,16 +109,16 @@ namespace eosio { namespace wasm_backend {
                std::visit(overloaded {
                      [&](const i32_const_t& i){
                         EOS_WB_ASSERT( gl.type.content_type == types::i32, wasm_interpreter_exception, "expected i32 global type");
-                        gl.init.value.i32 = i.data; 
+                        gl.init.value.i32 = i.data.ui; 
                      }, [&](const i64_const_t& i){
                         EOS_WB_ASSERT( gl.type.content_type == types::i64, wasm_interpreter_exception, "expected i64 global type");
-                        gl.init.value.i64 = i.data; 
+                        gl.init.value.i64 = i.data.ui; 
                      }, [&](const f32_const_t& f){
                         EOS_WB_ASSERT( gl.type.content_type == types::f32, wasm_interpreter_exception, "expected f32 global type");
-                        gl.init.value.f32 = f.data; 
+                        gl.init.value.f32 = f.data.ui; 
                      }, [&](const f64_const_t& f){
                         EOS_WB_ASSERT( gl.type.content_type == types::f64, wasm_interpreter_exception, "expected f64 global type");
-                        gl.init.value.f64 = f.data; 
+                        gl.init.value.f64 = f.data.ui; 
                      }, [](auto) {
                         throw wasm_interpreter_exception{"invalid global type"};
                      }
@@ -132,7 +132,7 @@ namespace eosio { namespace wasm_backend {
                bool ret_val = false;
                std::visit(overloaded {
                      [&](const i32_const_t& i32) {
-                        ret_val = i32.data;
+                        ret_val = i32.data.ui;
                      }, [&](auto) {
                         throw wasm_invalid_element{"should be an i32 type"};
                      }
@@ -256,16 +256,16 @@ namespace eosio { namespace wasm_backend {
                   for (int j=0; j < fn.locals[i].count; j++)
                      switch (fn.locals[i].type) {
                         case types::i32: 
-                           push_operand(i32_const_t{0});
+                            push_operand(i32_const_t{(uint32_t)0});
                            break;
                         case types::i64: 
-                           push_operand(i64_const_t{0});
+                           push_operand(i64_const_t{(uint64_t)0});
                            break;
                         case types::f32: 
-                           push_operand(f32_const_t{0});
+                           push_operand(f32_const_t{(uint32_t)0});
                            break;
                         case types::f64: 
-                           push_operand(f64_const_t{0});
+                           push_operand(f64_const_t{(uint64_t)0});
                            break;
                         default:
                            throw wasm_interpreter_exception{"invalid function param type"};

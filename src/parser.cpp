@@ -4,7 +4,6 @@
 #include <eosio/wasm_backend/opcodes.hpp>
 #include <eosio/wasm_backend/constants.hpp>
 #include <eosio/wasm_backend/sections.hpp>
-#include <eosio/wasm_backend/disassembly_visitor.hpp>
 
 namespace eosio { namespace wasm_backend {
    void binary_parser::parse_init_expr( wasm_code_ptr& code, init_expr& ie ) {
@@ -265,17 +264,9 @@ namespace eosio { namespace wasm_backend {
             case opcodes::grow_memory:
                fb[op_index++] = grow_memory_t{}; code++; break;
             case opcodes::i32_const: 
-               {
-                  auto op = parse_varint32(code);
-                  fb[op_index++] = i32_const_t{*(uint32_t*)&op}; 
-                  break;
-               }
+               fb[op_index++] = i32_const_t{parse_varint32(code)}; break;
             case opcodes::i64_const:
-               {
-                  auto op = parse_varint64(code);
-                  fb[op_index++] = i64_const_t{*(uint64_t*)&op}; 
-                  break;
-               }
+               fb[op_index++] = i64_const_t{parse_varint64(code)}; break;
             case opcodes::f32_const:
                fb[op_index++] = f32_const_t{(uint32_t)*code}; code += 4; break;
             case opcodes::f64_const:

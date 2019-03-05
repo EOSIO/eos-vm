@@ -7,7 +7,7 @@
 #define __BACKEND_GET_ARG(ARG, X, EXPECTED)                                \
    std::visit( overloaded {                                                \
       [&](const EXPECTED& v) {                                             \
-         ARG = v.data;                                                     \
+         ARG = v.data.ui;                                                  \
       }, [&](auto) {                                                       \
          throw wasm_interpreter_exception{"invalid host function arg"};    \
       }                                                                    \

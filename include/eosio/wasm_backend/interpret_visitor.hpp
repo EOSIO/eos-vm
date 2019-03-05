@@ -22,17 +22,23 @@ namespace std {
    };
 }
 #define TO_INT32(X) \
-   *(int32_t*)&std::get<i32_const_t>(X).data
+   std::get<i32_const_t>(X).data.i
 
 #define TO_INT64(X) \
-   *(int64_t*)&std::get<i64_const_t>(X).data
+   std::get<i64_const_t>(X).data.i
 
 #define TO_UINT32(X) \
-   const_cast<uint32_t&>(std::get<i32_const_t>(X).data)
+   std::get<i32_const_t>(X).data.ui
 
 #define TO_UINT64(X) \
-   const_cast<uint32_t&>(std::get<i32_const_t>(X).data)
- 
+   std::get<i64_const_t>(X).data.ui
+
+#define TO_FUINT32(X)                            \
+   std::get<f32_const_t>(X).data.ui
+
+#define TO_FUINT64(X)                            \
+   std::get<f64_const_t>(X).data.ui
+
 namespace eosio { namespace wasm_backend {
 
    struct test {
@@ -79,7 +85,7 @@ struct interpret_visitor {
       // TODO create fend instruction for function end vs normal end (remove the need for pushing to the label stack)
       stack_elem c = context.pop_label();
       context.inc_pc();
-      if (std::holds_alternative<uint32_t>(c)) {
+      if (is_a<uint32_t>(c)) {
          context.apply_pop_call(); 
          context.pop_label();
       }
@@ -88,7 +94,7 @@ struct interpret_visitor {
    }
    void operator()(return__t) {
       const auto& _pc = context.pop_call();
-      if (std::holds_alternative<uint32_t>(_pc)) {
+      if (is_a<uint32_t>(_pc)) {
          context.set_pc(std::get<uint32_t>(_pc));
       } else {
          throw wasm_interpreter_exception{"expected pc on call stack"};
@@ -98,7 +104,6 @@ struct interpret_visitor {
    void operator()(block_t bt) {
       context.push_label(bt);
       context.inc_pc();
-      dbg_print("block : "+std::to_string(bt.data)+" "+std::to_string(bt.pc));
       dbg_output << "block {" << context.get_pc() << "} " << bt.data << " " << bt.pc << "\n";
    }
    void operator()(loop_t lt) {
@@ -131,10 +136,10 @@ struct interpret_visitor {
    }
    void operator()(br_table_t b) {
       const auto& val = context.pop_operand();
-      EOS_WB_ASSERT(std::holds_alternative<i32_const_t>(val), wasm_interpreter_exception, "br_table expected i32");
+      EOS_WB_ASSERT(is_a<i32_const_t>(val), wasm_interpreter_exception, "br_table expected i32");
       const auto& i32_v = std::get<i32_const_t>(val);
-      if (i32_v.data < b.target_table.size())
-         context.jump(b.target_table[i32_v.data]);
+      if (i32_v.data.ui < b.target_table.size())
+         context.jump(b.target_table[i32_v.data.ui]);
       else
          context.jump(b.target_table[b.default_target]);
       dbg_output << "br.table {" << context.get_pc() << "} " << b.default_target << "\n\t";
@@ -157,6 +162,9 @@ struct interpret_visitor {
    }
    void operator()(call_indirect_t b) {
       context.inc_pc();
+      const auto& op = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(op), wasm_interpreter_exception, "call_indirect expected i32 operand");
+      context.call(TO_UINT32(op));
       dbg_output << "call_indirect " << b.index << " " << context.get_module().tables[b.index].element_type << "\n";
    }
    void operator()(drop_t b) {
@@ -166,9 +174,9 @@ struct interpret_visitor {
    }
    void operator()(select_t b) {
       const auto& c = context.pop_operand();
-      EOS_WB_ASSERT(std::holds_alternative<i32_const_t>(c), wasm_interpreter_exception, "select expected i32 on stack");
+      EOS_WB_ASSERT(is_a<i32_const_t>(c), wasm_interpreter_exception, "select expected i32 on stack");
       const auto& v2 = context.pop_operand();
-      if (std::get<i32_const_t>(c).data == 0) {
+      if (std::get<i32_const_t>(c).data.ui == 0) {
          context.pop_operand();
          context.push_operand(v2);
       }
@@ -264,19 +272,19 @@ struct interpret_visitor {
    void operator()(i64_load8_u_t b) {
       context.inc_pc();
       uint8_t val = *(uint8_t*)(context.linear_memory()+b.offset);
-      context.push_operand(i64_const_t{val});
+      context.push_operand(i64_const_t{static_cast<uint64_t>(val)});
       dbg_output << "i64.load8_u " << " align " << b.flags_align << " offset " << b.offset << " value " << (long long)val << "\n";
    }
    void operator()(i64_load16_u_t b) {
       context.inc_pc();
       uint16_t val = *(uint16_t*)(context.linear_memory()+b.offset);
-      context.push_operand(i64_const_t{val});
+      context.push_operand(i64_const_t{static_cast<uint64_t>(val)});
       dbg_output << "i64.load16_u " << " align " << b.flags_align << " offset " << b.offset << " value " << (long long)val << "\n";
    }
    void operator()(i64_load32_u_t b) {
       context.inc_pc();
       uint32_t val = *(uint32_t*)(context.linear_memory()+b.offset);
-      context.push_operand(i64_const_t{val});
+      context.push_operand(i64_const_t{static_cast<uint64_t>(val)});
       dbg_output << "i64.load32_u " << " align " << b.flags_align << " offset " << b.offset << " value " << (long long)val << "\n";
    }
    void operator()(f32_load_t b) {
@@ -293,39 +301,66 @@ struct interpret_visitor {
    }
    void operator()(i32_store_t b) {
       context.inc_pc();
-      dbg_print("i32.store : "); //+std::to_string(b.index);
+      const auto& val = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(val), wasm_interpreter_exception, "i32.store expected i32 operand");
+      *((uint32_t*)context.linear_memory()+b.offset) = TO_UINT32(val);
+      dbg_output << "i32.store\n";
    }
    void operator()(i32_store8_t b) {
       context.inc_pc();
-      dbg_print("i32.store8 : "); //+std::to_string(b.index);
+      const auto& val = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(val), wasm_interpreter_exception, "i32.store8 expected i32 operand");
+      *((uint8_t*)context.linear_memory()+b.offset) = static_cast<uint8_t>(TO_UINT32(val));
+      dbg_output << "i32.store8\n";
    }
    void operator()(i32_store16_t b) {
       context.inc_pc();
-      dbg_print("i32.store16 : "); //+std::to_string(b.index);
+      const auto& val = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(val), wasm_interpreter_exception, "i32.store16 expected i32 operand");
+      *((uint16_t*)context.linear_memory()+b.offset) = static_cast<uint16_t>(TO_UINT32(val));
+      dbg_output << "i32.store16\n";
    }
    void operator()(i64_store_t b) {
       context.inc_pc();
-      dbg_print("i64.store : "); //+std::to_string(b.index);
+      const auto& val = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(val), wasm_interpreter_exception, "i64.store expected i64 operand");
+      *((uint64_t*)context.linear_memory()+b.offset) = TO_UINT64(val);
+      dbg_output << "i64.store\n";
    }
    void operator()(i64_store8_t b) {
       context.inc_pc();
-      dbg_print("i64.store8 : "); //+std::to_string(b.index);
+      const auto& val = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(val), wasm_interpreter_exception, "i64.store8 expected i64 operand");
+      *((uint8_t*)context.linear_memory()+b.offset) = static_cast<uint8_t>(TO_UINT64(val));
+      dbg_output << "i64.store8\n";
    }
    void operator()(i64_store16_t b) {
       context.inc_pc();
-      dbg_print("i64.store16 : "); //+std::to_string(b.index);
+      const auto& val = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(val), wasm_interpreter_exception, "i64.store16 expected i64 operand");
+      *((uint16_t*)context.linear_memory()+b.offset) = static_cast<uint16_t>(TO_UINT64(val));
+      dbg_output << "i64.store16\n";
    }
    void operator()(i64_store32_t b) {
       context.inc_pc();
-      dbg_print("i64.store32 : "); //+std::to_string(b.index);
+      const auto& val = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(val), wasm_interpreter_exception, "i64.store32 expected i64 operand");
+      *((uint32_t*)context.linear_memory()+b.offset) = static_cast<uint32_t>(TO_UINT64(val));
+      dbg_output << "i64.store32\n";
    }
    void operator()(f32_store_t b) {
       context.inc_pc();
-      dbg_print("f32.store : "); //+std::to_string(b.index);
+      const auto& val = context.pop_operand();
+      EOS_WB_ASSERT(is_a<f32_const_t>(val), wasm_interpreter_exception, "f32.store expected f32 operand");
+      *((uint32_t*)context.linear_memory()+b.offset) = TO_FUINT32(val);
+      dbg_output << "f32.store\n";
    }
    void operator()(f64_store_t b) {
       context.inc_pc();
-      dbg_print("f64.store : "); //+std::to_string(b.index);
+      const auto& val = context.pop_operand();
+      EOS_WB_ASSERT(is_a<f64_const_t>(val), wasm_interpreter_exception, "f64.store expected f64 operand");
+      *((uint64_t*)context.linear_memory()+b.offset) = TO_FUINT64(val);
+      dbg_output << "f64.store\n";
    }
    void operator()(current_memory_t b) {
       context.inc_pc();
@@ -338,172 +373,321 @@ struct interpret_visitor {
    void operator()(i32_const_t b) {
       context.inc_pc();
       context.push_operand(b);
-      dbg_output << "i32.const " << *(int32_t*)&b.data << "\n";
+      dbg_output << "i32.const " << b.data.i << "\n";
    }
    void operator()(i64_const_t b) {
       context.inc_pc();
       context.push_operand(b);
-      dbg_output << "i64.const " << *(int64_t*)&b.data << "\n";
+      dbg_output << "i64.const " << b.data.i << "\n";
    }
    void operator()(f32_const_t b) {
       context.inc_pc();
       context.push_operand(b);
-      dbg_output << "f32.const " << *(float*)&b.data << "\n";
+      dbg_output << "f32.const " << b.data.f << "\n";
    }
    void operator()(f64_const_t b) {
       context.inc_pc();
       context.push_operand(b);
-      dbg_output << "f64.const " << *(double*)&b.data << "\n";
+      dbg_output << "f64.const " << b.data.f << "\n";
    }
    void operator()(i32_eqz_t i) {
       context.inc_pc();
       auto& op = context.peek_operand();
-      EOS_WB_ASSERT(std::holds_alternative<i32_const_t>(op), wasm_interpreter_exception, "expected i32 operand");
-      auto& t = std::get<i32_const_t>(op);
-      if (t.data == 0)
-         t.data = 1;
+      EOS_WB_ASSERT(is_a<i32_const_t>(op), wasm_interpreter_exception, "expected i32 operand");
+      auto& t = TO_UINT32(op);
+      if (!t)
+         t = 1;
       else
-         t.data = 0;
-      dbg_print("i32.eqz");
+         t = 0;
+      dbg_output << "i32.eqz\n";
    }
    void operator()(i32_eq_t b) {
       context.inc_pc();
       const auto& rhs = context.pop_operand();
-      EOS_WB_ASSERT(std::holds_alternative<i32_const_t>(rhs), wasm_interpreter_exception, "expected i32 operand");
+      EOS_WB_ASSERT(is_a<i32_const_t>(rhs), wasm_interpreter_exception, "expected i32 operand");
       auto& lhs = context.peek_operand();
-      EOS_WB_ASSERT(std::holds_alternative<i32_const_t>(lhs), wasm_interpreter_exception, "expected i32 operand");
-      auto& t = std::get<i32_const_t>(lhs);
-
-      if (std::get<i32_const_t>(rhs).data == t.data)
-         t.data = 1;
+      EOS_WB_ASSERT(is_a<i32_const_t>(lhs), wasm_interpreter_exception, "expected i32 operand");
+      auto& t = TO_UINT32(lhs);
+      if (t == TO_UINT32(rhs))
+         t = 1;
       else
-         t.data = 0;
-
-      dbg_print("i32.eq");
+         t = 0;
+      dbg_output << "i32.eq\n";
    }
    void operator()(i32_ne_t b) {
       context.inc_pc();
       const auto& rhs = context.pop_operand();
-      EOS_WB_ASSERT(std::holds_alternative<i32_const_t>(rhs), wasm_interpreter_exception, "expected i32 operand");
+      EOS_WB_ASSERT(is_a<i32_const_t>(rhs), wasm_interpreter_exception, "expected i32 operand");
       auto& lhs = context.peek_operand();
-      EOS_WB_ASSERT(std::holds_alternative<i32_const_t>(lhs), wasm_interpreter_exception, "expected i32 operand");
-      auto& t = std::get<i32_const_t>(lhs);
+      EOS_WB_ASSERT(is_a<i32_const_t>(lhs), wasm_interpreter_exception, "expected i32 operand");
+      auto& t = TO_UINT32(lhs);
 
-      if (std::get<i32_const_t>(rhs).data != t.data)
-         t.data = 1;
+      if (t != TO_UINT32(rhs))
+         t = 1;
       else
-         t.data = 0;
-
-      dbg_print("i32.ne");
+         t = 0;
+      dbg_output << "i32.ne\n";
    }
    void operator()(i32_lt_s_t b) {
       context.inc_pc();
-      const auto& op = context.pop_operand();
-      EOS_WB_ASSERT(std::holds_alternative<i32_const_t>(op), wasm_interpreter_exception, "expected i32 operand");
+      const auto& rhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(rhs), wasm_interpreter_exception, "expected i32 operand");
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(lhs), wasm_interpreter_exception, "expected i32 operand");
+      auto& t = TO_INT32(lhs);
 
-      dbg_print("i32.lt_s");
+      if (t < TO_INT32(rhs))
+         t = 1;
+      else
+         t = 0;
+      dbg_output << "i32.lt_s\n";
    }
    void operator()(i32_lt_u_t b) {
       context.inc_pc();
-      const auto& op = context.pop_operand();
-      EOS_WB_ASSERT(std::holds_alternative<i32_const_t>(op), wasm_interpreter_exception, "expected i32 operand");
+      const auto& rhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(rhs), wasm_interpreter_exception, "expected i32 operand");
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(lhs), wasm_interpreter_exception, "expected i32 operand");
+      auto& t = TO_UINT32(lhs);
 
-      dbg_print("i32.lt_u");
+      if (t < TO_UINT32(rhs))
+         t = 1;
+      else
+         t = 0;
+      dbg_output << "i32.lt_s\n";
    }
    void operator()(i32_le_s_t b) {
       context.inc_pc();
-      dbg_print("i32.le_s");
+      const auto& rhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(rhs), wasm_interpreter_exception, "expected i32 operand");
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(lhs), wasm_interpreter_exception, "expected i32 operand");
+      auto& t = TO_INT32(lhs);
+
+      if (t <= TO_INT32(rhs))
+         t = 1;
+      else
+         t = 0;
+      dbg_output << "i32.le_s\n";
    }
    void operator()(i32_le_u_t b) {
       context.inc_pc();
-      dbg_print("i32.le_u");
+      const auto& rhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(rhs), wasm_interpreter_exception, "expected i32 operand");
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(lhs), wasm_interpreter_exception, "expected i32 operand");
+      auto& t = TO_UINT32(lhs);
+
+      if (t <= TO_UINT32(rhs))
+         t = 1;
+      else
+         t = 0;
+      dbg_output << "i32.le_u\n";
    }
    void operator()(i32_gt_s_t b) {
       context.inc_pc();
-      dbg_print("i32.gt_s");
+      const auto& rhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(rhs), wasm_interpreter_exception, "expected i32 operand");
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(lhs), wasm_interpreter_exception, "expected i32 operand");
+      auto& t = TO_INT32(lhs);
+
+      if (t > TO_INT32(rhs))
+         t = 1;
+      else
+         t = 0;
+      dbg_output << "i32.gt_s\n";
    }
    void operator()(i32_gt_u_t b) {
       context.inc_pc();
-      dbg_print("i32.gt_u");
+      const auto& rhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(rhs), wasm_interpreter_exception, "expected i32 operand");
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(lhs), wasm_interpreter_exception, "expected i32 operand");
+      auto& t = TO_UINT32(lhs);
+
+      if (t > TO_UINT32(rhs))
+         t = 1;
+      else
+         t = 0;
+      dbg_output << "i32.gt_u\n";
    }
    void operator()(i32_ge_s_t b) {
       context.inc_pc();
-      dbg_print("i32.ge_s");
+      const auto& rhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(rhs), wasm_interpreter_exception, "expected i32 operand");
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(lhs), wasm_interpreter_exception, "expected i32 operand");
+      auto& t = TO_INT32(lhs);
+
+      if (t >= TO_INT32(rhs))
+         t = 1;
+      else
+         t = 0;
+      dbg_output << "i32.ge_s\n";
    }
    void operator()(i32_ge_u_t b) {
       context.inc_pc();
-      dbg_print("i32.ge_u");
+      const auto& rhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(rhs), wasm_interpreter_exception, "expected i32 operand");
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(lhs), wasm_interpreter_exception, "expected i32 operand");
+      auto& t = TO_UINT32(lhs);
+
+      if (t >= TO_UINT32(rhs))
+         t = 1;
+      else
+         t = 0;
+      dbg_output << "i32.ge_u\n";
    }
    void operator()(i64_eqz_t b) {
       context.inc_pc();
       const auto& op = context.pop_operand();
-      EOS_WB_ASSERT(std::holds_alternative<i64_const_t>(op), wasm_interpreter_exception, "expected i64 operand");
-      if (std::get<i64_const_t>(op).data == 0)
+      EOS_WB_ASSERT(is_a<i64_const_t>(op), wasm_interpreter_exception, "expected i64 operand");
+      if (TO_UINT64(op) == 0)
          context.push_operand(i32_const_t{1});
       else
          context.push_operand(i32_const_t{0});
-
-      dbg_print("i64.eqz");
+      dbg_output << "i64.eqz\n";
    }
    void operator()(i64_eq_t b) {
       context.inc_pc();
       const auto& rhs = context.pop_operand();
-      EOS_WB_ASSERT(std::holds_alternative<i64_const_t>(rhs), wasm_interpreter_exception, "expected i64 operand");
+      EOS_WB_ASSERT(is_a<i64_const_t>(rhs), wasm_interpreter_exception, "expected i64 operand");
       const auto& lhs = context.pop_operand();
-      EOS_WB_ASSERT(std::holds_alternative<i64_const_t>(lhs), wasm_interpreter_exception, "expected i64 operand");
+      EOS_WB_ASSERT(is_a<i64_const_t>(lhs), wasm_interpreter_exception, "expected i64 operand");
 
-      if (std::get<i64_const_t>(rhs).data == std::get<i64_const_t>(lhs).data)
+      if (TO_UINT64(rhs) == TO_UINT64(lhs))
          context.push_operand(i32_const_t{1});
       else
          context.push_operand(i32_const_t{0});
- 
-      dbg_output << "i64.eq : " << (std::get<i64_const_t>(rhs).data == std::get<i64_const_t>(lhs).data) << "\n";
+      dbg_output << "i64.eq\n"; 
    }
    void operator()(i64_ne_t b) {
       context.inc_pc();
       const auto& rhs = context.pop_operand();
-      EOS_WB_ASSERT(std::holds_alternative<i64_const_t>(rhs), wasm_interpreter_exception, "expected i64 operand");
+      EOS_WB_ASSERT(is_a<i64_const_t>(rhs), wasm_interpreter_exception, "expected i64 operand");
       const auto& lhs = context.pop_operand();
-      EOS_WB_ASSERT(std::holds_alternative<i64_const_t>(lhs), wasm_interpreter_exception, "expected i64 operand");
+      EOS_WB_ASSERT(is_a<i64_const_t>(lhs), wasm_interpreter_exception, "expected i64 operand");
 
-      if (std::get<i64_const_t>(rhs).data != std::get<i64_const_t>(lhs).data)
+      if (TO_UINT64(rhs) != TO_UINT64(lhs))
+         context.push_operand(i32_const_t{1});
+      else
+         context.push_operand(i32_const_t{0});
+      dbg_output << "i64.ne\n";
+   }
+   void operator()(i64_lt_s_t b) {
+      context.inc_pc();
+      const auto& rhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(rhs), wasm_interpreter_exception, "expected i64 operand");
+      const auto& lhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(lhs), wasm_interpreter_exception, "expected i64 operand");
+
+      if (TO_INT64(lhs) < TO_INT64(rhs))
          context.push_operand(i32_const_t{1});
       else
          context.push_operand(i32_const_t{0});
 
-      dbg_output << "i64.ne : " << (std::get<i64_const_t>(rhs).data != std::get<i64_const_t>(lhs).data) << "\n";
-   }
-   void operator()(i64_lt_s_t b) {
-      context.inc_pc();
-      dbg_print("i64.lt_s");
+      dbg_output << "i64.lt_s\n";
+
    }
    void operator()(i64_lt_u_t b) {
       context.inc_pc();
-      dbg_print("i64.lt_u");
+      const auto& rhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(rhs), wasm_interpreter_exception, "expected i64 operand");
+      const auto& lhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(lhs), wasm_interpreter_exception, "expected i64 operand");
+
+      if (TO_UINT64(lhs) < TO_UINT64(rhs))
+         context.push_operand(i32_const_t{1});
+      else
+         context.push_operand(i32_const_t{0});
+
+      dbg_output << "i64.lt_u\n";
    }
    void operator()(i64_le_s_t b) {
       context.inc_pc();
-      dbg_print("i64.le_s");
+      const auto& rhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(rhs), wasm_interpreter_exception, "expected i64 operand");
+      const auto& lhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(lhs), wasm_interpreter_exception, "expected i64 operand");
+
+      if (TO_INT64(lhs) <= TO_INT64(rhs))
+         context.push_operand(i32_const_t{1});
+      else
+         context.push_operand(i32_const_t{0});
+
+      dbg_output << "i64.le_s\n";
    }
    void operator()(i64_le_u_t b) {
       context.inc_pc();
-      dbg_print("i64.le_u");
+      const auto& rhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(rhs), wasm_interpreter_exception, "expected i64 operand");
+      const auto& lhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(lhs), wasm_interpreter_exception, "expected i64 operand");
+
+      if (TO_UINT64(lhs) <= TO_UINT64(rhs))
+         context.push_operand(i32_const_t{1});
+      else
+         context.push_operand(i32_const_t{0});
+
+      dbg_output << "i64.le_u\n";
    }
    void operator()(i64_gt_s_t b) {
       context.inc_pc();
-      dbg_print("i64.gt_s");
+      const auto& rhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(rhs), wasm_interpreter_exception, "expected i64 operand");
+      const auto& lhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(lhs), wasm_interpreter_exception, "expected i64 operand");
+
+      if (TO_INT64(lhs) > TO_INT64(rhs))
+         context.push_operand(i32_const_t{1});
+      else
+         context.push_operand(i32_const_t{0});
+
+      dbg_output << "i64.gt_s\n";
    }
    void operator()(i64_gt_u_t b) {
       context.inc_pc();
-      dbg_print("i64.gt_u");
+      const auto& rhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(rhs), wasm_interpreter_exception, "expected i64 operand");
+      const auto& lhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(lhs), wasm_interpreter_exception, "expected i64 operand");
+
+      if (TO_UINT64(lhs) > TO_UINT64(rhs))
+         context.push_operand(i32_const_t{1});
+      else
+         context.push_operand(i32_const_t{0});
+
+      dbg_output << "i64.gt_u\n";
    }
    void operator()(i64_ge_s_t b) {
       context.inc_pc();
-      dbg_print("i64.ge_s");
+      const auto& rhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(rhs), wasm_interpreter_exception, "expected i64 operand");
+      const auto& lhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(lhs), wasm_interpreter_exception, "expected i64 operand");
+
+      if (TO_INT64(lhs) >= TO_INT64(rhs))
+         context.push_operand(i32_const_t{1});
+      else
+         context.push_operand(i32_const_t{0});
+
+      dbg_output << "i64.ge_s\n";
    }
    void operator()(i64_ge_u_t b) {
       context.inc_pc();
-      dbg_print("i64.ge_u");
+      const auto& rhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(rhs), wasm_interpreter_exception, "expected i64 operand");
+      const auto& lhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(lhs), wasm_interpreter_exception, "expected i64 operand");
+
+      if (TO_UINT64(lhs) >= TO_UINT64(rhs))
+         context.push_operand(i32_const_t{1});
+      else
+         context.push_operand(i32_const_t{0});
+
+      dbg_output << "i64.ge_u\n";
    }
    void operator()(f32_eq_t b) {
       context.inc_pc();
@@ -555,259 +739,374 @@ struct interpret_visitor {
    }
    void operator()(i32_clz_t) {
       context.inc_pc();
-      dbg_print("i32.clz");
+      auto& op = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(op), wasm_interpreter_exception, "i32.clz expected i32 operand");
+      auto& o = TO_UINT32(op);
+      o = __builtin_clz(o);
+      dbg_output << "i32.clz " << o << "\n";
    }
    void operator()(i32_ctz_t) {
       context.inc_pc();
-      dbg_print("i32.ctz");
+      auto& op = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(op), wasm_interpreter_exception, "i32.ctz expected i32 operand");
+      auto& o = TO_UINT32(op);
+      o = __builtin_ctz(o);
+      dbg_output << "i32.ctz " << o << "\n";
    }
    void operator()(i32_popcnt_t) {
       context.inc_pc();
-      dbg_print("i32.popcnt");
+      auto& op = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(op), wasm_interpreter_exception, "i32.popcnt expected i32 operand");
+      auto& o = TO_UINT32(op);
+      o = __builtin_popcount(o);
+      dbg_output << "i32.popcnt " << o << "\n";
    }
    void operator()(i32_add_t) {
       context.inc_pc();
-      const auto& op2 = context.pop_operand();
-      const auto& op1 = context.peek_operand();
-      EOS_WB_ASSERT(is_a<i32_const_t>(op2), wasm_interpreter_exception, "i32.add arg 2 expected i32 on the stack");
-      EOS_WB_ASSERT(is_a<i32_const_t>(op1), wasm_interpreter_exception, "i32.add arg 1 expected i32 on the stack");
-      dbg_output << "i32.add " << TO_UINT32(op1) << " + " << TO_UINT32(op2);
-      TO_UINT32(op1) += TO_UINT32(op2);
-      dbg_output << " = " << TO_UINT32(op1) << "\n";
+      const auto& rhs = context.pop_operand();
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(rhs), wasm_interpreter_exception, "i32.add expected i32 operand");
+      EOS_WB_ASSERT(is_a<i32_const_t>(lhs), wasm_interpreter_exception, "i32.add expected i32 operand");
+      TO_UINT32(lhs) += TO_UINT32(rhs);
+      dbg_output << "i32.add\n";
    }
    void operator()(i32_sub_t) {
       context.inc_pc();
-      const auto& op2 = context.pop_operand();
-      const auto& op1 = context.peek_operand();
-      EOS_WB_ASSERT(is_a<i32_const_t>(op2), wasm_interpreter_exception, "i32.sub arg 2 expected i32 on the stack");
-      EOS_WB_ASSERT(is_a<i32_const_t>(op1), wasm_interpreter_exception, "i32.sub arg 1 expected i32 on the stack");
-      dbg_output << "i32.sub " << TO_UINT32(op1) << " - " << TO_UINT32(op2);
-      TO_UINT32(op1) -= TO_UINT32(op2);
-      dbg_output << " = " << TO_UINT32(op1) << "\n";
+      const auto& rhs = context.pop_operand();
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(rhs), wasm_interpreter_exception, "i32.sub expected i32 operand");
+      EOS_WB_ASSERT(is_a<i32_const_t>(lhs), wasm_interpreter_exception, "i32.sub expected i32 operand");
+      TO_UINT32(lhs) -= TO_UINT32(rhs);
+      dbg_output << "i32.sub\n";
    }
    void operator()(i32_mul_t) {
       context.inc_pc();
-      const auto& op2 = context.pop_operand();
-      const auto& op1 = context.peek_operand();
-      EOS_WB_ASSERT(is_a<i32_const_t>(op2), wasm_interpreter_exception, "i32.mul arg 2 expected i32 on the stack");
-      EOS_WB_ASSERT(is_a<i32_const_t>(op1), wasm_interpreter_exception, "i32.mul arg 1 expected i32 on the stack");
-      dbg_output << "i32.mul " << TO_UINT32(op1) << " * " << TO_UINT32(op2);
-      TO_UINT32(op1) *= TO_UINT32(op2);
-      dbg_output << " = " << TO_UINT32(op1) << "\n";
+      const auto& rhs = context.pop_operand();
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(rhs), wasm_interpreter_exception, "i32.mul expected i32 operand");
+      EOS_WB_ASSERT(is_a<i32_const_t>(lhs), wasm_interpreter_exception, "i32.mul expected i32 operand");
+      TO_UINT32(lhs) *= TO_UINT32(rhs);
+      dbg_output << "i32.mul\n";
    }
    void operator()(i32_div_s_t) {
       context.inc_pc();
-      const auto& op2 = context.pop_operand();
-      const auto& op1 = context.peek_operand();
-      EOS_WB_ASSERT(is_a<i32_const_t>(op2), wasm_interpreter_exception, "i32.div_s arg 2 expected i32 on the stack");
-      EOS_WB_ASSERT(is_a<i32_const_t>(op1), wasm_interpreter_exception, "i32.div_s arg 1 expected i32 on the stack");
-      const int32_t& i2 = TO_INT32(op2);
-      int32_t& i1       = TO_INT32(op1);
+      const auto& rhs = context.pop_operand();
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(rhs), wasm_interpreter_exception, "i32.div_s expected i32 operand");
+      EOS_WB_ASSERT(is_a<i32_const_t>(lhs), wasm_interpreter_exception, "i32.div_s expected i32 operand");
+      const int32_t& i2 = TO_INT32(rhs);
+      int32_t& i1       = TO_INT32(lhs);
       EOS_WB_ASSERT(i2 == 0, wasm_interpreter_exception, "i32.div_s divide by zero");
       EOS_WB_ASSERT(!(i1 == std::numeric_limits<int32_t>::max() && i2 == -1), wasm_interpreter_exception, "i32.div_s traps when I32_MAX/-1");
-      dbg_output << "i32.div_s " << TO_INT32(op1) << " / " << i2;
-      TO_INT32(op1) /= TO_INT32(op2);
-      dbg_output << " = " << TO_INT32(op1) << "\n";
+      i1 /= i2;
+      dbg_output << "i32.div_s\n";
    }
    void operator()(i32_div_u_t) {
       context.inc_pc();
-      const auto& op2 = context.pop_operand();
-      const auto& op1 = context.peek_operand();
-      EOS_WB_ASSERT(is_a<i32_const_t>(op2), wasm_interpreter_exception, "i32.div_u arg 2 expected i32 on the stack");
-      EOS_WB_ASSERT(is_a<i32_const_t>(op1), wasm_interpreter_exception, "i32.div_u arg 1 expected i32 on the stack");
-      dbg_output << "i32.div_u " << TO_UINT32(op1) << " / " << TO_UINT32(op2);
-      const uint32_t& i2 = TO_UINT32(op2);
+      const auto& rhs = context.pop_operand();
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(rhs), wasm_interpreter_exception, "i32.div_u expected i32 operand");
+      EOS_WB_ASSERT(is_a<i32_const_t>(lhs), wasm_interpreter_exception, "i32.div_u expected i32 operand");
+      const uint32_t& i2 = TO_UINT32(rhs);
       EOS_WB_ASSERT(i2 == 0, wasm_interpreter_exception, "i32.div_u divide by zero");
-      TO_UINT32(op1) /= i2;
-      dbg_output << " = " << TO_UINT32(op2) << "\n";
+      TO_UINT32(lhs) /= i2;
+      dbg_output << "i32.div_u\n";
    }
    void operator()(i32_rem_s_t) {
       context.inc_pc();
-      const auto& op2 = context.pop_operand();
-      const auto& op1 = context.peek_operand();
-      EOS_WB_ASSERT(is_a<i32_const_t>(op2), wasm_interpreter_exception, "i32.rem_s arg 2 expected i32 on the stack");
-      EOS_WB_ASSERT(is_a<i32_const_t>(op1), wasm_interpreter_exception, "i32.rem_s arg 1 expected i32 on the stack");
-      const int32_t& i2 = TO_INT32(op2);
-      int32_t& i1       = TO_INT32(op1);
+      const auto& rhs = context.pop_operand();
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(rhs), wasm_interpreter_exception, "i32.rem_s expected i32 operand");
+      EOS_WB_ASSERT(is_a<i32_const_t>(lhs), wasm_interpreter_exception, "i32.rem_s expected i32 operand");
+      const int32_t& i2 = TO_INT32(rhs);
+      int32_t& i1       = TO_INT32(lhs);
       EOS_WB_ASSERT(i2 == 0, wasm_interpreter_exception, "i32.rem_s divide by zero");
-      dbg_output << "i32.rem_s " << i1 << " % " << i2;
       if (UNLIKELY(i1 == std::numeric_limits<int32_t>::max() && i2 == -1))
          i1 = 0;
       else
          i1 %= i2;
-      dbg_output << " = " << std::get<i32_const_t>(op1).data << "\n";
+      dbg_output << "i32.rem_s\n";
    }
    void operator()(i32_rem_u_t) {
       context.inc_pc();
-      const auto& op2 = context.pop_operand();
-      const auto& op1 = context.peek_operand();
-      EOS_WB_ASSERT(is_a<i32_const_t>(op2), wasm_interpreter_exception, "i32.rem_u arg 2 expected i32 on the stack");
-      EOS_WB_ASSERT(is_a<i32_const_t>(op1), wasm_interpreter_exception, "i32.rem_u arg 1 expected i32 on the stack");
-      const uint32_t& i2 = TO_UINT32(op2);
+      const auto& rhs = context.pop_operand();
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(rhs), wasm_interpreter_exception, "i32.rem_u expected i32 operand");
+      EOS_WB_ASSERT(is_a<i32_const_t>(lhs), wasm_interpreter_exception, "i32.rem_u expected i32 operand");
+      const uint32_t& i2 = TO_UINT32(rhs);
       EOS_WB_ASSERT(i2 == 0, wasm_interpreter_exception, "i32.rem_u divide by zero");
-      dbg_output << "i32.rem_u " << TO_UINT32(op1) << " % " << i2; 
-      TO_UINT32(op1) %= i2;
-      dbg_output << " = " << TO_UINT32(op1) << "\n";
+      TO_UINT32(lhs) %= i2;
+      dbg_output << "i32.rem_u\n"; 
    }
    void operator()(i32_and_t) {
       context.inc_pc();
-      const auto& op2 = context.pop_operand();
-      const auto& op1 = context.peek_operand();
-      EOS_WB_ASSERT(is_a<i32_const_t>(op2), wasm_interpreter_exception, "i32.and arg 2 expected i32 on the stack");
-      EOS_WB_ASSERT(is_a<i32_const_t>(op1), wasm_interpreter_exception, "i32.and arg 1 expected i32 on the stack");
-      dbg_output << "i32.and " << TO_UINT32(op1) << " & " << TO_UINT32(op2);
-      TO_UINT32(op1) &= TO_UINT32(op2); 
-      dbg_output << " = " << TO_UINT32(op1) << "\n";
-
+      const auto& rhs = context.pop_operand();
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(rhs), wasm_interpreter_exception, "i32.and expected i32 operand");
+      EOS_WB_ASSERT(is_a<i32_const_t>(lhs), wasm_interpreter_exception, "i32.and expected i32 operand");
+      TO_UINT32(lhs) &= TO_UINT32(rhs); 
+      dbg_output << "i32.and\n";
    }
    void operator()(i32_or_t) {
       context.inc_pc();
-      const auto& op2 = context.pop_operand();
-      const auto& op1 = context.peek_operand();
-      EOS_WB_ASSERT(is_a<i32_const_t>(op2), wasm_interpreter_exception, "i32.sub arg 2 expected i32 on the stack");
-      EOS_WB_ASSERT(is_a<i32_const_t>(op1), wasm_interpreter_exception, "i32.sub arg 1 expected i32 on the stack");
-      dbg_output << "i32.sub " << std::get<i32_const_t>(op1).data << " - " << std::get<i32_const_t>(op2).data;
-      const_cast<uint32_t&>(std::get<i32_const_t>(op1).data) -= std::get<i32_const_t>(op2).data;
-      dbg_output << " = " << std::get<i32_const_t>(op1).data << "\n";
-
+      const auto& rhs = context.pop_operand();
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(rhs), wasm_interpreter_exception, "i32.or expected i32 operand");
+      EOS_WB_ASSERT(is_a<i32_const_t>(lhs), wasm_interpreter_exception, "i32.or expected i32 operand");
+      TO_UINT32(lhs) -= TO_UINT32(rhs);
+      dbg_output << "i32.or\n";
    }
    void operator()(i32_xor_t) {
       context.inc_pc();
-      const auto& op2 = context.pop_operand();
-      const auto& op1 = context.peek_operand();
-      EOS_WB_ASSERT(is_a<i32_const_t>(op2), wasm_interpreter_exception, "i32.sub arg 2 expected i32 on the stack");
-      EOS_WB_ASSERT(is_a<i32_const_t>(op1), wasm_interpreter_exception, "i32.sub arg 1 expected i32 on the stack");
-      dbg_output << "i32.sub " << std::get<i32_const_t>(op1).data << " - " << std::get<i32_const_t>(op2).data;
-      const_cast<uint32_t&>(std::get<i32_const_t>(op1).data) -= std::get<i32_const_t>(op2).data;
-      dbg_output << " = " << std::get<i32_const_t>(op1).data << "\n";
-
+      const auto& rhs = context.pop_operand();
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(rhs), wasm_interpreter_exception, "i32.xor expected i32 operand");
+      EOS_WB_ASSERT(is_a<i32_const_t>(lhs), wasm_interpreter_exception, "i32.xor expected i32 operand");
+      TO_UINT32(lhs) -= TO_UINT32(rhs);
+      dbg_output << "i32.xor\n";
    }
    void operator()(i32_shl_t) {
       context.inc_pc();
-      const auto& op2 = context.pop_operand();
-      const auto& op1 = context.peek_operand();
-      EOS_WB_ASSERT(is_a<i32_const_t>(op2), wasm_interpreter_exception, "i32.sub arg 2 expected i32 on the stack");
-      EOS_WB_ASSERT(is_a<i32_const_t>(op1), wasm_interpreter_exception, "i32.sub arg 1 expected i32 on the stack");
-      dbg_output << "i32.sub " << std::get<i32_const_t>(op1).data << " - " << std::get<i32_const_t>(op2).data;
-      const_cast<uint32_t&>(std::get<i32_const_t>(op1).data) -= std::get<i32_const_t>(op2).data;
-      dbg_output << " = " << std::get<i32_const_t>(op1).data << "\n";
-
+      const auto& rhs = context.pop_operand();
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(rhs), wasm_interpreter_exception, "i32.shl expected i32 operand");
+      EOS_WB_ASSERT(is_a<i32_const_t>(lhs), wasm_interpreter_exception, "i32.shl expected i32 operand");
+      TO_UINT32(lhs) -= TO_UINT32(rhs);
+      dbg_output << "i32.shl\n";
    }
    void operator()(i32_shr_s_t) {
       context.inc_pc();
-      const auto& op2 = context.pop_operand();
-      const auto& op1 = context.peek_operand();
-      EOS_WB_ASSERT(is_a<i32_const_t>(op2), wasm_interpreter_exception, "i32.sub arg 2 expected i32 on the stack");
-      EOS_WB_ASSERT(is_a<i32_const_t>(op1), wasm_interpreter_exception, "i32.sub arg 1 expected i32 on the stack");
-      dbg_output << "i32.sub " << std::get<i32_const_t>(op1).data << " - " << std::get<i32_const_t>(op2).data;
-      const_cast<uint32_t&>(std::get<i32_const_t>(op1).data) -= std::get<i32_const_t>(op2).data;
-      dbg_output << " = " << std::get<i32_const_t>(op1).data << "\n";
-
+      const auto& rhs = context.pop_operand();
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(rhs), wasm_interpreter_exception, "i32.shr_s expected i32 operand");
+      EOS_WB_ASSERT(is_a<i32_const_t>(lhs), wasm_interpreter_exception, "i32.shr_s expected i32 operand");
+      TO_INT32(lhs) >>= TO_INT32(rhs);
+      dbg_output << "i32.shr_s\n";
    }
    void operator()(i32_shr_u_t) {
       context.inc_pc();
-      const auto& op2 = context.pop_operand();
-      const auto& op1 = context.peek_operand();
-      EOS_WB_ASSERT(is_a<i32_const_t>(op2), wasm_interpreter_exception, "i32.sub arg 2 expected i32 on the stack");
-      EOS_WB_ASSERT(is_a<i32_const_t>(op1), wasm_interpreter_exception, "i32.sub arg 1 expected i32 on the stack");
-      dbg_output << "i32.sub " << std::get<i32_const_t>(op1).data << " - " << std::get<i32_const_t>(op2).data;
-      const_cast<uint32_t&>(std::get<i32_const_t>(op1).data) -= std::get<i32_const_t>(op2).data;
-      dbg_output << " = " << std::get<i32_const_t>(op1).data << "\n";
-
+      const auto& rhs = context.pop_operand();
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(rhs), wasm_interpreter_exception, "i32.shr_u expected i32 operand");
+      EOS_WB_ASSERT(is_a<i32_const_t>(lhs), wasm_interpreter_exception, "i32.shr_u expected i32 operand");
+      TO_UINT32(lhs) >>= TO_UINT32(rhs);
+      dbg_output << "i32.shr_u\n";
    }
    void operator()(i32_rotl_t) {
       context.inc_pc();
-      const auto& op2 = context.pop_operand();
-      const auto& op1 = context.peek_operand();
-      EOS_WB_ASSERT(is_a<i32_const_t>(op2), wasm_interpreter_exception, "i32.sub arg 2 expected i32 on the stack");
-      EOS_WB_ASSERT(is_a<i32_const_t>(op1), wasm_interpreter_exception, "i32.sub arg 1 expected i32 on the stack");
-      dbg_output << "i32.sub " << std::get<i32_const_t>(op1).data << " - " << std::get<i32_const_t>(op2).data;
-      const_cast<uint32_t&>(std::get<i32_const_t>(op1).data) -= std::get<i32_const_t>(op2).data;
-      dbg_output << " = " << std::get<i32_const_t>(op1).data << "\n";
-
+      static constexpr uint32_t mask = (8*sizeof(uint32_t)-1);
+      const auto& rhs = context.pop_operand();
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(rhs), wasm_interpreter_exception, "i32.rotl expected i32 operand");
+      EOS_WB_ASSERT(is_a<i32_const_t>(lhs), wasm_interpreter_exception, "i32.rotl expected i32 operand");
+      auto& op = TO_UINT32(lhs);
+      uint32_t c = TO_UINT32(rhs);
+      c &= mask;
+      op = (op << c) | (op >> ((-c) & mask));
+      dbg_output << "i32.rotl\n";
    }
    void operator()(i32_rotr_t) {
       context.inc_pc();
-      const auto& op2 = context.pop_operand();
-      const auto& op1 = context.peek_operand();
-      EOS_WB_ASSERT(is_a<i32_const_t>(op2), wasm_interpreter_exception, "i32.sub arg 2 expected i32 on the stack");
-      EOS_WB_ASSERT(is_a<i32_const_t>(op1), wasm_interpreter_exception, "i32.sub arg 1 expected i32 on the stack");
-      dbg_output << "i32.sub " << std::get<i32_const_t>(op1).data << " - " << std::get<i32_const_t>(op2).data;
-      const_cast<uint32_t&>(std::get<i32_const_t>(op1).data) -= std::get<i32_const_t>(op2).data;
-      dbg_output << " = " << std::get<i32_const_t>(op1).data << "\n";
-
+      static constexpr uint32_t mask = (8*sizeof(uint32_t)-1);
+      const auto& rhs = context.pop_operand();
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(rhs), wasm_interpreter_exception, "i32.rotr expected i32 operand");
+      EOS_WB_ASSERT(is_a<i32_const_t>(lhs), wasm_interpreter_exception, "i32.rotr expected i32 operand");
+      auto& op = TO_UINT32(lhs);
+      uint32_t c = TO_UINT32(rhs);
+      c &= mask;
+      op = (op >> c) | (op << ((-c) & mask));
+      dbg_output << "i32.rotr\n";
    }
    void operator()(i64_clz_t) {
       context.inc_pc();
-      dbg_print("i64.clz");
+      const auto& op = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(op), wasm_interpreter_exception, "i64.clz expected i64 operand");
+      context.push_operand(i64_const_t{static_cast<int64_t>(__builtin_clzll(TO_UINT64(op)))});
+      dbg_output << "i64.clz\n";
    }
    void operator()(i64_ctz_t) {
       context.inc_pc();
-      dbg_print("i64.ctz");
+      const auto& op = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(op), wasm_interpreter_exception, "i64.ctz expected i64 operand");
+      context.push_operand(i64_const_t{static_cast<int64_t>(__builtin_ctzll(TO_UINT64(op)))});
+      dbg_output << "i64.ctz\n";
    }
    void operator()(i64_popcnt_t) {
       context.inc_pc();
-      dbg_print("i64.popcnt");
+      const auto& op = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(op), wasm_interpreter_exception, "i64.popcnt expected i64 operand");
+      context.push_operand(i64_const_t{static_cast<int64_t>(__builtin_popcountll(TO_UINT64(op)))});
+      dbg_output << "i64.popcnt\n";
    }
    void operator()(i64_add_t) {
       context.inc_pc();
-      dbg_print("i64.add");
+      const auto& rhs = context.pop_operand();
+      const auto& lhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(rhs), wasm_interpreter_exception, "i64.add expected i64 operand");
+      EOS_WB_ASSERT(is_a<i64_const_t>(lhs), wasm_interpreter_exception, "i64.add expected i64 operand");
+      uint64_t sum = TO_UINT64(lhs) + TO_UINT64(rhs);
+      context.push_operand(i64_const_t{sum});
+      dbg_output << "i64.add\n";
    }
    void operator()(i64_sub_t) {
       context.inc_pc();
-      dbg_print("i64.sub");
+      const auto& rhs = context.pop_operand();
+      const auto& lhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(rhs), wasm_interpreter_exception, "i64.sub expected i64 operand");
+      EOS_WB_ASSERT(is_a<i64_const_t>(lhs), wasm_interpreter_exception, "i64.sub expected i64 operand");
+      uint64_t dif = TO_UINT64(lhs) - TO_UINT64(rhs);
+      context.push_operand(i64_const_t{dif});
+      dbg_output << "i64.sub\n";
    }
    void operator()(i64_mul_t) {
       context.inc_pc();
-      dbg_print("i64.mul");
+      const auto& rhs = context.pop_operand();
+      const auto& lhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(rhs), wasm_interpreter_exception, "i64.mul expected i64 operand");
+      EOS_WB_ASSERT(is_a<i64_const_t>(lhs), wasm_interpreter_exception, "i64.mul expected i64 operand");
+      uint64_t prod = TO_UINT64(lhs) * TO_UINT64(rhs);
+      context.push_operand(i64_const_t{prod});
+      dbg_output << "i64.mul\n";
    }
    void operator()(i64_div_s_t) {
       context.inc_pc();
-      dbg_print("i64.div_s");
+      const auto& rhs = context.pop_operand();
+      const auto& lhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(rhs), wasm_interpreter_exception, "i64.div_s expected i64 operand");
+      EOS_WB_ASSERT(is_a<i64_const_t>(lhs), wasm_interpreter_exception, "i64.div_s expected i64 operand");
+      const int64_t& i2 = TO_INT64(rhs);
+      const int64_t& i1 = TO_INT64(lhs);
+      EOS_WB_ASSERT(i2 == 0, wasm_interpreter_exception, "i64.div_s divide by zero");
+      EOS_WB_ASSERT(!(i1 == std::numeric_limits<int64_t>::max() && i2 == -1), wasm_interpreter_exception, "i64.div_s traps when I64_MAX/-1");
+      int64_t q = i1 / i2;
+      context.push_operand(i64_const_t{q});
+      dbg_output << "i64.div_s\n";
    }
    void operator()(i64_div_u_t) {
       context.inc_pc();
-      dbg_print("i64.div_u");
+      const auto& rhs = context.pop_operand();
+      const auto& lhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(rhs), wasm_interpreter_exception, "i64.div_u expected i64 operand");
+      EOS_WB_ASSERT(is_a<i64_const_t>(lhs), wasm_interpreter_exception, "i64.div_u expected i64 operand");
+      const uint64_t& i2 = TO_UINT64(rhs);
+      EOS_WB_ASSERT(i2 == 0, wasm_interpreter_exception, "i64.div_u divide by zero");
+      uint64_t q = TO_UINT32(lhs)/i2;
+      context.push_operand(i64_const_t{q});
+      dbg_output << "i64.div_u\n";
    }
    void operator()(i64_rem_s_t) {
       context.inc_pc();
-      dbg_print("i64.rem_s");
+      const auto& rhs = context.pop_operand();
+      const auto& lhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(rhs), wasm_interpreter_exception, "i64.rem_s expected i64 operand");
+      EOS_WB_ASSERT(is_a<i64_const_t>(lhs), wasm_interpreter_exception, "i64.rem_s expected i64 operand");
+      const int64_t& i2 = TO_INT64(rhs);
+      const int64_t& i1 = TO_INT64(lhs);
+      EOS_WB_ASSERT(i2 == 0, wasm_interpreter_exception, "i64.rem_s divide by zero");
+      int64_t rem;
+      if (UNLIKELY(i1 == std::numeric_limits<int64_t>::max() && i2 == -1))
+         rem = 0;
+      else
+         rem = i1 % i2;
+      context.push_operand(i64_const_t{rem});
+      dbg_output << "i64.rem_s\n";
    }
    void operator()(i64_rem_u_t) {
       context.inc_pc();
-      dbg_print("i64.rem_u");
+      const auto& rhs = context.pop_operand();
+      const auto& lhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(rhs), wasm_interpreter_exception, "i64.rem_u expected i64 operand");
+      EOS_WB_ASSERT(is_a<i64_const_t>(lhs), wasm_interpreter_exception, "i64.rem_u expected i64 operand");
+      uint64_t rem = TO_UINT64(lhs) % TO_UINT64(rhs);
+      context.push_operand(i64_const_t{rem});
+      dbg_output << "i64.rem_u\n";
    }
    void operator()(i64_and_t) {
       context.inc_pc();
-      dbg_print("i64.and");
+      const auto& rhs = context.pop_operand();
+      const auto& lhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(rhs), wasm_interpreter_exception, "i64.and expected i64 operand");
+      EOS_WB_ASSERT(is_a<i64_const_t>(lhs), wasm_interpreter_exception, "i64.and expected i64 operand");
+      uint64_t o = TO_UINT64(lhs) & TO_UINT64(rhs);
+      context.push_operand(i64_const_t{o});
+      dbg_output << "i64.and\n";
    }
    void operator()(i64_or_t) {
       context.inc_pc();
-      dbg_print("i64.or");
+      const auto& rhs = context.pop_operand();
+      const auto& lhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(rhs), wasm_interpreter_exception, "i64.or expected i64 operand");
+      EOS_WB_ASSERT(is_a<i64_const_t>(lhs), wasm_interpreter_exception, "i64.or expected i64 operand");
+      uint64_t o = TO_UINT64(lhs) | TO_UINT64(rhs);
+      context.push_operand(i64_const_t{o});
+      dbg_output << "i64.or\n";
    }
    void operator()(i64_xor_t) {
       context.inc_pc();
-      dbg_print("i64.xor");
+      const auto& rhs = context.pop_operand();
+      const auto& lhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(rhs), wasm_interpreter_exception, "i64.xor expected i64 operand");
+      EOS_WB_ASSERT(is_a<i64_const_t>(lhs), wasm_interpreter_exception, "i64.xor expected i64 operand");
+      uint64_t o = TO_UINT64(lhs) ^ TO_UINT64(rhs);
+      context.push_operand(i64_const_t{o});
+      dbg_output << "i64.xor\n";
    }
    void operator()(i64_shl_t) {
       context.inc_pc();
-      dbg_print("i64.shl");
+      const auto& rhs = context.pop_operand();
+      const auto& lhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(rhs), wasm_interpreter_exception, "i64.shl expected i64 operand");
+      EOS_WB_ASSERT(is_a<i64_const_t>(lhs), wasm_interpreter_exception, "i64.shl expected i64 operand");
+      uint64_t o = TO_UINT64(lhs) << TO_UINT64(rhs);
+      context.push_operand(i64_const_t{o});
+      dbg_output << "i64.shl\n";
    }
    void operator()(i64_shr_s_t) {
       context.inc_pc();
-      dbg_print("i64.shr_s");
+      const auto& rhs = context.pop_operand();
+      const auto& lhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(rhs), wasm_interpreter_exception, "i64.shr_s expected i64 operand");
+      EOS_WB_ASSERT(is_a<i64_const_t>(lhs), wasm_interpreter_exception, "i64.shr_s expected i64 operand");
+      int64_t o = TO_INT64(lhs) >> TO_UINT64(rhs);
+      context.push_operand(i64_const_t{o});
+      dbg_output << "i64.shr_s\n";
    }
    void operator()(i64_shr_u_t) {
       context.inc_pc();
-      dbg_print("i64.shr_u");
+      const auto& rhs = context.pop_operand();
+      const auto& lhs = context.pop_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(rhs), wasm_interpreter_exception, "i64.shr_u expected i64 operand");
+      EOS_WB_ASSERT(is_a<i64_const_t>(lhs), wasm_interpreter_exception, "i64.shr_u expected i64 operand");
+      uint64_t o = TO_UINT64(lhs) >> TO_UINT64(rhs);
+      context.push_operand(i64_const_t{o});
+      dbg_output << "i64.shr_u\n";
    }
    void operator()(i64_rotl_t) {
       context.inc_pc();
-      dbg_print("i64.rotl");
+      static constexpr uint64_t mask = (8*sizeof(uint64_t)-1);
+      const auto& rhs = context.pop_operand();
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(rhs), wasm_interpreter_exception, "i64.rotl expected i64 operand");
+      EOS_WB_ASSERT(is_a<i64_const_t>(lhs), wasm_interpreter_exception, "i64.rotl expected i64 operand");
+      uint32_t c = TO_UINT64(rhs);
+      c &= mask;
+      uint64_t rot = (TO_UINT64(lhs) << c) | (TO_UINT64(lhs) >> ((-c) & mask));
+      context.push_operand(i64_const_t{rot});
+      dbg_output << "i64.rotl\n";
    }
    void operator()(i64_rotr_t) {
       context.inc_pc();
-      dbg_print("i64.rotr");
+      static constexpr uint64_t mask = (8*sizeof(uint64_t)-1);
+      const auto& rhs = context.pop_operand();
+      auto& lhs = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(rhs), wasm_interpreter_exception, "i64.rotl expected i64 operand");
+      EOS_WB_ASSERT(is_a<i64_const_t>(lhs), wasm_interpreter_exception, "i64.rotl expected i64 operand");
+      uint32_t c = TO_UINT64(rhs);
+      c &= mask;
+      uint64_t rot = (TO_UINT64(lhs) >> c) | (TO_UINT64(lhs) << ((-c) & mask));
+      context.push_operand(i64_const_t{rot});
+      dbg_output << "i64.rotr\n";
    }
    void operator()(f32_abs_t) {
       context.inc_pc();
@@ -1007,23 +1306,35 @@ struct interpret_visitor {
    }
    void operator()(i32_reinterpret_f32_t) {
       context.inc_pc();
-      dbg_print("i32.reinterpret_f32");
+      auto& op = context.peek_operand();
+      EOS_WB_ASSERT(is_a<f32_const_t>(op), wasm_interpreter_exception, "i32.reinterpret/f32 expected f32 operand");
+      op = i32_const_t{TO_UINT32(op)};
+      dbg_output << "i32.reinterpret/f32\n";
    }
    void operator()(i64_reinterpret_f64_t) {
       context.inc_pc();
-      dbg_print("i64.reinterpret_f64");
+      auto& op = context.peek_operand();
+      EOS_WB_ASSERT(is_a<f64_const_t>(op), wasm_interpreter_exception, "i64.reinterpret/f64 expected f64 operand");
+      op = i64_const_t{TO_UINT64(op)};
+      dbg_output << "i64.reinterpret/f64\n";
    }
    void operator()(f32_reinterpret_i32_t) {
       context.inc_pc();
-      dbg_print("f32.reinterpret_i32");
+      auto& op = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i32_const_t>(op), wasm_interpreter_exception, "f32.reinterpret/i32 expected i32 operand");
+      op = i32_const_t{TO_FUINT32(op)};
+      dbg_output << "f32.reinterpret/i32\n";
    }
    void operator()(f64_reinterpret_i64_t) {
       context.inc_pc();
-      dbg_print("f64.reinterpret_i64");
+      auto& op = context.peek_operand();
+      EOS_WB_ASSERT(is_a<i64_const_t>(op), wasm_interpreter_exception, "f64.reinterpret/i64 expected i64 operand");
+      op = i64_const_t{TO_FUINT64(op)};
+      dbg_output << "f64.reinterpret/i64\n";
    }
    void operator()(error_t) {
       context.inc_pc();
-      dbg_print("error");
+      dbg_output << "error\n";
    }
 
    uint32_t tab_width;
