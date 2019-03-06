@@ -45,6 +45,8 @@ namespace eosio { namespace wasm_backend {
       uint32_t pc;
       uint32_t offset;
       uint32_t index;
+      uint16_t size;
+      uint8_t  ret_type;
    };
 
    struct resizable_limits {
