@@ -13,7 +13,7 @@
 #include <eosio/wasm_backend/types.hpp>
 
 namespace eosio { namespace wasm_backend {
-   using stack_elem = std::variant<uint32_t, activation_frame, i32_const_t, i64_const_t, f32_const_t, f64_const_t, block_t, loop_t, if__t>;
+   using stack_elem = std::variant<activation_frame, i32_const_t, i64_const_t, f32_const_t, f64_const_t, block_t, loop_t, if__t>;
 
    template <typename T>
    inline bool is_a( const stack_elem& el ){ return std::holds_alternative<T>(el); }
@@ -38,6 +38,11 @@ namespace eosio { namespace wasm_backend {
          stack_elem pop() {
             return _s[--_index];
          }
+         void eat(uint32_t index) {
+            EOS_WB_ASSERT(index <= _index, wasm_interpreter_exception, "index larger than current stack height"); 
+            _index = index;
+         }
+         uint16_t current_index()const { return _index; }
          stack_elem& peek() {
             return _s[_index-1];
          }
@@ -49,9 +54,9 @@ namespace eosio { namespace wasm_backend {
          }
       private:
          native_vector<stack_elem> _s;
-         uint8_t                   _index = 0;
+         uint16_t                  _index = 0;
    };
-
+      /*
    template <typename Stream>
    Stream& operator<<(Stream& os, const stack_elem& el) {
       std::visit(overloaded {
@@ -69,6 +74,7 @@ namespace eosio { namespace wasm_backend {
          }, el);
       return os;
    }
+      */
    using control_stack = fixed_stack<constants::max_nested_structures>;
    using operand_stack = fixed_stack<constants::max_stack_size>;
    using call_stack    = fixed_stack<constants::max_call_depth>;

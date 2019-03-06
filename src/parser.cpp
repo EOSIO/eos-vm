@@ -542,6 +542,7 @@ namespace eosio { namespace wasm_backend {
       parse_function_body_code( fb_code, bytes, fb.code );
       code += bytes-1;
       EOS_WB_ASSERT( *code++ == 0x0B, wasm_parse_exception, "failed parsing function body, expected 'end'");
+      fb.code[fb.code.size()-1] = fend_t{};
    };
 
    void binary_parser::parse_data_segment( wasm_code_ptr& code, data_segment& ds ) {

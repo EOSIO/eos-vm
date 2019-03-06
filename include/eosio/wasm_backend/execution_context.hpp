@@ -38,12 +38,12 @@ namespace eosio { namespace wasm_backend {
                   const auto& ft = _mod.types[_mod.imports[index].type.func_t];
                   type_check(ft);
                   _rhf(*this, index);
+                  inc_pc();
                } else {
                   const auto& ft = _mod.types[_mod.functions[index - _mod.get_imported_functions_size()]];
                   type_check_and_push(ft);
                   setup_locals(index);
-                  push_call();
-                  push_label(uint32_t{0});
+                  push_call(index);
                   const uint32_t& pc = _mod.function_sizes[index];
                   set_pc( pc );
                   _current_offset = pc;
@@ -56,33 +56,43 @@ namespace eosio { namespace wasm_backend {
             void print_stack() {
                std::cout << "STACK { ";
                for (int i=0; i < _os.size(); i++) {
-                  std::cout << _os.get(i) << ", "; 
+                  std::cout << _os.get(i).index() << ", "; 
                }
                std::cout << " }\n";
             }
             inline module& get_module() { return _mod; }
             inline uint8_t* linear_memory() { return _linear_memory; }
             inline void push_label( const stack_elem& el ) { _cs.push(el); }
+            inline uint16_t current_label_index()const { return _cs.current_index(); }
+            inline void eat_labels(uint16_t index) { _cs.eat(index); }
             inline void push_operand( const stack_elem& el ) { _os.push(el); }
             inline stack_elem get_operand( uint32_t index )const { return _os.get(index); }
             inline void set_operand( uint32_t index, const stack_elem& el ) { _os.set(index, el); }
             inline void push_call( const stack_elem& el ) { _as.push(el); }
             inline stack_elem pop_call() { return _as.pop(); }
-            inline void push_call() {
-                _as.push(activation_frame{_pc+1, _current_offset, _code_index});
+            inline void push_call(uint32_t index) {
+               const auto& ftype  = _mod.types[_mod.functions[index-_mod.get_imported_functions_size()]];
+               const auto& locals = _mod.code[index-_mod.get_imported_functions_size()].local_count;
+               _as.push(activation_frame{_pc+1, _current_offset, _code_index, static_cast<uint16_t>(ftype.param_count + locals), ftype.return_type});
             }
             inline void apply_pop_call() {
-               const auto& afv = _as.pop();
-               if (std::holds_alternative<activation_frame>(afv)) {
-                  const auto& af = std::get<activation_frame>(afv);
-                  _current_offset = af.offset;
-                  _pc             = af.pc;
-                  _code_index     = af.index;
-               } else {
-                  throw wasm_interpreter_exception{"expected activation frame"};
+               const auto& af = std::get<activation_frame>(_as.pop());
+               _current_offset = af.offset;
+               _pc             = af.pc;
+               _code_index     = af.index;
+               stack_elem el;
+               if (af.ret_type != 0x00) {
+                  el = pop_operand();
+                  EOS_WB_ASSERT( is_a<i32_const_t>(el) && af.ret_type == types::i32 ||
+                                 is_a<i64_const_t>(el) && af.ret_type == types::i64 ||
+                                 is_a<f32_const_t>(el) && af.ret_type == types::f32 ||
+                                 is_a<f64_const_t>(el) && af.ret_type == types::f64, wasm_interpreter_exception, "wrong return type" );
                }
+               for (int i=0; i < af.size; i++)
+                  pop_operand();
+               if (af.ret_type != 0x00)
+                  push_operand(el);
             }
-
             inline stack_elem pop_label() { return _cs.pop(); }
             inline stack_elem pop_operand() { return _os.pop(); }
             inline stack_elem& peek_operand(size_t i=0) { return _os.peek(i); }
@@ -125,9 +135,6 @@ namespace eosio { namespace wasm_backend {
                   }, el);
             }
 
-            inline stack_elem invoke( uint32_t index, const func_type& ftype ) {
-               //return invoke<0>( index, ftype );
-            }
             inline bool is_true( const stack_elem& el )  {
                bool ret_val = false;
                std::visit(overloaded {
@@ -143,6 +150,7 @@ namespace eosio { namespace wasm_backend {
             inline uint32_t get_pc()const { return _pc; }
             inline void type_check( const func_type& ft ) {
               // TODO validate param_count is less than 256
+               std::cout << "params " << ft.param_count << "\n";
               for (int i=0; i < ft.param_count; i++) {
                 const auto& op = peek_operand(i);
                 std::visit(overloaded {
@@ -166,23 +174,24 @@ namespace eosio { namespace wasm_backend {
               int i=0;
               // TODO validate param_count is less than 256
               for (; i < ft.param_count; i++) {
-                elems[i] = pop_operand();
-                std::visit(overloaded {
+                 const auto& el = pop_operand();
+                 elems[i] = el;
+                 std::visit(overloaded {
                     [&](const i32_const_t&) {
-                      EOS_WB_ASSERT(ft.param_types[i] == types::i32, wasm_interpreter_exception, "function param type mismatch");
+                       EOS_WB_ASSERT(ft.param_types[i] == types::i32, wasm_interpreter_exception, "function param type mismatch");
                     }, [&](const f32_const_t&) {
-                      EOS_WB_ASSERT(ft.param_types[i] == types::f32, wasm_interpreter_exception, "function param type mismatch");
+                       EOS_WB_ASSERT(ft.param_types[i] == types::f32, wasm_interpreter_exception, "function param type mismatch");
                     }, [&](const i64_const_t&) {
-                      EOS_WB_ASSERT(ft.param_types[i] == types::i64, wasm_interpreter_exception, "function param type mismatch");
+                       EOS_WB_ASSERT(ft.param_types[i] == types::i64, wasm_interpreter_exception, "function param type mismatch");
                     }, [&](const f64_const_t&) {
-                      EOS_WB_ASSERT(ft.param_types[i] == types::f64, wasm_interpreter_exception, "function param type mismatch");
+                       EOS_WB_ASSERT(ft.param_types[i] == types::f64, wasm_interpreter_exception, "function param type mismatch");
                     }, [&](auto) {
-                      throw wasm_interpreter_exception{"function param invalid type"};
+                       throw wasm_interpreter_exception{"function param invalid type"};
                     }
-                }, elems[i]);
+                 }, el);
               }
               for (int j=0; j < i; j++) {
-                push_operand(elems[i]);
+                push_operand(elems[j]);
               }
             }
             inline void set_pc( uint32_t pc ) { _pc = pc; }
@@ -252,7 +261,6 @@ namespace eosio { namespace wasm_backend {
             inline void setup_locals(uint32_t index) {
                const auto& fn = _mod.code[index-_mod.get_imported_functions_size()];
                for (int i=0; i < fn.local_count; i++) {
-                  std::cout << "LOCAL " << (int)fn.locals[i].type << "\n";
                   for (int j=0; j < fn.locals[i].count; j++)
                      switch (fn.locals[i].type) {
                         case types::i32: 
@@ -279,7 +287,6 @@ namespace eosio { namespace wasm_backend {
                   std::visit(_visitor, _mod.code[_code_index].code[offset]);
                   std::cout << _visitor.dbg_output.str() << "\n";
                   _visitor.dbg_output.str("");
-                  std::cout << "PC " << _pc << "\n";
                   if (_pc == _exit_pc)
                      _executing = false;
                } while (_executing);

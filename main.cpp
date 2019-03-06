@@ -25,6 +25,14 @@ std::vector<uint8_t> read_wasm( const std::string& fname ) {
    return wasm;
 }
 
+void _assert(int b) {
+   if (!b)
+      throw "asserted";
+}
+
+uint32_t _printi(uint32_t i) {
+   std::cout << "I " << i << "\n";
+}
 
 int main(int argc, char** argv) {
    memory_manager::set_memory_limits( 32 * 1024 * 1024 );
@@ -34,6 +42,8 @@ int main(int argc, char** argv) {
    bp.parse_module( code, mod );
    auto t1 = std::chrono::high_resolution_clock::now();
    execution_context<interpret_visitor> ctx(mod);
+   ctx.add_host_function<&_assert>("assert");
+   ctx.add_host_function<&_printi>("pi");
    try {
       //ctx.execute("apply", (uint64_t)12, (uint64_t)13, (uint64_t)14);
       ctx.execute("main");

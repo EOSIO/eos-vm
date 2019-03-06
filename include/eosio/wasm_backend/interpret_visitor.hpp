@@ -51,7 +51,7 @@ struct interpret_visitor {
    interpret_visitor(execution_context<interpret_visitor>& ec) : context(ec) {}
    execution_context<interpret_visitor>& context;
    std::stringstream  dbg_output;
-
+   /*
    struct stack_elem_visitor {
       std::stringstream& dbg_output;
       stack_elem_visitor(std::stringstream& ss) : dbg_output(ss) {}
@@ -68,7 +68,7 @@ struct interpret_visitor {
       void operator()(T) {
       }
    } _elem_visitor{dbg_output};
-
+   */
    void print(const std::string& s) {
       //std::string tb(tab_width, '\t');
       dbg_output << s << '\n';
@@ -81,38 +81,57 @@ struct interpret_visitor {
       context.inc_pc();
       dbg_output << "nop {" << context.get_pc() << "}\n";
    }
+   void operator()(fend_t) {
+      context.apply_pop_call();
+      dbg_output << "fend {" << context.get_pc() << "}\n";
+   }
    void operator()(end_t) {
       // TODO create fend instruction for function end vs normal end (remove the need for pushing to the label stack)
-      stack_elem c = context.pop_label();
+      const auto& c = context.pop_label();
+      stack_elem el;
+      uint8_t ret_type = 0;
+      uint16_t index = 0;
+      std::visit(overloaded {
+         [&](const block_t& b) {
+            ret_type = b.data;
+            index = b.index;
+         }, [&](const loop_t& l) {
+            ret_type = l.data;
+            index = l.index;
+         },[&](const if__t& i) {
+            ret_type = i.data;
+            index = i.index;
+         }, [&](auto) {
+            throw wasm_interpreter_exception{"expected control structure"};
+         }
+      }, c);
+      if (ret_type != 0x40)
+         el = context.pop_operand();
+      context.eat_labels(index);
+      if (ret_type != 0x40)
+         context.push_operand(el);
       context.inc_pc();
-      if (is_a<uint32_t>(c)) {
-         context.apply_pop_call(); 
-         context.pop_label();
-      }
-      std::visit(_elem_visitor, c);
       dbg_output << "end {" << context.get_pc() << "}\n";
    }
    void operator()(return__t) {
-      const auto& _pc = context.pop_call();
-      if (is_a<uint32_t>(_pc)) {
-         context.set_pc(std::get<uint32_t>(_pc));
-      } else {
-         throw wasm_interpreter_exception{"expected pc on call stack"};
-      }
+      context.apply_pop_call();
       dbg_output << "return {" << context.get_pc() << "}\n";
    }
    void operator()(block_t bt) {
-      context.push_label(bt);
       context.inc_pc();
+      bt.index = context.current_label_index();
+      context.push_label(bt);
       dbg_output << "block {" << context.get_pc() << "} " << bt.data << " " << bt.pc << "\n";
    }
    void operator()(loop_t lt) {
       context.inc_pc();
+      lt.index = context.current_label_index();
       context.push_label(lt);
       dbg_output << "loop {" << context.get_pc() << "} " << lt.data << " " << lt.pc << "\n";
    }
    void operator()(if__t it) {
       context.inc_pc();
+      it.index = context.current_label_index();
       context.push_label(it);
       dbg_output << "if {" << context.get_pc() << "} " << it.data << " " << it.pc << "\n";
    }
@@ -181,38 +200,36 @@ struct interpret_visitor {
          context.push_operand(v2);
       }
       context.inc_pc();
-      dbg_output << "select " << context.peek_operand() << "\n";
+      dbg_output << "select\n";
    }
    void operator()(get_local_t b) {
       context.inc_pc();
       context.push_operand(context.get_operand(b.index));
-      dbg_output << "get_local " << b.index << " " << context.get_operand(b.index) << "\n";
+      dbg_output << "get_local " << b.index << "\n";
    }
    void operator()(set_local_t b) {
       context.inc_pc();
-      dbg_output << "set_local " << b.index << " " << context.get_operand(b.index) << " -> ";
       context.set_operand(b.index, context.pop_operand());
-      dbg_output << context.get_operand(b.index) << "\n";
+      dbg_output << "set_local\n";
    }
    void operator()(tee_local_t b) {
       context.inc_pc();
       const auto& op = context.pop_operand();
-      dbg_output << "tee_local " << b.index << " " << context.get_operand(b.index) << " -> ";
       context.set_operand(b.index, op);
       context.push_operand(op);
-      dbg_output << context.get_operand(b.index) << "\n";
+      dbg_output << "tee_local\n";
    }
    void operator()(get_global_t b) {
       context.inc_pc();
       const auto& gl = context.get_global(b.index);
       context.push_operand(gl);
-      dbg_output << "get_global " << b.index << " " << gl << "\n";
+      dbg_output << "get_global\n";
    }
    void operator()(set_global_t b) {
       context.inc_pc();
       const auto& op = context.pop_operand();
       context.set_global(b.index, op);
-      dbg_output << "set_global " << b.index << " " << op << "\n";
+      dbg_output << "set_global\n";
    }
    void operator()(i32_load_t b) {
       context.inc_pc();
@@ -228,7 +245,7 @@ struct interpret_visitor {
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "i32.load8_s expected i32 operand");
       int8_t val = *(int8_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
       context.push_operand(i32_const_t{*(uint32_t*)&val});
-      dbg_output << "i32.load8_s " << " align " << b.flags_align << " offset " << b.offset << " value " << (int)val << "\n";
+      dbg_output << "i32.load8_s\n";
    }
    void operator()(i32_load16_s_t b) {
       context.inc_pc();
@@ -244,8 +261,7 @@ struct interpret_visitor {
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "i32.load8_u expected i32 operand");
       uint8_t val = *(uint8_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
       context.push_operand(i32_const_t{val});
-      dbg_print("i32.load8_u : "); //+std::to_string(b.index);
-      dbg_output << "i32.load8_u " << " align " << b.flags_align << " offset " << b.offset << " value " << (int)val << "\n";
+      dbg_output << "i32.load8_u\n";
    }
    void operator()(i32_load16_u_t b) {
       context.inc_pc();

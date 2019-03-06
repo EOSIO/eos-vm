@@ -185,14 +185,18 @@
       opcode_macro(i64_reinterpret_f64, 0xBD) \
       opcode_macro(f32_reinterpret_i32, 0xBE) \
       opcode_macro(f64_reinterpret_i64, 0xBF) 
+#define SYNTHETIC_OPS(opcode_macro) \
+      opcode_macro(fend, 0xC0)
 #define ERROR_OPS(opcode_macro) \
-      opcode_macro(error, 0xC0) 
+      opcode_macro(error, 0xC1) 
 
 #define CREATE_ENUM(name, code) \
    name = code,
 
 #define CREATE_STRINGS(name, code) \
    #name,
+#define CREATE_SYNTHETIC_TYPE(name, code) \
+   struct name##_t {};
 
 #define CREATE_MAP(name, code) \
   {code, #name},
@@ -201,6 +205,7 @@
    struct name##_t {                          \
       uint32_t data;                          \
       uint32_t pc;                            \
+      uint16_t index;                         \
    };
 
 #define CREATE_BR_TABLE_TYPE(name, code)    \

@@ -20,6 +20,7 @@ namespace eosio { namespace wasm_backend {
       COMPARISON_OPS(CREATE_ENUM)
       NUMERIC_OPS(CREATE_ENUM)
       CONVERSION_OPS(CREATE_ENUM)
+      SYNTHETIC_OPS(CREATE_ENUM)
       ERROR_OPS(CREATE_ENUM)
    };
    
@@ -39,6 +40,7 @@ namespace eosio { namespace wasm_backend {
          COMPARISON_OPS(CREATE_MAP)
          NUMERIC_OPS(CREATE_MAP)
          CONVERSION_OPS(CREATE_MAP)
+         SYNTHETIC_OPS(CREATE_MAP)
          ERROR_OPS(CREATE_MAP)
       };
    }; 
@@ -64,6 +66,7 @@ namespace eosio { namespace wasm_backend {
    COMPARISON_OPS(CREATE_TYPES)
    NUMERIC_OPS(CREATE_TYPES)
    CONVERSION_OPS(CREATE_TYPES)
+   SYNTHETIC_OPS(CREATE_TYPES)
    ERROR_OPS(CREATE_TYPES)
    
    using opcode = std::variant<
@@ -81,6 +84,7 @@ namespace eosio { namespace wasm_backend {
       COMPARISON_OPS(IDENTITY)
       NUMERIC_OPS(IDENTITY)
       CONVERSION_OPS(IDENTITY)
+      SYNTHETIC_OPS(IDENTITY)
       ERROR_OPS(IDENTITY_END)
       >;
 
