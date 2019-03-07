@@ -25,13 +25,22 @@ std::vector<uint8_t> read_wasm( const std::string& fname ) {
    return wasm;
 }
 
-void _assert(int b) {
+void _assert_ret(int b, uint32_t b) {
    if (!b)
       throw "asserted";
 }
 
+void _assert_trap(int b) {
+   
+}
+
+uint32_t _invoke(uint32_t index, uint32_t b) {
+    
+}
+
 uint32_t _printi(uint32_t i) {
    std::cout << "I " << i << "\n";
+   return i;
 }
 
 int main(int argc, char** argv) {
@@ -42,7 +51,9 @@ int main(int argc, char** argv) {
    bp.parse_module( code, mod );
    auto t1 = std::chrono::high_resolution_clock::now();
    execution_context<interpret_visitor> ctx(mod);
-   ctx.add_host_function<&_assert>("assert");
+   ctx.add_host_function<&_assert_ret>("assert_return");
+   ctx.add_host_function<&_assert_trap>("assert_trap");
+   ctx.add_host_function<&_invoke>("invoke");
    ctx.add_host_function<&_printi>("pi");
    try {
       //ctx.execute("apply", (uint64_t)12, (uint64_t)13, (uint64_t)14);
