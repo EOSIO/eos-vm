@@ -19,7 +19,7 @@ namespace eosio { namespace wasm_backend {
                   _mod.function_sizes[i] = total_so_far;
                   total_so_far += _mod.code[i-import_size].code.size();
                }
-               _linear_memory = _alloc.alloc<uint8_t>(1); // allocate an initial wasm page
+               _linear_memory = _alloc.get_base_ptr<uint8_t>(); // allocate an initial wasm page
 
                for (int i=0; i < _mod.data.size(); i++) {
                   const auto& data_seg = _mod.data[i];
