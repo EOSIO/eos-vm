@@ -28,8 +28,15 @@
       throw exc_type{msg};                   \
    }
 
+namespace eosio { namespace wasm_backend {
+   struct exception : public std::exception {
+      virtual const char* what()const throw()=0;
+      virtual const char* detail()const throw()=0;
+   };
+}}
+
 #define DECLARE_EXCEPTION(name, _code, _what)                                     \
-   struct name : public std::exception {                                          \
+   struct name : public eosio::wasm_backend::exception {                          \
       name(const char* msg) : msg(msg) {}                                         \
       virtual const char* what()const throw() { return _what; }                   \
       virtual const char* detail()const throw() { return msg; }                   \

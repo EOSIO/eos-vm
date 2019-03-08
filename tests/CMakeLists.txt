@@ -8,6 +8,7 @@ enable_testing()
 
 file(GLOB UNIT_TESTS "*.cpp")
 
+add_subdirectory(wasms)
 add_executable( unit_test ${UNIT_TESTS} )
 target_link_libraries( unit_test 
     wasm_interpreter

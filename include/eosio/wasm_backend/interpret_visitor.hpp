@@ -11,16 +11,16 @@
 #define dbg_print print
 //#define dbg_print
 
-struct float32_t {
-   uint32_t data;
-};
-
-namespace std {
-   template <>
-   struct is_floating_point<float32_t> {
-      static constexpr bool value = true;
-   };
-}
+//struct float32_t {
+//   uint32_t data;
+//};
+//
+//namespace std {
+//   template <>
+//   struct is_floating_point<float32_t> {
+//      static constexpr bool value = true;
+//   };
+//}
 #define TO_INT32(X) \
    std::get<i32_const_t>(X).data.i
 
@@ -40,12 +40,6 @@ namespace std {
    std::get<f64_const_t>(X).data.ui
 
 namespace eosio { namespace wasm_backend {
-
-   struct test {
-      static void hello() { std::cout << "HELLO\n"; }
-   };
-   uint32_t tests(int a) { std::cout << "HELLO tests" << a << "\n"; return 42; };
-   float32_t test2(float32_t f) { std::cout << "Hoop " << *(float*)&f+13.3f << "\n"; *(float*)&f += 42.22f; return f; }
 
 struct interpret_visitor {
    interpret_visitor(execution_context<interpret_visitor>& ec) : context(ec) {}
@@ -205,7 +199,7 @@ struct interpret_visitor {
    void operator()(get_local_t b) {
       context.inc_pc();
       context.push_operand(context.get_operand(b.index));
-      dbg_output << "get_local " << b.index << "\n";
+      dbg_output << "get_local " << b.index << TO_UINT32(context.get_operand(b.index)) << "\n";
    }
    void operator()(set_local_t b) {
       context.inc_pc();

@@ -558,6 +558,8 @@ namespace eosio { namespace wasm_backend {
       EOS_WB_ASSERT(parse_magic( code_ptr ) == constants::magic, wasm_parse_exception, "magic number did not match");
       EOS_WB_ASSERT(parse_version( code_ptr ) == constants::version, wasm_parse_exception, "version number did not match");
       for ( int i=0; i < section_id::num_of_elems; i++ ) {
+         if (code_ptr.offset() == code.size())
+            return;
          code_ptr.add_bounds( constants::id_size );
          auto id = parse_section_id( code_ptr );
          code_ptr.add_bounds( constants::varuint32_size );
