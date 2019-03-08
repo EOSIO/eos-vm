@@ -65,6 +65,10 @@ file( GLOB wasm_interpreter_headers "${CMAKE_SOURCE_DIR}/include/eosio/wasm_back
 list( APPEND wasm_interpreter_sources ${wasm_interpreter_headers} )
 add_library ( wasm_interpreter STATIC ${wasm_interpreter_sources} )
 
+add_executable( prog ${CMAKE_SOURCE_DIR}/main.cpp )
+target_link_libraries( prog wasm_interpreter )
+target_include_directories( prog PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" )
+
 #add_executable( wasm_t ${CMAKE_SOURCE_DIR}/tests/fuzz/fuzz_parser.cpp ${fc} ${wasm_interpreter} ${filesystem} ${chrono} ${date_time})
 
 target_include_directories( wasm_interpreter PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"

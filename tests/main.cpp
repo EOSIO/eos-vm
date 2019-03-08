@@ -8,8 +8,8 @@
 //#include <fc/log/logger.hpp>
 #include <eosio/wasm_backend/exceptions.hpp>
 
-void translate_exception(const std::exception &e) {
-   std::cout << "\033[33m WHAT " <<  e.what() << "\033[0m" << std::endl;
+void translate_exception(const eosio::wasm_backend::exception& e) {
+   std::cout << "\033[33m WHAT " <<  e.what() << " " << e.detail() << "\033[0m" << std::endl;
 
    BOOST_FAIL("Caught Unexpected Exception");
 }
@@ -28,7 +28,7 @@ boost::unit_test::test_suite* init_unit_test_suite(int argc, char* argv[]) {
    //if(!is_verbose) fc::logger::get(DEFAULT_LOGGER).set_log_level(fc::log_level::off);
 
    // Register fc::exception translator
-   boost::unit_test::unit_test_monitor.register_exception_translator<std::exception>(&translate_exception);
+   boost::unit_test::unit_test_monitor.register_exception_translator<eosio::wasm_backend::exception>(&translate_exception);
 
    std::srand(time(NULL));
    std::cout << "Random number generator seeded to " << time(NULL) << std::endl;

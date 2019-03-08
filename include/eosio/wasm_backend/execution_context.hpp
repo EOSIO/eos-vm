@@ -200,7 +200,7 @@ namespace eosio { namespace wasm_backend {
             inline bool executing()const { _executing; }
 
             template <typename... Args>
-            inline void execute(const std::string_view func, Args... args) {
+            inline stack_elem execute(const std::string_view func, Args... args) {
                uint32_t func_index = _mod.get_exported_function(func);
                EOS_WB_ASSERT(func_index < std::numeric_limits<uint32_t>::max(), wasm_interpreter_exception, "cannot execute function, function not found");
                _current_function = func_index;
@@ -213,6 +213,9 @@ namespace eosio { namespace wasm_backend {
                //type_check_and_push(_mod.types[_mod.imports[func_index].type.func_t]);
                setup_locals(func_index);
                execute();
+               stack_elem ret = pop_operand();
+               _os.eat(0);
+               return ret;
             }
 
             inline void jump( uint32_t label ) { 
@@ -239,9 +242,8 @@ namespace eosio { namespace wasm_backend {
 
             template <typename Arg, typename... Args>
             void _push_args(Arg&& arg, Args&&... args) {
-               if constexpr (to_wasm_type_v<std::decay_t<Arg>> == types::i32) {
-                  push_operand(i32_const_t{static_cast<uint32_t>(arg)});
-                  }
+               if constexpr (to_wasm_type_v<std::decay_t<Arg>> == types::i32)
+                  push_operand({i32_const_t{static_cast<uint32_t>(arg)}});
                else if constexpr (to_wasm_type_v<std::decay_t<Arg>> == types::f32)
                   push_operand(f32_const_t{static_cast<uint32_t>(arg)});
                else if constexpr (to_wasm_type_v<std::decay_t<Arg>> == types::i64)
@@ -264,7 +266,7 @@ namespace eosio { namespace wasm_backend {
                   for (int j=0; j < fn.locals[i].count; j++)
                      switch (fn.locals[i].type) {
                         case types::i32: 
-                            push_operand(i32_const_t{(uint32_t)0});
+                           push_operand(i32_const_t{(uint32_t)0});
                            break;
                         case types::i64: 
                            push_operand(i64_const_t{(uint64_t)0});
