@@ -27,7 +27,12 @@ namespace eosio { namespace wasm_backend {
             EOS_WB_ASSERT( instance.get() != nullptr, wasm_memory_exception, "must set memory limits first" );
             return instance->_walloc; 
          }
-        
+
+         void reset() {
+            _nalloc.reset();
+            _walloc.reset();
+         }
+
       private:
       //static constexpr size_t stack64_size = 8000;
          memory_manager( uint64_t native_size) :

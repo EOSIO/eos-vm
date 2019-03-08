@@ -27,12 +27,12 @@ static inline execution_context<T> create_execution_context(const std::string& f
 
 BOOST_AUTO_TEST_SUITE(spec_tests)
 BOOST_AUTO_TEST_CASE(address_tests) { 
-   memory_manager::set_memory_limits( 32*1024*1024 );
-   module mod;
+   // 32 bits
    try {
-      auto ctx = create_execution_context<interpret_visitor>("wasms/address32.wasm", mod);
-
-      ;
+      memory_manager::set_memory_limits( 32*1024*1024 );
+      module mod;
+      auto ctx = create_execution_context<interpret_visitor>("wasms/address.wasm", mod);
+      /*
       BOOST_CHECK_EQUAL(TO_UINT32(ctx.execute("8u_good1", (uint32_t)0)), 'a');
       BOOST_CHECK_EQUAL(TO_UINT32(ctx.execute("8u_good2", (uint32_t)0)), 'a');
       BOOST_CHECK_EQUAL(TO_UINT32(ctx.execute("8u_good3", (uint32_t)0)), 'b');
@@ -99,6 +99,102 @@ BOOST_AUTO_TEST_CASE(address_tests) {
       BOOST_CHECK_EQUAL(TO_UINT32(ctx.execute("32_good3", (uint32_t)65507)), 0);
       BOOST_CHECK_EQUAL(TO_UINT32(ctx.execute("32_good4", (uint32_t)65507)), 0);
       BOOST_CHECK_EQUAL(TO_UINT32(ctx.execute("32_good5", (uint32_t)65507)), 0);
+      BOOST_CHECK_EQUAL(TO_UINT32(ctx.execute("32_good5", (uint32_t)65507)), 0);
+      BOOST_CHECK_THROW(ctx.execute("32_good5", (uint32_t)65508), wasm_memory_exception);
+      
+      BOOST_CHECK_THROW(ctx.execute("8u_bad", (uint32_t)0), wasm_memory_exception);
+      BOOST_CHECK_THROW(ctx.execute("8u_bad", (uint32_t)0), wasm_memory_exception);
+      BOOST_CHECK_THROW(ctx.execute("16u_bad", (uint32_t)0), wasm_memory_exception);
+      BOOST_CHECK_THROW(ctx.execute("16u_bad", (uint32_t)0), wasm_memory_exception);
+      BOOST_CHECK_THROW(ctx.execute("32_bad", (uint32_t)0), wasm_memory_exception);
+
+      BOOST_CHECK_THROW(ctx.execute("8u_bad", (uint32_t)1), wasm_memory_exception);
+      BOOST_CHECK_THROW(ctx.execute("8u_bad", (uint32_t)1), wasm_memory_exception);
+      BOOST_CHECK_THROW(ctx.execute("16u_bad", (uint32_t)1), wasm_memory_exception);
+      BOOST_CHECK_THROW(ctx.execute("16u_bad", (uint32_t)1), wasm_memory_exception);
+      BOOST_CHECK_THROW(ctx.execute("32_bad", (uint32_t)1), wasm_memory_exception);
+      */
+   // 64 bits
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("8u_good641", (uint32_t)0)), 'a');
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("8u_good642", (uint32_t)0)), 'a');
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("8u_good643", (uint32_t)0)), 'b');
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("8u_good644", (uint32_t)0)), 'c');
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("8u_good645", (uint32_t)0)), 'z');
+
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("8s_good641", (uint32_t)0)), 'a');
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("8s_good642", (uint32_t)0)), 'a');
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("8s_good643", (uint32_t)0)), 'b');
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("8s_good644", (uint32_t)0)), 'c');
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("8s_good645", (uint32_t)0)), 'z');
+
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("16u_good641", (uint32_t)0)), 25185);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("16u_good642", (uint32_t)0)), 25185);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("16u_good643", (uint32_t)0)), 25442);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("16u_good644", (uint32_t)0)), 25699);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("16u_good645", (uint32_t)0)), 122);
+
+      
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("16s_good641", (uint32_t)0)), 25185);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("16s_good642", (uint32_t)0)), 25185);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("16s_good643", (uint32_t)0)), 25442);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("16s_good644", (uint32_t)0)), 25699);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("16s_good645", (uint32_t)0)), 122);
+
+      
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("32_good641", (uint32_t)0)), 1684234849);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("32_good642", (uint32_t)0)), 1684234849);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("32_good643", (uint32_t)0)), 1701077858);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("32_good644", (uint32_t)0)), 1717920867);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("32_good645", (uint32_t)0)), 122);
+
+      
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("8u_good641", (uint32_t)65507)), 0);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("8u_good642", (uint32_t)65507)), 0);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("8u_good643", (uint32_t)65507)), 0);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("8u_good644", (uint32_t)65507)), 0);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("8u_good645", (uint32_t)65507)), 0);
+
+      
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("8s_good641", (uint32_t)65507)), 0);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("8s_good642", (uint32_t)65507)), 0);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("8s_good643", (uint32_t)65507)), 0);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("8s_good644", (uint32_t)65507)), 0);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("8s_good645", (uint32_t)65507)), 0);
+
+      
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("16u_good641", (uint32_t)65507)), 0);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("16u_good642", (uint32_t)65507)), 0);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("16u_good643", (uint32_t)65507)), 0);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("16u_good644", (uint32_t)65507)), 0);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("16u_good645", (uint32_t)65507)), 0);
+
+      
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("16s_good641", (uint32_t)65507)), 0);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("16s_good642", (uint32_t)65507)), 0);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("16s_good643", (uint32_t)65507)), 0);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("16s_good644", (uint32_t)65507)), 0);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("16s_good645", (uint32_t)65507)), 0);
+
+      
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("32u_good641", (uint32_t)65507)), 0);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("32u_good642", (uint32_t)65507)), 0);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("32u_good643", (uint32_t)65507)), 0);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("32u_good644", (uint32_t)65507)), 0);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("32u_good645", (uint32_t)65507)), 0);
+      BOOST_CHECK_EQUAL(TO_UINT64(ctx.execute("32u_good645", (uint32_t)65507)), 0);
+      BOOST_CHECK_THROW(ctx.execute("32u_good645", (uint32_t)65508), wasm_memory_exception);
+      
+      BOOST_CHECK_THROW(ctx.execute("8u_bad64", (uint32_t)0), wasm_memory_exception);
+      BOOST_CHECK_THROW(ctx.execute("8u_bad64", (uint32_t)0), wasm_memory_exception);
+      BOOST_CHECK_THROW(ctx.execute("16u_bad64", (uint32_t)0), wasm_memory_exception);
+      BOOST_CHECK_THROW(ctx.execute("16u_bad64", (uint32_t)0), wasm_memory_exception);
+      BOOST_CHECK_THROW(ctx.execute("32_bad64", (uint32_t)0), wasm_memory_exception);
+
+      BOOST_CHECK_THROW(ctx.execute("8u_bad64", (uint32_t)1), wasm_memory_exception);
+      BOOST_CHECK_THROW(ctx.execute("8u_bad64", (uint32_t)1), wasm_memory_exception);
+      BOOST_CHECK_THROW(ctx.execute("16u_bad64", (uint32_t)1), wasm_memory_exception);
+      BOOST_CHECK_THROW(ctx.execute("16u_bad64", (uint32_t)1), wasm_memory_exception);
+      BOOST_CHECK_THROW(ctx.execute("32_bad64", (uint32_t)1), wasm_memory_exception);
    } FC_LOG_AND_RETHROW() 
 }
 BOOST_AUTO_TEST_SUITE_END()

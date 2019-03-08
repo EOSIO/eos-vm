@@ -27,6 +27,7 @@ namespace eosio { namespace wasm_backend {
             raw = std::unique_ptr<uint8_t[]>(new uint8_t[mem_size]);
             memset(raw.get(), 0, mem_size);
          }
+         void reset() { index = 0; }
          size_t mem_size;
          std::unique_ptr<uint8_t[]> raw;
          size_t index = 0;
@@ -96,7 +97,8 @@ namespace eosio { namespace wasm_backend {
             mprotect(raw, page_size, PROT_READ|PROT_WRITE);
             set_up_signals();
          }
-         inline void* get_base_ptr()const { return (void*)raw; }
+         template <typename T>
+         inline T* get_base_ptr()const { return raw; }
          inline uint64_t get_current_page()const { return page; }
    };
 
