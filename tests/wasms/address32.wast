@@ -1,6 +1,7 @@
 (module
   (memory 1)
   (data (i32.const 0) "abcdefghijklmnopqrstuvwxyz")
+  (data (i32.const 26) "\00\00\00\00\00\00\a0\7f\01\00\d0\7f")
 
   (func (export "8u_good1") (param $i i32) (result i32)
     (i32.load8_u offset=0 (get_local $i))                   ;; 97 'a'
@@ -229,5 +230,24 @@
   )
   (func (export "64_bad64") (param $i i32)
     (drop (i64.load offset=4294967295 (get_local $i)))
+  )
+
+  (func (export "f32_good1") (param $i i32) (result f32)
+    (f32.load offset=26 (get_local $i))                   ;; 0.0 '\00\00\00\00'
+  )
+  (func (export "f32_good2") (param $i i32) (result f32)
+    (f32.load offset=26 align=1 (get_local $i))                    ;; 0.0 '\00\00\00\00'
+  )
+  (func (export "f32_good3") (param $i i32) (result f32)
+    (f32.load offset=27 align=1 (get_local $i))           ;; 0.0 '\00\00\00\00'
+  )
+  (func (export "f32_good4") (param $i i32) (result f32)
+    (f32.load offset=28 align=2 (get_local $i))           ;; 0.0 '\00\00\00\00'
+  )
+  (func (export "f32_good5") (param $i i32) (result f32)
+    (f32.load offset=34 align=4 (get_local $i))           ;; nan:0x500001 '\01\00\d0\7f'
+  )
+  (func (export "f32_bad") (param $i i32)
+    (drop (f32.load offset=4294967295 (get_local $i)))
   )
 )

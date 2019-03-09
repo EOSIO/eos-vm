@@ -8,6 +8,8 @@
 #include <variant>
 #include <sstream>
 
+#include <eosio/wasm_backend/softfloat.hpp>
+
 #define dbg_print print
 //#define dbg_print
 
@@ -38,6 +40,12 @@
 
 #define TO_FUINT64(X)                            \
    std::get<f64_const_t>(X).data.ui
+
+#define TO_F32(X) \
+   std::get<f32_const_t>(X).data.f
+
+#define TO_F64(X) \
+   std::get<f64_const_t>(X).data.f
 
 namespace eosio { namespace wasm_backend {
 
@@ -126,11 +134,14 @@ struct interpret_visitor {
    void operator()(if__t it) {
       context.inc_pc();
       it.index = context.current_label_index();
+      const auto& op = context.pop_operand();
+      if (!TO_UINT32(op))
+         context.set_pc(it.pc);
       context.push_label(it);
       dbg_output << "if {" << context.get_pc() << "} " << it.data << " " << it.pc << "\n";
    }
    void operator()(else__t et) {
-      context.set_pc(et.pc);
+      context.set_offset(et.pc);
       dbg_output << "else {" << context.get_pc() << "} " << et.data << " " << et.pc << "\n";
    }
    void operator()(br_t b) {
@@ -162,6 +173,7 @@ struct interpret_visitor {
       dbg_output << "\n";
    }
    void operator()(call_t b) {
+      std::cout << "CALL " << b.index << "\n";
       context.call(b.index);
       // TODO place these in parser
       //EOS_WB_ASSERT(b.index < funcs_size, wasm_interpreter_exception, "call index out of bounds");
@@ -1175,198 +1187,310 @@ struct interpret_visitor {
    }
    void operator()(f32_abs_t) {
       context.inc_pc();
+      auto& op = TO_F32(context.peek_operand());
+      op = _eosio_f32_abs(op);
       dbg_print("f32.abs");
    }
    void operator()(f32_neg_t) {
       context.inc_pc();
+      auto& op = TO_F32(context.peek_operand());
+      op = _eosio_f32_neg(op);
       dbg_print("f32.neg");
    }
    void operator()(f32_ceil_t) {
       context.inc_pc();
+      auto& op = TO_F32(context.peek_operand());
+      op = _eosio_f32_ceil(op);
       dbg_print("f32.ceil");
    }
    void operator()(f32_floor_t) {
       context.inc_pc();
+      auto& op = TO_F32(context.peek_operand());
+      op = _eosio_f32_floor(op);
       dbg_print("f32.floor");
    }
    void operator()(f32_trunc_t) {
       context.inc_pc();
+      auto& op = TO_F32(context.peek_operand());
+      op = _eosio_f32_trunc(op);
       dbg_print("f32.trunc");
    }
    void operator()(f32_nearest_t) {
       context.inc_pc();
+      auto& op = TO_F32(context.peek_operand());
+      op = _eosio_f32_nearest(op);
       dbg_print("f32.nearest");
    }
    void operator()(f32_sqrt_t) {
       context.inc_pc();
+      auto& op = TO_F32(context.peek_operand());
+      op = _eosio_f32_sqrt(op);
       dbg_print("f32.sqrt");
    }
    void operator()(f32_add_t) {
       context.inc_pc();
+      const auto& rhs = context.pop_operand();
+      auto& lhs = TO_F32(context.peek_operand());
+      lhs = _eosio_f32_add(lhs, TO_F32(rhs));
       dbg_print("f32.add");
    }
    void operator()(f32_sub_t) {
       context.inc_pc();
+      const auto& rhs = context.pop_operand();
+      auto& lhs = TO_F32(context.peek_operand());
+      lhs = _eosio_f32_sub(lhs, TO_F32(rhs));
       dbg_print("f32.sub");
    }
    void operator()(f32_mul_t) {
       context.inc_pc();
+      const auto& rhs = context.pop_operand();
+      auto& lhs = TO_F32(context.peek_operand());
+      lhs = _eosio_f32_mul(lhs, TO_F32(rhs));
       dbg_print("f32.mul");
    }
    void operator()(f32_div_t) {
       context.inc_pc();
+      const auto& rhs = context.pop_operand();
+      auto& lhs = TO_F32(context.peek_operand());
+      lhs = _eosio_f32_div(lhs, TO_F32(rhs));
       dbg_print("f32.div");
    }
    void operator()(f32_min_t) {
       context.inc_pc();
+      const auto& rhs = context.pop_operand();
+      auto& lhs = TO_F32(context.peek_operand());
+      lhs = _eosio_f32_min(lhs, TO_F32(rhs));
       dbg_print("f32.min");
    }
    void operator()(f32_max_t) {
       context.inc_pc();
+      const auto& rhs = context.pop_operand();
+      auto& lhs = TO_F32(context.peek_operand());
+      lhs = _eosio_f32_max(lhs, TO_F32(rhs));
       dbg_print("f32.max");
    }
    void operator()(f32_copysign_t) {
       context.inc_pc();
+      const auto& rhs = context.pop_operand();
+      auto& lhs = TO_F32(context.peek_operand());
+      lhs = _eosio_f32_copysign(lhs, TO_F32(rhs));
       dbg_print("f32.copysign");
    }
    void operator()(f64_abs_t) {
       context.inc_pc();
+      auto& op = TO_F64(context.peek_operand());
+      op = _eosio_f64_abs(op);
       dbg_print("f64.abs");
    }
    void operator()(f64_neg_t) {
       context.inc_pc();
+      auto& op = TO_F64(context.peek_operand());
+      op = _eosio_f64_neg(op);
       dbg_print("f64.neg");
    }
    void operator()(f64_ceil_t) {
       context.inc_pc();
+      auto& op = TO_F64(context.peek_operand());
+      op = _eosio_f64_ceil(op);
       dbg_print("f64.ceil");
    }
    void operator()(f64_floor_t) {
       context.inc_pc();
+      auto& op = TO_F64(context.peek_operand());
+      op = _eosio_f64_floor(op);
       dbg_print("f64.floor");
    }
    void operator()(f64_trunc_t) {
       context.inc_pc();
+      auto& op = TO_F64(context.peek_operand());
+      op = _eosio_f64_trunc(op);
       dbg_print("f64.trunc");
    }
    void operator()(f64_nearest_t) {
       context.inc_pc();
+      auto& op = TO_F64(context.peek_operand());
+      op = _eosio_f64_nearest(op);
       dbg_print("f64.nearest");
    }
    void operator()(f64_sqrt_t) {
       context.inc_pc();
+      auto& op = TO_F64(context.peek_operand());
+      op = _eosio_f64_sqrt(op);
       dbg_print("f64.sqrt");
    }
    void operator()(f64_add_t) {
       context.inc_pc();
+      const auto& rhs = context.pop_operand();
+      auto& lhs = TO_F64(context.peek_operand());
+      lhs = _eosio_f64_add(lhs, TO_F64(rhs));
       dbg_print("f64.add");
    }
    void operator()(f64_sub_t) {
       context.inc_pc();
+      const auto& rhs = context.pop_operand();
+      auto& lhs = TO_F64(context.peek_operand());
+      lhs = _eosio_f64_sub(lhs, TO_F64(rhs));
       dbg_print("f64.sub");
    }
    void operator()(f64_mul_t) {
       context.inc_pc();
+      const auto& rhs = context.pop_operand();
+      auto& lhs = TO_F64(context.peek_operand());
+      lhs = _eosio_f64_mul(lhs, TO_F64(rhs));
       dbg_print("f64.mul");
    }
    void operator()(f64_div_t) {
       context.inc_pc();
+      const auto& rhs = context.pop_operand();
+      auto& lhs = TO_F64(context.peek_operand());
+      lhs = _eosio_f64_div(lhs, TO_F64(rhs));
       dbg_print("f64.div");
    }
    void operator()(f64_min_t) {
       context.inc_pc();
+      const auto& rhs = context.pop_operand();
+      auto& lhs = TO_F64(context.peek_operand());
+      lhs = _eosio_f64_min(lhs, TO_F64(rhs));
       dbg_print("f64.min");
    }
    void operator()(f64_max_t) {
       context.inc_pc();
+      const auto& rhs = context.pop_operand();
+      auto& lhs = TO_F64(context.peek_operand());
+      lhs = _eosio_f64_max(lhs, TO_F64(rhs));
       dbg_print("f64.max");
    }
    void operator()(f64_copysign_t) {
       context.inc_pc();
+      const auto& rhs = context.pop_operand();
+      auto& lhs = TO_F64(context.peek_operand());
+      lhs = _eosio_f64_copysign(lhs, TO_F64(rhs));
       dbg_print("f64.copysign");
    }
    void operator()(i32_wrap_i64_t) {
       context.inc_pc();
+      auto& op = context.peek_operand();
+      op = {i32_const_t{static_cast<int32_t>(TO_INT64(op))}};
       dbg_print("i32.wrap_i64");
    }
    void operator()(i32_trunc_s_f32_t) {
       context.inc_pc();
+      auto& op = context.peek_operand();
+      op = {i32_const_t{_eosio_f32_trunc_i32s(TO_F32(op))}};
       dbg_print("i32.trunc_s_f32");
    }
    void operator()(i32_trunc_u_f32_t) {
       context.inc_pc();
+      auto& op = context.peek_operand();
+      op = {i32_const_t{_eosio_f32_trunc_i32u(TO_F32(op))}};
       dbg_print("i32.trunc_u_f32");
    }
    void operator()(i32_trunc_s_f64_t) {
       context.inc_pc();
+      auto& op = context.peek_operand();
+      op = {i32_const_t{_eosio_f64_trunc_i32s(TO_F64(op))}};
       dbg_print("i32.trunc_s_f64");
    }
    void operator()(i32_trunc_u_f64_t) {
       context.inc_pc();
+      auto& op = context.peek_operand();
+      op = {i32_const_t{_eosio_f64_trunc_i32u(TO_F64(op))}};
       dbg_print("i32.trunc_u_f64");
    }
    void operator()(i64_extend_s_i32_t) {
       context.inc_pc();
+      auto& op = context.peek_operand();
+      op = {i64_const_t{static_cast<int64_t>(TO_INT32(op))}};
       dbg_print("i64.extend_s_i32");
    }
    void operator()(i64_extend_u_i32_t) {
       context.inc_pc();
+      auto& op = context.peek_operand();
+      op = {i64_const_t{static_cast<uint64_t>(TO_UINT32(op))}};
       dbg_print("i64.extend_u_i32");
    }
    void operator()(i64_trunc_s_f32_t) {
       context.inc_pc();
+      auto& op = context.peek_operand();
+      op = {i64_const_t{_eosio_f32_trunc_i64s(TO_F64(op))}};
       dbg_print("i64.trunc_s_f32");
    }
    void operator()(i64_trunc_u_f32_t) {
       context.inc_pc();
+      auto& op = context.peek_operand();
+      op = {i64_const_t{_eosio_f32_trunc_i64u(TO_F64(op))}};
       dbg_print("i64.trunc_u_f32");
    }
    void operator()(i64_trunc_s_f64_t) {
       context.inc_pc();
+      auto& op = context.peek_operand();
+      op = {i64_const_t{_eosio_f64_trunc_i64s(TO_F64(op))}};
       dbg_print("i64.trunc_s_f64");
    }
    void operator()(i64_trunc_u_f64_t) {
       context.inc_pc();
+      auto& op = context.peek_operand();
+      op = {i64_const_t{_eosio_f64_trunc_i64u(TO_F64(op))}};
       dbg_print("i64.trunc_u_f64");
    }
    void operator()(f32_convert_s_i32_t) {
       context.inc_pc();
+      auto& op = context.peek_operand();
+      op = {f32_const_t{_eosio_i32_to_f32(TO_INT32(op))}};
       dbg_print("f32.convert_s_i32");
    }
    void operator()(f32_convert_u_i32_t) {
       context.inc_pc();
+      auto& op = context.peek_operand();
+      op = {f32_const_t{_eosio_ui32_to_f32(TO_UINT32(op))}};
       dbg_print("f32.convert_u_i32");
    }
    void operator()(f32_convert_s_i64_t) {
       context.inc_pc();
+      auto& op = context.peek_operand();
+      op = {f32_const_t{_eosio_i64_to_f32(TO_INT64(op))}};
       dbg_print("f32.convert_s_i64");
    }
    void operator()(f32_convert_u_i64_t) {
       context.inc_pc();
+      auto& op = context.peek_operand();
+      op = {f32_const_t{_eosio_ui64_to_f32(TO_UINT64(op))}};
       dbg_print("f32.convert_u_i64");
    }
    void operator()(f32_demote_f64_t) {
       context.inc_pc();
+      auto& op = context.peek_operand();
+      op = {f32_const_t{_eosio_f64_demote(TO_F64(op))}};
       dbg_print("f32.demote_f64");
    }
    void operator()(f64_convert_s_i32_t) {
       context.inc_pc();
+      auto& op = context.peek_operand();
+      op = {f64_const_t{_eosio_i32_to_f64(TO_INT32(op))}};
       dbg_print("f64.convert_s_i32");
    }
    void operator()(f64_convert_u_i32_t) {
       context.inc_pc();
+      auto& op = context.peek_operand();
+      op = {f64_const_t{_eosio_ui32_to_f64(TO_UINT32(op))}};
       dbg_print("f64.convert_u_i32");
    }
    void operator()(f64_convert_s_i64_t) {
       context.inc_pc();
+      auto& op = context.peek_operand();
+      op = {f64_const_t{_eosio_i64_to_f64(TO_INT64(op))}};
       dbg_print("f64.convert_s_i64");
    }
    void operator()(f64_convert_u_i64_t) {
       context.inc_pc();
+      auto& op = context.peek_operand();
+      op = {f64_const_t{_eosio_ui64_to_f64(TO_UINT64(op))}};
       dbg_print("f64.convert_u_i64");
    }
    void operator()(f64_promote_f32_t) {
       context.inc_pc();
+      auto& op = context.peek_operand();
+      op = {f64_const_t{_eosio_f32_promote(TO_F32(op))}};
       dbg_print("f64.promote_f32");
    }
    void operator()(i32_reinterpret_f32_t) {

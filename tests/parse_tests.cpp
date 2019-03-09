@@ -8,6 +8,8 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/test/framework.hpp>
 
+#include "utils.hpp"
+
 #include <eosio/wasm_backend/leb128.hpp>
 #include <eosio/wasm_backend/wasm_interpreter.hpp>
 #include <eosio/wasm_backend/types.hpp>
@@ -19,22 +21,6 @@
 
 using namespace eosio;
 using namespace eosio::wasm_backend;
-
-std::vector<uint8_t> read_wasm( const std::string& fname ) {
-   std::ifstream wasm_file(fname, std::ios::binary);
-   if (!wasm_file.is_open())
-      throw std::runtime_error("wasm file cannot be found");
-   wasm_file.seekg(0, std::ios::end);
-   std::vector<uint8_t> wasm; 
-   int len = wasm_file.tellg();
-   if (len < 0)
-      throw std::runtime_error("wasm file length is -1");
-   wasm.resize(len);
-   wasm_file.seekg(0, std::ios::beg);
-   wasm_file.read((char*)wasm.data(), wasm.size());
-   wasm_file.close();
-   return wasm;
-}
 
 BOOST_AUTO_TEST_SUITE(parser_tests)
 BOOST_AUTO_TEST_CASE(parse_test) { 
@@ -113,7 +99,7 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          memory_manager::set_memory_limits( 32*1024*1024 );
          binary_parser bp;
          module mod;
-         wasm_code code = read_wasm( "test.wasm" );
+         wasm_code code = read_wasm( "wasms/system.wasm" );
          wasm_code_ptr code_ptr(code.data(), 0);
          bp.parse_module( code, mod );
 
@@ -197,49 +183,6 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
             for (int j=0; j < mod.elements[i].elems.size(); j++)
                BOOST_CHECK_EQUAL(mod.elements[i].elems[j], indices[j]);
          }
-         //disassembly_visitor v;
-
-         struct test {
-            void hello() { std::cout << "hello\n"; }
-            static void hello2(int i, uint64_t l, uint32_t b) { std::cout << "Hello2 " << i << " " << l << " " << b << "\n"; }
-            static void func() { std::cout << "func is called\n"; }
-         };
-
-         test t;
-         /*
-         registered_member_function<test, &test::hello, decltype("hello"_hfn)> rf;
-         std::invoke(rf.function, t);
-
-         registered_function<&test::hello2, decltype("hello2"_hfn)> rf2;
-         std::invoke(rf2.function);
-
-         registered_function<&test::func, decltype("eosio_assert"_hfn)> rf3;
-
-         using rhf = registered_host_functions<decltype(rf), decltype(rf2), decltype(rf3)>;
-         rhf::resolve(mod);
-         */
-         //rhf::call("hello2"_hfn);
-         execution_context<interpret_visitor> ec(mod);
-         //ec.set_host_functions<&test::func, &test::hello2>();
-         ec.execute("apply", (uint64_t)0, (uint64_t)0, (uint64_t)0);
-         /*
-         interpret_visitor v(ec);
-         uint32_t index = mod.get_exported_function("apply");
-         std::cout << "FUNC " << index <<  " SIZE " << mod.code[index].code.size() << '\n';
-         for (uint32_t i=0; i < mod.code[index].code.size(); i++) {
-            ec.set_pc(i);
-            std::visit(v, mod.code[index].code[i]);
-         }
-         std::cout << v.dbg_output.str() << '\n';
-         */
-         /*
-         for (uint32_t i=0; i < mod.code.size(); i++) {
-            for (uint32_t j=0; j < mod.code[i].code.size(); j++) {
-               std::visit(v, mod.code[i].code[j]);
-            }
-         }
-         */
-         //std::cout << v.dbg_output.str() << '\n';
       }
 
    } FC_LOG_AND_RETHROW() 

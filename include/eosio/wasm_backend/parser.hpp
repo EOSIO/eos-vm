@@ -38,7 +38,11 @@ namespace eosio { namespace wasm_backend {
             return varint<64>(code).to();
          }
       
-         void parse_module( wasm_code& code, module& mod );
+         inline void parse_module( wasm_code& code, module& mod ) {
+            wasm_code_ptr cp(code.data(), 0);
+            parse_module(cp, code.size(), mod);
+         }
+         void parse_module( wasm_code_ptr& code, size_t sz, module& mod );
 
          inline uint32_t parse_magic( wasm_code_ptr& code ) {
             code.add_bounds( constants::magic_size );

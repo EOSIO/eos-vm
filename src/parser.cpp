@@ -139,11 +139,13 @@ namespace eosio { namespace wasm_backend {
                      auto& el = fb[pc_stack.top()];
                      std::visit(overloaded {
                         [=](block_t& bt) {
-                           bt.pc = op_index;
+                           bt.pc = op_index-1;
                         }, [=](loop_t& lt) {
-                           lt.pc = op_index;
+                           lt.pc = op_index-1;
                         }, [=](if__t& it) {
-                           it.pc = op_index;
+                           it.pc = op_index-1;
+                        }, [=](else__t& et) {
+                           et.pc = op_index-1;
                         }, [=](auto&&) {
                            throw wasm_invalid_element{"invalid element when popping pc stack"};
                         }
@@ -168,20 +170,12 @@ namespace eosio { namespace wasm_backend {
                break;
             case opcodes::else_:
                {
-                  fb[op_index++] = else__t{};
-                  auto& el = fb[pc_stack.top()];
-                  std::visit(overloaded {
-                     [=](block_t& bt) {
-                        bt.pc = op_index;
-                     }, [=](loop_t& lt) {
-                        lt.pc = op_index;
-                     }, [=](if__t& it) {
-                        it.pc = op_index;
-                     }, [=](auto&&) {
-                        throw wasm_invalid_element{"invalid element when popping pc stack"};
-                     }
-                  }, el);
+                  auto old_index = pc_stack.top();
                   pc_stack.pop();
+                  pc_stack.push(op_index);
+                  auto& _if = std::get<if__t>(fb[old_index]);
+                  _if.pc = op_index;
+                  fb[op_index++] = else__t{};
                   break;
                }
             case opcodes::br:
@@ -553,12 +547,11 @@ namespace eosio { namespace wasm_backend {
       code += ds.size;
    }
    
-   void binary_parser::parse_module( wasm_code& code, module& mod ) {
-      wasm_code_ptr code_ptr( code.data(), 0 );
+   void binary_parser::parse_module( wasm_code_ptr& code_ptr, size_t sz, module& mod ) {
       EOS_WB_ASSERT(parse_magic( code_ptr ) == constants::magic, wasm_parse_exception, "magic number did not match");
       EOS_WB_ASSERT(parse_version( code_ptr ) == constants::version, wasm_parse_exception, "version number did not match");
       for ( int i=0; i < section_id::num_of_elems; i++ ) {
-         if (code_ptr.offset() == code.size())
+         if (code_ptr.offset() == sz)
             return;
          code_ptr.add_bounds( constants::id_size );
          auto id = parse_section_id( code_ptr );
