@@ -629,7 +629,14 @@ BOOST_AUTO_TEST_CASE(blocks_tests) {
       ctx.execute("as-if-condition");
       //BOOST_CHECK_EQUAL(TO_UINT32(ctx.execute("as-if-condition")), 1);
       BOOST_CHECK_EQUAL(TO_UINT32(ctx.execute("as-if-then")), 1);
-      BOOST_CHECK_EQUAL(TO_UINT32(ctx.execute("as-loop-last")), 2);
+      BOOST_CHECK_EQUAL(TO_UINT32(ctx.execute("as-if-else")), 2);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(ctx.execute("as-br_if-first")), 1);
+      BOOST_CHECK_EQUAL(TO_UINT32(ctx.execute("as-br_if-last")), 2);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(ctx.execute("as-br_table-first")), 1);
+      BOOST_CHECK_EQUAL(TO_UINT32(ctx.execute("as-br_table-last")), 2);
+
      
    } FC_LOG_AND_RETHROW()
 }

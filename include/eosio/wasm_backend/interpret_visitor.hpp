@@ -141,7 +141,7 @@ struct interpret_visitor {
       dbg_output << "if {" << context.get_pc() << "} " << it.data << " " << it.pc << "\n";
    }
    void operator()(else__t et) {
-      context.set_offset(et.pc);
+      context.set_relative_pc(et.pc);
       dbg_output << "else {" << context.get_pc() << "} " << et.data << " " << et.pc << "\n";
    }
    void operator()(br_t b) {
@@ -152,25 +152,19 @@ struct interpret_visitor {
       dbg_output << "br.if {" << context.get_pc() << "} " << b.data << "\n";
       context.inc_pc();
       const auto& val = context.pop_operand();
-      if (context.is_true(val))
+      if (!context.is_true(val))
          context.jump(b.data);
       else
          context.inc_pc();
-      dbg_output << "PC " << context.get_pc() << "\n";
    }
    void operator()(br_table_t b) {
       const auto& val = context.pop_operand();
-      EOS_WB_ASSERT(is_a<i32_const_t>(val), wasm_interpreter_exception, "br_table expected i32");
-      const auto& i32_v = std::get<i32_const_t>(val);
-      if (i32_v.data.ui < b.target_table.size())
-         context.jump(b.target_table[i32_v.data.ui]);
+      const auto& in = TO_UINT32(val);
+      if (in < b.target_table.size())
+         context.jump(b.target_table[in]);
       else
          context.jump(b.target_table[b.default_target]);
-      dbg_output << "br.table {" << context.get_pc() << "} " << b.default_target << "\n\t";
-      for (int i=0; i < b.target_table.size(); i++) {
-         dbg_output << ", " << b.target_table[i];
-      }
-      dbg_output << "\n";
+      dbg_output << "br.table\n";
    }
    void operator()(call_t b) {
       std::cout << "CALL " << b.index << "\n";
