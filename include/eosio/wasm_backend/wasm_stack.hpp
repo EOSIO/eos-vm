@@ -13,7 +13,7 @@
 #include <eosio/wasm_backend/types.hpp>
 
 namespace eosio { namespace wasm_backend {
-   using stack_elem = std::variant<activation_frame, i32_const_t, i64_const_t, f32_const_t, f64_const_t, block_t, loop_t, if__t>;
+   using stack_elem = std::variant<activation_frame, i32_const_t, i64_const_t, f32_const_t, f64_const_t, block_t, loop_t, if__t, else__t>;
 
    template <typename T>
    inline bool is_a( const stack_elem& el ){ return std::holds_alternative<T>(el); }
@@ -39,7 +39,6 @@ namespace eosio { namespace wasm_backend {
             return _s[--_index];
          }
          void eat(uint32_t index) {
-            EOS_WB_ASSERT(index <= _index, wasm_interpreter_exception, "index larger than current stack height"); 
             _index = index;
          }
          uint16_t current_index()const { return _index; }

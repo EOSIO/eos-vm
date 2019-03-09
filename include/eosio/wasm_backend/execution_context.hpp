@@ -150,7 +150,6 @@ namespace eosio { namespace wasm_backend {
             inline uint32_t get_pc()const { return _pc; }
             inline void type_check( const func_type& ft ) {
               // TODO validate param_count is less than 256
-               std::cout << "params " << ft.param_count << "\n";
               for (int i=0; i < ft.param_count; i++) {
                 const auto& op = peek_operand(i);
                 std::visit(overloaded {
@@ -195,6 +194,7 @@ namespace eosio { namespace wasm_backend {
               }
             }
             inline void set_pc( uint32_t pc ) { _pc = pc; }
+            inline void set_offset( uint32_t off ) { _current_offset = off; }
             inline void inc_pc() { _pc++; }
             inline void exit()const { _executing = false; }
             inline bool executing()const { _executing; }
@@ -209,11 +209,18 @@ namespace eosio { namespace wasm_backend {
                _pc               = _current_offset;
                _exit_pc          = _current_offset + _mod.code[_current_function-_mod.import_functions.size()].code.size()-1;
                _executing        = true;
+               _os.eat(0);
                push_args(args...);
-               //type_check_and_push(_mod.types[_mod.imports[func_index].type.func_t]);
+               //type_check(_mod.types[_mod.imports[func_index].type.func_t]);
                setup_locals(func_index);
                execute();
-               stack_elem ret = pop_operand();
+               stack_elem ret;
+               //TODO clean this up
+               try {
+                  ret = pop_operand();
+               } catch(...) {
+                  std::cout << "NOTHING ON STACK\n";
+               }
                _os.eat(0);
                return ret;
             }
@@ -286,6 +293,7 @@ namespace eosio { namespace wasm_backend {
             void execute() {
                do {
                   uint32_t offset = _pc - _current_offset;
+                  std::cout << "PC " << offset << " " << _current_function << " " << _mod.code[_code_index].code[offset].index() << "\n";
                   std::visit(_visitor, _mod.code[_code_index].code[offset]);
                   std::cout << _visitor.dbg_output.str() << "\n";
                   _visitor.dbg_output.str("");

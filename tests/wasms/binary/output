@@ -1,0 +1,338 @@
+static constexpr char* = "msa\00msa\00\01\00\00\00msa\00\00\00\00\01asm\01\00\00\00\00wasm\01\00\00\00\7fasm\01\00\00\00\80asm\01\00\00\00\82asm\01\00\00\00\ffasm\01\00\00\00\00\00\00\01msa\00a\00ms\00\01\00\00sm\00a\00\00\01\00\00ASM\01\00\00\00\00\81\a2\94\01\00\00\00\ef\bb\bf\00asm\01\00\00\00\00asm\00asm\01\00asm\01\00\00\00asm\00\00\00\00\00asm\0d\00\00\00\00asm\0e\00\00\00\00asm\00\01\00\00\00asm\00\00\01\00\00asm\00\00\00\01\00asm\01\00\00\00\05\04\01\00\82\00\00asm\01\00\00\00\05\07\01\00\82\80\80\80\00\00asm\01\00\00\00\06\07\01\7f\00\41\80\00\0\00asm\01\00\00\00\06\07\01\7f\00\41\ff\7f\0b\00asm\01\00\00\00\06\0a\01\7f\00\41\80\80\80\80\00\0b\00asm\01\00\00\00\06\0a\01\7f\00\41\ff\ff\ff\ff\7f\0b\00asm\01\00\00\00\06\07\01\7e\00\42\80\00\0b\00asm\01\00\00\00\06\07\01\7e\00\42\ff\7f\0b\00asm\01\00\00\00\06\0f\01\7e\00\42\80\80\80\80\80\80\80\80\80\00\0b\00asm\01\00\00\00\06\0f\01\7e\00\42\ff\ff\ff\ff\ff\ff\ff\ff\ff\7f\0b\00asm\01\00\00\00\05\03\01\00\00\0b\07\01\80\00\41\00\0b\0\00asm\01\00\00\00\04\04\01\70\00\00\09\07\01\80\00\41\00\0b\0\00asm\01\00\00\00\05\08\01\00\82\80\80\80\80\00\00asm\01\00\00\00\06\0b\01\7f\00\41\80\80\80\80\80\00\0b\00asm\01\00\00\00\06\0b\01\7f\00\41\ff\ff\ff\ff\ff\7f\0b\00asm\01\00\00\00\06\10\01\7e\00\42\80\80\80\80\80\80\80\80\80\80\00\0b\00asm\01\00\00\00\06\10\01\7e\00\42\ff\ff\ff\ff\ff\ff\ff\ff\ff\ff\7f\0b\00asm\01\00\00\00\05\07\01\00\82\80\80\80\7\00asm\01\00\00\00\05\07\01\00\82\80\80\80\4\00asm\01\00\00\00\06\0a\01\7f\00\41\80\80\80\80\70\0b\00asm\01\00\00\00\06\0a\01\7f\00\41\ff\ff\ff\ff\0f\0b\00asm\01\00\00\00\06\0a\01\7f\00\41\80\80\80\80\1f\0b\00asm\01\00\00\00\06\0a\01\7f\00\41\ff\ff\ff\ff\4f\0b\00asm\01\00\00\00\06\0f\01\7e\00\42\80\80\80\80\80\80\80\80\80\7e\0b\00asm\01\00\00\00\06\0f\01\7e\00\42\ff\ff\ff\ff\ff\ff\ff\ff\ff\01\0b\00asm\01\00\00\00\06\0f\01\7e\00\42\80\80\80\80\80\80\80\80\80\02\0b\00asm\01\00\00\00\06\0f\01\7e\00\42\ff\ff\ff\ff\ff\ff\ff\ff\ff\41\0b\00asm\01\00\00\00\01\04\01\60\00\00\03\02\01\00\04\04\01\70\00\00\0a\09\01\07\00\41\00\11\00\01\0b\00asm\01\00\00\00\01\04\01\60\00\00\03\02\01\00\04\04\01\70\00\00\0a\0a\01\07\00\41\00\11\00\80\00\0b\00asm\01\00\00\00\01\04\01\60\00\00\03\02\01\00\04\04\01\70\00\00\0a\0b\01\08\00\41\00\11\00\80\80\00\0b\00asm\01\00\00\00\03\01\00unctio";
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+0, 6};
+   module mod;
+   bp.parse_module(cp, 6, mod);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+6, 18};
+   module mod;
+   bp.parse_module(cp, 18, mod);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+24, 18};
+   module mod;
+   bp.parse_module(cp, 18, mod);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+42, 18};
+   module mod;
+   bp.parse_module(cp, 18, mod);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+60, 16};
+   module mod;
+   bp.parse_module(cp, 16, mod);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+76, 18};
+   module mod;
+   bp.parse_module(cp, 18, mod);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+94, 18};
+   module mod;
+   bp.parse_module(cp, 18, mod);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+112, 18};
+   module mod;
+   bp.parse_module(cp, 18, mod);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+130, 18};
+   module mod;
+   bp.parse_module(cp, 18, mod);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+148, 18};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 18, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+148, 18};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 18, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+148, 18};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 18, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+148, 18};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 18, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+148, 24};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 24, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+148, 27};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 27, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+148, 6};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 6, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+148, 9};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 9, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+148, 15};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 15, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+148, 18};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 18, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+148, 18};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 18, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+148, 18};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 18, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+148, 18};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 18, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+148, 18};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 18, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+148, 18};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 18, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+148, 36};
+   module mod;
+   bp.parse_module(cp, 36, mod);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+184, 45};
+   module mod;
+   bp.parse_module(cp, 45, mod);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+229, 44};
+   module mod;
+   bp.parse_module(cp, 44, mod);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+273, 45};
+   module mod;
+   bp.parse_module(cp, 45, mod);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+318, 54};
+   module mod;
+   bp.parse_module(cp, 54, mod);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+372, 54};
+   module mod;
+   bp.parse_module(cp, 54, mod);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+426, 45};
+   module mod;
+   bp.parse_module(cp, 45, mod);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+471, 45};
+   module mod;
+   bp.parse_module(cp, 45, mod);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+516, 69};
+   module mod;
+   bp.parse_module(cp, 69, mod);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+585, 69};
+   module mod;
+   bp.parse_module(cp, 69, mod);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+654, 59};
+   module mod;
+   bp.parse_module(cp, 59, mod);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+713, 62};
+   module mod;
+   bp.parse_module(cp, 62, mod);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+775, 48};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 48, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+775, 57};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 57, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+775, 57};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 57, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+775, 72};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 72, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+775, 72};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 72, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+775, 44};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 44, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+775, 44};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 44, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+775, 54};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 54, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+775, 54};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 54, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+775, 54};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 54, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+775, 54};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 54, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+775, 69};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 69, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+775, 69};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 69, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+775, 69};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 69, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+775, 69};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 69, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+775, 99};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 99, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+775, 102};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 102, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+775, 105};
+   module mod;
+   BOOST_CHECK_THROW(bp.parse_module(cp, 105, mod), wasm_parser_exception);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+775, 27};
+   module mod;
+   bp.parse_module(cp, 27, mod);
+}
+{
+   binary_parser bp;
+   wasm_code_ptr cp{code.data()+802, 6};
+   module mod;
+   bp.parse_module(cp, 6, mod);
+}
+
