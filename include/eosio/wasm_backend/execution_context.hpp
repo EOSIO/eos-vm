@@ -147,7 +147,6 @@ namespace eosio { namespace wasm_backend {
                return ret_val;
             }
 
-            inline uint32_t get_pc()const { return _pc; }
             inline void type_check( const func_type& ft ) {
               // TODO validate param_count is less than 256
               for (int i=0; i < ft.param_count; i++) {
@@ -193,8 +192,10 @@ namespace eosio { namespace wasm_backend {
                 push_operand(elems[j]);
               }
             }
+
+            inline uint32_t get_pc()const { return _pc; }
             inline void set_pc( uint32_t pc ) { _pc = pc; }
-            inline void set_offset( uint32_t off ) { _current_offset = off; }
+            inline void set_relative_pc( uint32_t pc ) { _pc = _current_offset+pc; }
             inline void inc_pc() { _pc++; }
             inline void exit()const { _executing = false; }
             inline bool executing()const { _executing; }
