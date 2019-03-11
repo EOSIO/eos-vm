@@ -88,30 +88,19 @@ struct interpret_visitor {
       dbg_output << "fend {" << context.get_pc() << "}\n";
    }
    void operator()(end_t) {
-      // TODO create fend instruction for function end vs normal end (remove the need for pushing to the label stack)
-      const auto& c = context.pop_label();
-      stack_elem el;
-      uint8_t ret_type = 0;
-      uint16_t index = 0;
+      std::cout << "end\n";
+      const auto& label = context.pop_label();
       std::visit(overloaded {
          [&](const block_t& b) {
-            ret_type = b.data;
-            index = b.index;
+            context.eat_labels(b.index);
          }, [&](const loop_t& l) {
-            ret_type = l.data;
-            index = l.index;
+            context.eat_labels(l.index);
          },[&](const if__t& i) {
-            ret_type = i.data;
-            index = i.index;
+            context.eat_labels(i.index);
          }, [&](auto) {
             throw wasm_interpreter_exception{"expected control structure"};
          }
-      }, c);
-      if (ret_type != 0x40)
-         el = context.pop_operand();
-      context.eat_labels(index);
-      if (ret_type != 0x40)
-         context.push_operand(el);
+      }, label);
       context.inc_pc();
       dbg_output << "end {" << context.get_pc() << "}\n";
    }
@@ -150,24 +139,21 @@ struct interpret_visitor {
    }
    void operator()(br_if_t b) {
       dbg_output << "br.if {" << context.get_pc() << "} " << b.data << "\n";
-      context.inc_pc();
       const auto& val = context.pop_operand();
-      if (!context.is_true(val))
+      if (context.is_true(val))
          context.jump(b.data);
       else
          context.inc_pc();
    }
    void operator()(br_table_t b) {
-      const auto& val = context.pop_operand();
-      const auto& in = TO_UINT32(val);
+      const auto& in = TO_UINT32(context.pop_operand());
       if (in < b.target_table.size())
          context.jump(b.target_table[in]);
       else
-         context.jump(b.target_table[b.default_target]);
+         context.jump(b.default_target);
       dbg_output << "br.table\n";
    }
    void operator()(call_t b) {
-      std::cout << "CALL " << b.index << "\n";
       context.call(b.index);
       // TODO place these in parser
       //EOS_WB_ASSERT(b.index < funcs_size, wasm_interpreter_exception, "call index out of bounds");
@@ -180,10 +166,9 @@ struct interpret_visitor {
       dbg_output << "call {" << context.get_pc() << "} " << b.index << "\n";
    }
    void operator()(call_indirect_t b) {
-      context.inc_pc();
       const auto& op = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(op), wasm_interpreter_exception, "call_indirect expected i32 operand");
-      context.call(TO_UINT32(op));
+      context.call(context.table_elem(TO_UINT32(op)));
       dbg_output << "call_indirect " << b.index << " " << context.get_module().tables[b.index].element_type << "\n";
    }
    void operator()(drop_t b) {
@@ -195,9 +180,8 @@ struct interpret_visitor {
       const auto& c = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(c), wasm_interpreter_exception, "select expected i32 on stack");
       const auto& v2 = context.pop_operand();
-      if (std::get<i32_const_t>(c).data.ui == 0) {
-         context.pop_operand();
-         context.push_operand(v2);
+      if (TO_UINT32(c) == 0) {
+         context.peek_operand() = v2;
       }
       context.inc_pc();
       dbg_output << "select\n";
@@ -349,8 +333,9 @@ struct interpret_visitor {
       EOS_WB_ASSERT(is_a<i32_const_t>(val), wasm_interpreter_exception, "i32.store expected i32 operand");
       const auto& ptr = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "i32.store expected i32 operand");
-
-      *((uint32_t*)context.linear_memory()+b.offset+TO_UINT32(ptr)) = TO_UINT32(val);
+      uint32_t* store_loc = (uint32_t*)context.linear_memory()+b.offset+TO_UINT32(ptr);
+      *store_loc = TO_UINT32(val);
+      std::cout << "loc " << store_loc << " " << TO_UINT32(val) << " " << *store_loc << "\n";
       dbg_output << "i32.store\n";
    }
    void operator()(i32_store8_t b) {
@@ -762,50 +747,86 @@ struct interpret_visitor {
    }
    void operator()(f32_eq_t b) {
       context.inc_pc();
+      const auto& rhs = TO_F32(context.pop_operand());
+      const auto& lhs = TO_F32(context.pop_operand());
+      context.push_operand(i32_const_t{(uint32_t)_eosio_f32_eq(lhs, rhs)});
       dbg_print("f32.eq");
    }
    void operator()(f32_ne_t b) {
       context.inc_pc();
+      const auto& rhs = TO_F32(context.pop_operand());
+      const auto& lhs = TO_F32(context.pop_operand());
+      context.push_operand(i32_const_t{(uint32_t)_eosio_f32_ne(lhs, rhs)});
       dbg_print("f32.ne");
    }
    void operator()(f32_lt_t b) {
       context.inc_pc();
+      const auto& rhs = TO_F32(context.pop_operand());
+      const auto& lhs = TO_F32(context.pop_operand());
+      context.push_operand(i32_const_t{(uint32_t)_eosio_f32_lt(lhs, rhs)});
       dbg_print("f32.lt");
    }
    void operator()(f32_gt_t b) {
       context.inc_pc();
+      const auto& rhs = TO_F32(context.pop_operand());
+      const auto& lhs = TO_F32(context.pop_operand());
+      context.push_operand(i32_const_t{(uint32_t)!_eosio_f32_le(lhs, rhs)});
       dbg_print("f32.gt");
    }
    void operator()(f32_le_t b) {
       context.inc_pc();
+      const auto& rhs = TO_F32(context.pop_operand());
+      const auto& lhs = TO_F32(context.pop_operand());
+      context.push_operand(i32_const_t{(uint32_t)_eosio_f32_le(lhs, rhs)});
       dbg_print("f32.le");
    }
    void operator()(f32_ge_t b) {
       context.inc_pc();
+      const auto& rhs = TO_F32(context.pop_operand());
+      const auto& lhs = TO_F32(context.pop_operand());
+      context.push_operand(i32_const_t{(uint32_t)!_eosio_f32_lt(lhs, rhs)});
       dbg_print("f32.ge");
    }
    void operator()(f64_eq_t b) {
       context.inc_pc();
+      const auto& rhs = TO_F64(context.pop_operand());
+      const auto& lhs = TO_F64(context.pop_operand());
+      context.push_operand(i32_const_t{(uint32_t)_eosio_f64_eq(lhs, rhs)});
       dbg_print("f64.eq");
    }
    void operator()(f64_ne_t b) {
       context.inc_pc();
+      const auto& rhs = TO_F64(context.pop_operand());
+      const auto& lhs = TO_F64(context.pop_operand());
+      context.push_operand(i32_const_t{(uint32_t)_eosio_f64_ne(lhs, rhs)});
       dbg_print("f64.ne");
    }
    void operator()(f64_lt_t b) {
       context.inc_pc();
+      const auto& rhs = TO_F64(context.pop_operand());
+      const auto& lhs = TO_F64(context.pop_operand());
+      context.push_operand(i32_const_t{(uint32_t)_eosio_f64_lt(lhs, rhs)});
       dbg_print("f64.lt");
    }
    void operator()(f64_gt_t b) {
       context.inc_pc();
+      const auto& rhs = TO_F64(context.pop_operand());
+      const auto& lhs = TO_F64(context.pop_operand());
+      context.push_operand(i32_const_t{(uint32_t)!_eosio_f64_le(lhs, rhs)});
       dbg_print("f64.gt");
    }
    void operator()(f64_le_t b) {
       context.inc_pc();
+      const auto& rhs = TO_F64(context.pop_operand());
+      const auto& lhs = TO_F64(context.pop_operand());
+      context.push_operand(i32_const_t{(uint32_t)_eosio_f64_le(lhs, rhs)});
       dbg_print("f64.le");
    }
    void operator()(f64_ge_t b) {
       context.inc_pc();
+      const auto& rhs = TO_F64(context.pop_operand());
+      const auto& lhs = TO_F64(context.pop_operand());
+      context.push_operand(i32_const_t{(uint32_t)!_eosio_f64_lt(lhs, rhs)});
       dbg_print("f64.ge");
    }
    void operator()(i32_clz_t) {

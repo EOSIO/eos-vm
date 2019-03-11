@@ -1,3 +1,4 @@
+START
 (module
   (memory 1)
   (data (i32.const 0) "abcdefghijklmnopqrstuvwxyz")
@@ -251,3 +252,4 @@
     (drop (f32.load offset=4294967295 (get_local $i)))
   )
 )
+END

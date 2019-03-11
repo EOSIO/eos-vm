@@ -1,3 +1,4 @@
+START
 (module
   (memory 1)
 
@@ -164,16 +165,17 @@
   (func (export "as-set_local-value") (result i32)
     (local i32) (set_local 0 (block (result i32) (i32.const 1))) (get_local 0)
   )
-  (func (export "as-local.tee-value") (result i32)
-    (local i32) (local.tee 0 (block (result i32) (i32.const 1)))
+  (func (export "as-tee_local-value") (result i32)
+    (local i32) (tee_local 0 (block (result i32) (i32.const 1)))
   )
   (global $a (mut i32) (i32.const 10))
-  (func (export "as-global.set-value") (result i32)
-    (global.set $a (block (result i32) (i32.const 1)))
-    (global.get $a)
+  (func (export "as-set_global-value") (result i32)
+    (set_global $a (block (result i32) (i32.const 1)))
+    (get_global $a)
   )
 
   (func (export "as-load-operand") (result i32)
+    (call $as-store-first)
     (i32.load (block (result i32) (i32.const 1)))
   )
 
@@ -245,7 +247,7 @@
     (i32.eq (get_local 0) (i32.const -14))
   )
 )
-
+END
 
 (assert_return (invoke "empty"))
 (assert_return (invoke "singular") (i32.const 7))
@@ -284,8 +286,8 @@
 (assert_return (invoke "as-drop-operand"))
 (assert_return (invoke "as-br-value") (i32.const 1))
 (assert_return (invoke "as-set_local-value") (i32.const 1))
-(assert_return (invoke "as-local.tee-value") (i32.const 1))
-(assert_return (invoke "as-global.set-value") (i32.const 1))
+(assert_return (invoke "as-tee_local-value") (i32.const 1))
+(assert_return (invoke "as-set_global-value") (i32.const 1))
 (assert_return (invoke "as-load-operand") (i32.const 1))
 
 (assert_return (invoke "as-unary-operand") (i32.const 0))
@@ -1106,7 +1108,6 @@
   ))
   "type mismatch"
 )
-
 
 (assert_malformed
   (module quote "(func block end $l)")

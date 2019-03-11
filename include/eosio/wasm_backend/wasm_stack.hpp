@@ -48,7 +48,7 @@ namespace eosio { namespace wasm_backend {
          stack_elem& peek(size_t i) {
             return _s[_index-1-i];
          }
-         uint8_t size()const {
+         uint16_t size()const {
             return _index;
          }
       private:
