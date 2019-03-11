@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <eosio/wasm_backend/types.hpp>
 #include <eosio/wasm_backend/wasm_stack.hpp>
 #include <eosio/wasm_backend/host_function.hpp>
@@ -41,7 +42,7 @@ namespace eosio { namespace wasm_backend {
                   inc_pc();
                } else {
                   const auto& ft = _mod.types[_mod.functions[index - _mod.get_imported_functions_size()]];
-                  type_check_and_push(ft);
+                  type_check(ft);
                   setup_locals(index);
                   push_call(index);
                   const uint32_t& pc = _mod.function_sizes[index];
@@ -62,12 +63,15 @@ namespace eosio { namespace wasm_backend {
             }
             inline module& get_module() { return _mod; }
             inline uint8_t* linear_memory() { return _linear_memory; }
+            inline uint32_t table_elem(uint32_t i) { return _mod.elements[0].offset.value.f64 + _mod.elements[0].elems[i]; }
             inline void push_label( const stack_elem& el ) { _cs.push(el); }
             inline uint16_t current_label_index()const { return _cs.current_index(); }
             inline void eat_labels(uint16_t index) { _cs.eat(index); }
             inline void push_operand( const stack_elem& el ) { _os.push(el); }
             inline stack_elem get_operand( uint32_t index )const { return _os.get(index); }
+            inline void eat_operands(uint16_t index) { _os.eat(index); }
             inline void set_operand( uint32_t index, const stack_elem& el ) { _os.set(index, el); }
+            inline size_t operands()const { return _os.size(); }
             inline void push_call( const stack_elem& el ) { _as.push(el); }
             inline stack_elem pop_call() { return _as.pop(); }
             inline void push_call(uint32_t index) {
@@ -167,32 +171,6 @@ namespace eosio { namespace wasm_backend {
               }
             }
 
-            inline void type_check_and_push( const func_type& ft ) {
-              stack_elem elems[256];
-              int i=0;
-              // TODO validate param_count is less than 256
-              for (; i < ft.param_count; i++) {
-                 const auto& el = pop_operand();
-                 elems[i] = el;
-                 std::visit(overloaded {
-                    [&](const i32_const_t&) {
-                       EOS_WB_ASSERT(ft.param_types[i] == types::i32, wasm_interpreter_exception, "function param type mismatch");
-                    }, [&](const f32_const_t&) {
-                       EOS_WB_ASSERT(ft.param_types[i] == types::f32, wasm_interpreter_exception, "function param type mismatch");
-                    }, [&](const i64_const_t&) {
-                       EOS_WB_ASSERT(ft.param_types[i] == types::i64, wasm_interpreter_exception, "function param type mismatch");
-                    }, [&](const f64_const_t&) {
-                       EOS_WB_ASSERT(ft.param_types[i] == types::f64, wasm_interpreter_exception, "function param type mismatch");
-                    }, [&](auto) {
-                       throw wasm_interpreter_exception{"function param invalid type"};
-                    }
-                 }, el);
-              }
-              for (int j=0; j < i; j++) {
-                push_operand(elems[j]);
-              }
-            }
-
             inline uint32_t get_pc()const { return _pc; }
             inline void set_pc( uint32_t pc ) { _pc = pc; }
             inline void set_relative_pc( uint32_t pc ) { _pc = _current_offset+pc; }
@@ -201,18 +179,24 @@ namespace eosio { namespace wasm_backend {
             inline bool executing()const { _executing; }
 
             template <typename... Args>
-            inline stack_elem execute(const std::string_view func, Args... args) {
+            inline std::optional<stack_elem> execute(const std::string_view func, Args... args) {
                uint32_t func_index = _mod.get_exported_function(func);
                EOS_WB_ASSERT(func_index < std::numeric_limits<uint32_t>::max(), wasm_interpreter_exception, "cannot execute function, function not found");
                _current_function = func_index;
                _code_index       = func_index - _mod.import_functions.size();
                _current_offset   = _mod.function_sizes[_current_function];
-               _pc               = _current_offset;
                _exit_pc          = _current_offset + _mod.code[_current_function-_mod.import_functions.size()].code.size()-1;
                _executing        = true;
                _os.eat(0);
+               _as.eat(0);
+               _cs.eat(0);
                push_args(args...);
-               //type_check(_mod.types[_mod.imports[func_index].type.func_t]);
+               type_check(_mod.types[_mod.functions[func_index - _mod.import_functions.size()]]);
+
+               _pc = _exit_pc;
+               push_call(func_index - _mod.import_functions.size());
+               _pc = _current_offset;
+
                setup_locals(func_index);
                execute();
                stack_elem ret;
@@ -220,28 +204,27 @@ namespace eosio { namespace wasm_backend {
                try {
                   ret = pop_operand();
                } catch(...) {
-                  std::cout << "NOTHING ON STACK\n";
+                  return {};
                }
                _os.eat(0);
                return ret;
             }
 
             inline void jump( uint32_t label ) { 
-               stack_elem el;
-               for (int i=0; i < label+1; i++) {
+               stack_elem el = _cs.pop();
+               for (int i=0; i < label; i++)
                   el = _cs.pop();
-               }
                std::visit(overloaded {
-                     [&](const block_t& bt) {
-                        _pc = _current_offset + bt.pc;
-                     }, [&](const loop_t& lt) {
-                        _pc = _current_offset + lt.pc;
-                     }, [&](const if__t& it) {
-                        _pc = _current_offset + it.pc;
-                     }, [&](auto) {
-                        throw wasm_invalid_element{"invalid element when popping control stack"};
-                     }
-                  }, el);
+                  [&](const block_t& bt) {
+                     _pc = _current_offset + bt.pc + 1;
+                  }, [&](const loop_t& lt) {
+                     _pc = _current_offset + lt.pc + 1;
+                  }, [&](const if__t& it) {
+                     _pc = _current_offset + it.pc + 1;
+                  }, [&](auto) {
+                     throw wasm_invalid_element{"invalid element when popping control stack"};
+                  }
+               }, el);
             }
          private:
             template <size_t N>
@@ -294,12 +277,12 @@ namespace eosio { namespace wasm_backend {
             void execute() {
                do {
                   uint32_t offset = _pc - _current_offset;
-                  std::cout << "PC " << offset << " " << _current_function << " " << _mod.code[_code_index].code[offset].index() << "\n";
                   std::visit(_visitor, _mod.code[_code_index].code[offset]);
                   std::cout << _visitor.dbg_output.str() << "\n";
                   _visitor.dbg_output.str("");
-                  if (_pc == _exit_pc)
+                  if (_pc >= _exit_pc) {
                      _executing = false;
+                  }
                } while (_executing);
             }
             uint32_t      _pc               = 0;
