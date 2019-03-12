@@ -199,7 +199,6 @@ namespace eosio { namespace wasm_backend {
 
                setup_locals(func_index);
                execute();
-               std::cout << "INDEX " << _current_function << "\n";
                stack_elem ret;
                //TODO clean this up
                try {

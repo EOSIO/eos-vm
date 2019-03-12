@@ -191,7 +191,8 @@ namespace eosio { namespace wasm_backend {
          uint32_t index = std::numeric_limits<uint32_t>::max();
          for (int i=0; i < exports.size(); i++) {
             if (exports[i].kind == external_kind::Function &&
-               memcmp((const char*)str.data(), (const char*)exports[i].field_str.raw(), exports[i].field_str.size()) == 0) {
+                exports[i].field_str.size() == str.size() &&
+                memcmp((const char*)str.data(), (const char*)exports[i].field_str.raw(), exports[i].field_str.size()) == 0) {
                index = exports[i].index;
                break;
             }
