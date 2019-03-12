@@ -709,9 +709,8 @@ BOOST_AUTO_TEST_CASE(br_tests) {
       BOOST_CHECK(!ctx.execute("type-i64"));
       BOOST_CHECK(!ctx.execute("type-f32"));
       BOOST_CHECK(!ctx.execute("type-f64"));
-      std::cout << "type-i32-value\n";
+
       BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("type-i32-value")), (uint32_t)1);
-      return;
       BOOST_CHECK_EQUAL(TO_UINT64(*ctx.execute("type-i64-value")), (uint64_t)2);
       BOOST_CHECK_EQUAL(TO_F32(*ctx.execute("type-f32-value")), (float)3);
       BOOST_CHECK_EQUAL(TO_F64(*ctx.execute("type-f64-value")), (double)4);

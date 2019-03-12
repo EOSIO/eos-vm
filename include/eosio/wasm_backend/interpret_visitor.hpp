@@ -125,7 +125,7 @@ struct interpret_visitor {
       it.index = context.current_label_index();
       const auto& op = context.pop_operand();
       if (!TO_UINT32(op))
-         context.set_pc(it.pc);
+         context.set_relative_pc(it.pc);
       context.push_label(it);
       dbg_output << "if {" << context.get_pc() << "} " << it.data << " " << it.pc << "\n";
    }
