@@ -1,6 +1,7 @@
 configure_file(system.wasm ${CMAKE_CURRENT_BINARY_DIR}/system.wasm COPYONLY)
 configure_file(address.wasm ${CMAKE_CURRENT_BINARY_DIR}/address.wasm COPYONLY)
 configure_file(blocks.wasm ${CMAKE_CURRENT_BINARY_DIR}/blocks.wasm COPYONLY)
+configure_file(br.wasm ${CMAKE_CURRENT_BINARY_DIR}/br.wasm COPYONLY)
 configure_file(binary/b0.wasm ${CMAKE_CURRENT_BINARY_DIR}/binary/b0.wasm COPYONLY)
 configure_file(binary/b1.wasm ${CMAKE_CURRENT_BINARY_DIR}/binary/b1.wasm COPYONLY)
 configure_file(binary/b2.wasm ${CMAKE_CURRENT_BINARY_DIR}/binary/b2.wasm COPYONLY)
