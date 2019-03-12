@@ -186,7 +186,6 @@ namespace eosio { namespace wasm_backend {
                _code_index       = func_index - _mod.import_functions.size();
                _current_offset   = _mod.function_sizes[_current_function];
                _exit_pc          = _current_offset + _mod.code[_current_function-_mod.import_functions.size()].code.size()-1;
-               std::cout << "EXIT PC " << _exit_pc << "\n";
                _executing        = true;
                _os.eat(0);
                _as.eat(0);
@@ -194,7 +193,7 @@ namespace eosio { namespace wasm_backend {
                push_args(args...);
                type_check(_mod.types[_mod.functions[func_index - _mod.import_functions.size()]]);
 
-               _pc = _exit_pc;
+               _pc = _exit_pc-1;
                push_call(func_index - _mod.import_functions.size());
                _pc = _current_offset;
 
@@ -278,7 +277,7 @@ namespace eosio { namespace wasm_backend {
             void execute() {
                do {
                   uint32_t offset = _pc - _current_offset;
-                  std::cout << "PC " << _pc << " Offset " << offset << "\n";
+                  std::cout << "EXIT PC " << _exit_pc << " PC " << _pc << " Offset " << offset << "\n";
                   std::visit(_visitor, _mod.code[_code_index].code[offset]);
                   std::cout << _visitor.dbg_output.str() << "\n";
                   _visitor.dbg_output.str("");

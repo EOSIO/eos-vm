@@ -88,7 +88,6 @@ struct interpret_visitor {
       dbg_output << "fend {" << context.get_pc() << "}\n";
    }
    void operator()(end_t) {
-      std::cout << "end\n";
       const auto& label = context.pop_label();
       std::visit(overloaded {
          [&](const block_t& b) {
@@ -220,6 +219,8 @@ struct interpret_visitor {
       const auto& ptr = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "i32.load expected i32 operand");
       uint32_t val = *(uint32_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint32_t* store_loc = (uint32_t*)context.linear_memory()+b.offset+TO_UINT32(ptr)-sizeof(uint32_t);
+      std::cout << "i32.load loc " << store_loc << "\n"; 
       context.push_operand(i32_const_t{val});
       dbg_output << "i32.load " << " align " << b.flags_align << " offset " << b.offset << " value " << val << "\n";
    }
