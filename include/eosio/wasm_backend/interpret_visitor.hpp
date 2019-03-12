@@ -109,6 +109,7 @@ struct interpret_visitor {
    }
    void operator()(block_t bt) {
       context.inc_pc();
+      std::cout << "block\n";
       bt.index = context.current_label_index();
       context.push_label(bt);
       dbg_output << "block {" << context.get_pc() << "} " << bt.data << " " << bt.pc << "\n";
@@ -218,17 +219,17 @@ struct interpret_visitor {
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "i32.load expected i32 operand");
-      uint32_t val = *(uint32_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
-      uint32_t* store_loc = (uint32_t*)context.linear_memory()+b.offset+TO_UINT32(ptr)-sizeof(uint32_t);
-      std::cout << "i32.load loc " << store_loc << "\n"; 
-      context.push_operand(i32_const_t{val});
+      uint32_t* _ptr = (uint32_t*)context.linear_memory()+b.offset+TO_UINT32(ptr);
+      uint32_t val = *_ptr;
+      context.push_operand(i32_const_t{*_ptr});
       dbg_output << "i32.load " << " align " << b.flags_align << " offset " << b.offset << " value " << val << "\n";
    }
    void operator()(i32_load8_s_t b) {
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "i32.load8_s expected i32 operand");
-      int8_t val = *(int8_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      int8_t* _ptr = (int8_t*)context.linear_memory()+b.offset+TO_UINT32(ptr);
+      int8_t val = *_ptr;
       context.push_operand(i32_const_t{*(uint32_t*)&val});
       dbg_output << "i32.load8_s\n";
    }
@@ -236,7 +237,8 @@ struct interpret_visitor {
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "i32.load16_s expected i32 operand");
-      int16_t val = *(int16_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      int16_t* _ptr = (int16_t*)context.linear_memory()+b.offset+TO_UINT32(ptr);
+      int16_t val = *_ptr;
       context.push_operand(i32_const_t{*(uint32_t*)&val});
       dbg_output << "i32.load16_s " << " align " << b.flags_align << " offset " << b.offset << " value " << (int)val << "\n";
    }
@@ -244,7 +246,8 @@ struct interpret_visitor {
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "i32.load8_u expected i32 operand");
-      uint8_t val = *(uint8_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint8_t* _ptr = (uint8_t*)context.linear_memory()+b.offset+TO_UINT32(ptr);
+      uint8_t val = *_ptr;
       context.push_operand(i32_const_t{val});
       dbg_output << "i32.load8_u\n";
    }
@@ -252,7 +255,8 @@ struct interpret_visitor {
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "i32.load16_u expected i32 operand");
-      uint16_t val = *(uint16_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint16_t* _ptr = (uint16_t*)context.linear_memory()+b.offset+TO_UINT32(ptr);
+      uint16_t val = *_ptr;
       context.push_operand(i32_const_t{val});
       dbg_output << "i32.load16_u " << " align " << b.flags_align << " offset " << b.offset << " value " << (int)val << "\n";
    }
@@ -260,7 +264,8 @@ struct interpret_visitor {
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "i64.load expected i32 operand");
-      uint64_t val = *(uint64_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint64_t* _ptr = (uint64_t*)context.linear_memory()+b.offset+TO_UINT32(ptr);
+      uint64_t val = *_ptr;
       context.push_operand(i64_const_t{val});
       dbg_output << "i64.load " << " align " << b.flags_align << " offset " << b.offset << " value " << val << "\n";
    }
@@ -268,7 +273,8 @@ struct interpret_visitor {
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "i64.load8_s expected i32 operand");
-      int8_t val = *(int8_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      int8_t* _ptr = (int8_t*)context.linear_memory()+b.offset+TO_UINT32(ptr);
+      int8_t val = *_ptr;
       context.push_operand(i64_const_t{*(uint64_t*)&val});
       dbg_output << "i64.load8_s " << " align " << b.flags_align << " offset " << b.offset << " value " << (long long)val << "\n";
    }
@@ -276,7 +282,8 @@ struct interpret_visitor {
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "i64.load16_s expected i32 operand");
-      int16_t val = *(int16_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      int16_t* _ptr = (int16_t*)context.linear_memory()+b.offset+TO_UINT32(ptr);
+      int16_t val = *_ptr;
       context.push_operand(i64_const_t{*(uint64_t*)&val});
       dbg_output << "i64.load16_s " << " align " << b.flags_align << " offset " << b.offset << " value " << (long long)val << "\n";
    }
@@ -284,7 +291,8 @@ struct interpret_visitor {
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "i64.load32_s expected i32 operand");
-      int32_t val = *(int32_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      int32_t* _ptr = (int32_t*)context.linear_memory()+b.offset+TO_UINT32(ptr);
+      int32_t val = *_ptr;
       context.push_operand(i64_const_t{*(uint64_t*)&val});
       dbg_output << "i64.load32_s " << " align " << b.flags_align << " offset " << b.offset << " value " << (long long)val << "\n";
    }
@@ -292,7 +300,8 @@ struct interpret_visitor {
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "i64.load8_u expected i32 operand");
-      uint8_t val = *(uint8_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint8_t* _ptr = (uint8_t*)context.linear_memory()+b.offset+TO_UINT32(ptr);
+      uint8_t val = *_ptr;
       context.push_operand(i64_const_t{static_cast<uint64_t>(val)});
       dbg_output << "i64.load8_u " << " align " << b.flags_align << " offset " << b.offset << " value " << (long long)val << "\n";
    }
@@ -300,7 +309,8 @@ struct interpret_visitor {
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "i64.load16_u expected i32 operand");
-      uint16_t val = *(uint16_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint16_t* _ptr = (uint16_t*)context.linear_memory()+b.offset+TO_UINT32(ptr);
+      uint16_t val = *_ptr;
       context.push_operand(i64_const_t{static_cast<uint64_t>(val)});
       dbg_output << "i64.load16_u " << " align " << b.flags_align << " offset " << b.offset << " value " << (long long)val << "\n";
    }
@@ -308,7 +318,8 @@ struct interpret_visitor {
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "i64.load32_u expected i32 operand");
-      uint32_t val = *(uint32_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint32_t* _ptr = (uint32_t*)context.linear_memory()+b.offset+TO_UINT32(ptr);
+      uint32_t val = *_ptr;
       context.push_operand(i64_const_t{static_cast<uint64_t>(val)});
       dbg_output << "i64.load32_u " << " align " << b.flags_align << " offset " << b.offset << " value " << (long long)val << "\n";
    }
@@ -316,7 +327,8 @@ struct interpret_visitor {
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "f32.load expected i32 operand");
-      uint32_t val = *(uint32_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint32_t* _ptr = (uint32_t*)context.linear_memory()+b.offset+TO_UINT32(ptr);
+      uint32_t val = *_ptr;
       context.push_operand(f32_const_t{val});
       dbg_output << "f32.load " << " align " << b.flags_align << " offset " << b.offset << " value " << *(float*)&val << "\n";
    }
@@ -324,7 +336,8 @@ struct interpret_visitor {
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "f64.load expected i32 operand");
-      uint64_t val = *(uint64_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint64_t* _ptr = (uint64_t*)context.linear_memory()+b.offset+TO_UINT32(ptr);
+      uint64_t val = *_ptr;
       context.push_operand(f64_const_t{val});
       dbg_output << "f64.load " << " align " << b.flags_align << " offset " << b.offset << " value " << *(double*)&val << "\n";
    }
@@ -336,7 +349,6 @@ struct interpret_visitor {
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "i32.store expected i32 operand");
       uint32_t* store_loc = (uint32_t*)context.linear_memory()+b.offset+TO_UINT32(ptr);
       *store_loc = TO_UINT32(val);
-      std::cout << "loc " << store_loc << " " << TO_UINT32(val) << " " << *store_loc << "\n";
       dbg_output << "i32.store\n";
    }
    void operator()(i32_store8_t b) {
@@ -345,8 +357,8 @@ struct interpret_visitor {
       EOS_WB_ASSERT(is_a<i32_const_t>(val), wasm_interpreter_exception, "i32.store8 expected i32 operand");
       const auto& ptr = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "i32.store8 expected i32 operand");
-
-      *((uint8_t*)context.linear_memory()+b.offset+TO_UINT32(ptr)) = static_cast<uint8_t>(TO_UINT32(val));
+      uint8_t* store_loc = (uint8_t*)context.linear_memory()+b.offset+TO_UINT32(ptr);
+      *store_loc = static_cast<uint8_t>(TO_UINT32(val));
       dbg_output << "i32.store8\n";
    }
    void operator()(i32_store16_t b) {
@@ -355,8 +367,8 @@ struct interpret_visitor {
       EOS_WB_ASSERT(is_a<i32_const_t>(val), wasm_interpreter_exception, "i32.store16 expected i32 operand");
       const auto& ptr = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "i32.store16 expected i32 operand");
-
-      *((uint16_t*)context.linear_memory()+b.offset+TO_UINT32(ptr)) = static_cast<uint16_t>(TO_UINT32(val));
+      uint16_t* store_loc = (uint16_t*)context.linear_memory()+b.offset+TO_UINT32(ptr);
+      *store_loc = static_cast<uint16_t>(TO_UINT32(val));
       dbg_output << "i32.store16\n";
    }
    void operator()(i64_store_t b) {
@@ -365,8 +377,8 @@ struct interpret_visitor {
       EOS_WB_ASSERT(is_a<i64_const_t>(val), wasm_interpreter_exception, "i64.store expected i64 operand");
       const auto& ptr = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "i64.store expected i32 operand");
-
-      *((uint64_t*)context.linear_memory()+b.offset+TO_UINT32(ptr)) = TO_UINT64(val);
+      uint64_t* store_loc = (uint64_t*)context.linear_memory()+b.offset+TO_UINT32(ptr);
+      *store_loc = static_cast<uint64_t>(TO_UINT64(val));
       dbg_output << "i64.store\n";
    }
    void operator()(i64_store8_t b) {
@@ -375,8 +387,8 @@ struct interpret_visitor {
       EOS_WB_ASSERT(is_a<i64_const_t>(val), wasm_interpreter_exception, "i64.store expected i64 operand");
       const auto& ptr = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "i64.store8 expected i32 operand");
-
-      *((uint8_t*)context.linear_memory()+b.offset+TO_UINT32(ptr)) = static_cast<uint8_t>(TO_UINT64(val));
+      uint8_t* store_loc = (uint8_t*)context.linear_memory()+b.offset+TO_UINT32(ptr);
+      *store_loc = static_cast<uint8_t>(TO_UINT64(val));
       dbg_output << "i64.store8\n";
    }
    void operator()(i64_store16_t b) {
@@ -385,8 +397,8 @@ struct interpret_visitor {
       EOS_WB_ASSERT(is_a<i64_const_t>(val), wasm_interpreter_exception, "i64.store expected i64 operand");
       const auto& ptr = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "i64.store16 expected i32 operand");
-
-      *((uint16_t*)context.linear_memory()+b.offset+TO_UINT32(ptr)) = static_cast<uint16_t>(TO_UINT64(val));
+      uint16_t* store_loc = (uint16_t*)context.linear_memory()+b.offset+TO_UINT32(ptr);
+      *store_loc = static_cast<uint16_t>(TO_UINT64(val));
       dbg_output << "i64.store16\n";
    }
    void operator()(i64_store32_t b) {
@@ -395,8 +407,8 @@ struct interpret_visitor {
       EOS_WB_ASSERT(is_a<i64_const_t>(val), wasm_interpreter_exception, "i64.store expected i64 operand");
       const auto& ptr = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "i64.store32 expected i32 operand");
-
-      *((uint32_t*)context.linear_memory()+b.offset+TO_UINT32(ptr)) = static_cast<uint32_t>(TO_UINT64(val));
+      uint32_t* store_loc = (uint32_t*)context.linear_memory()+b.offset+TO_UINT32(ptr);
+      *store_loc = static_cast<uint32_t>(TO_UINT64(val));
       dbg_output << "i64.store32\n";
    }
    void operator()(f32_store_t b) {
@@ -405,8 +417,8 @@ struct interpret_visitor {
       EOS_WB_ASSERT(is_a<f32_const_t>(val), wasm_interpreter_exception, "f32.store expected f32 operand");
       const auto& ptr = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "f32.store expected i32 operand");
-
-      *((uint32_t*)context.linear_memory()+b.offset+TO_UINT32(ptr)) = TO_FUINT32(val);
+      uint32_t* store_loc = (uint32_t*)context.linear_memory()+b.offset+TO_UINT32(ptr);
+      *store_loc = static_cast<uint32_t>(TO_FUINT32(val));
       dbg_output << "f32.store\n";
    }
    void operator()(f64_store_t b) {
@@ -415,8 +427,8 @@ struct interpret_visitor {
       EOS_WB_ASSERT(is_a<f32_const_t>(val), wasm_interpreter_exception, "f64.store expected f64 operand");
       const auto& ptr = context.pop_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(ptr), wasm_interpreter_exception, "f64.store expected i32 operand");
-
-      *((uint64_t*)context.linear_memory()+b.offset+TO_UINT32(ptr)) = TO_FUINT64(val);
+      uint64_t* store_loc = (uint64_t*)context.linear_memory()+b.offset+TO_UINT32(ptr);
+      *store_loc = static_cast<uint64_t>(TO_FUINT64(val));
       dbg_output << "f64.store\n";
    }
    void operator()(current_memory_t b) {
@@ -429,6 +441,7 @@ struct interpret_visitor {
    }
    void operator()(i32_const_t b) {
       context.inc_pc();
+      std::cout << "i32.const\n";
       context.push_operand(b);
       dbg_output << "i32.const " << b.data.i << "\n";
    }
@@ -840,6 +853,7 @@ struct interpret_visitor {
    }
    void operator()(i32_ctz_t) {
       context.inc_pc();
+      std::cout << "i32.ctz\n";
       auto& op = context.peek_operand();
       EOS_WB_ASSERT(is_a<i32_const_t>(op), wasm_interpreter_exception, "i32.ctz expected i32 operand");
       auto& o = TO_UINT32(op);

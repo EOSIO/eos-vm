@@ -699,4 +699,129 @@ BOOST_AUTO_TEST_CASE(blocks_tests) {
    } FC_LOG_AND_RETHROW()
 }
 
+BOOST_AUTO_TEST_CASE(br_tests) { 
+   try {
+      memory_manager::set_memory_limits( 32*1024*1024 );
+      module mod;
+      auto ctx = create_execution_context<interpret_visitor>("wasms/br.wasm", mod);
+
+      BOOST_CHECK(!ctx.execute("type-i32"));
+      BOOST_CHECK(!ctx.execute("type-i64"));
+      BOOST_CHECK(!ctx.execute("type-f32"));
+      BOOST_CHECK(!ctx.execute("type-f64"));
+      std::cout << "type-i32-value\n";
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("type-i32-value")), (uint32_t)1);
+      return;
+      BOOST_CHECK_EQUAL(TO_UINT64(*ctx.execute("type-i64-value")), (uint64_t)2);
+      BOOST_CHECK_EQUAL(TO_F32(*ctx.execute("type-f32-value")), (float)3);
+      BOOST_CHECK_EQUAL(TO_F64(*ctx.execute("type-f64-value")), (double)4);
+
+      BOOST_CHECK(!ctx.execute("as-block-first"));
+      BOOST_CHECK(!ctx.execute("as-block-mid"));
+      BOOST_CHECK(!ctx.execute("as-block-last"));
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-block-value")), (uint32_t)2);
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-loop-first")), (uint32_t)3);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-loop-mid")), (uint32_t)4);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-loop-last")), (uint32_t)5);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-br-value")), (uint32_t)9);
+
+      BOOST_CHECK(!ctx.execute("as-br_if-cond"));
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-br_if-value")), (uint32_t)8);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-br_if-value-cond")), (uint32_t)9);
+
+      BOOST_CHECK(!ctx.execute("as-br_table-index"));
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-br_table-value")), (uint32_t)10);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-br_table-value-index")), (uint32_t)11);
+
+      BOOST_CHECK_EQUAL(TO_UINT64(*ctx.execute("as-return-value")), (uint64_t)7);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-if-cond")), (uint32_t)2);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-if-then", (uint32_t)1, (uint32_t)6)), (uint32_t)3);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-if-then", (uint32_t)0, (uint32_t)6)), (uint32_t)6);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-if-else", (uint32_t)0, (uint32_t)6)), (uint32_t)4);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-if-else", (uint32_t)1, (uint32_t)6)), (uint32_t)6);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-select-first", (uint32_t)0, (uint32_t)6)), (uint32_t)5);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-select-first", (uint32_t)1, (uint32_t)6)), (uint32_t)5);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-select-second", (uint32_t)0, (uint32_t)6)), (uint32_t)6);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-select-second", (uint32_t)1, (uint32_t)6)), (uint32_t)6);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-select-cond")), (uint32_t)7);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-call-first")), (uint32_t)12);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-call-mid")), (uint32_t)13);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-call-last")), (uint32_t)14);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-call_indirect-func")), (uint32_t)20);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-call_indirect-first")), (uint32_t)21);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-call_indirect-mid")), (uint32_t)22);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-call_indirect-last")), (uint32_t)23);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-set_local-value")), (uint32_t)17);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-tee_local-value")), (uint32_t)1);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-set_global-value")), (uint32_t)1);
+
+      BOOST_CHECK_EQUAL(TO_F32(*ctx.execute("as-load-address")), (float)1.7);
+
+      BOOST_CHECK_EQUAL(TO_UINT64(*ctx.execute("as-loadN-address")), (uint64_t)30);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-store-address")), (uint32_t)30);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-store-value")), (uint32_t)31);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-storeN-address")), (uint32_t)32);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-storeN-value")), (uint32_t)33);
+
+      BOOST_CHECK_EQUAL(TO_F32(*ctx.execute("as-unary-operand")), (float)3.4);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-binary-left")), (uint32_t)3);
+
+      BOOST_CHECK_EQUAL(TO_UINT64(*ctx.execute("as-binary-right")), (uint64_t)45);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-test-operand")), (uint32_t)44);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-compare-left")), (uint32_t)43);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-compare-right")), (uint32_t)42);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-convert-operand")), (uint32_t)41);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-memory.grow-size")), (uint32_t)40);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("nested-block-value")), (uint32_t)9);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("nested-br-value")), (uint32_t)9);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("nested-br_if-value")), (uint32_t)9);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("nested-br_if-value-cond")), (uint32_t)9);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("nested-br_table-value")), (uint32_t)9);
+
+      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("nested-br_table-value-index")), (uint32_t)9);
+
+   } FC_LOG_AND_RETHROW()
+}
 BOOST_AUTO_TEST_SUITE_END()
