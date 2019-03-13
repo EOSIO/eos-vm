@@ -206,6 +206,7 @@
       uint32_t data;                          \
       uint32_t pc;                            \
       uint16_t index;                         \
+      uint16_t op_index;                      \
    };
 
 #define CREATE_BR_TABLE_TYPE(name, code)    \

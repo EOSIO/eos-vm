@@ -71,6 +71,7 @@ namespace eosio { namespace wasm_backend {
             inline stack_elem get_operand( uint32_t index )const { return _os.get(index); }
             inline void eat_operands(uint16_t index) { _os.eat(index); }
             inline void set_operand( uint32_t index, const stack_elem& el ) { _os.set(index, el); }
+            inline uint16_t current_operands_index()const { return _os.current_index(); }
             inline size_t operands()const { return _os.size(); }
             inline void push_call( const stack_elem& el ) { _as.push(el); }
             inline stack_elem pop_call() { return _as.pop(); }
@@ -214,17 +215,28 @@ namespace eosio { namespace wasm_backend {
                stack_elem el = _cs.pop();
                for (int i=0; i < label; i++)
                   el = _cs.pop();
+               uint16_t op_index = 0;
                std::visit(overloaded {
                   [&](const block_t& bt) {
-                     _pc = _current_offset + bt.pc + 1;
+                     _pc = _current_offset + bt.pc+1;
+                     op_index = bt.op_index;
                   }, [&](const loop_t& lt) {
-                     _pc = _current_offset + lt.pc + 1;
+                     _pc = _current_offset + lt.pc+1;
+                     op_index = lt.op_index;
                   }, [&](const if__t& it) {
-                     _pc = _current_offset + it.pc + 1;
+                     _pc = _current_offset + it.pc+1;
+                     op_index = it.op_index;
                   }, [&](auto) {
                      throw wasm_invalid_element{"invalid element when popping control stack"};
                   }
                }, el);
+               bool has_operands = operands() > 0;
+               if (has_operands) {
+                  const auto& op = pop_operand();
+                  eat_operands(op_index);
+                  push_operand(op); 
+               }
+
             }
          private:
             template <size_t N>
@@ -278,12 +290,12 @@ namespace eosio { namespace wasm_backend {
                do {
                   uint32_t offset = _pc - _current_offset;
                   std::cout << "EXIT PC " << _exit_pc << " PC " << _pc << " Offset " << offset << "\n";
-                  std::visit(_visitor, _mod.code[_code_index].code[offset]);
-                  std::cout << _visitor.dbg_output.str() << "\n";
-                  _visitor.dbg_output.str("");
                   if (_pc == _exit_pc) {
                      _executing = false;
                   }
+                  std::visit(_visitor, _mod.code[_code_index].code[offset]);
+                  std::cout << _visitor.dbg_output.str() << "\n";
+                  _visitor.dbg_output.str("");
                } while (_executing);
             }
             uint32_t      _pc               = 0;
