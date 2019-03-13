@@ -11,11 +11,11 @@ namespace eosio { namespace wasm_backend {
    template <typename T, typename Owner> 
    class managed_vector {
       public:
-         managed_vector() {}
          managed_vector(Owner& owner, size_t size=0) :
             _size(size),
             _owner(&owner),
-            _data(owner.get_allocator().template alloc<T>( _size )) {}
+            _data(owner.get_allocator().template alloc<T>( _size )) {
+         }
 
          inline void resize( size_t size ) {
             if (size > _size) {

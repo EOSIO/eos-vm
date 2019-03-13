@@ -8,7 +8,8 @@ using namespace eosio::wasm_backend;
 
 int main(int argc, char** argv) {
    wasm_allocator wa;
-   eosio::wasm_backend::backend bkend( argv[1], wa );
+   auto code = backend::read_wasm( argv[1] );
+   eosio::wasm_backend::backend bkend( code, wa );
 
    auto t1 = std::chrono::high_resolution_clock::now();
    try {

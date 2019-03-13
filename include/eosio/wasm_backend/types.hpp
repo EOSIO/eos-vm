@@ -151,7 +151,21 @@ namespace eosio { namespace wasm_backend {
 
    template <typename B>
    struct module {
-      module(){}
+      module(B& backend) :
+         types(backend, 0),
+         imports(backend, 0),
+         functions(backend, 0),
+         tables(backend, 0),
+         memories(backend, 0),
+         globals(backend, 0),
+         exports(backend, 0),
+         start(0),
+         elements(backend, 0),
+         code(backend, 0),
+         data(backend, 0),
+         import_functions(backend, 0),
+         function_sizes(backend, 0) {}
+
       guarded_vector<func_type<B>, B>       types;
       guarded_vector<import_entry<B>, B>    imports;
       guarded_vector<uint32_t, B>           functions;
@@ -191,6 +205,7 @@ namespace eosio { namespace wasm_backend {
       } 
       uint32_t get_exported_function(const std::string_view str) {
          uint32_t index = std::numeric_limits<uint32_t>::max();
+         std::cout << "SIZE " << exports.size() << "\n";
          for (int i=0; i < exports.size(); i++) {
             if (exports[i].kind == external_kind::Function &&
                 exports[i].field_str.size() == str.size() &&
