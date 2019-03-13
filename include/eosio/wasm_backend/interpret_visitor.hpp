@@ -89,17 +89,26 @@ struct interpret_visitor {
    }
    void operator()(end_t) {
       const auto& label = context.pop_label();
+      bool has_operands = context.operands() > 0;
+      uint16_t op_index = 0;
       std::visit(overloaded {
          [&](const block_t& b) {
-            context.eat_labels(b.index);
+            op_index = b.op_index;
          }, [&](const loop_t& l) {
-            context.eat_labels(l.index);
+            op_index = l.op_index;
          },[&](const if__t& i) {
-            context.eat_labels(i.index);
+            op_index = i.op_index;
          }, [&](auto) {
             throw wasm_interpreter_exception{"expected control structure"};
          }
       }, label);
+
+      if ( has_operands ) {
+         const auto& op = context.pop_operand();
+         context.eat_operands(op_index);
+         context.push_operand(op);
+      }
+
       context.inc_pc();
       dbg_output << "end {" << context.get_pc() << "}\n";
    }
@@ -111,21 +120,24 @@ struct interpret_visitor {
       context.inc_pc();
       std::cout << "block\n";
       bt.index = context.current_label_index();
+      bt.op_index = context.current_operands_index();
       context.push_label(bt);
       dbg_output << "block {" << context.get_pc() << "} " << bt.data << " " << bt.pc << "\n";
    }
    void operator()(loop_t lt) {
       context.inc_pc();
       lt.index = context.current_label_index();
+      lt.op_index = context.current_operands_index();
       context.push_label(lt);
       dbg_output << "loop {" << context.get_pc() << "} " << lt.data << " " << lt.pc << "\n";
    }
    void operator()(if__t it) {
       context.inc_pc();
       it.index = context.current_label_index();
+      it.op_index = context.current_operands_index();
       const auto& op = context.pop_operand();
       if (!TO_UINT32(op))
-         context.set_relative_pc(it.pc);
+         context.set_relative_pc(it.pc+1);
       context.push_label(it);
       dbg_output << "if {" << context.get_pc() << "} " << it.data << " " << it.pc << "\n";
    }

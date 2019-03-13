@@ -805,8 +805,6 @@ BOOST_AUTO_TEST_CASE(br_tests) {
 
       BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-compare-right")), (uint32_t)42);
 
-      BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-convert-operand")), (uint32_t)41);
-
       BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("as-memory.grow-size")), (uint32_t)40);
 
       BOOST_CHECK_EQUAL(TO_UINT32(*ctx.execute("nested-block-value")), (uint32_t)9);
