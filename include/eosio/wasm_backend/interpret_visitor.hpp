@@ -49,9 +49,11 @@
 
 namespace eosio { namespace wasm_backend {
 
+template <typename Backend>
 struct interpret_visitor {
-   interpret_visitor(execution_context<interpret_visitor>& ec) : context(ec) {}
-   execution_context<interpret_visitor>& context;
+   interpret_visitor(Backend& backend, execution_context<Backend>& ec) : context(ec), allocator(backend.get_wasm_allocator()) {}
+   execution_context<Backend>& context;
+   wasm_allocator& allocator;
    std::stringstream  dbg_output;
    /*
    struct stack_elem_visitor {
@@ -159,8 +161,8 @@ struct interpret_visitor {
    }
    void operator()(br_table_t b) {
       const auto& in = TO_UINT32(context.pop_operand());
-      if (in < b.target_table.size())
-         context.jump(b.target_table[in]);
+      if (in < b.size)
+         context.jump(b.table[in]);
       else
          context.jump(b.default_target);
       dbg_output << "br.table\n";

@@ -35,11 +35,9 @@ namespace eosio { namespace wasm_backend {
    typedef uint8_t value_type;
    typedef uint8_t block_type;
    typedef uint8_t elem_type;
-   
-   template <typename T>
-   using native_vector = managed_vector<T, memory_manager::types::native>;
-   template <typename T>
-   using stack64_vector = managed_vector<T, memory_manager::types::stack64>;
+
+   template <typename T, typename B>
+   using guarded_vector = managed_vector<T, B>;
 
    struct activation_frame {
       uint32_t pc;
@@ -54,13 +52,14 @@ namespace eosio { namespace wasm_backend {
       uint32_t initial;
       uint32_t maximum = 0;
    };
-   
+
+   template <typename B>
    struct func_type {
-      value_type                 form;  // value for the func type constructor
-      uint32_t                   param_count; 
-      native_vector<value_type>  param_types;
-      uint8_t                    return_count;
-      value_type                 return_type;
+      value_type                    form;  // value for the func type constructor
+      uint32_t                      param_count;
+      guarded_vector<value_type, B> param_types;
+      uint8_t                       return_count;
+      value_type                    return_type;
    };
     
    union expr_value {
@@ -76,13 +75,13 @@ namespace eosio { namespace wasm_backend {
    };
 
    struct global_type {
-      value_type content_type; 
+      value_type content_type;
       bool mutability;
    };
    
    struct global_variable {
       global_type type;
-      init_expr   init; 
+      init_expr   init;
    }; 
 
    struct table_type {
@@ -101,27 +100,29 @@ namespace eosio { namespace wasm_backend {
       memory_type mem_t;
       global_type global_t;
    };
-   
+   template <typename B> 
    struct import_entry {
-      uint32_t      module_len;
-      native_vector<uint8_t> module_str;      
-      uint32_t      field_len;
-      native_vector<uint8_t> field_str;
+      uint32_t module_len;
+      guarded_vector<uint8_t, B> module_str;
+      uint32_t field_len;
+      guarded_vector<uint8_t, B> field_str;
       external_kind kind;
       import_type   type;
    };
-   
+
+   template <typename B> 
    struct export_entry {
       uint32_t      field_len;
-      native_vector<uint8_t> field_str;
+      guarded_vector<uint8_t, B> field_str;
       external_kind kind;
       uint32_t      index;
    };
 
+   template <typename B>
    struct elem_segment {
       uint32_t index;
       init_expr offset;
-      native_vector<uint32_t> elems;
+      guarded_vector<uint32_t, B> elems;
    };
    
    struct local_entry {
@@ -129,40 +130,41 @@ namespace eosio { namespace wasm_backend {
       value_type type;
    };
 
+   template <typename B>
    struct function_body {
       uint32_t body_size;
       uint32_t local_count;
-      native_vector<local_entry> locals;
-      native_vector<opcode> code;
+      guarded_vector<local_entry, B> locals;
+      guarded_vector<opcode, B> code;
    };
-   
+
+   template <typename B>
    struct data_segment {
       uint32_t  index;
       init_expr offset;
       uint32_t  size;
-      native_vector<uint8_t> data;
+      guarded_vector<uint8_t, B> data;
    };
 
    using wasm_code          = std::vector<uint8_t>;
    using wasm_code_ptr      = guarded_ptr<uint8_t>;
-   using wasm_code_iterator = std::vector<uint8_t>::iterator;
-   using wasm_bytes         = std::vector<uint8_t>;
 
+   template <typename B>
    struct module {
       module(){}
-      native_vector<func_type>       types;
-      native_vector<import_entry>    imports;
-      native_vector<uint32_t>        functions;
-      native_vector<table_type>      tables;
-      native_vector<memory_type>     memories;
-      native_vector<global_variable> globals;
-      native_vector<export_entry>    exports;
-      uint32_t                       start;
-      native_vector<elem_segment>    elements;
-      native_vector<function_body>   code;
-      native_vector<data_segment>    data;
-      native_vector<uint32_t>        import_functions;  // not part of the spec for WASM, used for the mappings to host functions
-      native_vector<uint32_t>        function_sizes;    // not part of the spec for WASM, used for caching total function sizes at function N
+      guarded_vector<func_type<B>, B>       types;
+      guarded_vector<import_entry<B>, B>    imports;
+      guarded_vector<uint32_t, B>           functions;
+      guarded_vector<table_type, B>         tables;
+      guarded_vector<memory_type, B>        memories;
+      guarded_vector<global_variable, B>    globals;
+      guarded_vector<export_entry<B>, B>    exports;
+      uint32_t                              start;
+      guarded_vector<elem_segment<B>, B>    elements;
+      guarded_vector<function_body<B>, B>   code;
+      guarded_vector<data_segment<B>, B>    data;
+      guarded_vector<uint32_t, B>           import_functions;  // not part of the spec for WASM, used for the mappings to host functions
+      guarded_vector<uint32_t, B>           function_sizes;    // not part of the spec for WASM, used for caching total function sizes at function N
       uint32_t _get_imported_functions_size()const {
          uint32_t number_of_imports = 0;
          for (int i=0; i < imports.size(); i++) {
@@ -182,7 +184,7 @@ namespace eosio { namespace wasm_backend {
       inline uint32_t get_functions_total()const {
          return get_imported_functions_size() + get_functions_size();
       }
-      func_type get_function_type(uint32_t index)const {
+      func_type<B> get_function_type(uint32_t index)const {
          if (index < get_imported_functions_size())
             return types[imports[index].type.func_t];
          return types[functions[index]];

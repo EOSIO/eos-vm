@@ -6,7 +6,8 @@
 #include <eosio/wasm_backend/sections.hpp>
 
 namespace eosio { namespace wasm_backend {
-   void binary_parser::parse_init_expr( wasm_code_ptr& code, init_expr& ie ) {
+   template <typename Backend>
+   void binary_parser<Backend>::parse_init_expr( wasm_code_ptr& code, init_expr& ie ) {
       ie.opcode = *code++;
       switch ( ie.opcode ) {
          case opcodes::i32_const:
@@ -29,10 +30,11 @@ namespace eosio { namespace wasm_backend {
       EOS_WB_ASSERT((*code++) == opcodes::end, wasm_parse_exception, "no end op found");
    }
 
-   void binary_parser::parse_func_type( wasm_code_ptr& code, func_type& ft ) {
+   template <typename Backend>
+   void binary_parser<Backend>::parse_func_type( wasm_code_ptr& code, func_type<Backend>& ft ) {
       ft.form = *code++;
       ft.param_count = parse_varuint32( code );
-      ft.param_types.resize( ft.param_count );
+      ft.param_types = decltype(ft.param_types){_backend, ft.param_count };
       for ( size_t i=0; i < ft.param_count; i++ ) {
          uint8_t pt = *code++;
          ft.param_types.at(i) = pt;
@@ -45,26 +47,29 @@ namespace eosio { namespace wasm_backend {
          ft.return_type = *code++;
    }
 
-   void binary_parser::parse_export_entry( wasm_code_ptr& code, export_entry& entry ) {
+   template <typename Backend>
+   void binary_parser<Backend>::parse_export_entry( wasm_code_ptr& code, export_entry<Backend>& entry ) {
       entry.field_len = parse_varuint32( code );
-      entry.field_str.resize(entry.field_len);
+      entry.field_str = decltype(entry.field_str){ _backend, entry.field_len };
       memcpy( (char*)entry.field_str.raw(), code.raw(), entry.field_len );
       code += entry.field_len;
       entry.kind = (external_kind)(*code++);
       entry.index = parse_varuint32( code );
    }
-   
-   void binary_parser::parse_elem_segment( wasm_code_ptr& code, elem_segment& es ) {
+
+   template <typename Backend>
+   void binary_parser<Backend>::parse_elem_segment( wasm_code_ptr& code, elem_segment<Backend>& es ) {
       es.index = parse_varuint32( code );
       EOS_WB_ASSERT(es.index == 0, wasm_parse_exception, "only table index of 0 is supported");
       parse_init_expr( code, es.offset );
       uint32_t size = parse_varuint32( code );
-      es.elems.resize( size );
+      es.elems = decltype(es.elems){ _backend, size };
       for (uint32_t i=0; i < size; i++)
          es.elems.at(i) = parse_varuint32( code );
    }
 
-   void binary_parser::parse_global_variable( wasm_code_ptr& code, global_variable& gv ) {
+   template <typename Backend>
+   void binary_parser<Backend>::parse_global_variable( wasm_code_ptr& code, global_variable& gv ) {
       uint8_t ct = *code++;
       gv.type.content_type = ct; 
       EOS_WB_ASSERT(ct == types::i32 || ct == types::i64 ||
@@ -72,9 +77,10 @@ namespace eosio { namespace wasm_backend {
 
       gv.type.mutability = *code++;
       parse_init_expr( code, gv.init );
-   } 
-   
-   void binary_parser::parse_memory_type( wasm_code_ptr& code, memory_type& mt ) {
+   }
+
+   template <typename Backend>
+   void binary_parser<Backend>::parse_memory_type( wasm_code_ptr& code, memory_type& mt ) {
       mt.limits.flags = *code++;
       mt.limits.initial = parse_varuint32( code );
       if (mt.limits.flags) {
@@ -82,24 +88,26 @@ namespace eosio { namespace wasm_backend {
       }
    }
 
-   void binary_parser::parse_table_type( wasm_code_ptr& code, table_type& tt ) {
+   template <typename Backend>
+   void binary_parser<Backend>::parse_table_type( wasm_code_ptr& code, table_type& tt ) {
       tt.element_type = *code++;
       tt.limits.flags = *code++;
       tt.limits.initial = parse_varuint32( code );
       if (tt.limits.flags) {
          tt.limits.maximum = parse_varuint32( code );
       }
-   } 
+   }
 
-   void binary_parser::parse_import_entry( wasm_code_ptr& code, import_entry& entry ) {
+   template <typename Backend>
+   void binary_parser<Backend>::parse_import_entry( wasm_code_ptr& code, import_entry<Backend>& entry ) {
       auto len = parse_varuint32( code );
       entry.module_len = len;
-      entry.module_str.resize(entry.module_len);
+      entry.module_str = decltype(entry.module_str){ _backend, entry.module_len };
       memcpy( (char*)entry.module_str.raw(), code.raw(), entry.module_len );
       code += entry.module_len;
       len = parse_varuint32( code );
       entry.field_len = len;
-      entry.field_str.resize(entry.field_len);
+      entry.field_str = decltype(entry.field){ _backend, entry.field_len };
       memcpy( (char*)entry.field_str.raw(), code.raw(), entry.field_len );
       code += entry.field_len;
       entry.kind = (external_kind)(*code++);
@@ -108,18 +116,21 @@ namespace eosio { namespace wasm_backend {
          case external_kind::Function:
             entry.type.func_t = type;
             break;
-         default: 
+         default:
             EOS_WB_ASSERT(false, wasm_unsupported_import_exception, "only function imports are supported");
       }
    }
-   
-   void binary_parser::parse_function_body_code( wasm_code_ptr& code, size_t bounds, native_vector<opcode>& fb ) {
+
+   template <typename Backend>
+   void binary_parser<Backend>::parse_function_body_code( wasm_code_ptr& code, size_t bounds, guarded_vector<opcode, Backend>& fb ) {
       size_t op_index = 0;
-      auto parse_br_table = []( wasm_code_ptr& code, br_table_t& bt ) {
+      auto parse_br_table = [&]( wasm_code_ptr& code, br_table_t& bt ) {
          size_t table_size = parse_varuint32( code );
-         bt.target_table.resize(table_size);
+         guarded_vector<uint32_t, Backend> br_tab{ _backend, table_size };
          for ( size_t i=0; i < table_size; i++ )
-            bt.target_table[i] = parse_varuint32( code );
+            br_tab[i] = parse_varuint32( code );
+         bt.table = br_tab.raw();
+         bt.size  = table_size;
          bt.default_target = parse_varuint32( code );
       };
 
@@ -518,12 +529,13 @@ namespace eosio { namespace wasm_backend {
       fb.resize(op_index);
    }
 
-   void binary_parser::parse_function_body( wasm_code_ptr& code, function_body& fb ) {
+   template <typename Backend>
+   void binary_parser<Backend>::parse_function_body( wasm_code_ptr& code, function_body<Backend>& fb ) {
       const auto& body_size = parse_varuint32( code );
       const auto& before = code.offset();
       const auto& local_cnt = parse_varuint32( code );
       fb.local_count = local_cnt;
-      fb.locals.resize(local_cnt);
+      fb.locals = decltype(fb.locals){ _backend, local_cnt };
       // parse the local entries
       for ( size_t i=0; i < local_cnt; i++ ) {
          fb.locals.at(i).count = parse_varuint32( code );
@@ -531,7 +543,7 @@ namespace eosio { namespace wasm_backend {
       }
 
       size_t bytes = body_size - (code.offset() - before); // -1 is 'end' 0xb byte
-      fb.code.resize(bytes);
+      fb.code = decltype(fb.code){ _backend, bytes };
       wasm_code_ptr fb_code(code.raw(), bytes);
       parse_function_body_code( fb_code, bytes, fb.code );
       code += bytes-1;
@@ -539,15 +551,17 @@ namespace eosio { namespace wasm_backend {
       fb.code[fb.code.size()-1] = fend_t{};
    };
 
-   void binary_parser::parse_data_segment( wasm_code_ptr& code, data_segment& ds ) {
+   template <typename Backend>
+   void binary_parser<Backend>::parse_data_segment( wasm_code_ptr& code, data_segment<Backend>& ds ) {
       ds.index  = parse_varuint32( code );
       parse_init_expr( code, ds.offset );
       ds.size   = parse_varuint32( code );
       ds.data.set( code.raw(), ds.size );
       code += ds.size;
    }
-   
-   void binary_parser::parse_module( wasm_code_ptr& code_ptr, size_t sz, module& mod ) {
+
+   template <typename Backend>
+   void binary_parser<Backend>::parse_module( wasm_code_ptr& code_ptr, size_t sz, module<Backend>& mod ) {
       EOS_WB_ASSERT(parse_magic( code_ptr ) == constants::magic, wasm_parse_exception, "magic number did not match");
       EOS_WB_ASSERT(parse_version( code_ptr ) == constants::version, wasm_parse_exception, "version number did not match");
       for ( int i=0; i < section_id::num_of_elems; i++ ) {

@@ -3,14 +3,21 @@
 #include <sys/mman.h>
 #include <signal.h>
 #include <cstring>
+#include <string>
 #include <memory>
+#include <vector>
 #include <iostream>
 #include <eosio/wasm_backend/exceptions.hpp>
 #include <eosio/wasm_backend/constants.hpp>
 
 namespace eosio { namespace wasm_backend {
-   class native_allocator {
+   class bounded_allocator {
       public:
+         bounded_allocator(size_t size) {
+            mem_size = size;
+            raw = std::unique_ptr<uint8_t[]>(new uint8_t[mem_size]);
+            memset(raw.get(), 0, mem_size);
+         }
          template <typename T>
          T* alloc(size_t size=1) {
             EOS_WB_ASSERT( (sizeof(T)*size)+index <= mem_size, wasm_bad_alloc, "wasm failed to allocate native" );
@@ -22,23 +29,23 @@ namespace eosio { namespace wasm_backend {
             EOS_WB_ASSERT( index > 0, wasm_double_free, "double free" );
             index = 0;
          }
-         native_allocator(size_t size) {
-            mem_size = size;
-            raw = std::unique_ptr<uint8_t[]>(new uint8_t[mem_size]);
-            memset(raw.get(), 0, mem_size);
-         }
          void reset() { index = 0; }
          size_t mem_size;
          std::unique_ptr<uint8_t[]> raw;
          size_t index = 0;
    };
 
-   class simple_allocator {
+   class growable_allocator {
       public:
+         growable_allocator(size_t size) {
+            buff = std::vector<uint8_t>(size);
+         }
+         growable_allocator() {}
          template <typename T>
          T* alloc(size_t size=1) {
-            EOS_WB_ASSERT( (sizeof(T)*size)+index <= mem_size, wasm_bad_alloc, "wasm failed to allocate simple" );
-            T* ret = (T*)(raw+index);
+            if ( index + size >= buff.size() )
+               buff.resize(buff.size()+buff.size()/2);
+            T* ret = (T*)(buff.data()+index);
             index += sizeof(T)*size;
             return ret;
          }
@@ -46,12 +53,8 @@ namespace eosio { namespace wasm_backend {
             EOS_WB_ASSERT( index > 0, wasm_double_free, "double free" );
             index = 0;
          }
-         simple_allocator(uint8_t* ptr, size_t size) {
-            mem_size = size;
-            raw = ptr;
-         }
-         size_t mem_size;
-         uint8_t* raw;
+         void reset() { index = 0; }
+         std::vector<uint8_t> buff;
          size_t index = 0;
    };
 
@@ -101,28 +104,4 @@ namespace eosio { namespace wasm_backend {
          inline T* get_base_ptr()const { return raw; }
          inline uint64_t get_current_page()const { return page; }
    };
-
-   class stack64_allocator {
-      public:
-         template <typename T>
-         T* alloc(size_t size=1) {
-            static_assert( sizeof(T) == sizeof(uint64_t), "" );
-            EOS_WB_ASSERT( (sizeof(T)*size)+index <= mem_size, wasm_bad_alloc, "wasm failed to allocate s64" );
-            T* ret = (T*)(raw+index);
-            index += sizeof(T)*size;
-            return ret;
-         }
-         void free() {
-            EOS_WB_ASSERT( index > 0, wasm_double_free, "double free" );
-            index -= sizeof(uint64_t);
-         }
-         stack64_allocator(uint8_t* ptr, size_t size) {
-            mem_size = size;
-            raw = ptr;
-         }
-         size_t mem_size;
-         uint8_t* raw;
-         size_t index = 0;
-   };
- 
  }} // namespace eosio::wasm_backend

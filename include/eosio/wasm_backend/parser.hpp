@@ -9,10 +9,12 @@
 #include <eosio/wasm_backend/sections.hpp>
 
 namespace eosio { namespace wasm_backend {
+   template <typename Backend>
    class binary_parser {
       public:
+         binary_parser(Backend& backend) : _backend(backend) {}
          template <typename T>
-         using vec = native_vector<T>;
+         using vec = guarded_vector<T, Backend>;
 
          static inline uint8_t parse_varuint1( wasm_code_ptr& code ) {
             return varuint<1>(code).to();
@@ -38,11 +40,19 @@ namespace eosio { namespace wasm_backend {
             return varint<64>(code).to();
          }
       
-         inline void parse_module( wasm_code& code, module& mod ) {
+         inline void parse_module( wasm_code& code, module<Backend>& mod ) {
             wasm_code_ptr cp(code.data(), 0);
             parse_module(cp, code.size(), mod);
          }
-         void parse_module( wasm_code_ptr& code, size_t sz, module& mod );
+
+         inline module<Backend> parse_module( wasm_code&& code ) {
+            module<Backend> mod;
+            wasm_code_ptr cp(code.data(), 0);
+            parse_module(cp, code.size(), mod);
+            return mod;
+         }
+
+         void parse_module( wasm_code_ptr& code, size_t sz, module<Backend>& mod );
 
          inline uint32_t parse_magic( wasm_code_ptr& code ) {
             code.add_bounds( constants::magic_size );
@@ -63,17 +73,17 @@ namespace eosio { namespace wasm_backend {
             return parse_varuint32( code );
          }
 
-         void parse_import_entry( wasm_code_ptr& code, import_entry& ie );
+         void parse_import_entry( wasm_code_ptr& code, import_entry<Backend>& ie );
          void parse_table_type( wasm_code_ptr& code, table_type& tt );
          void parse_global_variable( wasm_code_ptr& code, global_variable& gv );
          void parse_memory_type( wasm_code_ptr& code, memory_type& mt );
-         void parse_export_entry( wasm_code_ptr& code, export_entry& ee );
-         void parse_func_type( wasm_code_ptr& code, func_type& ft );
-         void parse_elem_segment( wasm_code_ptr& code, elem_segment& es );
+         void parse_export_entry( wasm_code_ptr& code, export_entry<Backend>& ee );
+         void parse_func_type( wasm_code_ptr& code, func_type<Backend>& ft );
+         void parse_elem_segment( wasm_code_ptr& code, elem_segment<Backend>& es );
          void parse_init_expr( wasm_code_ptr& code, init_expr& ie );
-         void parse_function_body( wasm_code_ptr& code, function_body& fb );
-         void parse_function_body_code( wasm_code_ptr& code, size_t bounds, native_vector<opcode>& code_bytes );
-         void parse_data_segment( wasm_code_ptr& code, data_segment& ds );
+         void parse_function_body( wasm_code_ptr& code, function_body<Backend>& fb );
+         void parse_function_body_code( wasm_code_ptr& code, size_t bounds, guarded_vector<opcode, Backend>& code_bytes );
+         void parse_data_segment( wasm_code_ptr& code, data_segment<Backend>& ds );
 
          template <typename Elem, typename ParseFunc>
          inline void parse_section_impl( wasm_code_ptr& code, vec<Elem>& elems, ParseFunc&& elem_parse ) {
@@ -101,13 +111,13 @@ namespace eosio { namespace wasm_backend {
 
          template <uint8_t id> 
          inline void parse_section( wasm_code_ptr& code, 
-               vec<typename std::enable_if_t<id == section_id::type_section, func_type>>& elems ) {
-            parse_section_impl( code, elems, [&](wasm_code_ptr& code, func_type& ft) { parse_func_type( code, ft ); } );
+               vec<typename std::enable_if_t<id == section_id::type_section, func_type<Backend>>>& elems ) {
+            parse_section_impl( code, elems, [&](wasm_code_ptr& code, func_type<Backend>& ft) { parse_func_type( code, ft ); } );
          }
          template <uint8_t id> 
          inline void parse_section( wasm_code_ptr& code,
-               vec<typename std::enable_if_t<id == section_id::import_section, import_entry>>& elems ) {
-            parse_section_impl( code, elems, [&](wasm_code_ptr& code, import_entry& ie) { parse_import_entry(code, ie); } );
+               vec<typename std::enable_if_t<id == section_id::import_section, import_entry<Backend>>>& elems ) {
+            parse_section_impl( code, elems, [&](wasm_code_ptr& code, import_entry<Backend>& ie) { parse_import_entry(code, ie); } );
          }
          template <uint8_t id> 
          inline void parse_section( wasm_code_ptr& code,
@@ -131,8 +141,8 @@ namespace eosio { namespace wasm_backend {
          }
          template <uint8_t id> 
          inline void parse_section( wasm_code_ptr& code,
-               vec<typename std::enable_if_t<id == section_id::export_section, export_entry>>& elems ) {
-            parse_section_impl( code, elems, [&](wasm_code_ptr& code, export_entry& ee) { parse_export_entry( code, ee ); } );
+               vec<typename std::enable_if_t<id == section_id::export_section, export_entry<Backend>>>& elems ) {
+            parse_section_impl( code, elems, [&](wasm_code_ptr& code, export_entry<Backend>& ee) { parse_export_entry( code, ee ); } );
          }
          template <uint8_t id> 
          inline void parse_section( wasm_code_ptr& code, 
@@ -141,18 +151,18 @@ namespace eosio { namespace wasm_backend {
          }
          template <uint8_t id> 
          inline void parse_section( wasm_code_ptr& code,
-               vec<typename std::enable_if_t<id == section_id::element_section, elem_segment>>& elems ) {
-            parse_section_impl( code, elems, [&](wasm_code_ptr& code, elem_segment& es) { parse_elem_segment( code, es ); } );
+               vec<typename std::enable_if_t<id == section_id::element_section, elem_segment<Backend>>>& elems ) {
+            parse_section_impl( code, elems, [&](wasm_code_ptr& code, elem_segment<Backend>& es) { parse_elem_segment( code, es ); } );
          }
          template <uint8_t id> 
          inline void parse_section( wasm_code_ptr& code,
-               vec<typename std::enable_if_t<id == section_id::code_section, function_body>>& elems ) {
-            parse_section_impl( code, elems, [&](wasm_code_ptr& code, function_body& fb) { parse_function_body( code, fb ); } );
+               vec<typename std::enable_if_t<id == section_id::code_section, function_body<Backend>>>& elems ) {
+            parse_section_impl( code, elems, [&](wasm_code_ptr& code, function_body<Backend>& fb) { parse_function_body( code, fb ); } );
          }
          template <uint8_t id> 
          inline void parse_section( wasm_code_ptr& code,
-               vec<typename std::enable_if_t<id == section_id::data_section, data_segment>>& elems ) {
-            parse_section_impl( code, elems, [&](wasm_code_ptr& code, data_segment& ds) { parse_data_segment( code, ds ); } );
+               vec<typename std::enable_if_t<id == section_id::data_section, data_segment<Backend>>>& elems ) {
+            parse_section_impl( code, elems, [&](wasm_code_ptr& code, data_segment<Backend>& ds) { parse_data_segment( code, ds ); } );
          }
          
          template <size_t N>
@@ -168,5 +178,8 @@ namespace eosio { namespace wasm_backend {
             result.set( code, index );
             return result;
          }
+
+      private:
+         Backend& _backend; 
    };
 }} // namespace eosio::wasm_backend

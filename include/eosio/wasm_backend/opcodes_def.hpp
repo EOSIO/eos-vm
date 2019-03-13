@@ -209,10 +209,11 @@
       uint16_t op_index;                      \
    };
 
-#define CREATE_BR_TABLE_TYPE(name, code)    \
-   struct name##_t {                        \
-      managed_vector<uint32_t, memory_manager::types::native> target_table; \
-      uint32_t              default_target; \
+#define CREATE_BR_TABLE_TYPE(name, code) \
+   struct name##_t {                     \
+      uint32_t* table;                   \
+      uint32_t  size;                    \
+      uint32_t  default_target;          \
    };
 
 #define CREATE_TYPES(name, code) \
