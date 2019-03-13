@@ -14,9 +14,10 @@
 namespace eosio { namespace wasm_backend {
    class backend {
       public:
-      backend(const std::string& fname, wasm_allocator& wa)
+      backend(wasm_code& code, wasm_allocator& wa)
          : _walloc(wa),
-           _ctx( *this, binary_parser<backend>{*this}.parse_module( read_wasm( fname ) ), wa ) {}
+           _galloc(1024 * 1024),
+           _ctx( *this, binary_parser<backend>{*this}.parse_module( code ), wa ) {}
 
          template <typename... Args>
          inline std::optional<stack_elem> operator()(const std::string_view func, Args... args) {
@@ -26,8 +27,7 @@ namespace eosio { namespace wasm_backend {
          wasm_allocator& get_wasm_allocator() { return _walloc; }
          growable_allocator& get_allocator() { return _galloc; }
 
-      private:
-         inline std::vector<uint8_t> read_wasm( const std::string& fname ) {
+         static std::vector<uint8_t> read_wasm( const std::string& fname ) {
             std::ifstream wasm_file( fname, std::ios::binary );
             if (!wasm_file.is_open())
                throw std::runtime_error("wasm file not found");
@@ -42,9 +42,10 @@ namespace eosio { namespace wasm_backend {
             wasm_file.close();
             return wasm;
          }
+
+      private:
          wasm_allocator&    _walloc;
          growable_allocator _galloc;
-         module<backend>    _mod;
          execution_context<backend> _ctx;
    };
 }} // ns eosio::wasm_backend

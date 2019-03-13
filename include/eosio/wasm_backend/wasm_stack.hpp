@@ -20,9 +20,7 @@ namespace eosio { namespace wasm_backend {
    template <size_t Elems, typename Backend>
    class fixed_stack {
       public:
-         fixed_stack(Backend& backend) {
-            _s = guarded_vector<stack_elem, Backend>{ backend, Elems };
-         }
+         fixed_stack(Backend& backend) : _s(guarded_vector<stack_elem, Backend>{ backend, Elems }){}
          void push(stack_elem e) {
             _s[_index++] = e;
          }

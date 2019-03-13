@@ -4,6 +4,7 @@
 #include <eosio/wasm_backend/types.hpp>
 #include <eosio/wasm_backend/wasm_stack.hpp>
 #include <eosio/wasm_backend/host_function.hpp>
+#include <string>
 
 namespace eosio { namespace wasm_backend {
       template <typename Backend>
@@ -16,6 +17,7 @@ namespace eosio { namespace wasm_backend {
               _os(backend),
               _as(backend) {
 
+              for (int i=0; i < _mod.exports.size(); i++)
               _mod.import_functions.resize(_mod.get_imported_functions_size());
               _mod.function_sizes.resize(_mod.get_functions_total());
               const size_t import_size = _mod.get_imported_functions_size();
@@ -311,7 +313,6 @@ namespace eosio { namespace wasm_backend {
             uint8_t*      _linear_memory    = nullptr;
             module<Backend>&    _mod;
             wasm_allocator&     _alloc;
-            growable_allocator  _galloc;
             control_stack<Backend> _cs;
             operand_stack<Backend> _os;
             call_stack<Backend>    _as;

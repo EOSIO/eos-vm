@@ -37,10 +37,7 @@ namespace eosio { namespace wasm_backend {
 
    class growable_allocator {
       public:
-         growable_allocator(size_t size) {
-            buff = std::vector<uint8_t>(size);
-         }
-         growable_allocator() {}
+         growable_allocator(size_t size) : buff(size, (char)0 ) {}
          template <typename T>
          T* alloc(size_t size=1) {
             if ( index + size >= buff.size() )
@@ -54,7 +51,7 @@ namespace eosio { namespace wasm_backend {
             index = 0;
          }
          void reset() { index = 0; }
-         std::vector<uint8_t> buff;
+         std::basic_string<uint8_t> buff;
          size_t index = 0;
    };
 
