@@ -14,10 +14,11 @@ using namespace eosio;
 using namespace eosio::wasm_backend;
 
 BOOST_AUTO_TEST_SUITE(memory_tests)
+/*
 BOOST_AUTO_TEST_CASE(allocator_tests) { 
    try {
       {
-         native_allocator nalloc(5);
+         bounded_allocator nalloc(5);
          uint32_t* base = nalloc.alloc<uint32_t>(0);
          BOOST_CHECK_EQUAL( base, nalloc.alloc<uint32_t>(0) );
          uint32_t* i1 = nalloc.alloc<uint32_t>();
@@ -26,7 +27,7 @@ BOOST_AUTO_TEST_CASE(allocator_tests) {
          BOOST_CHECK_THROW( nalloc.alloc<uint8_t>(), wasm_bad_alloc );
       }
       {
-         native_allocator nalloc(12);
+         bounded_allocator nalloc(12);
          uint8_t* base = nalloc.alloc<uint8_t>(0);
          uint32_t* i1 = nalloc.alloc<uint32_t>();
          *i1 = 0xFEFEFEFE;
@@ -43,25 +44,6 @@ BOOST_AUTO_TEST_CASE(allocator_tests) {
          nalloc.free();
          BOOST_CHECK_EQUAL(base, nalloc.alloc<uint8_t>(0));
       }
-      {
-         native_allocator nalloc(30);
-         simple_allocator salloc(nalloc.alloc<uint8_t>(30), 30);
-         uint8_t* base = salloc.alloc<uint8_t>(0);
-         uint32_t* i1 = salloc.alloc<uint32_t>();
-         *i1 = 0xFEFEFEFE;
-         uint32_t* i2 = salloc.alloc<uint32_t>();
-         *i2 = 0x7C7C7C7C;
-         uint16_t* i3 = salloc.alloc<uint16_t>();
-         *i3 = 0xBBBB;
-         uint8_t* i4 = salloc.alloc<uint8_t>();
-         *i4 = 0xAA;
-         salloc.free();
-         BOOST_CHECK_EQUAL( *i1, 0xFEFEFEFE );
-         BOOST_CHECK_EQUAL( *i2, 0x7C7C7C7C );
-         BOOST_CHECK_EQUAL( *i3, 0xBBBB );
-         BOOST_CHECK_EQUAL( *i4, 0xAA );
-         BOOST_CHECK_EQUAL(base, salloc.alloc<uint8_t>(0));
-      }
    } FC_LOG_AND_RETHROW() 
 }
 
@@ -69,8 +51,7 @@ BOOST_AUTO_TEST_CASE(memory_manager_tests) {
    try {
       {
          memory_manager::set_memory_limits( 0 );
-         auto& nalloc = memory_manager::get_allocator<memory_manager::types::native>();
-         //auto& lmalloc = memory_manager::get_allocator<memory_manager::types::linear_memory>();
+         auto& nalloc = memory_manager::get_allocator<memory_manager::types::growable>();
          BOOST_CHECK_THROW( nalloc.alloc<uint16_t>(1), wasm_bad_alloc );
       }
    } FC_LOG_AND_RETHROW() 
@@ -128,7 +109,7 @@ BOOST_AUTO_TEST_CASE(vector_tests) {
    try {
       {
          memory_manager::set_memory_limits( sizeof(test_struct)*3 );
-         managed_vector<test_struct, memory_manager::types::native> nvec(1);
+         managed_vector<test_struct, memory_manager::types::growable> nvec(1);
          nvec.push_back( { 33, 33, 33.0f, 33.0 } );
          BOOST_CHECK( nvec[0].i == 33 && nvec[0].l == 33 && nvec[0].f == 33.0f && nvec[0].d == 33.0 );
          BOOST_CHECK_THROW( nvec.push_back( {0,0,0,0} ), wasm_vector_oob_exception );
@@ -146,5 +127,6 @@ BOOST_AUTO_TEST_CASE(vector_tests) {
       }
    } FC_LOG_AND_RETHROW()
 }
+*/
 BOOST_AUTO_TEST_SUITE_END()
 

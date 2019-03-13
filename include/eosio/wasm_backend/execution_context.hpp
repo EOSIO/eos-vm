@@ -6,28 +6,33 @@
 #include <eosio/wasm_backend/host_function.hpp>
 
 namespace eosio { namespace wasm_backend {
-
-      template <typename Visitor>
+      template <typename Backend>
       class execution_context {
          public:
-            execution_context(module& m) :
-              _mod(m), _alloc(memory_manager::get_allocator<memory_manager::types::wasm>()) {
-               _mod.import_functions.resize(_mod.get_imported_functions_size());
-               _mod.function_sizes.resize(_mod.get_functions_total());
-               const size_t import_size = _mod.get_imported_functions_size();
-               uint32_t total_so_far = 0;
-               for (int i=_mod.get_imported_functions_size(); i < _mod.function_sizes.size(); i++) {
-                  _mod.function_sizes[i] = total_so_far;
-                  total_so_far += _mod.code[i-import_size].code.size();
-               }
-               _linear_memory = _alloc.get_base_ptr<uint8_t>(); // allocate an initial wasm page
+            execution_context(Backend& backend, module<Backend>&& m, wasm_allocator& wa) :
+              _mod(m),
+              _alloc(wa),
+              _cs(backend),
+              _os(backend),
+              _as(backend) {
 
-               for (int i=0; i < _mod.data.size(); i++) {
-                  const auto& data_seg = _mod.data[i];
-                  //TODO validate only use memory idx 0 in parse
-                  memcpy((char*)_linear_memory+data_seg.offset.value.i64, data_seg.data.raw(), data_seg.size);
-               }
+              _mod.import_functions.resize(_mod.get_imported_functions_size());
+              _mod.function_sizes.resize(_mod.get_functions_total());
+              const size_t import_size = _mod.get_imported_functions_size();
+              uint32_t total_so_far = 0;
+              for (int i=_mod.get_imported_functions_size(); i < _mod.function_sizes.size(); i++) {
+                _mod.function_sizes[i] = total_so_far;
+                total_so_far += _mod.code[i-import_size].code.size();
+              }
+              _linear_memory = _alloc.get_base_ptr<uint8_t>(); // allocate an initial wasm page
+
+              for (int i=0; i < _mod.data.size(); i++) {
+                const auto& data_seg = _mod.data[i];
+                //TODO validate only use memory idx 0 in parse
+                memcpy((char*)_linear_memory+data_seg.offset.value.i64, data_seg.data.raw(), data_seg.size);
+              }
             }
+
             template <auto Registered_Func>
             inline void add_host_function(const std::string& name) {
                _rhf.add<Registered_Func>(name);
@@ -61,7 +66,7 @@ namespace eosio { namespace wasm_backend {
                }
                std::cout << " }\n";
             }
-            inline module& get_module() { return _mod; }
+            inline module<Backend>& get_module() { return _mod; }
             inline uint8_t* linear_memory() { return _linear_memory; }
             inline uint32_t table_elem(uint32_t i) { return _mod.elements[0].offset.value.f64 + _mod.elements[0].elems[i]; }
             inline void push_label( const stack_elem& el ) { _cs.push(el); }
@@ -152,7 +157,7 @@ namespace eosio { namespace wasm_backend {
                return ret_val;
             }
 
-            inline void type_check( const func_type& ft ) {
+            inline void type_check( const func_type<Backend>& ft ) {
               // TODO validate param_count is less than 256
               for (int i=0; i < ft.param_count; i++) {
                 const auto& op = peek_operand(i);
@@ -179,8 +184,8 @@ namespace eosio { namespace wasm_backend {
             inline void exit()const { _executing = false; }
             inline bool executing()const { _executing; }
 
-            template <typename... Args>
-            inline std::optional<stack_elem> execute(const std::string_view func, Args... args) {
+            template <typename Visitor, typename... Args>
+            inline std::optional<stack_elem> execute(Visitor&& visitor, const std::string_view func, Args... args) {
                uint32_t func_index = _mod.get_exported_function(func);
                EOS_WB_ASSERT(func_index < std::numeric_limits<uint32_t>::max(), wasm_interpreter_exception, "cannot execute function, function not found");
                _current_function = func_index;
@@ -199,7 +204,7 @@ namespace eosio { namespace wasm_backend {
                _pc = _current_offset;
 
                setup_locals(func_index);
-               execute();
+               execute(visitor);
                stack_elem ret;
                //TODO clean this up
                try {
@@ -238,10 +243,8 @@ namespace eosio { namespace wasm_backend {
                }
 
             }
+
          private:
-            template <size_t N>
-            stack_elem invoke( uint32_t index, const func_type& ftype ) {
-            }
 
             template <typename Arg, typename... Args>
             void _push_args(Arg&& arg, Args&&... args) {
@@ -286,16 +289,17 @@ namespace eosio { namespace wasm_backend {
                }
             }
 
-            void execute() {
+            template <typename Visitor>
+            void execute( Visitor&& visitor ) {
                do {
                   uint32_t offset = _pc - _current_offset;
                   std::cout << "EXIT PC " << _exit_pc << " PC " << _pc << " Offset " << offset << "\n";
                   if (_pc == _exit_pc) {
                      _executing = false;
                   }
-                  std::visit(_visitor, _mod.code[_code_index].code[offset]);
-                  std::cout << _visitor.dbg_output.str() << "\n";
-                  _visitor.dbg_output.str("");
+                  std::visit(visitor, _mod.code[_code_index].code[offset]);
+                  std::cout << visitor.dbg_output.str() << "\n";
+                  visitor.dbg_output.str("");
                } while (_executing);
             }
             uint32_t      _pc               = 0;
@@ -305,12 +309,12 @@ namespace eosio { namespace wasm_backend {
             uint32_t      _current_offset   = 0;
             bool          _executing        = false;
             uint8_t*      _linear_memory    = nullptr;
-            module&       _mod;
-            wasm_allocator& _alloc;
-            control_stack _cs;
-            operand_stack _os;
-            call_stack    _as;
-            Visitor       _visitor{*this};
+            module<Backend>&    _mod;
+            wasm_allocator&     _alloc;
+            growable_allocator  _galloc;
+            control_stack<Backend> _cs;
+            operand_stack<Backend> _os;
+            call_stack<Backend>    _as;
             registered_host_functions _rhf;
       };
 }} // ns eosio::wasm_backend

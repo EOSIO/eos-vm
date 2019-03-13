@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #include <utility>
 #include <initializer_list>
 #include <eosio/wasm_backend/exceptions.hpp>
@@ -7,17 +8,19 @@
 
 namespace eosio { namespace wasm_backend {
    
-   template <typename T, size_t Type> 
+   template <typename T, typename Owner> 
    class managed_vector {
       public:
-         managed_vector(size_t size=0) : _size(size) {
-            _data = memory_manager::get_allocator<Type>().template alloc<T>( _size );
-         }
+         managed_vector() {}
+         managed_vector(Owner& owner, size_t size=0) :
+            _size(size),
+            _owner(&owner),
+            _data(owner.get_allocator().template alloc<T>( _size )) {}
 
          inline void resize( size_t size ) {
             if (size > _size) {
                T* old_data = _data;
-               _data = memory_manager::get_allocator<Type>().template alloc<T>( size );
+               _data = _owner->get_allocator().template alloc<T>( size );
                memcpy(_data, old_data, _size);
             }
             _size = size;
@@ -52,9 +55,11 @@ namespace eosio { namespace wasm_backend {
          inline T* raw() const { return _data; }
          inline size_t size() const { return _size; }
          inline void set( T* data, size_t size ) { _size = size; _data = data; _index = size-1; }
+
       private:
-         size_t _size = 0;
-         T*     _data;
+         size_t _size  = 0;
+         Owner* _owner = nullptr;
+         T*     _data  = nullptr;
          size_t _index = 0;
    };
 }} // namespace eosio::wasm_backend

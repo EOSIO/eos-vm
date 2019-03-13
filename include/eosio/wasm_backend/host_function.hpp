@@ -152,7 +152,8 @@ namespace eosio { namespace wasm_backend {
          named_mapping[name] = index++;
       }
 
-      static void resolve( module& mod ) {
+      template <typename Module>
+      static void resolve( Module& mod ) {
          mod.import_functions.resize(mod.get_imported_functions_size());
       }
 
