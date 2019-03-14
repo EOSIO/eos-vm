@@ -9,9 +9,9 @@ using namespace eosio::wasm_backend;
 int main(int argc, char** argv) {
    wasm_allocator wa;
    auto code = backend::read_wasm( argv[1] );
+   auto t1 = std::chrono::high_resolution_clock::now();
    eosio::wasm_backend::backend bkend( code, wa );
 
-   auto t1 = std::chrono::high_resolution_clock::now();
    try {
       //ctx.execute("apply", (uint64_t)12, (uint64_t)13, (uint64_t)14);
       bkend("main");
