@@ -10,7 +10,7 @@ namespace eosio { namespace wasm_backend {
       template <typename Backend>
       class execution_context {
          public:
-            execution_context(Backend& backend, module<Backend>&& m, wasm_allocator& wa) :
+            execution_context(Backend& backend, module<Backend>& m, wasm_allocator& wa) :
               _mod(m),
               _alloc(wa),
               _cs(backend),

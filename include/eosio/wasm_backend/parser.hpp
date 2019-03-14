@@ -41,13 +41,7 @@ namespace eosio { namespace wasm_backend {
             return varint<64>(code).to();
          }
       
-         inline void parse_module( wasm_code& code, module<Backend>& mod ) {
-            wasm_code_ptr cp(code.data(), 0);
-            parse_module(cp, code.size(), mod);
-         }
-
-         inline module<Backend> parse_module( wasm_code& code ) {
-            module<Backend> mod(_backend);
+         inline module<Backend>& parse_module( wasm_code& code, module<Backend>& mod ) {
             wasm_code_ptr cp(code.data(), 0);
             parse_module(cp, code.size(), mod);
             return mod;
