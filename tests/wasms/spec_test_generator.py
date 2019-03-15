@@ -43,21 +43,21 @@ def get_test():
             if i32_const.match(line):
                 cast = "TO_UINT32"
                 value = "(uint32_t)"+eat_paren(line.split()[4])
-                boost_test += "\nBOOST_CHECK_EQUAL("+cast+"(*ctx.execute("+func_name+")), "+value+");\n"
+                boost_test += "\nBOOST_CHECK_EQUAL("+cast+"(*bkend("+func_name+")), "+value+");\n"
             elif f32_const.match(line):
                 cast = "TO_F32"
                 value = "(float)"+eat_paren(line.split()[4])
-                boost_test += "\nBOOST_CHECK_EQUAL("+cast+"(*ctx.execute("+func_name+")), "+value+");\n"
+                boost_test += "\nBOOST_CHECK_EQUAL("+cast+"(*bkend("+func_name+")), "+value+");\n"
             elif i64_const.match(line):
                 cast = "TO_UINT64"
                 value = "(uint64_t)"+eat_paren(line.split()[4])
-                boost_test += "\nBOOST_CHECK_EQUAL("+cast+"(*ctx.execute("+func_name+")), "+value+");\n"
+                boost_test += "\nBOOST_CHECK_EQUAL("+cast+"(*bkend("+func_name+")), "+value+");\n"
             elif f64_const.match(line):
                 cast = "TO_F64"
                 value = "(double)"+eat_paren(line.split()[4])
-                boost_test += "\nBOOST_CHECK_EQUAL("+cast+"(*ctx.execute("+func_name+")), "+value+");\n"
+                boost_test += "\nBOOST_CHECK_EQUAL("+cast+"(*bkend("+func_name+")), "+value+");\n"
             else:
-                boost_test += "\nBOOST_CHECK_EQUAL(ctx.execute("+func_name+"), false);\n"
+                boost_test += "\nBOOST_CHECK(!bkend("+func_name+"));\n"
             
 
     return [test_wast, boost_test]

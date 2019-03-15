@@ -6,10 +6,10 @@ set( VERSION_PATCH 0 )
 
 enable_testing()
 
-file(GLOB UNIT_TESTS "*.cpp")
+file(GLOB UNIT_TESTS "spec_tests.cpp") #"*.cpp")
 
 add_subdirectory(wasms)
-add_executable( unit_test ${UNIT_TESTS} )
+add_executable( unit_test main.cpp ${UNIT_TESTS} )
 target_link_libraries( unit_test 
     wasm_interpreter
     ${Boost_FILESYSTEM_LIBRARY}
