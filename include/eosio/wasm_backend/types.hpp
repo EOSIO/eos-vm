@@ -179,7 +179,7 @@ namespace eosio { namespace wasm_backend {
       guarded_vector<data_segment<B>, B>    data;
       guarded_vector<uint32_t, B>           import_functions;  // not part of the spec for WASM, used for the mappings to host functions
       guarded_vector<uint32_t, B>           function_sizes;    // not part of the spec for WASM, used for caching total function sizes at function N
-      uint32_t _get_imported_functions_size()const {
+      uint32_t get_imported_functions_size()const {
          uint32_t number_of_imports = 0;
          for (int i=0; i < imports.size(); i++) {
             if (imports[i].kind == external_kind::Function)
@@ -187,13 +187,8 @@ namespace eosio { namespace wasm_backend {
          }
          return number_of_imports;
       }
-      inline uint32_t get_imported_functions_size()const {
-         thread_local uint32_t imports_size = _get_imported_functions_size();
-         return imports_size;
-      }
       inline uint32_t get_functions_size()const {
-         thread_local uint32_t funcs_size = code.size();
-         return funcs_size;
+         return code.size();
       }
       inline uint32_t get_functions_total()const {
          return get_imported_functions_size() + get_functions_size();

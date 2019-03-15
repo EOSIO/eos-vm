@@ -31,7 +31,7 @@ namespace eosio { namespace wasm_backend {
               for (int i=0; i < _mod.data.size(); i++) {
                 const auto& data_seg = _mod.data[i];
                 //TODO validate only use memory idx 0 in parse
-                memcpy((char*)_linear_memory+data_seg.offset.value.i64, data_seg.data.raw(), data_seg.size);
+                memcpy((char*)(_linear_memory+data_seg.offset.value.i64), data_seg.data.raw(), data_seg.size);
               }
             }
 
@@ -88,22 +88,24 @@ namespace eosio { namespace wasm_backend {
                _as.push(activation_frame{_pc+1, _current_offset, _code_index, static_cast<uint16_t>(ftype.param_count + locals), ftype.return_type});
             }
             inline void apply_pop_call() {
-               const auto& af = std::get<activation_frame>(_as.pop());
-               _current_offset = af.offset;
-               _pc             = af.pc;
-               _code_index     = af.index;
-               stack_elem el;
-               if (af.ret_type != 0x00) {
-                  el = pop_operand();
-                  EOS_WB_ASSERT( is_a<i32_const_t>(el) && af.ret_type == types::i32 ||
-                                 is_a<i64_const_t>(el) && af.ret_type == types::i64 ||
-                                 is_a<f32_const_t>(el) && af.ret_type == types::f32 ||
-                                 is_a<f64_const_t>(el) && af.ret_type == types::f64, wasm_interpreter_exception, "wrong return type" );
+               if (_as.size()) {
+                  const auto& af = std::get<activation_frame>(_as.pop());
+                  _current_offset = af.offset;
+                  _pc             = af.pc;
+                  _code_index     = af.index;
+                  stack_elem el;
+                  if (af.ret_type != 0x00) {
+                     el = pop_operand();
+                     EOS_WB_ASSERT( is_a<i32_const_t>(el) && af.ret_type == types::i32 ||
+                                    is_a<i64_const_t>(el) && af.ret_type == types::i64 ||
+                                    is_a<f32_const_t>(el) && af.ret_type == types::f32 ||
+                                    is_a<f64_const_t>(el) && af.ret_type == types::f64, wasm_interpreter_exception, "wrong return type" );
+                  }
+                  for (int i=0; i < af.size; i++)
+                     pop_operand();
+                  if (af.ret_type != 0x00)
+                     push_operand(el);
                }
-               for (int i=0; i < af.size; i++)
-                  pop_operand();
-               if (af.ret_type != 0x00)
-                  push_operand(el);
             }
             inline stack_elem pop_label() { return _cs.pop(); }
             inline stack_elem pop_operand() { return _os.pop(); }
@@ -160,7 +162,6 @@ namespace eosio { namespace wasm_backend {
             }
 
             inline void type_check( const func_type<Backend>& ft ) {
-              // TODO validate param_count is less than 256
               for (int i=0; i < ft.param_count; i++) {
                 const auto& op = peek_operand(i);
                 std::visit(overloaded {
