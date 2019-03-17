@@ -1,156 +1,55 @@
 #pragma once
 
-#include <eosio/wasm_backend/utils.hpp>
-#include <eosio/wasm_backend/opcodes.hpp>
-#include <eosio/wasm_backend/wasm_stack.hpp>
-#include <eosio/wasm_backend/execution_context.hpp>
-#include <iostream>
-#include <variant>
-#include <sstream>
-
-#include <eosio/wasm_backend/softfloat.hpp>
-#define EOSIO_DEBUG 1
-#ifdef EOSIO_DEBUG
-#define dbg_print(x) std::cerr << x << "\n";
-#else
-#define dbg_print(x)
-#endif
-
-#define TO_INT32(X) \
-   std::get<i32_const_t>(X).data.i
-
-#define TO_INT64(X) \
-   std::get<i64_const_t>(X).data.i
-
-#define TO_UINT32(X) \
-   std::get<i32_const_t>(X).data.ui
-
-#define TO_UINT64(X) \
-   std::get<i64_const_t>(X).data.ui
-
-#define TO_FUINT32(X) \
-   std::get<f32_const_t>(X).data.ui
-
-#define TO_FUINT64(X) \
-   std::get<f64_const_t>(X).data.ui
-
-#define TO_F32(X) \
-   std::get<f32_const_t>(X).data.f
-
-#define TO_F64(X) \
-   std::get<f64_const_t>(X).data.f
+#include <eosio/wasm_backend/interpret_visitor.hpp>
 
 namespace eosio { namespace wasm_backend {
 
 template <typename Backend>
-struct interpret_visitor {
-   interpret_visitor(Backend& backend, execution_context<Backend>& ec) : context(ec), allocator(backend.get_wasm_allocator()) {}
-   execution_context<Backend>& context;
-   wasm_allocator& allocator;
-   std::stringstream  dbg_output;
-   /*
-   struct stack_elem_visitor {
-      std::stringstream& dbg_output;
-      stack_elem_visitor(std::stringstream& ss) : dbg_output(ss) {}
-      void operator()(const block_t& ctrl) {
-         dbg_output << "block : " << std::to_string(ctrl.data) << "\n";
-      }
-      void operator()(const loop_t& ctrl) {
-         dbg_output << "loop : " << std::to_string(ctrl.data) << "\n";
-      }
-      void operator()(const if__t& ctrl) {
-         dbg_output << "if : " << std::to_string(ctrl.data) << "\n";
-      }
-      template <typename T>
-      void operator()(T) {
-      }
-   } _elem_visitor{dbg_output};
-   */
-   void operator()(unreachable_t) {
-      context.inc_pc();
-      throw wasm_interpreter_exception{"unreachable"};
+struct debug_visitor : public interpret_visitor {
+   using interpret_visitor::interpret_visitor;
+   void operator()(const unreachable_t& op) {
+      dbg_print("unreachable");
+      interpret_visitor::operator()(op);
    }
-   void operator()(nop_t) {
+   void operator()(const nop_t& op) {
       dbg_print("nop");
-      context.inc_pc();
+      interpret_visitor::operator()(op);
    }
-   void operator()(fend_t) {
+   void operator()(const fend_t& op) {
       dbg_print("fend");
-      context.apply_pop_call();
+      interpret_visitor::operator()(op);
    }
-   void operator()(end_t) {
+   void operator()(const end_t& op) {
       dbg_print("end");
-      const auto& label = context.pop_label();
-      uint16_t op_index = 0;
-      uint8_t  ret_type = 0;
-      std::visit(overloaded {
-         [&](const block_t& b) {
-            op_index = b.op_index;
-            ret_type = static_cast<uint8_t>(b.data);
-         }, [&](const loop_t& l) {
-            op_index = l.op_index;
-            ret_type = static_cast<uint8_t>(l.data);
-         },[&](const if__t& i) {
-            op_index = i.op_index;
-            ret_type = static_cast<uint8_t>(i.data);
-         }, [&](auto) {
-            throw wasm_interpreter_exception{"expected control structure"};
-         }
-      }, label);
-
-      if ( ret_type != types::pseudo ) {
-         const auto& op = context.pop_operand();
-         context.eat_operands(op_index);
-         context.push_operand(op);
-      } else {
-         context.eat_operands(op_index);
-      }
-
-      context.inc_pc();
+      interpret_visitor::operator()(op);
    }
-   void operator()(return__t) {
+   void operator()(const return__t& op) {
       dbg_print("return");
-      context.apply_pop_call();
+      interpret_visitor::operator()(op);
    }
-   void operator()(block_t bt) {
+   void operator()(const block_t& op) {
       dbg_print("block");
-      context.inc_pc();
-      bt.index = context.current_label_index();
-      bt.op_index = context.current_operands_index();
-      context.push_label(bt);
+      interpret_visitor::operator()(op);
    }
-   void operator()(loop_t lt) {
+   void operator()(const loop_t& op) {
       dbg_print("loop");
-      context.inc_pc();
-      lt.index = context.current_label_index();
-      lt.op_index = context.current_operands_index();
-      context.push_label(lt);
+      interpret_visitor::operator()(op);
    }
-   void operator()(if__t it) {
+   void operator()(const if__t& op) {
       dbg_print("if");
-      context.inc_pc();
-      it.index = context.current_label_index();
-      it.op_index = context.current_operands_index();
-      const auto& op = context.pop_operand();
-      if (!TO_UINT32(op))
-         context.set_relative_pc(it.pc+1);
-      context.push_label(it);
+      interpret_visitor::operator()(op);
    }
-   void operator()(else__t et) {
+   void operator()(const else__t& op) {
       dbg_print("else");
-      context.set_relative_pc(et.pc);
+      interpret_visitor::operator()(op);
    }
-   void operator()(br_t b) {
+   void operator()(const br_t& op) {
       dbg_print("br");
-      context.jump(b.data);
+      interpret_visitor::operator()(op);
    }
-   void operator()(br_if_t b) {
+   void operator()(const br_if_t& op) {
       dbg_print("br.if");
-      const auto& val = context.pop_operand();
-      if (context.is_true(val))
-         context.jump(b.data);
-      else
-         context.inc_pc();
+      interpret_visitor::operator()(op);
    }
    void operator()(br_table_t b) {
       dbg_print("br.table");

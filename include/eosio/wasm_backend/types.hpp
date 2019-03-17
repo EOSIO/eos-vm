@@ -43,7 +43,7 @@ namespace eosio { namespace wasm_backend {
       uint32_t pc;
       uint32_t offset;
       uint32_t index;
-      uint16_t size;
+      uint16_t op_index;
       uint8_t  ret_type;
    };
 
@@ -200,7 +200,6 @@ namespace eosio { namespace wasm_backend {
       } 
       uint32_t get_exported_function(const std::string_view str) {
          uint32_t index = std::numeric_limits<uint32_t>::max();
-         std::cout << "SIZE " << exports.size() << "\n";
          for (int i=0; i < exports.size(); i++) {
             if (exports[i].kind == external_kind::Function &&
                 exports[i].field_str.size() == str.size() &&

@@ -63,7 +63,7 @@
     (i32.const 4)
   )
   (func (export "as-loop-last") (param i32)
-    (loop (call $dummy) (br_if 1 (get_local 0)))
+    (loop (call $dummy) (br_if 0 (get_local 0)))
   )
 
   (func (export "as-br-value") (result i32)
