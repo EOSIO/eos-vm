@@ -48,7 +48,7 @@ namespace eosio { namespace wasm_backend {
                   // TODO validate only importing functions
                   const auto& ft = _mod.types[_mod.imports[index].type.func_t];
                   type_check(ft);
-                  _rhf(*this, index);
+                  _rhf(*this, _mod.import_functions[index]);
                   inc_pc();
                } else {
                   const auto& ft = _mod.types[_mod.functions[index - _mod.get_imported_functions_size()]];
@@ -233,7 +233,7 @@ namespace eosio { namespace wasm_backend {
                _cs.eat(0);
 
                push_args(args...);
-               push_call(func_index - _mod.import_functions.size());
+               push_call(func_index);
                type_check(_mod.types[_mod.functions[func_index - _mod.import_functions.size()]]);
                setup_locals(func_index);
                _pc = _current_offset; // set to actual start of function

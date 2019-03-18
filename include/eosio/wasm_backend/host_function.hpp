@@ -135,26 +135,36 @@ namespace eosio { namespace wasm_backend {
       static constexpr bool is_member = true; 
    };
 
-   template <auto F, typename Name >
-   struct registered_function {
-      static constexpr auto function = F;
-      static constexpr auto name = Name{};
-      using name_t = Name;
-      static constexpr bool is_member = false; 
-   };
-
-
    struct registered_host_functions {
+      struct mappings {
+         std::unordered_map<std::string, uint32_t> named_mapping;
+         std::vector<host_function>                host_functions;
+         size_t                                    current_index = 0;
+      };
+
+      static mappings& get_mappings() {
+         thread_local mappings _mappings;
+         return _mappings;
+      }
+
       template <auto Func>
-      void add(const std::string& name) {
-         thread_local size_t index = 0;
-         host_functions.push_back( function_types_provider(Func) ); 
-         named_mapping[name] = index++;
+      static void add(const std::string& mod, const std::string& name) {
+         mappings& current_mappings = get_mappings();
+         current_mappings.named_mapping[name] = current_mappings.current_index++;
+         current_mappings.host_functions.push_back( function_types_provider(Func) ); 
       }
 
       template <typename Module>
       static void resolve( Module& mod ) {
          mod.import_functions.resize(mod.get_imported_functions_size());
+         mappings& current_mappings = get_mappings();
+         for (int i=0; i < mod.imports.size(); i++) {
+            std::string mod_name{ (char*)mod.imports[i].module_str.raw(), mod.imports[i].module_len };
+            std::string fn_name{ (char*)mod.imports[i].field_str.raw(), mod.imports[i].field_len };
+            EOS_WB_ASSERT(current_mappings.named_mapping.count(fn_name), wasm_link_exception, "no mapping for imported function");
+            mod.import_functions[i] = current_mappings.named_mapping[fn_name];
+            std::cout << "fn " << fn_name << "\n";
+         }
       }
 
       template <typename Execution_Context>
@@ -163,7 +173,7 @@ namespace eosio { namespace wasm_backend {
 #if not defined __x86_64__ and (__APPLE__ or __linux__)
          static_assert(false, "currently only supporting x86_64 on Linux and Apple");
 #endif
-         const auto& func = host_functions[index];
+         const auto& func = get_mappings().host_functions[index];
          uint64_t args[calling_conv_arg_cnt] = {0};
 
          int i=0;
@@ -312,14 +322,18 @@ namespace eosio { namespace wasm_backend {
          }
       }
  
-      std::unordered_map<std::string, uint32_t> named_mapping;
-      std::vector<host_function>                host_functions;
    };
 
-      /*
-   template <typename... Funcs> 
-   struct native_invoker {
-      std::array<void*, sizeof...(Funcs)> functions = {(void*)Funcs...}; 
+   template <auto F, typename Mod, typename Name >
+   struct registered_function {
+      registered_function() {
+         registered_host_functions::add<F>(std::string{Mod::value, Mod::len}, std::string{Name::value, Name::len}); 
+      }
+
+      static constexpr auto function = F;
+      static constexpr auto name = Name{};
+      using name_t = Name;
+      static constexpr bool is_member = false; 
    };
-      */
+
 }} // ns eosio::wasm_backend
