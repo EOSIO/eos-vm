@@ -21,7 +21,9 @@ namespace eosio { namespace wasm_backend {
          : _walloc(wa),
            _galloc(1024 * 1024),
            _mod(*this),
-           _ctx( *this, binary_parser<backend>{*this}.parse_module( code, _mod ), wa ) {}
+           _ctx( *this, binary_parser<backend>{*this}.parse_module( code, _mod ), wa ) {
+         registered_host_functions::resolve(_mod);
+      }
 
          template <typename... Args>
          inline std::optional<stack_elem> operator()(const std::string_view func, Args... args) {
@@ -43,6 +45,7 @@ namespace eosio { namespace wasm_backend {
 
          wasm_allocator& get_wasm_allocator() { return _walloc; }
          growable_allocator& get_allocator() { return _galloc; }
+         module<backend>& get_module() { return _mod; }
 
          static std::vector<uint8_t> read_wasm( const std::string& fname ) {
             std::ifstream wasm_file( fname, std::ios::binary );

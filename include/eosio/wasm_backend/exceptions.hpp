@@ -55,5 +55,6 @@ namespace eosio { namespace wasm_backend {
    DECLARE_EXCEPTION( wasm_memory_exception,             4000007, "wasm memory exception" )
    DECLARE_EXCEPTION( stack_memory_exception,            4000008, "stack memory exception" )
    DECLARE_EXCEPTION( wasm_invalid_element,              4000009, "wasm invalid_element" )
+   DECLARE_EXCEPTION( wasm_link_exception,               4000010, "wasm linked function failure" )
    DECLARE_EXCEPTION( guarded_ptr_exception,             4010000, "pointer out of bounds" )
 }} // eosio::wasm_backend

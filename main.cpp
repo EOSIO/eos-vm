@@ -6,6 +6,12 @@
 using namespace eosio;
 using namespace eosio::wasm_backend;
 
+void print(int a) {
+   std::cout << "PRINT " << a << "\n";
+}
+
+registered_function<&print, decltype("env"_hfn), decltype("print"_hfn)> _rf;
+
 int main(int argc, char** argv) {
    wasm_allocator wa;
    auto code = backend::read_wasm( argv[1] );
@@ -26,4 +32,3 @@ int main(int argc, char** argv) {
    std::cout << std::chrono::duration_cast<std::chrono::nanoseconds>(t2-t1).count() << '\n';
    return 0;
 }
-
