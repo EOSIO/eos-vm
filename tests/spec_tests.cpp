@@ -1478,10 +1478,10 @@ BOOST_AUTO_TEST_CASE(endianness_tests) {
       BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load16_u", (int64_t)42)), (uint32_t)42);
       BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load16_u", (int64_t)0xCAFE)), (uint32_t)0xCAFE);
 
-      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load32_s", (int64_t)-1)), (int32_t)4294967295);
-      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load32_s", (int64_t)-42424242)), (int32_t)4252543054);
-      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load32_s", (int64_t)42424242)), (int32_t)42424242);
-      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load32_s", (int64_t)0x12345678)), (int32_t)0x12345678);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load32_s", (int64_t)-1)), (int64_t)-1);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load32_s", (int64_t)-42424242)), (int64_t)-42424242);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load32_s", (int64_t)42424242)), (int64_t)42424242);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load32_s", (int64_t)0x12345678)), (int64_t)0x12345678);
 
       BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load32_u", (int64_t)-1)), (uint32_t)-1);
       BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load32_u", (int64_t)-42424242)), (uint32_t)-42424242);
