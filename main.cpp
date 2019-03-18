@@ -13,9 +13,7 @@ int main(int argc, char** argv) {
    eosio::wasm_backend::backend bkend( code, wa );
 
    try {
-      //ctx.execute("apply", (uint64_t)12, (uint64_t)13, (uint64_t)14);
-      bkend("main");
-      //ctx.execute("dothedew");
+      bkend.execute_all();
    } catch ( const wasm_interpreter_exception& ex ) {
       std::cerr << ex.what() << " : " << ex.detail() << "\n";
    } catch ( const wasm_invalid_element& ex ) {

@@ -59,7 +59,7 @@ namespace eosio { namespace wasm_backend {
       private:
          uint8_t* raw       = nullptr;
          uint8_t* _previous = raw;
-         size_t page        = 0;
+         int32_t page       = 0;
 
          void set_up_signals() {
             struct sigaction sa;
@@ -69,11 +69,13 @@ namespace eosio { namespace wasm_backend {
             sigaction(SIGSEGV, &sa, NULL);
             sigaction(SIGBUS, &sa, NULL);
          }
+
       public:
          template <typename T>
          T* alloc(size_t size=1 /*in pages*/) {
             EOS_WB_ASSERT(page + size <= max_pages, wasm_bad_alloc, "exceeded max number of pages");
-            mprotect(raw + (page_size * (page+1)), (page_size * size), PROT_READ|PROT_WRITE);
+            std::cout << "PROTECT " << (uintptr_t)raw << " " << (uintptr_t)(raw + (page_size * (page+1))) << " " << (page_size * size) << "\n";
+            mprotect(raw + (page_size * (page)), (page_size * size), PROT_READ|PROT_WRITE);
             page += size;
             T* ptr = (T*)_previous;
             _previous = (raw + (page_size * page));
@@ -86,19 +88,20 @@ namespace eosio { namespace wasm_backend {
             raw = (uint8_t*)mmap(NULL, max_memory, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
             _previous = raw;
             mprotect(raw, page_size, PROT_READ|PROT_WRITE);
+            page = 1;
             set_up_signals();
          }
          void reset() {
             uint64_t size = page_size * page;
             _previous = raw;
             memset(raw, 0, size);
-            page = 0;
+            page = 1;
             mprotect(raw, size, PROT_NONE);
             mprotect(raw, page_size, PROT_READ|PROT_WRITE);
             set_up_signals();
          }
          template <typename T>
          inline T* get_base_ptr()const { return raw; }
-         inline uint64_t get_current_page()const { return page; }
+         inline int32_t get_current_page()const { return page; }
    };
  }} // namespace eosio::wasm_backend

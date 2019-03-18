@@ -66,4 +66,29 @@ namespace eosio { namespace wasm_backend {
    template <typename Backend>
    using call_stack    = fixed_stack<constants::max_call_depth, Backend>;
 
+
 }} // namespace eosio::wasm_backend
+
+#define TO_INT32(X)                                      \
+   std::get<eosio::wasm_backend::i32_const_t>(X).data.i
+
+#define TO_INT64(X)                                      \
+   std::get<eosio::wasm_backend::i64_const_t>(X).data.i
+
+#define TO_UINT32(X)                                     \
+   std::get<eosio::wasm_backend::i32_const_t>(X).data.ui
+
+#define TO_UINT64(X)                                     \
+   std::get<eosio::wasm_backend::i64_const_t>(X).data.ui
+
+#define TO_FUINT32(X)                                    \
+   std::get<eosio::wasm_backend::f32_const_t>(X).data.ui
+
+#define TO_FUINT64(X)                                    \
+   std::get<eosio::wasm_backend::f64_const_t>(X).data.ui
+
+#define TO_F32(X)                                        \
+   std::get<eosio::wasm_backend::f32_const_t>(X).data.f
+
+#define TO_F64(X)                                        \
+   std::get<eosio::wasm_backend::f64_const_t>(X).data.f

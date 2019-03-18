@@ -27,14 +27,16 @@ namespace eosio { namespace wasm_backend {
                 total_so_far += _mod.code[i-import_size].code.size();
               }
               _linear_memory = _alloc.get_base_ptr<uint8_t>(); // allocate an initial wasm page
-
-              for (int i=0; i < _mod.data.size(); i++) {
-                const auto& data_seg = _mod.data[i];
-                //TODO validate only use memory idx 0 in parse
-                memcpy((char*)(_linear_memory+data_seg.offset.value.i64), data_seg.data.raw(), data_seg.size);
-              }
             }
 
+            inline int32_t grow_linear_memory( int32_t pages ) {
+               const int32_t sz = _alloc.get_current_page();
+               _alloc.alloc<uint8_t>(pages);
+               // simply return back the old size, if we can't allocation pages we trap
+               return sz;
+            }
+
+            inline int32_t current_linear_memory()const { return _alloc.get_current_page(); }
             template <auto Registered_Func>
             inline void add_host_function(const std::string& name) {
                _rhf.add<Registered_Func>(name);
@@ -204,6 +206,14 @@ namespace eosio { namespace wasm_backend {
 
             template <typename Visitor, typename... Args>
             inline std::optional<stack_elem> execute(Visitor&& visitor, const std::string_view func, Args... args) {
+               _alloc.reset();
+
+               for (int i=0; i < _mod.data.size(); i++) {
+                  const auto& data_seg = _mod.data[i];
+                  //TODO validate only use memory idx 0 in parse
+                  memcpy((char*)(_linear_memory+data_seg.offset.value.i64), data_seg.data.raw(), data_seg.size);
+               }
+
                uint32_t func_index = _mod.get_exported_function(func);
                EOS_WB_ASSERT(func_index < std::numeric_limits<uint32_t>::max(), wasm_interpreter_exception, "cannot execute function, function not found");
                _current_function = func_index;
@@ -274,11 +284,11 @@ namespace eosio { namespace wasm_backend {
                if constexpr (to_wasm_type_v<std::decay_t<Arg>> == types::i32)
                   push_operand({i32_const_t{static_cast<uint32_t>(arg)}});
                else if constexpr (to_wasm_type_v<std::decay_t<Arg>> == types::f32)
-                  push_operand(f32_const_t{static_cast<uint32_t>(arg)});
+                  push_operand(f32_const_t{static_cast<float>(arg)});
                else if constexpr (to_wasm_type_v<std::decay_t<Arg>> == types::i64)
                   push_operand(i64_const_t{static_cast<uint64_t>(arg)});
                else
-                 push_operand(f64_const_t{static_cast<uint64_t>(arg)});
+                 push_operand(f64_const_t{static_cast<double>(arg)});
                if constexpr (sizeof...(Args) > 0)
                   _push_args(args...);
             }

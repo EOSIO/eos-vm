@@ -1,4 +1,5 @@
 (module
+  (data (i32.const 306) "A")
   ;; Auxiliary definitions
   (func $const-i32 (result i32) (i32.const 0x132))
   (func $const-i64 (result i64) (i64.const 0x164))

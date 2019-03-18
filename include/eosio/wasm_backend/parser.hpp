@@ -264,6 +264,7 @@ namespace eosio { namespace wasm_backend {
             std::stack<uint32_t> pc_stack;
 
             while (code.offset() < bounds) {
+               EOS_WB_ASSERT( pc_stack.size() <= constants::max_nested_structures, wasm_parse_exception, "nested structures validation failure");
                switch ( *code++ ) {
                   // CONTROL FLOW OPERATORS
                   case opcodes::unreachable:
