@@ -1303,8 +1303,8 @@ BOOST_AUTO_TEST_CASE(conversions_tests) {
          BOOST_CHECK_EQUAL(TO_F32(*bkend("i64.trunc_f32_s", (float)-2.0)), (uint64_t)-2);
          BOOST_CHECK_EQUAL(TO_F32(*bkend("i64.trunc_f32_s", (float)4294967296)), (uint64_t)4294967296);
          BOOST_CHECK_EQUAL(TO_F32(*bkend("i64.trunc_f32_s", (float)-4294967296)), (uint64_t)-4294967296);
-         BOOST_CHECK_EQUAL(TO_F32(*bkend("i64.trunc_f32_s", (float)9223371487098961920.0)), (uint64_t)9223371487098961920);
-         BOOST_CHECK_EQUAL(TO_F32(*bkend("i64.trunc_f32_s", (float)-9223372036854775808.0)), (uint64_t)-9223372036854775808);
+         BOOST_CHECK_EQUAL(TO_F32(*bkend("i64.trunc_f32_s", (float)9223371487098961920.0)), (uint64_t)9223371487098961920ull);
+         BOOST_CHECK_EQUAL(TO_F32(*bkend("i64.trunc_f32_s", (float)-9223372036854775808.0)), (uint64_t)-9223372036854775808ll);
 
          BOOST_CHECK_EQUAL(TO_F32(*bkend("i64.trunc_f32_u", (float)0.0)), (uint64_t)0);
          BOOST_CHECK_EQUAL(TO_F32(*bkend("i64.trunc_f32_u", (float)-0.0)), (uint64_t)0);
@@ -1314,7 +1314,7 @@ BOOST_AUTO_TEST_CASE(conversions_tests) {
          BOOST_CHECK_EQUAL(TO_F32(*bkend("i64.trunc_f32_u", (float)0x1.19999ap+0)), (uint64_t)1);
          BOOST_CHECK_EQUAL(TO_F32(*bkend("i64.trunc_f32_u", (float)1.5)), (uint64_t)1);
          BOOST_CHECK_EQUAL(TO_F32(*bkend("i64.trunc_f32_u", (float)4294967296)), (uint64_t)4294967296);
-         BOOST_CHECK_EQUAL(TO_F32(*bkend("i64.trunc_f32_u", (float)18446742974197923840.0)), (uint64_t)18446742974197923840);
+         BOOST_CHECK_EQUAL(TO_F32(*bkend("i64.trunc_f32_u", (float)18446742974197923840.0)), (uint64_t)18446742974197923840ull);
          BOOST_CHECK_EQUAL(TO_F32(*bkend("i64.trunc_f32_u", (float)-0x1.ccccccp-1)), (uint64_t)0);
          BOOST_CHECK_EQUAL(TO_F32(*bkend("i64.trunc_f32_u", (float)-0x1.fffffep-1)), (uint64_t)0);
 
@@ -1453,45 +1453,45 @@ BOOST_AUTO_TEST_CASE(endianness_tests) {
       auto code = backend::read_wasm( "wasms/endianness.wasm" );
       backend bkend( code, wa );
 
-      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("i32_load16_s", (uint32_t)-1)), (uint32_t)-1);
-      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("i32_load16_s", (uint32_t)-4242)), (uint32_t)-4242);
-      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("i32_load16_s", (uint32_t)42)), (uint32_t)42);
-      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("i32_load16_s", (uint32_t)0x3210)), (uint32_t)0x3210);
+      BOOST_CHECK_EQUAL(TO_INT32(*bkend("i32_load16_s", (int32_t)-1)), (int32_t)65535);
+      BOOST_CHECK_EQUAL(TO_INT32(*bkend("i32_load16_s", (int32_t)-4242)), (int32_t)61294);
+      BOOST_CHECK_EQUAL(TO_INT32(*bkend("i32_load16_s", (int32_t)42)), (int32_t)42);
+      BOOST_CHECK_EQUAL(TO_INT32(*bkend("i32_load16_s", (int32_t)0x3210)), (int32_t)0x3210);
 
-      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("i32_load16_u", (uint32_t)-1)), (uint32_t)0xFFFF);
-      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("i32_load16_u", (uint32_t)-4242)), (uint32_t)61294);
-      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("i32_load16_u", (uint32_t)42)), (uint32_t)42);
-      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("i32_load16_u", (uint32_t)0xCAFE)), (uint32_t)0xCAFE);
+      BOOST_CHECK_EQUAL(TO_INT32(*bkend("i32_load16_u", (int32_t)-1)), (uint16_t)0xFFFF);
+      BOOST_CHECK_EQUAL(TO_INT32(*bkend("i32_load16_u", (int32_t)-4242)), (uint16_t)61294);
+      BOOST_CHECK_EQUAL(TO_INT32(*bkend("i32_load16_u", (int32_t)42)), (uint16_t)42);
+      BOOST_CHECK_EQUAL(TO_INT32(*bkend("i32_load16_u", (int32_t)0xCAFE)), (uint16_t)0xCAFE);
 
-      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("i32_load", (uint32_t)-1)), (uint32_t)-1);
-      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("i32_load", (uint32_t)-42424242)), (uint32_t)-42424242);
-      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("i32_load", (uint32_t)42424242)), (uint32_t)42424242);
-      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("i32_load", (uint32_t)0xABAD1DEA)), (uint32_t)0xABAD1DEA);
+      BOOST_CHECK_EQUAL(TO_INT32(*bkend("i32_load", (int32_t)-1)), (uint32_t)-1);
+      BOOST_CHECK_EQUAL(TO_INT32(*bkend("i32_load", (int32_t)-42424242)), (uint32_t)-42424242);
+      BOOST_CHECK_EQUAL(TO_INT32(*bkend("i32_load", (int32_t)42424242)), (uint32_t)42424242);
+      BOOST_CHECK_EQUAL(TO_INT32(*bkend("i32_load", (int32_t)0xABAD1DEA)), (uint32_t)0xABAD1DEA);
 
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_load16_s", (uint64_t)-1)), (uint64_t)-1);
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_load16_s", (uint64_t)-4242)), (uint64_t)-4242);
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_load16_s", (uint64_t)42)), (uint64_t)42);
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_load16_s", (uint64_t)0x3210)), (uint64_t)0x3210);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load16_s", (int64_t)-1)), (int32_t)65535);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load16_s", (int64_t)-4242)), (int32_t)61294);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load16_s", (int64_t)42)), (int32_t)42);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load16_s", (int64_t)0x3210)), (int32_t)0x3210);
 
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_load16_u", (uint64_t)-1)), (uint64_t)-1);
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_load16_u", (uint64_t)-4242)), (uint64_t)-4242);
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_load16_u", (uint64_t)42)), (uint64_t)42);
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_load16_u", (uint64_t)0xCAFE)), (uint64_t)0xCAFE);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load16_u", (int64_t)-1)), (uint32_t)65535);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load16_u", (int64_t)-4242)), (uint32_t)61294);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load16_u", (int64_t)42)), (uint32_t)42);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load16_u", (int64_t)0xCAFE)), (uint32_t)0xCAFE);
 
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_load32_s", (uint64_t)-1)), (uint64_t)-1);
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_load32_s", (uint64_t)-42424242)), (uint64_t)-42424242);
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_load32_s", (uint64_t)42424242)), (uint64_t)42424242);
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_load32_s", (uint64_t)0x12345678)), (uint64_t)0x12345678);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load32_s", (int64_t)-1)), (int32_t)4294967295);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load32_s", (int64_t)-42424242)), (int32_t)4252543054);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load32_s", (int64_t)42424242)), (int32_t)42424242);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load32_s", (int64_t)0x12345678)), (int32_t)0x12345678);
 
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_load32_u", (uint64_t)-1)), (uint64_t)-1);
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_load32_u", (uint64_t)-42424242)), (uint64_t)-42424242);
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_load32_u", (uint64_t)42424242)), (uint64_t)42424242);
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_load32_u", (uint64_t)0xABAD1DEA)), (uint64_t)0xABAD1DEA);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load32_u", (int64_t)-1)), (uint32_t)-1);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load32_u", (int64_t)-42424242)), (uint32_t)-42424242);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load32_u", (int64_t)42424242)), (uint32_t)42424242);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load32_u", (int64_t)0xABAD1DEA)), (uint32_t)0xABAD1DEA);
 
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_load", (uint64_t)-1)), (uint64_t)-1);
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_load", (uint64_t)-42424242)), (uint64_t)-42424242);
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_load", (uint64_t)0xABAD1DEA)), (uint64_t)0xABAD1DEA);
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_load", (uint64_t)0xABADCAFEDEAD1DEA)), (uint64_t)0xABADCAFEDEAD1DEA);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load", (int64_t)-1)), (uint64_t)-1);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load", (int64_t)-42424242)), (uint64_t)-42424242);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load", (int64_t)0xABAD1DEA)), (uint64_t)0xABAD1DEA);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_load", (int64_t)0xABADCAFEDEAD1DEA)), (uint64_t)0xABADCAFEDEAD1DEA);
 
       BOOST_CHECK_EQUAL(TO_F32(*bkend("f32_load", (float)-1)), (float)-1);
       BOOST_CHECK_EQUAL(TO_F32(*bkend("f32_load", (float)1234e-5)), (float)1234e-5);
@@ -1503,30 +1503,30 @@ BOOST_AUTO_TEST_CASE(endianness_tests) {
       BOOST_CHECK_EQUAL(TO_F64(*bkend("f64_load", (double)424242.424242)), (double)424242.424242);
       BOOST_CHECK_EQUAL(TO_F64(*bkend("f64_load", (double)0x1.fffffffffffffp+1023)), (double)0x1.fffffffffffffp+1023);
 
-      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("i32_store16", (uint32_t)-1)), (uint32_t)0xFFFF);
-      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("i32_store16", (uint32_t)-4242)), (uint32_t)61294);
-      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("i32_store16", (uint32_t)42)), (uint32_t)42);
-      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("i32_store16", (uint32_t)0xCAFE)), (uint32_t)0xCAFE);
+      BOOST_CHECK_EQUAL(TO_INT32(*bkend("i32_store16", (int32_t)-1)), (uint32_t)0xFFFF);
+      BOOST_CHECK_EQUAL(TO_INT32(*bkend("i32_store16", (int32_t)-4242)), (uint32_t)61294);
+      BOOST_CHECK_EQUAL(TO_INT32(*bkend("i32_store16", (int32_t)42)), (uint32_t)42);
+      BOOST_CHECK_EQUAL(TO_INT32(*bkend("i32_store16", (int32_t)0xCAFE)), (uint32_t)0xCAFE);
 
-      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("i32_store", (uint32_t)-1)), (uint32_t)-1);
-      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("i32_store", (uint32_t)-4242)), (uint32_t)-4242);
-      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("i32_store", (uint32_t)42424242)), (uint32_t)42424242);
-      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("i32_store", (uint32_t)0xDEADCAFE)), (uint32_t)0xDEADCAFE);
+      BOOST_CHECK_EQUAL(TO_INT32(*bkend("i32_store", (int32_t)-1)), (uint32_t)-1);
+      BOOST_CHECK_EQUAL(TO_INT32(*bkend("i32_store", (int32_t)-4242)), (uint32_t)-4242);
+      BOOST_CHECK_EQUAL(TO_INT32(*bkend("i32_store", (int32_t)42424242)), (uint32_t)42424242);
+      BOOST_CHECK_EQUAL(TO_INT32(*bkend("i32_store", (int32_t)0xDEADCAFE)), (uint32_t)0xDEADCAFE);
 
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_store16", (uint64_t)-1)), (uint64_t)-1);
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_store16", (uint64_t)-4242)), (uint64_t)-4242);
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_store16", (uint64_t)42)), (uint64_t)42);
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_store16", (uint64_t)0xCAFE)), (uint64_t)0xCAFE);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_store16", (int64_t)-1)), (uint64_t)-1);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_store16", (int64_t)-4242)), (uint64_t)-4242);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_store16", (int64_t)42)), (uint64_t)42);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_store16", (int64_t)0xCAFE)), (uint64_t)0xCAFE);
 
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_store32", (uint64_t)-1)), (uint64_t)-1);
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_store32", (uint64_t)-4242)), (uint64_t)-4242);
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_store32", (uint64_t)42424242)), (uint64_t)42424242);
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_store32", (uint64_t)0xDEADCAFE)), (uint64_t)0xDEADCAFE);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_store32", (int64_t)-1)), (uint64_t)-1);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_store32", (int64_t)-4242)), (uint64_t)-4242);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_store32", (int64_t)42424242)), (uint64_t)42424242);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_store32", (int64_t)0xDEADCAFE)), (uint64_t)0xDEADCAFE);
 
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_store", (uint64_t)-1)), (uint64_t)-1);
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_store", (uint64_t)-42424242)), (uint64_t)-42424242);
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_store", (uint64_t)0xABAD1DEA)), (uint64_t)0xABAD1DEA);
-      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("i64_store", (uint64_t)0xABADCAFEDEAD1DEA)), (uint64_t)0xABADCAFEDEAD1DEA);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_store", (int64_t)-1)), (uint64_t)-1);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_store", (int64_t)-42424242)), (uint64_t)-42424242);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_store", (int64_t)0xABAD1DEA)), (uint64_t)0xABAD1DEA);
+      BOOST_CHECK_EQUAL(TO_INT64(*bkend("i64_store", (int64_t)0xABADCAFEDEAD1DEA)), (uint64_t)0xABADCAFEDEAD1DEA);
 
       BOOST_CHECK_EQUAL(TO_F32(*bkend("f32_store", (float)-1)), (float)-1);
       BOOST_CHECK_EQUAL(TO_F32(*bkend("f32_store", (float)1234e-5)), (float)1234e-5);
