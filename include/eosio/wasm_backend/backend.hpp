@@ -8,8 +8,11 @@
 #include <eosio/wasm_backend/allocator.hpp>
 #include <eosio/wasm_backend/parser.hpp>
 #include <eosio/wasm_backend/interpret_visitor.hpp>
+#include <eosio/wasm_backend/debug_visitor.hpp>
 #include <eosio/wasm_backend/execution_context.hpp>
 #include <eosio/wasm_backend/types.hpp>
+
+#define __EOSIO_DBG__
 
 namespace eosio { namespace wasm_backend {
    class backend {
@@ -22,7 +25,20 @@ namespace eosio { namespace wasm_backend {
 
          template <typename... Args>
          inline std::optional<stack_elem> operator()(const std::string_view func, Args... args) {
-            return _ctx.execute(interpret_visitor<backend>{*this, _ctx}, func, args...);
+            #ifdef __EOSIO_DBG__
+               return _ctx.execute(debug_visitor<backend>{*this, _ctx}, func, args...);
+            #else
+               return _ctx.execute(interpret_visitor<backend>{*this, _ctx}, func, args...);
+            #endif
+         }
+
+         inline void execute_all() {
+            for (int i=0; i < _mod.exports.size(); i++) {
+               if (_mod.exports[i].kind == external_kind::Function) {
+                  std::string s{(const char*)_mod.exports[i].field_str.raw(), _mod.exports[i].field_len};
+                  _ctx.execute(debug_visitor<backend>{*this, _ctx}, s);
+               }
+            }
          }
 
          wasm_allocator& get_wasm_allocator() { return _walloc; }

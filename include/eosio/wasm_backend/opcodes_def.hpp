@@ -281,5 +281,8 @@
 #define IDENTITY_END(name, code) \
    eosio::wasm_backend::name##_t
 
-#define VISIT(name, code) \
-   void operator()( name##_t ) { std::cout << "Found an " << #name << "\n"; }
+#define DBG_VISIT(name, code)                                           \
+   void operator()( name##_t& op ) {                              \
+      std::cout << "Found an " << #name << " at " << interpret_visitor<Backend>::get_context().get_pc() << "\n"; \
+      interpret_visitor<Backend>::operator()(op);                                \
+   }

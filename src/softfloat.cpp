@@ -333,7 +333,15 @@ bool _eosio_f64_eq( double a, double b ) { return f64_eq( to_softfloat64(a), to_
 bool _eosio_f64_ne( double a, double b ) { return !f64_eq( to_softfloat64(a), to_softfloat64(b) ); }
 bool _eosio_f64_lt( double a, double b ) { return f64_lt( to_softfloat64(a), to_softfloat64(b) ); }
 bool _eosio_f64_le( double a, double b ) { return f64_le( to_softfloat64(a), to_softfloat64(b) ); }
-bool _eosio_f64_gt( double af, double bf );
+bool _eosio_f64_gt( double af, double bf ) {
+   float64_t a = to_softfloat64(af);
+   float64_t b = to_softfloat64(bf);
+   if (is_nan(a))
+      return false;
+   if (is_nan(b))
+      return false;
+   return !f64_le( a, b );
+}
 bool _eosio_f64_ge( double af, double bf ) {
    float64_t a = to_softfloat64(af);
    float64_t b = to_softfloat64(bf);

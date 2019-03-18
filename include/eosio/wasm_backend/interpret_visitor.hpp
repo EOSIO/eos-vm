@@ -9,36 +9,6 @@
 #include <sstream>
 
 #include <eosio/wasm_backend/softfloat.hpp>
-#define EOSIO_DEBUG 1
-#ifdef EOSIO_DEBUG
-#define dbg_print(x) std::cerr << x << "\n";
-#else
-#define dbg_print(x)
-#endif
-
-#define TO_INT32(X) \
-   std::get<i32_const_t>(X).data.i
-
-#define TO_INT64(X) \
-   std::get<i64_const_t>(X).data.i
-
-#define TO_UINT32(X) \
-   std::get<i32_const_t>(X).data.ui
-
-#define TO_UINT64(X) \
-   std::get<i64_const_t>(X).data.ui
-
-#define TO_FUINT32(X) \
-   std::get<f32_const_t>(X).data.ui
-
-#define TO_FUINT64(X) \
-   std::get<f64_const_t>(X).data.ui
-
-#define TO_F32(X) \
-   std::get<f32_const_t>(X).data.f
-
-#define TO_F64(X) \
-   std::get<f64_const_t>(X).data.f
 
 namespace eosio { namespace wasm_backend {
 
@@ -47,39 +17,23 @@ struct interpret_visitor {
    interpret_visitor(Backend& backend, execution_context<Backend>& ec) : context(ec), allocator(backend.get_wasm_allocator()) {}
    execution_context<Backend>& context;
    wasm_allocator& allocator;
-   std::stringstream  dbg_output;
-   /*
-   struct stack_elem_visitor {
-      std::stringstream& dbg_output;
-      stack_elem_visitor(std::stringstream& ss) : dbg_output(ss) {}
-      void operator()(const block_t& ctrl) {
-         dbg_output << "block : " << std::to_string(ctrl.data) << "\n";
-      }
-      void operator()(const loop_t& ctrl) {
-         dbg_output << "loop : " << std::to_string(ctrl.data) << "\n";
-      }
-      void operator()(const if__t& ctrl) {
-         dbg_output << "if : " << std::to_string(ctrl.data) << "\n";
-      }
-      template <typename T>
-      void operator()(T) {
-      }
-   } _elem_visitor{dbg_output};
-   */
-   void operator()(unreachable_t) {
+
+   execution_context<Backend>& get_context() { return context; }
+
+   void operator()( const unreachable_t& op) {
       context.inc_pc();
       throw wasm_interpreter_exception{"unreachable"};
    }
-   void operator()(nop_t) {
-      dbg_print("nop");
+   void operator()( const nop_t& op) {
+
       context.inc_pc();
    }
-   void operator()(fend_t) {
-      dbg_print("fend");
+   void operator()( const fend_t& op) {
+
       context.apply_pop_call();
    }
-   void operator()(end_t) {
-      dbg_print("end");
+   void operator()( const end_t& op) {
+
       const auto& label = context.pop_label();
       uint16_t op_index = 0;
       uint8_t  ret_type = 0;
@@ -108,61 +62,54 @@ struct interpret_visitor {
 
       context.inc_pc();
    }
-   void operator()(return__t) {
-      dbg_print("return");
+   void operator()( const return__t& op) {
       context.apply_pop_call();
    }
-   void operator()(block_t bt) {
-      dbg_print("block");
+   void operator()( block_t& op) {
       context.inc_pc();
-      bt.index = context.current_label_index();
-      bt.op_index = context.current_operands_index();
-      context.push_label(bt);
+      op.index = context.current_label_index();
+      op.op_index = context.current_operands_index();
+      context.push_label(op);
    }
-   void operator()(loop_t lt) {
-      dbg_print("loop");
+   void operator()( loop_t& op) {
       context.inc_pc();
-      lt.index = context.current_label_index();
-      lt.op_index = context.current_operands_index();
-      context.push_label(lt);
+      op.index = context.current_label_index();
+      op.op_index = context.current_operands_index();
+      context.push_label(op);
    }
-   void operator()(if__t it) {
-      dbg_print("if");
+   void operator()( if__t& op) {
       context.inc_pc();
-      it.index = context.current_label_index();
-      it.op_index = context.current_operands_index();
-      const auto& op = context.pop_operand();
-      if (!TO_UINT32(op))
-         context.set_relative_pc(it.pc+1);
-      context.push_label(it);
+      op.index = context.current_label_index();
+      op.op_index = context.current_operands_index();
+      const auto& oper = context.pop_operand();
+      if (!TO_UINT32(oper))
+         context.set_relative_pc(op.pc+1);
+      context.push_label(op);
    }
-   void operator()(else__t et) {
-      dbg_print("else");
-      context.set_relative_pc(et.pc);
+   void operator()( const else__t& op) {
+      context.set_relative_pc(op.pc);
    }
-   void operator()(br_t b) {
-      dbg_print("br");
-      context.jump(b.data);
+   void operator()( const br_t& op) {
+      context.jump(op.data);
    }
-   void operator()(br_if_t b) {
-      dbg_print("br.if");
+   void operator()( const br_if_t& op) {
       const auto& val = context.pop_operand();
       if (context.is_true(val))
-         context.jump(b.data);
+         context.jump(op.data);
       else
          context.inc_pc();
    }
-   void operator()(br_table_t b) {
-      dbg_print("br.table");
+   void operator()( const br_table_t& op) {
+
       const auto& in = TO_UINT32(context.pop_operand());
-      if (in < b.size)
-         context.jump(b.table[in]);
+      if (in < op.size)
+         context.jump(op.table[in]);
       else
-         context.jump(b.default_target);
+         context.jump(op.default_target);
    }
-   void operator()(call_t b) {
-      dbg_print("call");
-      context.call(b.index);
+   void operator()( const call_t& op) {
+
+      context.call(op.index);
       // TODO place these in parser
       //EOS_WB_ASSERT(b.index < funcs_size, wasm_interpreter_exception, "call index out of bounds");
       /*
@@ -172,18 +119,18 @@ struct interpret_visitor {
       }
       */
    }
-   void operator()(call_indirect_t b) {
-      dbg_print("call_indirect");
-      const auto& op = context.pop_operand();
-      context.call(context.table_elem(TO_UINT32(op)));
+   void operator()( const call_indirect_t& op) {
+
+      const auto& index = TO_UINT32(context.pop_operand());
+      context.call(context.table_elem(index));
    }
-   void operator()(drop_t b) {
-      dbg_print("drop");
+   void operator()( const drop_t& op) {
+
       context.pop_operand();
       context.inc_pc();
    }
-   void operator()(select_t b) {
-      dbg_print("select");
+   void operator()( const select_t& op) {
+
       const auto& c = context.pop_operand();
       const auto& v2 = context.pop_operand();
       if (TO_UINT32(c) == 0) {
@@ -191,619 +138,480 @@ struct interpret_visitor {
       }
       context.inc_pc();
    }
-   void operator()(get_local_t b) {
-      dbg_print("get_local");
+   void operator()( const get_local_t& op) {
+
       context.inc_pc();
-      context.push_operand(context.get_operand(b.index));
+      context.push_operand(context.get_operand(op.index));
    }
-   void operator()(set_local_t b) {
-      dbg_print("set_local");
+   void operator()( const set_local_t& op) {
+
       context.inc_pc();
-      context.set_operand(b.index, context.pop_operand());
+      context.set_operand(op.index, context.pop_operand());
    }
-   void operator()(tee_local_t b) {
-      dbg_print("tee_local");
+   void operator()( const tee_local_t& op) {
+
       context.inc_pc();
-      const auto& op = context.pop_operand();
-      context.set_operand(b.index, op);
-      context.push_operand(op);
+      const auto& oper = context.pop_operand();
+      context.set_operand(op.index, oper);
+      context.push_operand(oper);
    }
-   void operator()(get_global_t b) {
-      dbg_print("get_global");
+   void operator()( const get_global_t& op) {
+
       context.inc_pc();
-      const auto& gl = context.get_global(b.index);
+      const auto& gl = context.get_global(op.index);
       context.push_operand(gl);
    }
-   void operator()(set_global_t b) {
-      dbg_print("set_global");
+   void operator()( const set_global_t& op) {
+
       context.inc_pc();
-      const auto& op = context.pop_operand();
-      context.set_global(b.index, op);
+      const auto& oper = context.pop_operand();
+      context.set_global(op.index, oper);
    }
-   void operator()(i32_load_t b) {
-      dbg_print("i32.load");
+   void operator()( const i32_load_t& op) {
+
       context.inc_pc();
       const auto& ptr = context.pop_operand();
-      uint32_t* _ptr = (uint32_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint32_t* _ptr = (uint32_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
       context.push_operand(i32_const_t{*_ptr});
    }
-   void operator()(i32_load8_s_t b) {
-      dbg_print("i32.load8_s");
+   void operator()( const i32_load8_s_t& op) {
+
       context.inc_pc();
       const auto& ptr = context.pop_operand();
-      int8_t* _ptr = (int8_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      int8_t* _ptr = (int8_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
       int8_t val = *_ptr;
       context.push_operand(i32_const_t{*(uint32_t*)&val});
    }
-   void operator()(i32_load16_s_t b) {
-      dbg_print("i32.load16_s");
+   void operator()( const i32_load16_s_t & op) {
+
       context.inc_pc();
       const auto& ptr = context.pop_operand();
-      int16_t* _ptr = (int16_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      int16_t* _ptr = (int16_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
       int16_t val = *_ptr;
       context.push_operand(i32_const_t{*(uint32_t*)&val});
    }
-   void operator()(i32_load8_u_t b) {
-      dbg_print("i32.load8_u");
+   void operator()( const i32_load8_u_t & op) {
+
       context.inc_pc();
       const auto& ptr = context.pop_operand();
-      uint8_t* _ptr = (uint8_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint8_t* _ptr = (uint8_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
       uint8_t val = *_ptr;
       context.push_operand(i32_const_t{val});
    }
-   void operator()(i32_load16_u_t b) {
-      dbg_print("i32.load16_u");
+   void operator()( const i32_load16_u_t & op) {
+
       context.inc_pc();
       const auto& ptr = context.pop_operand();
-      uint16_t* _ptr = (uint16_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint16_t* _ptr = (uint16_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
       uint16_t val = *_ptr;
       context.push_operand(i32_const_t{val});
    }
-   void operator()(i64_load_t b) {
-      dbg_print("i64.load");
+   void operator()( const i64_load_t & op) {
+
       context.inc_pc();
       const auto& ptr = context.pop_operand();
-      uint64_t* _ptr = (uint64_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint64_t* _ptr = (uint64_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
       uint64_t val = *_ptr;
       context.push_operand(i64_const_t{val});
    }
-   void operator()(i64_load8_s_t b) {
-      dbg_print("i64.load8_s");
+   void operator()( const i64_load8_s_t & op) {
+
       context.inc_pc();
       const auto& ptr = context.pop_operand();
-      int8_t* _ptr = (int8_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      int8_t* _ptr = (int8_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
       int8_t val = *_ptr;
       context.push_operand(i64_const_t{*(uint64_t*)&val});
    }
-   void operator()(i64_load16_s_t b) {
-      dbg_print("i64.load16_s");
+   void operator()( const i64_load16_s_t & op) {
+
       context.inc_pc();
       const auto& ptr = context.pop_operand();
-      int16_t* _ptr = (int16_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      int16_t* _ptr = (int16_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
       int16_t val = *_ptr;
       context.push_operand(i64_const_t{*(uint64_t*)&val});
    }
-   void operator()(i64_load32_s_t b) {
-      dbg_print("i64.load32_s");
+   void operator()( const i64_load32_s_t & op) {
+
       context.inc_pc();
       const auto& ptr = context.pop_operand();
-      int32_t* _ptr = (int32_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      int32_t* _ptr = (int32_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
       int32_t val = *_ptr;
       context.push_operand(i64_const_t{*(uint64_t*)&val});
    }
-   void operator()(i64_load8_u_t b) {
-      dbg_print("i64.load8_u");
+   void operator()( const i64_load8_u_t & op) {
+
       context.inc_pc();
       const auto& ptr = context.pop_operand();
-      uint8_t* _ptr = (uint8_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint8_t* _ptr = (uint8_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
       uint8_t val = *_ptr;
       context.push_operand(i64_const_t{static_cast<uint64_t>(val)});
    }
-   void operator()(i64_load16_u_t b) {
-      dbg_print("i64.load16_u");
+   void operator()( const i64_load16_u_t & op) {
+
       context.inc_pc();
       const auto& ptr = context.pop_operand();
-      uint16_t* _ptr = (uint16_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint16_t* _ptr = (uint16_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
       uint16_t val = *_ptr;
       context.push_operand(i64_const_t{static_cast<uint64_t>(val)});
    }
-   void operator()(i64_load32_u_t b) {
-      dbg_print("i64.load32_u");
+   void operator()( const i64_load32_u_t & op) {
+
       context.inc_pc();
       const auto& ptr = context.pop_operand();
-      uint32_t* _ptr = (uint32_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint32_t* _ptr = (uint32_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
       uint32_t val = *_ptr;
       context.push_operand(i64_const_t{static_cast<uint64_t>(val)});
    }
-   void operator()(f32_load_t b) {
-      dbg_print("f32.load");
+   void operator()( const f32_load_t & op) {
+
       context.inc_pc();
       const auto& ptr = context.pop_operand();
-      uint32_t* _ptr = (uint32_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint32_t* _ptr = (uint32_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
       uint32_t val = *_ptr;
       context.push_operand(f32_const_t{val});
    }
-   void operator()(f64_load_t b) {
-      dbg_print("f64.load");
+   void operator()( const f64_load_t & op) {
+
       context.inc_pc();
       const auto& ptr = context.pop_operand();
-      uint64_t* _ptr = (uint64_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint64_t* _ptr = (uint64_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
       uint64_t val = *_ptr;
       context.push_operand(f64_const_t{val});
    }
-   void operator()(i32_store_t b) {
-      dbg_print("i32.store");
+   void operator()( const i32_store_t & op) {
+
       context.inc_pc();
       const auto& val = context.pop_operand();
       const auto& ptr = context.pop_operand();
-      uint32_t* store_loc = (uint32_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint32_t* store_loc = (uint32_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
       *store_loc = TO_UINT32(val);
    }
-   void operator()(i32_store8_t b) {
-      dbg_print("i32.store8");
+   void operator()( const i32_store8_t & op) {
+
       context.inc_pc();
       const auto& val = context.pop_operand();
       const auto& ptr = context.pop_operand();
-      uint8_t* store_loc = (uint8_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint8_t* store_loc = (uint8_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
       *store_loc = static_cast<uint8_t>(TO_UINT32(val));
    }
-   void operator()(i32_store16_t b) {
-      dbg_print("i32.store16");
+   void operator()( const i32_store16_t & op) {
+
       context.inc_pc();
       const auto& val = context.pop_operand();
       const auto& ptr = context.pop_operand();
-      uint16_t* store_loc = (uint16_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint16_t* store_loc = (uint16_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
       *store_loc = static_cast<uint16_t>(TO_UINT32(val));
    }
-   void operator()(i64_store_t b) {
-      dbg_print("i64.store");
+   void operator()( const i64_store_t & op) {
+
       context.inc_pc();
       const auto& val = context.pop_operand();
       const auto& ptr = context.pop_operand();
-      uint64_t* store_loc = (uint64_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint64_t* store_loc = (uint64_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
       *store_loc = static_cast<uint64_t>(TO_UINT64(val));
    }
-   void operator()(i64_store8_t b) {
-      dbg_print("i64.store8");
+   void operator()( const i64_store8_t & op) {
+
       context.inc_pc();
       const auto& val = context.pop_operand();
       const auto& ptr = context.pop_operand();
-      uint8_t* store_loc = (uint8_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint8_t* store_loc = (uint8_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
       *store_loc = static_cast<uint8_t>(TO_UINT64(val));
    }
-   void operator()(i64_store16_t b) {
-      dbg_print("i64.store16");
+   void operator()( const i64_store16_t & op) {
+
       context.inc_pc();
       const auto& val = context.pop_operand();
       const auto& ptr = context.pop_operand();
-      uint16_t* store_loc = (uint16_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint16_t* store_loc = (uint16_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
       *store_loc = static_cast<uint16_t>(TO_UINT64(val));
    }
-   void operator()(i64_store32_t b) {
-      dbg_print("i64.store32");
+   void operator()( const i64_store32_t & op) {
+
       context.inc_pc();
       const auto& val = context.pop_operand();
       const auto& ptr = context.pop_operand();
-      uint32_t* store_loc = (uint32_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint32_t* store_loc = (uint32_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
       *store_loc = static_cast<uint32_t>(TO_UINT64(val));
    }
-   void operator()(f32_store_t b) {
-      dbg_print("f32.store");
+   void operator()( const f32_store_t& op) {
+
       context.inc_pc();
       const auto& val = context.pop_operand();
       const auto& ptr = context.pop_operand();
-      uint32_t* store_loc = (uint32_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint32_t* store_loc = (uint32_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
       *store_loc = static_cast<uint32_t>(TO_FUINT32(val));
    }
-   void operator()(f64_store_t b) {
-      dbg_print("f64.store");
+   void operator()( const f64_store_t& op) {
+
       context.inc_pc();
       const auto& val = context.pop_operand();
       const auto& ptr = context.pop_operand();
-      uint64_t* store_loc = (uint64_t*)(context.linear_memory()+b.offset+TO_UINT32(ptr));
+      uint64_t* store_loc = (uint64_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
       *store_loc = static_cast<uint64_t>(TO_FUINT64(val));
    }
-   void operator()(current_memory_t b) {
-      dbg_print("current_memory");
+   void operator()( const current_memory_t& op) {
       context.inc_pc();
+      context.push_operand(i32_const_t{ context.current_linear_memory() });
    }
-   void operator()(grow_memory_t b) {
-      dbg_print("grow_memory");
+   void operator()( const grow_memory_t& op) {
       context.inc_pc();
+      auto& oper = TO_UINT32(context.peek_operand());
+      oper = context.grow_linear_memory( oper );
    }
-   void operator()(i32_const_t b) {
-      dbg_print("i32.const");
+   void operator()( const i32_const_t& op) {
       context.inc_pc();
-      context.push_operand(b);
+      context.push_operand(op);
    }
-   void operator()(i64_const_t b) {
-      dbg_print("i64.const");
+   void operator()( const i64_const_t& op) {
       context.inc_pc();
-      context.push_operand(b);
+      context.push_operand(op);
    }
-   void operator()(f32_const_t b) {
-      dbg_print("f32.const");
+   void operator()( const f32_const_t& op) {
       context.inc_pc();
-      context.push_operand(b);
+      context.push_operand(op);
    }
-   void operator()(f64_const_t b) {
-      dbg_print("f64.const");
+   void operator()( const f64_const_t& op) {
       context.inc_pc();
-      context.push_operand(b);
+      context.push_operand(op);
    }
-   void operator()(i32_eqz_t i) {
-      dbg_print("i32.eqz");
+   void operator()( const i32_eqz_t& op) {
+
       context.inc_pc();
-      auto& op = context.peek_operand();
-      auto& t = TO_UINT32(op);
-      if (!t)
-         t = 1;
-      else
-         t = 0;
+      auto& t = TO_UINT32(context.peek_operand());
+      t = t == 0;
    }
-   void operator()(i32_eq_t b) {
-      dbg_print("i32.eq");
+   void operator()( const i32_eq_t & op) {
       context.inc_pc();
-      const auto& rhs = context.pop_operand();
+      const auto& rhs = TO_UINT32(context.pop_operand());
+      auto& lhs = TO_UINT32(context.peek_operand());
+      lhs = lhs == rhs;
+   }
+   void operator()( const i32_ne_t & op) {
+      context.inc_pc();
+      const auto& rhs = TO_UINT32(context.pop_operand());
+      auto& lhs = TO_UINT32(context.peek_operand());
+      lhs = lhs != rhs;
+   }
+   void operator()( const i32_lt_s_t& op) {
+      context.inc_pc();
+      const auto& rhs = TO_INT32(context.pop_operand());
+      auto& lhs = TO_INT32(context.peek_operand());
+      lhs = lhs < rhs;
+   }
+   void operator()( const i32_lt_u_t& op) {
+      context.inc_pc();
+      const auto& rhs = TO_UINT32(context.pop_operand());
+      auto& lhs = TO_UINT32(context.peek_operand());
+      lhs = lhs < rhs; 
+   }
+   void operator()( const i32_le_s_t& op) {
+      context.inc_pc();
+      const auto& rhs = TO_INT32(context.pop_operand());
+      auto& lhs = TO_INT32(context.peek_operand());
+      lhs = lhs <= rhs;
+   }
+   void operator()( const i32_le_u_t& op) {
+      context.inc_pc();
+      const auto& rhs = TO_UINT32(context.pop_operand());
+      auto& lhs = TO_UINT32(context.peek_operand());
+      lhs = lhs <= rhs;
+   }
+   void operator()( const i32_gt_s_t& op) {
+      context.inc_pc();
+      const auto& rhs = TO_INT32(context.pop_operand());
+      auto& lhs = TO_INT32(context.peek_operand());
+      lhs = lhs > rhs;
+   }
+   void operator()( const i32_gt_u_t& op) {
+      context.inc_pc();
+      const auto& rhs = TO_UINT32(context.pop_operand());
+      auto& lhs = TO_UINT32(context.peek_operand());
+      lhs = lhs > rhs;
+   }
+   void operator()( const i32_ge_s_t& op) {
+      context.inc_pc();
+      const auto& rhs = TO_INT32(context.pop_operand());
+      auto& lhs = TO_INT32(context.peek_operand());
+      lhs = lhs >= rhs;
+   }
+   void operator()( const i32_ge_u_t& op) {
+      context.inc_pc();
+      const auto& rhs = TO_UINT32(context.pop_operand());
+      auto& lhs = TO_UINT32(context.peek_operand());
+      lhs = lhs >= rhs;
+   }
+   void operator()( const i64_eqz_t& op) {
+      context.inc_pc();
+      auto& oper = context.peek_operand();
+      oper = i32_const_t{ TO_UINT64(oper) == 0 };
+   }
+   void operator()( const i64_eq_t& op) {
+      context.inc_pc();
+      const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = context.peek_operand();
-      auto& t = TO_UINT32(lhs);
-      if (t == TO_UINT32(rhs))
-         t = 1;
-      else
-         t = 0;
+      lhs = i32_const_t{TO_UINT64(lhs) == rhs};
    }
-   void operator()(i32_ne_t b) {
-      dbg_print("i32.ne");
+   void operator()( const i64_ne_t& op) {
       context.inc_pc();
-      const auto& rhs = context.pop_operand();
+      const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = context.peek_operand();
-      auto& t = TO_UINT32(lhs);
-
-      if (t != TO_UINT32(rhs))
-         t = 1;
-      else
-         t = 0;
+      lhs = i32_const_t{ TO_UINT64(lhs) != rhs };
    }
-   void operator()(i32_lt_s_t b) {
-      dbg_print("i32.lt_s");
+   void operator()( const i64_lt_s_t& op) {
       context.inc_pc();
-      const auto& rhs = context.pop_operand();
+      const auto& rhs = TO_INT64(context.pop_operand());
       auto& lhs = context.peek_operand();
-      auto& t = TO_INT32(lhs);
-
-      if (t < TO_INT32(rhs))
-         t = 1;
-      else
-         t = 0;
+      lhs = i32_const_t{ TO_INT64(lhs) < rhs };
    }
-   void operator()(i32_lt_u_t b) {
-      dbg_print("i32.lt_u");
+   void operator()( const i64_lt_u_t& op) {
       context.inc_pc();
-      const auto& rhs = context.pop_operand();
+      const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = context.peek_operand();
-      auto& t = TO_UINT32(lhs);
-
-      if (t < TO_UINT32(rhs))
-         t = 1;
-      else
-         t = 0;
+      lhs = i32_const_t{ TO_UINT64(lhs) < rhs };
    }
-   void operator()(i32_le_s_t b) {
-      dbg_print("i32.le_s");
+   void operator()( const i64_le_s_t& op) {
       context.inc_pc();
-      const auto& rhs = context.pop_operand();
+      const auto& rhs = TO_INT64(context.pop_operand());
       auto& lhs = context.peek_operand();
-      auto& t = TO_INT32(lhs);
-
-      if (t <= TO_INT32(rhs))
-         t = 1;
-      else
-         t = 0;
+      lhs = i32_const_t{ TO_INT64(lhs) <= rhs };
    }
-   void operator()(i32_le_u_t b) {
-      dbg_print("i32.le_u");
+   void operator()( const i64_le_u_t& op) {
       context.inc_pc();
-      const auto& rhs = context.pop_operand();
+      const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = context.peek_operand();
-      auto& t = TO_UINT32(lhs);
-
-      if (t <= TO_UINT32(rhs))
-         t = 1;
-      else
-         t = 0;
+      lhs = i32_const_t{ TO_UINT64(lhs) <= rhs };
    }
-   void operator()(i32_gt_s_t b) {
-      dbg_print("i32.gt_s");
+   void operator()( const i64_gt_s_t& op) {
       context.inc_pc();
-      const auto& rhs = context.pop_operand();
+      const auto& rhs = TO_INT64(context.pop_operand());
       auto& lhs = context.peek_operand();
-      auto& t = TO_INT32(lhs);
-
-      if (t > TO_INT32(rhs))
-         t = 1;
-      else
-         t = 0;
+      lhs = i32_const_t{ TO_INT64(lhs) > rhs };
    }
-   void operator()(i32_gt_u_t b) {
-      dbg_print("i32.gt_u");
+   void operator()( const i64_gt_u_t& op) {
       context.inc_pc();
-      const auto& rhs = context.pop_operand();
+      const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = context.peek_operand();
-      auto& t = TO_UINT32(lhs);
-
-      if (t > TO_UINT32(rhs))
-         t = 1;
-      else
-         t = 0;
+      lhs = i32_const_t{ TO_UINT64(lhs) > rhs };
    }
-   void operator()(i32_ge_s_t b) {
-      dbg_print("i32.ge_s");
+   void operator()( const i64_ge_s_t& op) {
       context.inc_pc();
-      const auto& rhs = context.pop_operand();
+      const auto& rhs = TO_INT64(context.pop_operand());
       auto& lhs = context.peek_operand();
-      auto& t = TO_INT32(lhs);
-
-      if (t >= TO_INT32(rhs))
-         t = 1;
-      else
-         t = 0;
+      lhs = i32_const_t{ TO_INT64(lhs) >= rhs };
    }
-   void operator()(i32_ge_u_t b) {
-      dbg_print("i32.ge_u");
+   void operator()( const i64_ge_u_t& op) {
       context.inc_pc();
-      const auto& rhs = context.pop_operand();
+      const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = context.peek_operand();
-      auto& t = TO_UINT32(lhs);
-
-      if (t >= TO_UINT32(rhs))
-         t = 1;
-      else
-         t = 0;
+      lhs = i32_const_t{ TO_UINT64(lhs) >= rhs };
    }
-   void operator()(i64_eqz_t b) {
-      dbg_print("i64.eqz");
-      context.inc_pc();
-      const auto& op = context.pop_operand();
-      if (TO_UINT64(op) == 0)
-         context.push_operand(i32_const_t{1});
-      else
-         context.push_operand(i32_const_t{0});
-   }
-   void operator()(i64_eq_t b) {
-      dbg_print("i64.eq");
-      context.inc_pc();
-      const auto& rhs = context.pop_operand();
-      const auto& lhs = context.pop_operand();
-
-      if (TO_UINT64(rhs) == TO_UINT64(lhs))
-         context.push_operand(i32_const_t{1});
-      else
-         context.push_operand(i32_const_t{0});
-   }
-   void operator()(i64_ne_t b) {
-      dbg_print("i64.ne");
-      context.inc_pc();
-      const auto& rhs = context.pop_operand();
-      const auto& lhs = context.pop_operand();
-
-      if (TO_UINT64(rhs) != TO_UINT64(lhs))
-         context.push_operand(i32_const_t{1});
-      else
-         context.push_operand(i32_const_t{0});
-   }
-   void operator()(i64_lt_s_t b) {
-      dbg_print("i64.lt_s");
-      context.inc_pc();
-      const auto& rhs = context.pop_operand();
-      const auto& lhs = context.pop_operand();
-
-      if (TO_INT64(lhs) < TO_INT64(rhs))
-         context.push_operand(i32_const_t{1});
-      else
-         context.push_operand(i32_const_t{0});
-   }
-   void operator()(i64_lt_u_t b) {
-      dbg_print("i64.lt_u");
-      context.inc_pc();
-      const auto& rhs = context.pop_operand();
-      const auto& lhs = context.pop_operand();
-
-      if (TO_UINT64(lhs) < TO_UINT64(rhs))
-         context.push_operand(i32_const_t{1});
-      else
-         context.push_operand(i32_const_t{0});
-   }
-   void operator()(i64_le_s_t b) {
-      dbg_print("i64.le_s");
-      context.inc_pc();
-      const auto& rhs = context.pop_operand();
-      const auto& lhs = context.pop_operand();
-
-      if (TO_INT64(lhs) <= TO_INT64(rhs))
-         context.push_operand(i32_const_t{1});
-      else
-         context.push_operand(i32_const_t{0});
-   }
-   void operator()(i64_le_u_t b) {
-      dbg_print("i64.le_u");
-      context.inc_pc();
-      const auto& rhs = context.pop_operand();
-      const auto& lhs = context.pop_operand();
-
-      if (TO_UINT64(lhs) <= TO_UINT64(rhs))
-         context.push_operand(i32_const_t{1});
-      else
-         context.push_operand(i32_const_t{0});
-   }
-   void operator()(i64_gt_s_t b) {
-      dbg_print("i64.gt_s");
-      context.inc_pc();
-      const auto& rhs = context.pop_operand();
-      const auto& lhs = context.pop_operand();
-
-      if (TO_INT64(lhs) > TO_INT64(rhs))
-         context.push_operand(i32_const_t{1});
-      else
-         context.push_operand(i32_const_t{0});
-   }
-   void operator()(i64_gt_u_t b) {
-      dbg_print("i64.gt_u");
-      context.inc_pc();
-      const auto& rhs = context.pop_operand();
-      const auto& lhs = context.pop_operand();
-
-      if (TO_UINT64(lhs) > TO_UINT64(rhs))
-         context.push_operand(i32_const_t{1});
-      else
-         context.push_operand(i32_const_t{0});
-   }
-   void operator()(i64_ge_s_t b) {
-      dbg_print("i64.ge_s");
-      context.inc_pc();
-      const auto& rhs = context.pop_operand();
-      const auto& lhs = context.pop_operand();
-
-      if (TO_INT64(lhs) >= TO_INT64(rhs))
-         context.push_operand(i32_const_t{1});
-      else
-         context.push_operand(i32_const_t{0});
-   }
-   void operator()(i64_ge_u_t b) {
-      dbg_print("i64.ge_u");
-      context.inc_pc();
-      const auto& rhs = context.pop_operand();
-      const auto& lhs = context.pop_operand();
-
-      if (TO_UINT64(lhs) >= TO_UINT64(rhs))
-         context.push_operand(i32_const_t{1});
-      else
-         context.push_operand(i32_const_t{0});
-   }
-   void operator()(f32_eq_t b) {
-      dbg_print("f32.eq");
+   void operator()( const f32_eq_t& op) {
       context.inc_pc();
       const auto& rhs = TO_F32(context.pop_operand());
-      const auto& lhs = TO_F32(context.pop_operand());
-      context.push_operand(i32_const_t{(uint32_t)_eosio_f32_eq(lhs, rhs)});
+      auto& lhs = context.peek_operand();
+      lhs = i32_const_t{(uint32_t)_eosio_f32_eq(TO_F32(lhs), rhs)};
    }
-   void operator()(f32_ne_t b) {
-      dbg_print("f32.ne");
+   void operator()( const f32_ne_t& op) {
       context.inc_pc();
       const auto& rhs = TO_F32(context.pop_operand());
-      const auto& lhs = TO_F32(context.pop_operand());
-      context.push_operand(i32_const_t{(uint32_t)_eosio_f32_ne(lhs, rhs)});
+      auto& lhs = context.peek_operand();
+      lhs = i32_const_t{(uint32_t)_eosio_f32_ne(TO_F32(lhs), rhs)};
    }
-   void operator()(f32_lt_t b) {
-      dbg_print("f32.lt");
+   void operator()( const f32_lt_t& op) {
       context.inc_pc();
       const auto& rhs = TO_F32(context.pop_operand());
-      const auto& lhs = TO_F32(context.pop_operand());
-      context.push_operand(i32_const_t{(uint32_t)_eosio_f32_lt(lhs, rhs)});
+      auto& lhs = context.peek_operand();
+      lhs = i32_const_t{(uint32_t)_eosio_f32_lt(TO_F32(lhs), rhs)};
    }
-   void operator()(f32_gt_t b) {
-      dbg_print("f32.gt");
+   void operator()( const f32_gt_t& op) {
       context.inc_pc();
       const auto& rhs = TO_F32(context.pop_operand());
-      const auto& lhs = TO_F32(context.pop_operand());
-      context.push_operand(i32_const_t{(uint32_t)!_eosio_f32_le(lhs, rhs)});
+      auto& lhs = context.peek_operand();
+      lhs = i32_const_t{(uint32_t)_eosio_f32_gt(TO_F32(lhs), rhs)};
    }
-   void operator()(f32_le_t b) {
-      dbg_print("f32.le");
+   void operator()( const f32_le_t& op) {
       context.inc_pc();
       const auto& rhs = TO_F32(context.pop_operand());
-      const auto& lhs = TO_F32(context.pop_operand());
-      context.push_operand(i32_const_t{(uint32_t)_eosio_f32_le(lhs, rhs)});
+      auto& lhs = context.peek_operand();
+      lhs = i32_const_t{(uint32_t)_eosio_f32_le(TO_F32(lhs), rhs)};
    }
-   void operator()(f32_ge_t b) {
-      dbg_print("f32.ge");
+   void operator()( const f32_ge_t& op) {
       context.inc_pc();
       const auto& rhs = TO_F32(context.pop_operand());
-      const auto& lhs = TO_F32(context.pop_operand());
-      context.push_operand(i32_const_t{(uint32_t)!_eosio_f32_lt(lhs, rhs)});
+      auto& lhs = context.peek_operand();
+      lhs = i32_const_t{(uint32_t)_eosio_f32_ge(TO_F32(lhs), rhs)};
    }
-   void operator()(f64_eq_t b) {
-      dbg_print("f64.eq");
+   void operator()( const f64_eq_t& op) {
       context.inc_pc();
       const auto& rhs = TO_F64(context.pop_operand());
-      const auto& lhs = TO_F64(context.pop_operand());
-      context.push_operand(i32_const_t{(uint32_t)_eosio_f64_eq(lhs, rhs)});
+      auto& lhs = context.peek_operand();
+      lhs = i32_const_t{(uint32_t)_eosio_f64_eq(TO_F64(lhs), rhs)};
    }
-   void operator()(f64_ne_t b) {
-      dbg_print("f64.ne");
+   void operator()( const f64_ne_t& op) {
       context.inc_pc();
       const auto& rhs = TO_F64(context.pop_operand());
-      const auto& lhs = TO_F64(context.pop_operand());
-      context.push_operand(i32_const_t{(uint32_t)_eosio_f64_ne(lhs, rhs)});
+      auto& lhs = context.peek_operand();
+      lhs = i32_const_t{(uint32_t)_eosio_f64_ne(TO_F64(lhs), rhs)};
    }
-   void operator()(f64_lt_t b) {
-      dbg_print("f64.lt");
+   void operator()( const f64_lt_t& op) {
       context.inc_pc();
       const auto& rhs = TO_F64(context.pop_operand());
-      const auto& lhs = TO_F64(context.pop_operand());
-      context.push_operand(i32_const_t{(uint32_t)_eosio_f64_lt(lhs, rhs)});
+      auto& lhs = context.peek_operand();
+      lhs = i32_const_t{(uint32_t)_eosio_f64_lt(TO_F64(lhs), rhs)};
    }
-   void operator()(f64_gt_t b) {
-      dbg_print("f64.gt");
+   void operator()( const f64_gt_t& op) {
       context.inc_pc();
       const auto& rhs = TO_F64(context.pop_operand());
-      const auto& lhs = TO_F64(context.pop_operand());
-      context.push_operand(i32_const_t{(uint32_t)!_eosio_f64_le(lhs, rhs)});
+      auto& lhs = context.peek_operand();
+      lhs = i32_const_t{(uint32_t)_eosio_f64_gt(TO_F64(lhs), rhs)};
    }
-   void operator()(f64_le_t b) {
-      dbg_print("f64.le");
+   void operator()( const f64_le_t& op) {
       context.inc_pc();
       const auto& rhs = TO_F64(context.pop_operand());
-      const auto& lhs = TO_F64(context.pop_operand());
-      context.push_operand(i32_const_t{(uint32_t)_eosio_f64_le(lhs, rhs)});
+      auto& lhs = context.peek_operand();
+      lhs = i32_const_t{(uint32_t)_eosio_f64_le(TO_F64(lhs), rhs)};
    }
-   void operator()(f64_ge_t b) {
-      dbg_print("f64.ge");
+   void operator()( const f64_ge_t& op) {
       context.inc_pc();
       const auto& rhs = TO_F64(context.pop_operand());
-      const auto& lhs = TO_F64(context.pop_operand());
-      context.push_operand(i32_const_t{(uint32_t)!_eosio_f64_lt(lhs, rhs)});
+      auto& lhs = context.peek_operand();
+      lhs = i32_const_t{(uint32_t)_eosio_f64_ge(TO_F64(lhs), rhs)};
    }
-   void operator()(i32_clz_t) {
-      dbg_print("i32.clz");
+   void operator()( const i32_clz_t& op) {
       context.inc_pc();
-      auto& op = TO_UINT32(context.peek_operand());
-      op = __builtin_clz(op);
+      auto& oper = TO_UINT32(context.peek_operand());
+      oper = __builtin_clz(oper);
    }
-   void operator()(i32_ctz_t) {
-      dbg_print("i32.ctz");
+   void operator()( const i32_ctz_t& op) {
       context.inc_pc();
-      auto& op = TO_UINT32(context.peek_operand());
-      op = __builtin_ctz(op);
+      auto& oper = TO_UINT32(context.peek_operand());
+      oper = __builtin_ctz(oper);
    }
-   void operator()(i32_popcnt_t) {
-      dbg_print("i32.popcnt");
+   void operator()( const i32_popcnt_t& op) {
       context.inc_pc();
-      auto& op = TO_UINT32(context.peek_operand());
-      op = __builtin_popcount(op);
+      auto& oper = TO_UINT32(context.peek_operand());
+      oper = __builtin_popcount(oper);
    }
-   void operator()(i32_add_t) {
-      dbg_print("i32.add");
+   void operator()( const i32_add_t& op) {
       context.inc_pc();
       const auto& rhs = TO_UINT32(context.pop_operand());
       auto& lhs = TO_UINT32(context.peek_operand());
       lhs += rhs;
    }
-   void operator()(i32_sub_t) {
-      dbg_print("i32.sub");
+   void operator()( const i32_sub_t& op) {
       context.inc_pc();
       const auto& rhs = TO_UINT32(context.pop_operand());
       auto& lhs = TO_UINT32(context.peek_operand());
       lhs -= rhs;
    }
-   void operator()(i32_mul_t) {
-      dbg_print("i32.mul");
+   void operator()( const i32_mul_t& op) {
       context.inc_pc();
       const auto& rhs = TO_UINT32(context.pop_operand());
       auto& lhs = TO_UINT32(context.peek_operand());
       lhs *= rhs;
    }
-   void operator()(i32_div_s_t) {
-      dbg_print("i32.div_s");
+   void operator()( const i32_div_s_t& op) {
       context.inc_pc();
       const auto& rhs = TO_INT32(context.pop_operand());
       auto& lhs = TO_INT32(context.peek_operand());
@@ -811,16 +619,14 @@ struct interpret_visitor {
       EOS_WB_ASSERT(!(lhs == std::numeric_limits<int32_t>::max() && rhs == -1), wasm_interpreter_exception, "i32.div_s traps when I32_MAX/-1");
       lhs /= rhs;
    }
-   void operator()(i32_div_u_t) {
-      dbg_print("i32.div_u");
+   void operator()( const i32_div_u_t& op) {
       context.inc_pc();
       const auto& rhs = TO_UINT32(context.pop_operand());
       auto& lhs = TO_UINT32(context.peek_operand());
       EOS_WB_ASSERT(rhs == 0, wasm_interpreter_exception, "i32.div_u divide by zero");
       lhs /= rhs;
    }
-   void operator()(i32_rem_s_t) {
-      dbg_print("i32.rem_s");
+   void operator()( const i32_rem_s_t& op) {
       context.inc_pc();
       const auto& rhs = TO_INT32(context.pop_operand());
       auto& lhs = TO_INT32(context.peek_operand());
@@ -830,58 +636,52 @@ struct interpret_visitor {
       else
          lhs %= rhs;
    }
-   void operator()(i32_rem_u_t) {
-      dbg_print("i32.rem_u");
+   void operator()( const i32_rem_u_t& op) {
       context.inc_pc();
       const auto& rhs = TO_UINT32(context.pop_operand());
       auto& lhs = TO_UINT32(context.peek_operand());
       EOS_WB_ASSERT(rhs == 0, wasm_interpreter_exception, "i32.rem_u divide by zero");
       lhs %= rhs;
    }
-   void operator()(i32_and_t) {
-      dbg_print("i32.and");
+   void operator()( const i32_and_t& op) {
       context.inc_pc();
       const auto& rhs = TO_UINT32(context.pop_operand());
       auto& lhs = TO_UINT32(context.peek_operand());
       lhs &= rhs;
    }
-   void operator()(i32_or_t) {
-      dbg_print("i32.or");
+   void operator()( const i32_or_t& op) {
       context.inc_pc();
       const auto& rhs = TO_UINT32(context.pop_operand());
       auto& lhs = TO_UINT32(context.peek_operand());
       lhs |= rhs;
    }
-   void operator()(i32_xor_t) {
-      dbg_print("i32.xor");
+   void operator()( const i32_xor_t& op) {
       context.inc_pc();
       const auto& rhs = TO_UINT32(context.pop_operand());
       auto& lhs = TO_UINT32(context.peek_operand());
       lhs ^= rhs;
    }
-   void operator()(i32_shl_t) {
-      dbg_print("i32.shl");
+   void operator()( const i32_shl_t& op) {
       context.inc_pc();
       const auto& rhs = TO_UINT32(context.pop_operand());
       auto& lhs = TO_UINT32(context.peek_operand());
       lhs <<= rhs;
    }
-   void operator()(i32_shr_s_t) {
-      dbg_print("i32.shr_s");
+   void operator()( const i32_shr_s_t& op) {
       context.inc_pc();
       const auto& rhs = TO_UINT32(context.pop_operand());
       auto& lhs = TO_INT32(context.peek_operand());
       lhs >>= rhs;
    }
-   void operator()(i32_shr_u_t) {
-      dbg_print("i32.shr_u");
+   void operator()( const i32_shr_u_t& op) {
+
       context.inc_pc();
       const auto& rhs = TO_UINT32(context.pop_operand());
       auto& lhs = TO_UINT32(context.peek_operand());
       lhs >>= rhs;
    }
-   void operator()(i32_rotl_t) {
-      dbg_print("i32.rotl");
+   void operator()( const i32_rotl_t& op) {
+
       context.inc_pc();
       static constexpr uint32_t mask = (8*sizeof(uint32_t)-1);
       const auto& rhs = TO_UINT32(context.pop_operand());
@@ -890,8 +690,8 @@ struct interpret_visitor {
       c &= mask;
       lhs = (lhs << c) | (lhs >> ((-c) & mask));
    }
-   void operator()(i32_rotr_t) {
-      dbg_print("i32.rotr");
+   void operator()( const i32_rotr_t& op) {
+
       context.inc_pc();
       static constexpr uint32_t mask = (8*sizeof(uint32_t)-1);
       const auto& rhs = TO_UINT32(context.pop_operand());
@@ -900,47 +700,47 @@ struct interpret_visitor {
       c &= mask;
       lhs = (lhs >> c) | (lhs << ((-c) & mask));
    }
-   void operator()(i64_clz_t) {
-      dbg_print("i64.clz");
+   void operator()( const i64_clz_t& op) {
+
       context.inc_pc();
-      auto& op = TO_UINT64(context.peek_operand());
-      op = __builtin_clzll(op);
+      auto& oper = TO_UINT64(context.peek_operand());
+      oper = __builtin_clzll(oper);
    }
-   void operator()(i64_ctz_t) {
-      dbg_print("i64.ctz");
+   void operator()( const i64_ctz_t& op) {
+
       context.inc_pc();
-      auto& op = TO_UINT64(context.peek_operand());
-      op = __builtin_ctzll(op);
+      auto& oper = TO_UINT64(context.peek_operand());
+      oper = __builtin_ctzll(oper);
    }
-   void operator()(i64_popcnt_t) {
-      dbg_print("i64.ctz");
+   void operator()( const i64_popcnt_t& op) {
+
       context.inc_pc();
-      auto& op = TO_UINT64(context.peek_operand());
-      op = __builtin_popcountll(op);
+      auto& oper = TO_UINT64(context.peek_operand());
+      oper = __builtin_popcountll(oper);
    }
-   void operator()(i64_add_t) {
-      dbg_print("i64.add");
+   void operator()( const i64_add_t& op) {
+
       context.inc_pc();
       const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = TO_UINT64(context.peek_operand());
       lhs += rhs;
    }
-   void operator()(i64_sub_t) {
-      dbg_print("i64.sub");
+   void operator()( const i64_sub_t& op) {
+
       context.inc_pc();
       const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = TO_UINT64(context.peek_operand());
       lhs -= rhs;
    }
-   void operator()(i64_mul_t) {
-      dbg_print("i64.mul");
+   void operator()( const i64_mul_t& op) {
+
       context.inc_pc();
       const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = TO_UINT64(context.peek_operand());
       lhs *= rhs;
    }
-   void operator()(i64_div_s_t) {
-      dbg_print("i64.div_s");
+   void operator()( const i64_div_s_t& op) {
+
       context.inc_pc();
       const auto& rhs = TO_INT64(context.pop_operand());
       auto& lhs = TO_INT64(context.peek_operand());
@@ -948,16 +748,16 @@ struct interpret_visitor {
       EOS_WB_ASSERT(!(lhs == std::numeric_limits<int64_t>::max() && rhs == -1), wasm_interpreter_exception, "i64.div_s traps when I64_MAX/-1");
       lhs /= rhs;
    }
-   void operator()(i64_div_u_t) {
-      dbg_print("i64.div_u");
+   void operator()( const i64_div_u_t& op) {
+
       context.inc_pc();
       const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = TO_UINT64(context.peek_operand());
       EOS_WB_ASSERT(rhs == 0, wasm_interpreter_exception, "i64.div_u divide by zero");
       lhs /= rhs;
    }
-   void operator()(i64_rem_s_t) {
-      dbg_print("i64.rem_s");
+   void operator()( const i64_rem_s_t& op) {
+
       context.inc_pc();
       const auto& rhs = TO_INT64(context.pop_operand());
       auto& lhs = TO_INT64(context.peek_operand());
@@ -967,58 +767,58 @@ struct interpret_visitor {
       else
          lhs %= rhs;
    }
-   void operator()(i64_rem_u_t) {
-      dbg_print("i64.rem_u");
+   void operator()( const i64_rem_u_t& op) {
+
       context.inc_pc();
       const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = TO_UINT64(context.peek_operand());
       EOS_WB_ASSERT(rhs == 0, wasm_interpreter_exception, "i64.rem_s divide by zero");
       lhs %= rhs;
    }
-   void operator()(i64_and_t) {
-      dbg_print("i64.and");
+   void operator()( const i64_and_t& op) {
+
       context.inc_pc();
       const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = TO_UINT64(context.peek_operand());
       lhs &= rhs;
    }
-   void operator()(i64_or_t) {
-      dbg_print("i64.or");
+   void operator()( const i64_or_t& op) {
+
       context.inc_pc();
       const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = TO_UINT64(context.peek_operand());
       lhs |= rhs;
    }
-   void operator()(i64_xor_t) {
-      dbg_print("i64.xor");
+   void operator()( const i64_xor_t& op) {
+
       context.inc_pc();
       const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = TO_UINT64(context.peek_operand());
       lhs ^= rhs;
    }
-   void operator()(i64_shl_t) {
-      dbg_print("i64.shl");
+   void operator()( const i64_shl_t& op) {
+
       context.inc_pc();
       const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = TO_UINT64(context.peek_operand());
       lhs <<= rhs;
    }
-   void operator()(i64_shr_s_t) {
-      dbg_print("i64.shr_s");
+   void operator()( const i64_shr_s_t& op) {
+
       context.inc_pc();
       const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = TO_INT64(context.peek_operand());
       lhs >>= rhs;
    }
-   void operator()(i64_shr_u_t) {
-      dbg_print("i64.shr_u");
+   void operator()( const i64_shr_u_t& op) {
+
       context.inc_pc();
       const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = TO_UINT64(context.peek_operand());
       lhs >>= rhs;
    }
-   void operator()(i64_rotl_t) {
-      dbg_print("i64.rotl");
+   void operator()( const i64_rotl_t& op) {
+
       context.inc_pc();
       static constexpr uint64_t mask = (8*sizeof(uint64_t)-1);
       const auto& rhs = TO_UINT64(context.pop_operand());
@@ -1027,8 +827,8 @@ struct interpret_visitor {
       c &= mask;
       lhs = (lhs << c) | (lhs >> (-c & mask));
    }
-   void operator()(i64_rotr_t) {
-      dbg_print("i64.rotr");
+   void operator()( const i64_rotr_t& op) {
+
       context.inc_pc();
       static constexpr uint64_t mask = (8*sizeof(uint64_t)-1);
       const auto& rhs = TO_UINT64(context.pop_operand());
@@ -1037,340 +837,340 @@ struct interpret_visitor {
       c &= mask;
       lhs = (lhs >> c) | (lhs << (-c & mask));
    }
-   void operator()(f32_abs_t) {
-      dbg_print("f32.abs");
+   void operator()( const f32_abs_t& op) {
+
       context.inc_pc();
-      auto& op = TO_F32(context.peek_operand());
-      op = _eosio_f32_abs(op);
+      auto& oper = TO_F32(context.peek_operand());
+      oper = _eosio_f32_abs(oper);
    }
-   void operator()(f32_neg_t) {
-      dbg_print("f32.neg");
+   void operator()( const f32_neg_t& op) {
+
       context.inc_pc();
-      auto& op = TO_F32(context.peek_operand());
-      op = _eosio_f32_neg(op);
+      auto& oper = TO_F32(context.peek_operand());
+      oper = _eosio_f32_neg(oper);
    }
-   void operator()(f32_ceil_t) {
-      dbg_print("f32.ceil");
+   void operator()( const f32_ceil_t& op) {
+
       context.inc_pc();
-      auto& op = TO_F32(context.peek_operand());
-      op = _eosio_f32_ceil(op);
+      auto& oper = TO_F32(context.peek_operand());
+      oper = _eosio_f32_ceil(oper);
    }
-   void operator()(f32_floor_t) {
-      dbg_print("f32.floor");
+   void operator()( const f32_floor_t& op) {
+
       context.inc_pc();
-      auto& op = TO_F32(context.peek_operand());
-      op = _eosio_f32_floor(op);
+      auto& oper = TO_F32(context.peek_operand());
+      oper = _eosio_f32_floor(oper);
    }
-   void operator()(f32_trunc_t) {
-      dbg_print("f32.trunc");
+   void operator()( const f32_trunc_t& op) {
+
       context.inc_pc();
-      auto& op = TO_F32(context.peek_operand());
-      op = _eosio_f32_trunc(op);
+      auto& oper = TO_F32(context.peek_operand());
+      oper = _eosio_f32_trunc(oper);
    }
-   void operator()(f32_nearest_t) {
-      dbg_print("f32.nearest");
+   void operator()( const f32_nearest_t& op) {
+
       context.inc_pc();
-      auto& op = TO_F32(context.peek_operand());
-      op = _eosio_f32_nearest(op);
+      auto& oper = TO_F32(context.peek_operand());
+      oper = _eosio_f32_nearest(oper);
    }
-   void operator()(f32_sqrt_t) {
-      dbg_print("f32.sqrt");
+   void operator()( const f32_sqrt_t& op) {
+
       context.inc_pc();
-      auto& op = TO_F32(context.peek_operand());
-      op = _eosio_f32_sqrt(op);
+      auto& oper = TO_F32(context.peek_operand());
+      oper = _eosio_f32_sqrt(oper);
    }
-   void operator()(f32_add_t) {
-      dbg_print("f32.add");
+   void operator()( const f32_add_t& op) {
+
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F32(context.peek_operand());
       lhs = _eosio_f32_add(lhs, TO_F32(rhs));
    }
-   void operator()(f32_sub_t) {
-      dbg_print("f32.sub");
+   void operator()( const f32_sub_t& op) {
+
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F32(context.peek_operand());
       lhs = _eosio_f32_sub(lhs, TO_F32(rhs));
    }
-   void operator()(f32_mul_t) {
-      dbg_print("f32.mul");
+   void operator()( const f32_mul_t& op) {
+
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F32(context.peek_operand());
       lhs = _eosio_f32_mul(lhs, TO_F32(rhs));
    }
-   void operator()(f32_div_t) {
-      dbg_print("f32.div");
+   void operator()( const f32_div_t& op) {
+
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F32(context.peek_operand());
       lhs = _eosio_f32_div(lhs, TO_F32(rhs));
    }
-   void operator()(f32_min_t) {
-      dbg_print("f32.min");
+   void operator()( const f32_min_t& op) {
+
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F32(context.peek_operand());
       lhs = _eosio_f32_min(lhs, TO_F32(rhs));
    }
-   void operator()(f32_max_t) {
-      dbg_print("f32.max");
+   void operator()( const f32_max_t& op) {
+
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F32(context.peek_operand());
       lhs = _eosio_f32_max(lhs, TO_F32(rhs));
    }
-   void operator()(f32_copysign_t) {
-      dbg_print("f32.copysign");
+   void operator()( const f32_copysign_t& op) {
+
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F32(context.peek_operand());
       lhs = _eosio_f32_copysign(lhs, TO_F32(rhs));
    }
-   void operator()(f64_abs_t) {
-      dbg_print("f64.abs");
+   void operator()( const f64_abs_t& op) {
+
       context.inc_pc();
-      auto& op = TO_F64(context.peek_operand());
-      op = _eosio_f64_abs(op);
+      auto& oper = TO_F64(context.peek_operand());
+      oper = _eosio_f64_abs(oper);
    }
-   void operator()(f64_neg_t) {
-      dbg_print("f64.neg");
+   void operator()( const f64_neg_t& op) {
+
       context.inc_pc();
-      auto& op = TO_F64(context.peek_operand());
-      op = _eosio_f64_neg(op);
+      auto& oper = TO_F64(context.peek_operand());
+      oper = _eosio_f64_neg(oper);
    }
-   void operator()(f64_ceil_t) {
-      dbg_print("f64.ceil");
+   void operator()( const f64_ceil_t& op) {
+
       context.inc_pc();
-      auto& op = TO_F64(context.peek_operand());
-      op = _eosio_f64_ceil(op);
+      auto& oper = TO_F64(context.peek_operand());
+      oper = _eosio_f64_ceil(oper);
    }
-   void operator()(f64_floor_t) {
-      dbg_print("f64.floor");
+   void operator()( const f64_floor_t& op) {
+
       context.inc_pc();
-      auto& op = TO_F64(context.peek_operand());
-      op = _eosio_f64_floor(op);
+      auto& oper = TO_F64(context.peek_operand());
+      oper = _eosio_f64_floor(oper);
    }
-   void operator()(f64_trunc_t) {
-      dbg_print("f64.trunc");
+   void operator()( const f64_trunc_t& op) {
+
       context.inc_pc();
-      auto& op = TO_F64(context.peek_operand());
-      op = _eosio_f64_trunc(op);
+      auto& oper = TO_F64(context.peek_operand());
+      oper = _eosio_f64_trunc(oper);
    }
-   void operator()(f64_nearest_t) {
-      dbg_print("f64.nearest");
+   void operator()( const f64_nearest_t& op) {
+
       context.inc_pc();
-      auto& op = TO_F64(context.peek_operand());
-      op = _eosio_f64_nearest(op);
+      auto& oper = TO_F64(context.peek_operand());
+      oper = _eosio_f64_nearest(oper);
    }
-   void operator()(f64_sqrt_t) {
-      dbg_print("f64.sqrt");
+   void operator()( const f64_sqrt_t& op) {
+
       context.inc_pc();
-      auto& op = TO_F64(context.peek_operand());
-      op = _eosio_f64_sqrt(op);
+      auto& oper = TO_F64(context.peek_operand());
+      oper = _eosio_f64_sqrt(oper);
    }
-   void operator()(f64_add_t) {
-      dbg_print("f64.add");
+   void operator()( const f64_add_t& op) {
+
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F64(context.peek_operand());
       lhs = _eosio_f64_add(lhs, TO_F64(rhs));
    }
-   void operator()(f64_sub_t) {
-      dbg_print("f64.sub");
+   void operator()( const f64_sub_t& op) {
+
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F64(context.peek_operand());
       lhs = _eosio_f64_sub(lhs, TO_F64(rhs));
    }
-   void operator()(f64_mul_t) {
-      dbg_print("f64.mul");
+   void operator()( const f64_mul_t& op) {
+
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F64(context.peek_operand());
       lhs = _eosio_f64_mul(lhs, TO_F64(rhs));
    }
-   void operator()(f64_div_t) {
-      dbg_print("f64.div");
+   void operator()( const f64_div_t& op) {
+
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F64(context.peek_operand());
       lhs = _eosio_f64_div(lhs, TO_F64(rhs));
    }
-   void operator()(f64_min_t) {
-      dbg_print("f64.min");
+   void operator()( const f64_min_t& op) {
+
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F64(context.peek_operand());
       lhs = _eosio_f64_min(lhs, TO_F64(rhs));
    }
-   void operator()(f64_max_t) {
-      dbg_print("f64.max");
+   void operator()( const f64_max_t& op) {
+
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F64(context.peek_operand());
       lhs = _eosio_f64_max(lhs, TO_F64(rhs));
    }
-   void operator()(f64_copysign_t) {
-      dbg_print("f64.copysign");
+   void operator()( const f64_copysign_t& op) {
+
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F64(context.peek_operand());
       lhs = _eosio_f64_copysign(lhs, TO_F64(rhs));
    }
-   void operator()(i32_wrap_i64_t) {
-      dbg_print("i32.wrap_i64");
+   void operator()( const i32_wrap_i64_t& op) {
+
       context.inc_pc();
-      auto& op = context.peek_operand();
-      op = {i32_const_t{static_cast<int32_t>(TO_INT64(op))}};
+      auto& oper = context.peek_operand();
+      oper = {i32_const_t{static_cast<int32_t>(TO_INT64(oper))}};
    }
-   void operator()(i32_trunc_s_f32_t) {
-      dbg_print("i32.trunc_s_f32");
+   void operator()( const i32_trunc_s_f32_t& op) {
+
       context.inc_pc();
-      auto& op = context.peek_operand();
-      op = {i32_const_t{_eosio_f32_trunc_i32s(TO_F32(op))}};
+      auto& oper = context.peek_operand();
+      oper = {i32_const_t{_eosio_f32_trunc_i32s(TO_F32(oper))}};
    }
-   void operator()(i32_trunc_u_f32_t) {
-      dbg_print("i32.trunc_u_f32");
+   void operator()( const i32_trunc_u_f32_t& op) {
+
       context.inc_pc();
-      auto& op = context.peek_operand();
-      op = {i32_const_t{_eosio_f32_trunc_i32u(TO_F32(op))}};
+      auto& oper = context.peek_operand();
+      oper = {i32_const_t{_eosio_f32_trunc_i32u(TO_F32(oper))}};
    }
-   void operator()(i32_trunc_s_f64_t) {
-      dbg_print("i32.trunc_s_f64");
+   void operator()( const i32_trunc_s_f64_t& op) {
+
       context.inc_pc();
-      auto& op = context.peek_operand();
-      op = {i32_const_t{_eosio_f64_trunc_i32s(TO_F64(op))}};
+      auto& oper = context.peek_operand();
+      oper = {i32_const_t{_eosio_f64_trunc_i32s(TO_F64(oper))}};
    }
-   void operator()(i32_trunc_u_f64_t) {
-      dbg_print("i32.trunc_u_f64");
+   void operator()( const i32_trunc_u_f64_t& op) {
+
       context.inc_pc();
-      auto& op = context.peek_operand();
-      op = {i32_const_t{_eosio_f64_trunc_i32u(TO_F64(op))}};
+      auto& oper = context.peek_operand();
+      oper = {i32_const_t{_eosio_f64_trunc_i32u(TO_F64(oper))}};
    }
-   void operator()(i64_extend_s_i32_t) {
-      dbg_print("i64.extend_s_i32");
+   void operator()( const i64_extend_s_i32_t& op) {
+
       context.inc_pc();
-      auto& op = context.peek_operand();
-      op = {i64_const_t{static_cast<int64_t>(TO_INT32(op))}};
+      auto& oper = context.peek_operand();
+      oper = {i64_const_t{static_cast<int64_t>(TO_INT32(oper))}};
    }
-   void operator()(i64_extend_u_i32_t) {
-      dbg_print("i64.extend_u_i32");
+   void operator()( const i64_extend_u_i32_t& op) {
+
       context.inc_pc();
-      auto& op = context.peek_operand();
-      op = {i64_const_t{static_cast<uint64_t>(TO_UINT32(op))}};
+      auto& oper = context.peek_operand();
+      oper = {i64_const_t{static_cast<uint64_t>(TO_UINT32(oper))}};
    }
-   void operator()(i64_trunc_s_f32_t) {
-      dbg_print("i64.trunc_s_f32");
+   void operator()( const i64_trunc_s_f32_t& op) {
+
       context.inc_pc();
-      auto& op = context.peek_operand();
-      op = {i64_const_t{_eosio_f32_trunc_i64s(TO_F64(op))}};
+      auto& oper = context.peek_operand();
+      oper = {i64_const_t{_eosio_f32_trunc_i64s(TO_F64(oper))}};
    }
-   void operator()(i64_trunc_u_f32_t) {
-      dbg_print("i64.trunc_u_f32");
+   void operator()( const i64_trunc_u_f32_t& op) {
+
       context.inc_pc();
-      auto& op = context.peek_operand();
-      op = {i64_const_t{_eosio_f32_trunc_i64u(TO_F64(op))}};
+      auto& oper = context.peek_operand();
+      oper = {i64_const_t{_eosio_f32_trunc_i64u(TO_F64(oper))}};
    }
-   void operator()(i64_trunc_s_f64_t) {
-      dbg_print("i64.trunc_s_f64");
+   void operator()( const i64_trunc_s_f64_t& op) {
+
       context.inc_pc();
-      auto& op = context.peek_operand();
-      op = {i64_const_t{_eosio_f64_trunc_i64s(TO_F64(op))}};
+      auto& oper = context.peek_operand();
+      oper = {i64_const_t{_eosio_f64_trunc_i64s(TO_F64(oper))}};
    }
-   void operator()(i64_trunc_u_f64_t) {
-      dbg_print("i64.trunc_u_f64");
+   void operator()( const i64_trunc_u_f64_t& op) {
+
       context.inc_pc();
-      auto& op = context.peek_operand();
-      op = {i64_const_t{_eosio_f64_trunc_i64u(TO_F64(op))}};
+      auto& oper = context.peek_operand();
+      oper = {i64_const_t{_eosio_f64_trunc_i64u(TO_F64(oper))}};
    }
-   void operator()(f32_convert_s_i32_t) {
-      dbg_print("f32.convert_s_i32");
+   void operator()( const f32_convert_s_i32_t& op) {
+
       context.inc_pc();
-      auto& op = context.peek_operand();
-      op = {f32_const_t{_eosio_i32_to_f32(TO_INT32(op))}};
+      auto& oper = context.peek_operand();
+      oper = {f32_const_t{_eosio_i32_to_f32(TO_INT32(oper))}};
    }
-   void operator()(f32_convert_u_i32_t) {
-      dbg_print("f32.convert_u_i32");
+   void operator()( const f32_convert_u_i32_t& op) {
+
       context.inc_pc();
-      auto& op = context.peek_operand();
-      op = {f32_const_t{_eosio_ui32_to_f32(TO_UINT32(op))}};
+      auto& oper = context.peek_operand();
+      oper = {f32_const_t{_eosio_ui32_to_f32(TO_UINT32(oper))}};
    }
-   void operator()(f32_convert_s_i64_t) {
-      dbg_print("f32.convert_s_i64");
+   void operator()( const f32_convert_s_i64_t& op) {
+
       context.inc_pc();
-      auto& op = context.peek_operand();
-      op = {f32_const_t{_eosio_i64_to_f32(TO_INT64(op))}};
+      auto& oper = context.peek_operand();
+      oper = {f32_const_t{_eosio_i64_to_f32(TO_INT64(oper))}};
    }
-   void operator()(f32_convert_u_i64_t) {
-      dbg_print("f32.convert_u_i64");
+   void operator()( const f32_convert_u_i64_t& op) {
+
       context.inc_pc();
-      auto& op = context.peek_operand();
-      op = {f32_const_t{_eosio_ui64_to_f32(TO_UINT64(op))}};
+      auto& oper = context.peek_operand();
+      oper = {f32_const_t{_eosio_ui64_to_f32(TO_UINT64(oper))}};
    }
-   void operator()(f32_demote_f64_t) {
-      dbg_print("f32.demote_f64");
+   void operator()( const f32_demote_f64_t& op) {
+
       context.inc_pc();
-      auto& op = context.peek_operand();
-      op = {f32_const_t{_eosio_f64_demote(TO_F64(op))}};
+      auto& oper = context.peek_operand();
+      oper = {f32_const_t{_eosio_f64_demote(TO_F64(oper))}};
    }
-   void operator()(f64_convert_s_i32_t) {
-      dbg_print("f64.convert_s_i32");
+   void operator()( const f64_convert_s_i32_t& op) {
+
       context.inc_pc();
-      auto& op = context.peek_operand();
-      op = {f64_const_t{_eosio_i32_to_f64(TO_INT32(op))}};
+      auto& oper = context.peek_operand();
+      oper = {f64_const_t{_eosio_i32_to_f64(TO_INT32(oper))}};
    }
-   void operator()(f64_convert_u_i32_t) {
-      dbg_print("f64.convert_u_i32");
+   void operator()( const f64_convert_u_i32_t& op) {
+
       context.inc_pc();
-      auto& op = context.peek_operand();
-      op = {f64_const_t{_eosio_ui32_to_f64(TO_UINT32(op))}};
+      auto& oper = context.peek_operand();
+      oper = {f64_const_t{_eosio_ui32_to_f64(TO_UINT32(oper))}};
    }
-   void operator()(f64_convert_s_i64_t) {
-      dbg_print("f64.convert_s_i64");
+   void operator()( const f64_convert_s_i64_t& op) {
+
       context.inc_pc();
-      auto& op = context.peek_operand();
-      op = {f64_const_t{_eosio_i64_to_f64(TO_INT64(op))}};
+      auto& oper = context.peek_operand();
+      oper = {f64_const_t{_eosio_i64_to_f64(TO_INT64(oper))}};
    }
-   void operator()(f64_convert_u_i64_t) {
+   void operator()( const f64_convert_u_i64_t& op) {
       context.inc_pc();
-      auto& op = context.peek_operand();
-      op = {f64_const_t{_eosio_ui64_to_f64(TO_UINT64(op))}};
-      dbg_print("f64.convert_u_i64");
+      auto& oper = context.peek_operand();
+      oper = {f64_const_t{_eosio_ui64_to_f64(TO_UINT64(oper))}};
+
    }
-   void operator()(f64_promote_f32_t) {
-      dbg_print("f64.promote_f32");
+   void operator()( const f64_promote_f32_t& op) {
+
       context.inc_pc();
-      auto& op = context.peek_operand();
-      op = {f64_const_t{_eosio_f32_promote(TO_F32(op))}};
+      auto& oper = context.peek_operand();
+      oper = {f64_const_t{_eosio_f32_promote(TO_F32(oper))}};
    }
-   void operator()(i32_reinterpret_f32_t) {
-      dbg_print("i32.reinterpret/f32");
+   void operator()( const i32_reinterpret_f32_t& op) {
+
       context.inc_pc();
-      auto& op = context.peek_operand();
-      op = i32_const_t{TO_UINT32(op)};
+      auto& oper = context.peek_operand();
+      oper = i32_const_t{TO_UINT32(oper)};
    }
-   void operator()(i64_reinterpret_f64_t) {
-      dbg_print("i64.reinterpret/f64");
+   void operator()( const i64_reinterpret_f64_t& op) {
+
       context.inc_pc();
-      auto& op = context.peek_operand();
-      op = i64_const_t{TO_UINT64(op)};
+      auto& oper = context.peek_operand();
+      oper = i64_const_t{TO_UINT64(oper)};
    }
-   void operator()(f32_reinterpret_i32_t) {
-      dbg_print("f32.reinterpret/i32");
+   void operator()( const f32_reinterpret_i32_t& op) {
+
       context.inc_pc();
-      auto& op = context.peek_operand();
-      op = i32_const_t{TO_FUINT32(op)};
+      auto& oper = context.peek_operand();
+      oper = i32_const_t{TO_FUINT32(oper)};
    }
-   void operator()(f64_reinterpret_i64_t) {
-      dbg_print("f64.reinterpret/i64");
+   void operator()( const f64_reinterpret_i64_t& op) {
+
       context.inc_pc();
-      auto& op = context.peek_operand();
-      op = i64_const_t{TO_FUINT64(op)};
+      auto& oper = context.peek_operand();
+      oper = i64_const_t{TO_FUINT64(oper)};
    }
-   void operator()(error_t) {
-      dbg_print("error");
+   void operator()( const error_t& op) {
+
       context.inc_pc();
    }
 
