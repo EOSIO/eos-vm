@@ -40,8 +40,20 @@ namespace eosio { namespace wasm_backend {
          inline void pop_back() {
             EOS_WB_ASSERT( _index >= 0, wasm_vector_oob_exception, "vector pop out of bounds" );
          }
-         inline T& at( size_t i ) const {
+         inline T& at( size_t i ) {
             EOS_WB_ASSERT( i < _size, wasm_vector_oob_exception, "vector read out of bounds" );
+            return _data[i];
+         }
+         inline T& at( size_t i )const {
+            EOS_WB_ASSERT( i < _size, wasm_vector_oob_exception, "vector read out of bounds" );
+            return _data[i];
+         }
+
+         inline T& at_no_check( size_t i ) {
+            return _data[i];
+         }
+
+         inline T& at_no_check( size_t i ) const {
             return _data[i];
          }
          inline T& begin()const {

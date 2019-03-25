@@ -188,15 +188,18 @@
 #define SYNTHETIC_OPS(opcode_macro) \
       opcode_macro(fend, 0xC0)
 #define ERROR_OPS(opcode_macro) \
-      opcode_macro(error, 0xC1) 
+      opcode_macro(error, 0xC2) 
 
 #define CREATE_ENUM(name, code) \
    name = code,
 
 #define CREATE_STRINGS(name, code) \
    #name,
-#define CREATE_SYNTHETIC_TYPE(name, code) \
-   struct name##_t {};
+
+#define CREATE_SYNTHETIC_TYPES(name, code)       \
+   struct name##_t {                            \
+      uint32_t pc;                              \
+   };
 
 #define CREATE_MAP(name, code) \
   {code, #name},

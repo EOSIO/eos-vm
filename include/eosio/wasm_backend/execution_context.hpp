@@ -67,13 +67,13 @@ namespace eosio { namespace wasm_backend {
                std::cout << "STACK { ";
                for (int i=0; i < _os.size(); i++) {
                   if (std::holds_alternative<i32_const_t>(_os.get(i)))
-                     std::cout << std::get<i32_const_t>(_os.get(i)).data.ui << ", ";
+                     std::cout << "i32:"<<std::get<i32_const_t>(_os.get(i)).data.ui << ", ";
                   else if (std::holds_alternative<i64_const_t>(_os.get(i)))
-                     std::cout << std::get<i64_const_t>(_os.get(i)).data.ui << ", ";
+                     std::cout << "i64:"<<std::get<i64_const_t>(_os.get(i)).data.ui << ", ";
                   else if (std::holds_alternative<f32_const_t>(_os.get(i)))
-                     std::cout << std::get<f32_const_t>(_os.get(i)).data.f << ", ";
+                     std::cout << "f32:"<<std::get<f32_const_t>(_os.get(i)).data.f << ", ";
                   else if (std::holds_alternative<f64_const_t>(_os.get(i)))
-                     std::cout << std::get<f64_const_t>(_os.get(i)).data.f << ", ";
+                     std::cout << "f64:"<<std::get<f64_const_t>(_os.get(i)).data.f << ", ";
                   else
                      std::cout << "(INDEX " << _os.get(i).index() << "), ";
                }
@@ -259,6 +259,7 @@ namespace eosio { namespace wasm_backend {
                      _pc = _current_offset + lt.pc+1;
                      ret = lt.data;
                      op_index = lt.op_index;
+                     push_label(el);
                   }, [&](const if__t& it) {
                      _pc = _current_offset + it.pc+1;
                      ret = it.data;
@@ -277,6 +278,7 @@ namespace eosio { namespace wasm_backend {
                }
             }
 
+            size_t insts = 0;
          private:
 
             template <typename Arg, typename... Args>
@@ -325,13 +327,15 @@ namespace eosio { namespace wasm_backend {
             template <typename Visitor>
             void execute( Visitor&& visitor ) {
                do {
+                  insts++;
                   uint32_t offset = _pc - _current_offset;
                   if (_pc == _exit_pc && _as.size() <= 1) {
                      _executing = false;
                   }
-                  std::visit(visitor, _mod.code[_code_index].code[offset]);
+                  std::visit(visitor, _mod.code.at_no_check(_code_index).code.at_no_check(offset));
                } while (_executing);
             }
+
             uint32_t      _pc               = 0;
             uint32_t      _exit_pc          = 0;
             uint32_t      _current_function = 0;

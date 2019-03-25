@@ -28,12 +28,11 @@ struct interpret_visitor {
 
       context.inc_pc();
    }
-   void operator()( const fend_t& op) {
 
+   void operator()( const fend_t& op) {
       context.apply_pop_call();
    }
    void operator()( const end_t& op) {
-
       const auto& label = context.pop_label();
       uint16_t op_index = 0;
       uint8_t  ret_type = 0;
@@ -94,10 +93,12 @@ struct interpret_visitor {
    }
    void operator()( const br_if_t& op) {
       const auto& val = context.pop_operand();
-      if (context.is_true(val))
+      if (context.is_true(val)) {
          context.jump(op.data);
-      else
+      }
+      else {
          context.inc_pc();
+      }
    }
    void operator()( const br_table_t& op) {
 
@@ -108,7 +109,6 @@ struct interpret_visitor {
          context.jump(op.default_target);
    }
    void operator()( const call_t& op) {
-
       context.call(op.index);
       // TODO place these in parser
       //EOS_WB_ASSERT(b.index < funcs_size, wasm_interpreter_exception, "call index out of bounds");
@@ -615,7 +615,7 @@ struct interpret_visitor {
       context.inc_pc();
       const auto& rhs = TO_INT32(context.pop_operand());
       auto& lhs = TO_INT32(context.peek_operand());
-      EOS_WB_ASSERT(rhs == 0, wasm_interpreter_exception, "i32.div_s divide by zero");
+      EOS_WB_ASSERT(rhs != 0, wasm_interpreter_exception, "i32.div_s divide by zero");
       EOS_WB_ASSERT(!(lhs == std::numeric_limits<int32_t>::max() && rhs == -1), wasm_interpreter_exception, "i32.div_s traps when I32_MAX/-1");
       lhs /= rhs;
    }
@@ -623,14 +623,14 @@ struct interpret_visitor {
       context.inc_pc();
       const auto& rhs = TO_UINT32(context.pop_operand());
       auto& lhs = TO_UINT32(context.peek_operand());
-      EOS_WB_ASSERT(rhs == 0, wasm_interpreter_exception, "i32.div_u divide by zero");
+      EOS_WB_ASSERT(rhs != 0, wasm_interpreter_exception, "i32.div_u divide by zero");
       lhs /= rhs;
    }
    void operator()( const i32_rem_s_t& op) {
       context.inc_pc();
       const auto& rhs = TO_INT32(context.pop_operand());
       auto& lhs = TO_INT32(context.peek_operand());
-      EOS_WB_ASSERT(rhs == 0, wasm_interpreter_exception, "i32.rem_s divide by zero");
+      EOS_WB_ASSERT(rhs != 0, wasm_interpreter_exception, "i32.rem_s divide by zero");
       if (UNLIKELY(lhs == std::numeric_limits<int32_t>::max() && rhs == -1))
          lhs = 0;
       else
@@ -640,7 +640,7 @@ struct interpret_visitor {
       context.inc_pc();
       const auto& rhs = TO_UINT32(context.pop_operand());
       auto& lhs = TO_UINT32(context.peek_operand());
-      EOS_WB_ASSERT(rhs == 0, wasm_interpreter_exception, "i32.rem_u divide by zero");
+      EOS_WB_ASSERT(rhs != 0, wasm_interpreter_exception, "i32.rem_u divide by zero");
       lhs %= rhs;
    }
    void operator()( const i32_and_t& op) {
@@ -744,7 +744,7 @@ struct interpret_visitor {
       context.inc_pc();
       const auto& rhs = TO_INT64(context.pop_operand());
       auto& lhs = TO_INT64(context.peek_operand());
-      EOS_WB_ASSERT(rhs == 0, wasm_interpreter_exception, "i64.div_s divide by zero");
+      EOS_WB_ASSERT(rhs != 0, wasm_interpreter_exception, "i64.div_s divide by zero");
       EOS_WB_ASSERT(!(lhs == std::numeric_limits<int64_t>::max() && rhs == -1), wasm_interpreter_exception, "i64.div_s traps when I64_MAX/-1");
       lhs /= rhs;
    }
@@ -753,7 +753,7 @@ struct interpret_visitor {
       context.inc_pc();
       const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = TO_UINT64(context.peek_operand());
-      EOS_WB_ASSERT(rhs == 0, wasm_interpreter_exception, "i64.div_u divide by zero");
+      EOS_WB_ASSERT(rhs != 0, wasm_interpreter_exception, "i64.div_u divide by zero");
       lhs /= rhs;
    }
    void operator()( const i64_rem_s_t& op) {
@@ -761,7 +761,7 @@ struct interpret_visitor {
       context.inc_pc();
       const auto& rhs = TO_INT64(context.pop_operand());
       auto& lhs = TO_INT64(context.peek_operand());
-      EOS_WB_ASSERT(rhs == 0, wasm_interpreter_exception, "i64.rem_s divide by zero");
+      EOS_WB_ASSERT(rhs != 0, wasm_interpreter_exception, "i64.rem_s divide by zero");
       if (UNLIKELY(lhs == std::numeric_limits<int64_t>::max() && rhs == -1))
          lhs = 0;
       else
@@ -772,7 +772,7 @@ struct interpret_visitor {
       context.inc_pc();
       const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = TO_UINT64(context.peek_operand());
-      EOS_WB_ASSERT(rhs == 0, wasm_interpreter_exception, "i64.rem_s divide by zero");
+      EOS_WB_ASSERT(rhs != 0, wasm_interpreter_exception, "i64.rem_s divide by zero");
       lhs %= rhs;
    }
    void operator()( const i64_and_t& op) {
@@ -1125,22 +1125,22 @@ struct interpret_visitor {
    void operator()( const i32_reinterpret_f32_t& op) {
       context.inc_pc();
       auto& oper = context.peek_operand();
-      oper = f32_const_t{TO_UINT32(oper)};
+      oper = i32_const_t{TO_FUINT32(oper)};
    }
    void operator()( const i64_reinterpret_f64_t& op) {
       context.inc_pc();
       auto& oper = context.peek_operand();
-      oper = f64_const_t{TO_UINT64(oper)};
+      oper = i64_const_t{TO_FUINT64(oper)};
    }
    void operator()( const f32_reinterpret_i32_t& op) {
       context.inc_pc();
       auto& oper = context.peek_operand();
-      oper = i32_const_t{TO_FUINT32(oper)};
+      oper = f32_const_t{TO_UINT32(oper)};
    }
    void operator()( const f64_reinterpret_i64_t& op) {
       context.inc_pc();
       auto& oper = context.peek_operand();
-      oper = i64_const_t{TO_FUINT64(oper)};
+      oper = f64_const_t{TO_UINT64(oper)};
    }
    void operator()( const error_t& op) {
       context.inc_pc();
