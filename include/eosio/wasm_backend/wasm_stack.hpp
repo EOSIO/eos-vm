@@ -66,7 +66,6 @@ namespace eosio { namespace wasm_backend {
    template <typename Backend>
    using call_stack    = fixed_stack<constants::max_call_depth, Backend>;
 
-
 }} // namespace eosio::wasm_backend
 
 #define TO_INT32(X)                                      \
