@@ -36,7 +36,7 @@ namespace eosio { namespace wasm_backend {
             for (int i=0; i < _mod.exports.size(); i++) {
                if (_mod.exports[i].kind == external_kind::Function) {
                   std::string s{(const char*)_mod.exports[i].field_str.raw(), _mod.exports[i].field_len};
-                  _ctx.execute(debug_visitor<backend>{*this, _ctx}, s);
+                  _ctx.execute(interpret_visitor<backend>{*this, _ctx}, s);
                }
             }
          }
