@@ -1542,4 +1542,156 @@ BOOST_AUTO_TEST_CASE(endianness_tests) {
    } FC_LOG_AND_RETHROW()
 }
 
+BOOST_AUTO_TEST_CASE(fac_tests) {
+   try {
+      auto code = backend::read_wasm( "wasms/fac.wasm" );
+      backend bkend( code, wa );
+
+      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("fac-rec", (uint64_t)25)), (uint64_t)7034535277573963776);
+      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("fac-iter", (uint64_t)25)), (uint64_t)7034535277573963776);
+      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("fac-rec-named", (uint64_t)25)), (uint64_t)7034535277573963776);
+      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("fac-iter-named", (uint64_t)25)), (uint64_t)7034535277573963776);
+      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("fac-opt", (uint64_t)25)), (uint64_t)7034535277573963776);
+   } FC_LOG_AND_RETHROW()
+}
+
+BOOST_AUTO_TEST_CASE(loop_tests) {
+   try {
+      auto code = backend::read_wasm( "wasms/loop.wasm" );
+      backend bkend( code, wa );
+
+      BOOST_CHECK(!bkend("empty"));
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("singular")), (uint32_t)7);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("multi")), (uint32_t)8);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("nested")), (uint32_t)9);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("deep")), (uint32_t)150);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-select-first")), (uint32_t)1);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-select-mid")), (uint32_t)2);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-select-last")), (uint32_t)2);
+      BOOST_CHECK(!bkend("as-if-condition"));
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-if-then")), (uint32_t)1);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-if-else")), (uint32_t)2);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-br_if-first")), (uint32_t)1);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-br_if-last")), (uint32_t)2);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-br_table-first")), (uint32_t)1);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-br_table-last")), (uint32_t)2);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-call_indirect-first")), (uint32_t)1);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-call_indirect-mid")), (uint32_t)2);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-call_indirect-last")), (uint32_t)1);
+      BOOST_CHECK(!bkend("as-store-first"));
+      BOOST_CHECK(!bkend("as-store-last"));
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-memory.grow-value")), (uint32_t)1);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-call-value")), (uint32_t)1);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-return-value")), (uint32_t)1);
+      BOOST_CHECK(!bkend("as-drop-operand"));
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-br-value")), (uint32_t)1);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-set_local-value")), (uint32_t)1);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-tee_local-value")), (uint32_t)1);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-set_global-value")), (uint32_t)1);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-load-operand")), (uint32_t)1);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-unary-operand")), (uint32_t)0);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-binary-operand")), (uint32_t)12);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-test-operand")), (uint32_t)0);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-compare-operand")), (uint32_t)0);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("break-bare")), (uint32_t)19);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("break-value")), (uint32_t)18);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("break-repeated")), (uint32_t)18);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("break-inner")), (uint32_t)0x1f);
+      BOOST_CHECK_EQUAL(TO_UINT32(*bkend("effects")), (uint32_t)1);
+      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("while", (uint64_t)0)), (uint64_t)1);
+      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("while", (uint64_t)1)), (uint64_t)1);
+      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("while", (uint64_t)2)), (uint64_t)2);
+      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("while", (uint64_t)3)), (uint64_t)6);
+      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("while", (uint64_t)5)), (uint64_t)120);
+      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("while", (uint64_t)20)), (uint64_t)2432902008176640000);
+      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("for", (uint64_t)0)), (uint64_t)1);
+      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("for", (uint64_t)1)), (uint64_t)1);
+      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("for", (uint64_t)2)), (uint64_t)2);
+      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("for", (uint64_t)3)), (uint64_t)6);
+      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("for", (uint64_t)5)), (uint64_t)120);
+      BOOST_CHECK_EQUAL(TO_UINT64(*bkend("for", (uint64_t)20)), (uint64_t)2432902008176640000);
+      BOOST_CHECK_EQUAL(TO_F32(*bkend("nesting", (float)0, (float)7)), (float)0);
+      BOOST_CHECK_EQUAL(TO_F32(*bkend("nesting", (float)7, (float)0)), (float)0);
+      BOOST_CHECK_EQUAL(TO_F32(*bkend("nesting", (float)1, (float)1)), (float)1);
+      BOOST_CHECK_EQUAL(TO_F32(*bkend("nesting", (float)1, (float)2)), (float)2);
+      BOOST_CHECK_EQUAL(TO_F32(*bkend("nesting", (float)1, (float)3)), (float)4);
+      BOOST_CHECK_EQUAL(TO_F32(*bkend("nesting", (float)1, (float)4)), (float)6);
+      BOOST_CHECK_EQUAL(TO_F32(*bkend("nesting", (float)1, (float)100)), (float)2550);
+      BOOST_CHECK_EQUAL(TO_F32(*bkend("nesting", (float)1, (float)101)), (float)2601);
+      BOOST_CHECK_EQUAL(TO_F32(*bkend("nesting", (float)2, (float)1)), (float)1);
+      BOOST_CHECK_EQUAL(TO_F32(*bkend("nesting", (float)3, (float)1)), (float)1);
+      BOOST_CHECK_EQUAL(TO_F32(*bkend("nesting", (float)10, (float)1)), (float)1);
+      BOOST_CHECK_EQUAL(TO_F32(*bkend("nesting", (float)2, (float)2)), (float)3);
+      BOOST_CHECK_EQUAL(TO_F32(*bkend("nesting", (float)2, (float)3)), (float)4);
+      BOOST_CHECK_EQUAL(TO_F32(*bkend("nesting", (float)7, (float)4)), (float)10.3095235825);
+      BOOST_CHECK_EQUAL(TO_F32(*bkend("nesting", (float)7, (float)100)), (float)4381.54785156);
+      BOOST_CHECK_EQUAL(TO_F32(*bkend("nesting", (float)7, (float)101)), (float)2601);
+   } FC_LOG_AND_RETHROW()
+}
+
+BOOST_AUTO_TEST_CASE(unwind_tests) {
+   try {
+      auto code = backend::read_wasm( "wasms/unwind.wasm" );
+      backend bkend( code, wa );
+
+   BOOST_CHECK_THROW(bkend("func-unwind-by-unreachable"), eosio::wasm_backend::wasm_interpreter_exception);
+   BOOST_CHECK(!bkend("func-unwind-by-br"));
+   return;
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("func-unwind-by-br-value")), (uint32_t)9);
+   BOOST_CHECK(!bkend("func-unwind-by-br_if"));
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("func-unwind-by-br_if-value")), (uint32_t)9);
+   BOOST_CHECK(!bkend("func-unwind-by-br_table"));
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("func-unwind-by-br_table-value")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("func-unwind-by-return")), (uint32_t)9);
+   BOOST_CHECK_THROW(bkend("block-unwind-by-unreachable"), eosio::wasm_backend::wasm_interpreter_exception);
+
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-unwind-by-br")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-unwind-by-br-value")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-unwind-by-br_if")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-unwind-by-br_if-value")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-unwind-by-br_table")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-unwind-by-br_table-value")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-unwind-by-return")), (uint32_t)9);
+   BOOST_CHECK_THROW(bkend("block-nested-unwind-by-unreachable"), eosio::wasm_backend::wasm_interpreter_exception);
+
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-nested-unwind-by-br")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-nested-unwind-by-br-value")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-nested-unwind-by-br_if")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-nested-unwind-by-br_if-value")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-nested-unwind-by-br_table")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-nested-unwind-by-br_table-value")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-nested-unwind-by-return")), (uint32_t)9);
+   BOOST_CHECK_THROW(bkend("unary-after-unreachable"), eosio::wasm_backend::wasm_interpreter_exception);
+
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("unary-after-br")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("unary-after-br_if")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("unary-after-br_table")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("unary-after-return")), (uint32_t)9);
+   BOOST_CHECK_THROW(bkend("binary-after-unreachable"), eosio::wasm_backend::wasm_interpreter_exception);
+
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("binary-after-br")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("binary-after-br_if")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("binary-after-br_table")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("binary-after-return")), (uint32_t)9);
+   BOOST_CHECK_THROW(bkend("select-after-unreachable"), eosio::wasm_backend::wasm_interpreter_exception);
+
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("select-after-br")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("select-after-br_if")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("select-after-br_table")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("select-after-return")), (uint32_t)9);
+   BOOST_CHECK_THROW(bkend("block-value-after-unreachable"), eosio::wasm_backend::wasm_interpreter_exception);
+
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-value-after-br")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-value-after-br_if")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-value-after-br_table")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-value-after-return")), (uint32_t)9);
+   BOOST_CHECK_THROW(bkend("loop-value-after-unreachable"), eosio::wasm_backend::wasm_interpreter_exception);
+
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("loop-value-after-br")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("loop-value-after-br_if")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("loop-value-after-br_table")), (uint32_t)9);
+   BOOST_CHECK_EQUAL(TO_UINT32(*bkend("loop-value-after-return")), (uint32_t)9);
+   } FC_LOG_AND_RETHROW()
+}
+
 BOOST_AUTO_TEST_SUITE_END()

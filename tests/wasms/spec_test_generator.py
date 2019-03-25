@@ -67,7 +67,7 @@ def get_test():
                         cast = "(float)"
                     elif _f64_const.match(sl[i]):
                         cast = "(double)"
-            boost_test += tmp[:-2]+")), eosio::wasm_backend::wasm_execution_exception);\n"
+            boost_test += tmp[:-2]+")), eosio::wasm_backend::wasm_interpreter_exception);\n"
         elif assert_check_params.match(line):
             func_name = line.split()[2]
             sl = line.split()
@@ -76,10 +76,10 @@ def get_test():
             for i in range(3, len(sl)):
                 if i % 2 == 0:
                     tmp += "(uint32_t)"+eat_paren(sl[i])+", "
-            boost_test += tmp[:-2]+"));\n"
+            boost_test += tmp[:-2]+"));"
         elif assert_check.match(line):
             func_name = line.split()[2]
-            boost_test += "\nBOOST_CHECK(!bkend("+func_name+";\n"
+            boost_test += "\nBOOST_CHECK(!bkend("+func_name+";"
         elif assert_return_params.match(line):
             func_name = line.split()[2]
             sl = line.split()
@@ -103,7 +103,7 @@ def get_test():
                         elif _f64_const.match(sl[i]):
                             cast = "(double)"
 
-                boost_test += tmp[:-2]+")), "+value+");\n"
+                boost_test += tmp[:-2]+")), "+value+");"
             elif f32_const.match(line):
                 func_name = line.split()[2]
                 cast = "TO_F32"
@@ -125,7 +125,7 @@ def get_test():
                         elif _f64_const.match(sl[i]):
                             cast = "(double)"
 
-                boost_test += tmp[:-2]+")), "+value+");\n"
+                boost_test += tmp[:-2]+")), "+value+");"
             elif f64_const.match(line):
                 func_name = line.split()[2]
                 cast = "TO_F64"
@@ -169,27 +169,27 @@ def get_test():
                             cast = "(double)"
                 boost_test += tmp[:-2]+")), "+value+");\n"
             else:
-                boost_test += "\nBOOST_CHECK(!bkend("+func_name+"));\n"
+                boost_test += "\nBOOST_CHECK(!bkend("+func_name+"));"
         elif assert_return.match(line):
             func_name = eat_paren(line.split()[2])
             if i32_const.match(line):
                 cast = "TO_UINT32"
                 value = "(uint32_t)"+eat_paren(line.split()[4])
-                boost_test += "\nBOOST_CHECK_EQUAL("+cast+"(*bkend("+func_name+")), "+value+");\n"
+                boost_test += "\nBOOST_CHECK_EQUAL("+cast+"(*bkend("+func_name+")), "+value+");"
             elif f32_const.match(line):
                 cast = "TO_F32"
                 value = "(float)"+eat_paren(line.split()[4])
-                boost_test += "\nBOOST_CHECK_EQUAL("+cast+"(*bkend("+func_name+")), "+value+");\n"
+                boost_test += "\nBOOST_CHECK_EQUAL("+cast+"(*bkend("+func_name+")), "+value+");"
             elif i64_const.match(line):
                 cast = "TO_UINT64"
                 value = "(uint64_t)"+eat_paren(line.split()[4])
-                boost_test += "\nBOOST_CHECK_EQUAL("+cast+"(*bkend("+func_name+")), "+value+");\n"
+                boost_test += "\nBOOST_CHECK_EQUAL("+cast+"(*bkend("+func_name+")), "+value+");"
             elif f64_const.match(line):
                 cast = "TO_F64"
                 value = "(double)"+eat_paren(line.split()[4])
-                boost_test += "\nBOOST_CHECK_EQUAL("+cast+"(*bkend("+func_name+")), "+value+");\n"
+                boost_test += "\nBOOST_CHECK_EQUAL("+cast+"(*bkend("+func_name+")), "+value+");"
             else:
-                boost_test += "\nBOOST_CHECK(!bkend("+func_name+"));\n"
+                boost_test += "\nBOOST_CHECK(!bkend("+func_name+"));"
             
 
     return [test_wast, boost_test]

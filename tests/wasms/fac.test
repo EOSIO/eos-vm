@@ -1,0 +1,6 @@
+
+BOOST_CHECK_EQUAL(TO_UINT64(*bkend("fac-rec", (uint64_t)25)), (uint64_t)7034535277573963776);
+BOOST_CHECK_EQUAL(TO_UINT64(*bkend("fac-iter", (uint64_t)25)), (uint64_t)7034535277573963776);
+BOOST_CHECK_EQUAL(TO_UINT64(*bkend("fac-rec-named", (uint64_t)25)), (uint64_t)7034535277573963776);
+BOOST_CHECK_EQUAL(TO_UINT64(*bkend("fac-iter-named", (uint64_t)25)), (uint64_t)7034535277573963776);
+BOOST_CHECK_EQUAL(TO_UINT64(*bkend("fac-opt", (uint64_t)25)), (uint64_t)7034535277573963776);

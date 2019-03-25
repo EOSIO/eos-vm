@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <eosio/wasm_backend/types.hpp>
+//#include <eosio/wasm_backend/fixed_stack.hpp>
 #include <eosio/wasm_backend/wasm_stack.hpp>
 #include <eosio/wasm_backend/host_function.hpp>
 #include <string>
@@ -211,7 +212,12 @@ namespace eosio { namespace wasm_backend {
                for (int i=0; i < _mod.data.size(); i++) {
                   const auto& data_seg = _mod.data[i];
                   //TODO validate only use memory idx 0 in parse
-                  memcpy((char*)(_linear_memory+data_seg.offset.value.i64), data_seg.data.raw(), data_seg.size);
+                  auto addr = _linear_memory + data_seg.offset.value.i64;
+                  if ( data_seg.offset.value.i64 + data_seg.size >= _alloc.get_current_page() * constants::page_size ) {
+                     uint32_t pages_needed = (((data_seg.offset.value.i64 + data_seg.size) - constants::page_size)/constants::page_size) + 1;
+                     grow_linear_memory(pages_needed);
+                  }
+                  memcpy((char*)(addr), data_seg.data.raw(), data_seg.size);
                }
 
                uint32_t func_index = _mod.get_exported_function(func);
@@ -344,11 +350,15 @@ namespace eosio { namespace wasm_backend {
             uint16_t      _last_op_index    = 0;
             bool          _executing        = false;
             uint8_t*      _linear_memory    = nullptr;
-            module<Backend>&       _mod;
-            wasm_allocator&        _alloc;
+            module<Backend>&     _mod;
+            wasm_allocator&      _alloc;
+         //fixed_stack<Backend> _cs;
+         //fixed_stack<Backend> _os;
+         //fixed_stack<Backend> _as;
             control_stack<Backend> _cs;
             operand_stack<Backend> _os;
-            call_stack<Backend>    _as;
+            call_stack<Backend> _as;
+
             registered_host_functions _rhf;
       };
 }} // ns eosio::wasm_backend
