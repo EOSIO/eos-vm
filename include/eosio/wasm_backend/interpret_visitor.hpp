@@ -103,7 +103,6 @@ struct interpret_visitor {
       }
    }
    void operator()( const br_table_t& op) {
-
       const auto& in = TO_UINT32(context.pop_operand());
       if (in < op.size)
          context.jump(op.table[in]);
@@ -122,17 +121,14 @@ struct interpret_visitor {
       */
    }
    void operator()( const call_indirect_t& op) {
-
       const auto& index = TO_UINT32(context.pop_operand());
       context.call(context.table_elem(index));
    }
    void operator()( const drop_t& op) {
-
       context.pop_operand();
       context.inc_pc();
    }
    void operator()( const select_t& op) {
-
       const auto& c = context.pop_operand();
       const auto& v2 = context.pop_operand();
       if (TO_UINT32(c) == 0) {
@@ -141,36 +137,30 @@ struct interpret_visitor {
       context.inc_pc();
    }
    void operator()( const get_local_t& op) {
-
       context.inc_pc();
       context.push_operand(context.get_operand(op.index));
    }
    void operator()( const set_local_t& op) {
-
       context.inc_pc();
       context.set_operand(op.index, context.pop_operand());
    }
    void operator()( const tee_local_t& op) {
-
       context.inc_pc();
       const auto& oper = context.pop_operand();
       context.set_operand(op.index, oper);
       context.push_operand(oper);
    }
    void operator()( const get_global_t& op) {
-
       context.inc_pc();
       const auto& gl = context.get_global(op.index);
       context.push_operand(gl);
    }
    void operator()( const set_global_t& op) {
-
       context.inc_pc();
       const auto& oper = context.pop_operand();
       context.set_global(op.index, oper);
    }
    void operator()( const i32_load_t& op) {
-
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       uint32_t* _ptr = (uint32_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
@@ -185,7 +175,6 @@ struct interpret_visitor {
       context.push_operand(i32_const_t{*(uint32_t*)&val});
    }
    void operator()( const i32_load16_s_t & op) {
-
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       int16_t* _ptr = (int16_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
@@ -193,7 +182,6 @@ struct interpret_visitor {
       context.push_operand(i32_const_t{*(uint32_t*)&val});
    }
    void operator()( const i32_load8_u_t & op) {
-
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       uint8_t* _ptr = (uint8_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
@@ -201,7 +189,6 @@ struct interpret_visitor {
       context.push_operand(i32_const_t{val});
    }
    void operator()( const i32_load16_u_t & op) {
-
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       uint16_t* _ptr = (uint16_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
@@ -209,7 +196,6 @@ struct interpret_visitor {
       context.push_operand(i32_const_t{val});
    }
    void operator()( const i64_load_t & op) {
-
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       uint64_t* _ptr = (uint64_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
@@ -217,7 +203,6 @@ struct interpret_visitor {
       context.push_operand(i64_const_t{val});
    }
    void operator()( const i64_load8_s_t & op) {
-
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       int8_t* _ptr = (int8_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
@@ -225,7 +210,6 @@ struct interpret_visitor {
       context.push_operand(i64_const_t{*(uint64_t*)&val});
    }
    void operator()( const i64_load16_s_t & op) {
-
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       int16_t* _ptr = (int16_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
@@ -233,7 +217,6 @@ struct interpret_visitor {
       context.push_operand(i64_const_t{*(uint64_t*)&val});
    }
    void operator()( const i64_load32_s_t & op) {
-
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       int32_t* _ptr = (int32_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
@@ -241,7 +224,6 @@ struct interpret_visitor {
       context.push_operand(i64_const_t{*(uint64_t*)&val});
    }
    void operator()( const i64_load8_u_t & op) {
-
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       uint8_t* _ptr = (uint8_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
@@ -249,7 +231,6 @@ struct interpret_visitor {
       context.push_operand(i64_const_t{static_cast<uint64_t>(val)});
    }
    void operator()( const i64_load16_u_t & op) {
-
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       uint16_t* _ptr = (uint16_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
@@ -257,7 +238,6 @@ struct interpret_visitor {
       context.push_operand(i64_const_t{static_cast<uint64_t>(val)});
    }
    void operator()( const i64_load32_u_t & op) {
-
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       uint32_t* _ptr = (uint32_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
@@ -265,7 +245,6 @@ struct interpret_visitor {
       context.push_operand(i64_const_t{static_cast<uint64_t>(val)});
    }
    void operator()( const f32_load_t & op) {
-
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       uint32_t* _ptr = (uint32_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
@@ -273,7 +252,6 @@ struct interpret_visitor {
       context.push_operand(f32_const_t{val});
    }
    void operator()( const f64_load_t & op) {
-
       context.inc_pc();
       const auto& ptr = context.pop_operand();
       uint64_t* _ptr = (uint64_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
@@ -281,7 +259,6 @@ struct interpret_visitor {
       context.push_operand(f64_const_t{val});
    }
    void operator()( const i32_store_t & op) {
-
       context.inc_pc();
       const auto& val = context.pop_operand();
       const auto& ptr = context.pop_operand();
@@ -289,7 +266,6 @@ struct interpret_visitor {
       *store_loc = TO_UINT32(val);
    }
    void operator()( const i32_store8_t & op) {
-
       context.inc_pc();
       const auto& val = context.pop_operand();
       const auto& ptr = context.pop_operand();
@@ -297,7 +273,6 @@ struct interpret_visitor {
       *store_loc = static_cast<uint8_t>(TO_UINT32(val));
    }
    void operator()( const i32_store16_t & op) {
-
       context.inc_pc();
       const auto& val = context.pop_operand();
       const auto& ptr = context.pop_operand();
@@ -305,7 +280,6 @@ struct interpret_visitor {
       *store_loc = static_cast<uint16_t>(TO_UINT32(val));
    }
    void operator()( const i64_store_t & op) {
-
       context.inc_pc();
       const auto& val = context.pop_operand();
       const auto& ptr = context.pop_operand();
@@ -313,7 +287,6 @@ struct interpret_visitor {
       *store_loc = static_cast<uint64_t>(TO_UINT64(val));
    }
    void operator()( const i64_store8_t & op) {
-
       context.inc_pc();
       const auto& val = context.pop_operand();
       const auto& ptr = context.pop_operand();
@@ -321,7 +294,6 @@ struct interpret_visitor {
       *store_loc = static_cast<uint8_t>(TO_UINT64(val));
    }
    void operator()( const i64_store16_t & op) {
-
       context.inc_pc();
       const auto& val = context.pop_operand();
       const auto& ptr = context.pop_operand();
@@ -329,7 +301,6 @@ struct interpret_visitor {
       *store_loc = static_cast<uint16_t>(TO_UINT64(val));
    }
    void operator()( const i64_store32_t & op) {
-
       context.inc_pc();
       const auto& val = context.pop_operand();
       const auto& ptr = context.pop_operand();
@@ -337,7 +308,6 @@ struct interpret_visitor {
       *store_loc = static_cast<uint32_t>(TO_UINT64(val));
    }
    void operator()( const f32_store_t& op) {
-
       context.inc_pc();
       const auto& val = context.pop_operand();
       const auto& ptr = context.pop_operand();
@@ -345,7 +315,6 @@ struct interpret_visitor {
       *store_loc = static_cast<uint32_t>(TO_FUINT32(val));
    }
    void operator()( const f64_store_t& op) {
-
       context.inc_pc();
       const auto& val = context.pop_operand();
       const auto& ptr = context.pop_operand();
@@ -378,7 +347,6 @@ struct interpret_visitor {
       context.push_operand(op);
    }
    void operator()( const i32_eqz_t& op) {
-
       context.inc_pc();
       auto& t = TO_UINT32(context.peek_operand());
       t = t == 0;
