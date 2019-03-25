@@ -273,24 +273,24 @@ namespace eosio { namespace wasm_backend {
                      fb[op_index++] = nop_t{}; break;
                   case opcodes::end:
                      {
-                        fb[op_index++] = end_t{};
                         if (pc_stack.size()) {
                            auto& el = fb[pc_stack.top()];
                            std::visit(overloaded {
                               [=](block_t& bt) {
-                                 bt.pc = op_index-1;
+                                 bt.pc = op_index;
                               }, [=](loop_t& lt) {
-                                 lt.pc = op_index-1;
+                                 lt.pc = pc_stack.top();
                               }, [=](if__t& it) {
-                                 it.pc = op_index-1;
+                                 it.pc = op_index;
                               }, [=](else__t& et) {
-                                 et.pc = op_index-1;
+                                 et.pc = op_index;
                               }, [=](auto&&) {
                                  throw wasm_invalid_element{"invalid element when popping pc stack"};
                               }
                            }, el);
                            pc_stack.pop();
                         }
+                        fb[op_index++] = end_t{};
                         break;
                      }
                   case opcodes::return_:

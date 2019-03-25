@@ -6,7 +6,7 @@ set( VERSION_PATCH 0 )
 
 enable_testing()
 
-file(GLOB UNIT_TESTS "spec_tests.cpp") #"*.cpp")
+file(GLOB UNIT_TESTS "spec_tests.cpp" "f32_tests.cpp" "i32_tests.cpp" "i64_tests.cpp" ) #"*.cpp")
 
 add_subdirectory(wasms)
 add_executable( unit_test main.cpp ${UNIT_TESTS} )

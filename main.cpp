@@ -21,6 +21,7 @@ int main(int argc, char** argv) {
    } catch ( const wasm_memory_exception& ex ) {
       std::cerr << ex.what() << " : " << ex.detail() << "\n";
    }
+   std::cout << "INSTRUCTIONS : " << bkend.get_instructions() << "\n";
    auto t2 = std::chrono::high_resolution_clock::now();
    std::cout << std::chrono::duration_cast<std::chrono::nanoseconds>(t2-t1).count() << '\n';
    return 0;
