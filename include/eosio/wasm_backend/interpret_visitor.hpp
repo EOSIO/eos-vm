@@ -2,11 +2,13 @@
 
 #include <eosio/wasm_backend/utils.hpp>
 #include <eosio/wasm_backend/opcodes.hpp>
-#include <eosio/wasm_backend/wasm_stack.hpp>
 #include <eosio/wasm_backend/execution_context.hpp>
 #include <iostream>
 #include <variant>
 #include <sstream>
+
+// TODO add a config header
+static constexpr bool use_softfloat = false;
 
 #include <eosio/wasm_backend/softfloat.hpp>
 
@@ -510,73 +512,109 @@ struct interpret_visitor {
       context.inc_pc();
       const auto& rhs = TO_F32(context.pop_operand());
       auto& lhs = context.peek_operand();
-      lhs = i32_const_t{(uint32_t)_eosio_f32_eq(TO_F32(lhs), rhs)};
+      if constexpr (use_softfloat)
+         lhs = i32_const_t{(uint32_t)_eosio_f32_eq(TO_F32(lhs), rhs)};
+      else
+         lhs = i32_const_t{(uint32_t)(TO_F32(lhs) == rhs)};
    }
    void operator()( const f32_ne_t& op) {
       context.inc_pc();
       const auto& rhs = TO_F32(context.pop_operand());
       auto& lhs = context.peek_operand();
-      lhs = i32_const_t{(uint32_t)_eosio_f32_ne(TO_F32(lhs), rhs)};
+      if constexpr (use_softfloat)
+         lhs = i32_const_t{(uint32_t)_eosio_f32_ne(TO_F32(lhs), rhs)};
+      else
+         lhs = i32_const_t{(uint32_t)(TO_F32(lhs) != rhs)};
    }
    void operator()( const f32_lt_t& op) {
       context.inc_pc();
       const auto& rhs = TO_F32(context.pop_operand());
       auto& lhs = context.peek_operand();
-      lhs = i32_const_t{(uint32_t)_eosio_f32_lt(TO_F32(lhs), rhs)};
+      if constexpr (use_softfloat)
+         lhs = i32_const_t{(uint32_t)_eosio_f32_lt(TO_F32(lhs), rhs)};
+      else
+         lhs = i32_const_t{(uint32_t)(TO_F32(lhs) < rhs)};
    }
    void operator()( const f32_gt_t& op) {
       context.inc_pc();
       const auto& rhs = TO_F32(context.pop_operand());
       auto& lhs = context.peek_operand();
-      lhs = i32_const_t{(uint32_t)_eosio_f32_gt(TO_F32(lhs), rhs)};
+      if constexpr (use_softfloat)
+         lhs = i32_const_t{(uint32_t)_eosio_f32_gt(TO_F32(lhs), rhs)};
+      else
+         lhs = i32_const_t{(uint32_t)(TO_F32(lhs) > rhs)};
    }
    void operator()( const f32_le_t& op) {
       context.inc_pc();
       const auto& rhs = TO_F32(context.pop_operand());
       auto& lhs = context.peek_operand();
-      lhs = i32_const_t{(uint32_t)_eosio_f32_le(TO_F32(lhs), rhs)};
+      if constexpr (use_softfloat)
+         lhs = i32_const_t{(uint32_t)_eosio_f32_le(TO_F32(lhs), rhs)};
+      else
+         lhs = i32_const_t{(uint32_t)(TO_F32(lhs) <= rhs)};
    }
    void operator()( const f32_ge_t& op) {
       context.inc_pc();
       const auto& rhs = TO_F32(context.pop_operand());
       auto& lhs = context.peek_operand();
-      lhs = i32_const_t{(uint32_t)_eosio_f32_ge(TO_F32(lhs), rhs)};
+      if constexpr (use_softfloat)
+         lhs = i32_const_t{(uint32_t)_eosio_f32_ge(TO_F32(lhs), rhs)};
+      else
+         lhs = i32_const_t{(uint32_t)(TO_F32(lhs) >= rhs)};
    }
    void operator()( const f64_eq_t& op) {
       context.inc_pc();
       const auto& rhs = TO_F64(context.pop_operand());
       auto& lhs = context.peek_operand();
-      lhs = i32_const_t{(uint32_t)_eosio_f64_eq(TO_F64(lhs), rhs)};
+      if constexpr (use_softfloat)
+         lhs = i32_const_t{(uint32_t)_eosio_f64_eq(TO_F64(lhs), rhs)};
+      else
+         lhs = i32_const_t{(uint32_t)(TO_F64(lhs) == rhs)};
    }
    void operator()( const f64_ne_t& op) {
       context.inc_pc();
       const auto& rhs = TO_F64(context.pop_operand());
       auto& lhs = context.peek_operand();
-      lhs = i32_const_t{(uint32_t)_eosio_f64_ne(TO_F64(lhs), rhs)};
+      if constexpr (use_softfloat)
+         lhs = i32_const_t{(uint32_t)_eosio_f64_ne(TO_F64(lhs), rhs)};
+      else
+         lhs = i32_const_t{(uint32_t)(TO_F64(lhs) != rhs)};
    }
    void operator()( const f64_lt_t& op) {
       context.inc_pc();
       const auto& rhs = TO_F64(context.pop_operand());
       auto& lhs = context.peek_operand();
-      lhs = i32_const_t{(uint32_t)_eosio_f64_lt(TO_F64(lhs), rhs)};
+      if constexpr (use_softfloat)
+         lhs = i32_const_t{(uint32_t)_eosio_f64_lt(TO_F64(lhs), rhs)};
+      else
+         lhs = i32_const_t{(uint32_t)(TO_F64(lhs) < rhs)};
    }
    void operator()( const f64_gt_t& op) {
       context.inc_pc();
       const auto& rhs = TO_F64(context.pop_operand());
       auto& lhs = context.peek_operand();
-      lhs = i32_const_t{(uint32_t)_eosio_f64_gt(TO_F64(lhs), rhs)};
+      if constexpr (use_softfloat)
+         lhs = i32_const_t{(uint32_t)_eosio_f64_gt(TO_F64(lhs), rhs)};
+      else
+         lhs = i32_const_t{(uint32_t)(TO_F64(lhs) > rhs)};
    }
    void operator()( const f64_le_t& op) {
       context.inc_pc();
       const auto& rhs = TO_F64(context.pop_operand());
       auto& lhs = context.peek_operand();
-      lhs = i32_const_t{(uint32_t)_eosio_f64_le(TO_F64(lhs), rhs)};
+      if constexpr (use_softfloat)
+         lhs = i32_const_t{(uint32_t)_eosio_f64_le(TO_F64(lhs), rhs)};
+      else
+         lhs = i32_const_t{(uint32_t)(TO_F64(lhs) <= rhs)};
    }
    void operator()( const f64_ge_t& op) {
       context.inc_pc();
       const auto& rhs = TO_F64(context.pop_operand());
       auto& lhs = context.peek_operand();
-      lhs = i32_const_t{(uint32_t)_eosio_f64_ge(TO_F64(lhs), rhs)};
+      if constexpr (use_softfloat)
+         lhs = i32_const_t{(uint32_t)_eosio_f64_ge(TO_F64(lhs), rhs)};
+      else
+         lhs = i32_const_t{(uint32_t)(TO_F64(lhs) >= rhs)};
    }
    void operator()( const i32_clz_t& op) {
       context.inc_pc();
@@ -674,7 +712,6 @@ struct interpret_visitor {
       lhs >>= rhs;
    }
    void operator()( const i32_shr_u_t& op) {
-
       context.inc_pc();
       const auto& rhs = TO_UINT32(context.pop_operand());
       auto& lhs = TO_UINT32(context.peek_operand());
@@ -691,7 +728,6 @@ struct interpret_visitor {
       lhs = (lhs << c) | (lhs >> ((-c) & mask));
    }
    void operator()( const i32_rotr_t& op) {
-
       context.inc_pc();
       static constexpr uint32_t mask = (8*sizeof(uint32_t)-1);
       const auto& rhs = TO_UINT32(context.pop_operand());
@@ -701,46 +737,39 @@ struct interpret_visitor {
       lhs = (lhs >> c) | (lhs << ((-c) & mask));
    }
    void operator()( const i64_clz_t& op) {
-
       context.inc_pc();
       auto& oper = TO_UINT64(context.peek_operand());
       oper = __builtin_clzll(oper);
    }
    void operator()( const i64_ctz_t& op) {
-
       context.inc_pc();
       auto& oper = TO_UINT64(context.peek_operand());
       oper = __builtin_ctzll(oper);
    }
    void operator()( const i64_popcnt_t& op) {
-
       context.inc_pc();
       auto& oper = TO_UINT64(context.peek_operand());
       oper = __builtin_popcountll(oper);
    }
    void operator()( const i64_add_t& op) {
-
       context.inc_pc();
       const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = TO_UINT64(context.peek_operand());
       lhs += rhs;
    }
    void operator()( const i64_sub_t& op) {
-
       context.inc_pc();
       const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = TO_UINT64(context.peek_operand());
       lhs -= rhs;
    }
    void operator()( const i64_mul_t& op) {
-
       context.inc_pc();
       const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = TO_UINT64(context.peek_operand());
       lhs *= rhs;
    }
    void operator()( const i64_div_s_t& op) {
-
       context.inc_pc();
       const auto& rhs = TO_INT64(context.pop_operand());
       auto& lhs = TO_INT64(context.peek_operand());
@@ -749,7 +778,6 @@ struct interpret_visitor {
       lhs /= rhs;
    }
    void operator()( const i64_div_u_t& op) {
-
       context.inc_pc();
       const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = TO_UINT64(context.peek_operand());
@@ -757,7 +785,6 @@ struct interpret_visitor {
       lhs /= rhs;
    }
    void operator()( const i64_rem_s_t& op) {
-
       context.inc_pc();
       const auto& rhs = TO_INT64(context.pop_operand());
       auto& lhs = TO_INT64(context.peek_operand());
@@ -768,7 +795,6 @@ struct interpret_visitor {
          lhs %= rhs;
    }
    void operator()( const i64_rem_u_t& op) {
-
       context.inc_pc();
       const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = TO_UINT64(context.peek_operand());
@@ -776,49 +802,42 @@ struct interpret_visitor {
       lhs %= rhs;
    }
    void operator()( const i64_and_t& op) {
-
       context.inc_pc();
       const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = TO_UINT64(context.peek_operand());
       lhs &= rhs;
    }
    void operator()( const i64_or_t& op) {
-
       context.inc_pc();
       const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = TO_UINT64(context.peek_operand());
       lhs |= rhs;
    }
    void operator()( const i64_xor_t& op) {
-
       context.inc_pc();
       const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = TO_UINT64(context.peek_operand());
       lhs ^= rhs;
    }
    void operator()( const i64_shl_t& op) {
-
       context.inc_pc();
       const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = TO_UINT64(context.peek_operand());
       lhs <<= rhs;
    }
    void operator()( const i64_shr_s_t& op) {
-
       context.inc_pc();
       const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = TO_INT64(context.peek_operand());
       lhs >>= rhs;
    }
    void operator()( const i64_shr_u_t& op) {
-
       context.inc_pc();
       const auto& rhs = TO_UINT64(context.pop_operand());
       auto& lhs = TO_UINT64(context.peek_operand());
       lhs >>= rhs;
    }
    void operator()( const i64_rotl_t& op) {
-
       context.inc_pc();
       static constexpr uint64_t mask = (8*sizeof(uint64_t)-1);
       const auto& rhs = TO_UINT64(context.pop_operand());
@@ -828,7 +847,6 @@ struct interpret_visitor {
       lhs = (lhs << c) | (lhs >> (-c & mask));
    }
    void operator()( const i64_rotr_t& op) {
-
       context.inc_pc();
       static constexpr uint64_t mask = (8*sizeof(uint64_t)-1);
       const auto& rhs = TO_UINT64(context.pop_operand());
@@ -838,182 +856,243 @@ struct interpret_visitor {
       lhs = (lhs >> c) | (lhs << (-c & mask));
    }
    void operator()( const f32_abs_t& op) {
-
       context.inc_pc();
       auto& oper = TO_F32(context.peek_operand());
-      oper = _eosio_f32_abs(oper);
+      if constexpr (use_softfloat)
+         oper = _eosio_f32_abs(oper);
+      else
+         oper = __builtin_fabsf(oper);
    }
    void operator()( const f32_neg_t& op) {
-
       context.inc_pc();
       auto& oper = TO_F32(context.peek_operand());
-      oper = _eosio_f32_neg(oper);
+      if constexpr (use_softfloat)
+         oper = _eosio_f32_neg(oper);
+      else
+         oper = (-1.0f)*oper;
    }
    void operator()( const f32_ceil_t& op) {
-
       context.inc_pc();
       auto& oper = TO_F32(context.peek_operand());
-      oper = _eosio_f32_ceil(oper);
+      if constexpr (use_softfloat)
+         oper = _eosio_f32_ceil(oper);
+      else
+         oper = __builtin_ceilf(oper);
    }
    void operator()( const f32_floor_t& op) {
-
       context.inc_pc();
       auto& oper = TO_F32(context.peek_operand());
-      oper = _eosio_f32_floor(oper);
+      if constexpr (use_softfloat)
+         oper = _eosio_f32_floor(oper);
+      else
+         oper = __builtin_floorf(oper);
    }
    void operator()( const f32_trunc_t& op) {
-
       context.inc_pc();
       auto& oper = TO_F32(context.peek_operand());
-      oper = _eosio_f32_trunc(oper);
+      if constexpr (use_softfloat)
+         oper = _eosio_f32_trunc(oper);
+      else
+         oper = __builtin_trunc(oper);
    }
    void operator()( const f32_nearest_t& op) {
-
       context.inc_pc();
       auto& oper = TO_F32(context.peek_operand());
-      oper = _eosio_f32_nearest(oper);
+      if constexpr (use_softfloat)
+         oper = _eosio_f32_nearest(oper);
+      else
+         oper = __builtin_nearbyintf(oper);
    }
    void operator()( const f32_sqrt_t& op) {
-
       context.inc_pc();
       auto& oper = TO_F32(context.peek_operand());
-      oper = _eosio_f32_sqrt(oper);
+      if constexpr (use_softfloat)
+         oper = _eosio_f32_sqrt(oper);
+      else
+         oper = __builtin_sqrtf(oper);
    }
    void operator()( const f32_add_t& op) {
-
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F32(context.peek_operand());
-      lhs = _eosio_f32_add(lhs, TO_F32(rhs));
+      if constexpr (use_softfloat)
+         lhs = _eosio_f32_add(lhs, TO_F32(rhs));
+      else
+         lhs += TO_F32(rhs);
    }
    void operator()( const f32_sub_t& op) {
-
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F32(context.peek_operand());
-      lhs = _eosio_f32_sub(lhs, TO_F32(rhs));
+      if constexpr (use_softfloat)
+         lhs = _eosio_f32_sub(lhs, TO_F32(rhs));
+      else
+         lhs -= TO_F32(rhs);
    }
    void operator()( const f32_mul_t& op) {
-
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F32(context.peek_operand());
-      lhs = _eosio_f32_mul(lhs, TO_F32(rhs));
+      if constexpr (use_softfloat)
+         lhs = _eosio_f32_mul(lhs, TO_F32(rhs));
+      else
+         lhs *= TO_F32(rhs);
    }
    void operator()( const f32_div_t& op) {
-
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F32(context.peek_operand());
-      lhs = _eosio_f32_div(lhs, TO_F32(rhs));
+      if constexpr (use_softfloat)
+         lhs = _eosio_f32_div(lhs, TO_F32(rhs));
+      else
+         lhs /= TO_F32(rhs);
    }
    void operator()( const f32_min_t& op) {
-
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F32(context.peek_operand());
-      lhs = _eosio_f32_min(lhs, TO_F32(rhs));
+      if constexpr (use_softfloat)
+         lhs = _eosio_f32_min(lhs, TO_F32(rhs));
+      else
+         lhs = __builtin_fminf(lhs, TO_F32(rhs));
    }
    void operator()( const f32_max_t& op) {
-
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F32(context.peek_operand());
-      lhs = _eosio_f32_max(lhs, TO_F32(rhs));
+      if constexpr (use_softfloat)
+         lhs = _eosio_f32_max(lhs, TO_F32(rhs));
+      else
+         lhs = __builtin_fmaxf(lhs, TO_F32(rhs));
    }
    void operator()( const f32_copysign_t& op) {
-
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F32(context.peek_operand());
-      lhs = _eosio_f32_copysign(lhs, TO_F32(rhs));
+      if constexpr (use_softfloat)
+         lhs = _eosio_f32_copysign(lhs, TO_F32(rhs));
+      else
+         lhs = __builtin_copysignf(lhs, TO_F32(rhs));
    }
    void operator()( const f64_abs_t& op) {
-
       context.inc_pc();
       auto& oper = TO_F64(context.peek_operand());
-      oper = _eosio_f64_abs(oper);
+      if constexpr (use_softfloat)
+         oper = _eosio_f64_abs(oper);
+      else
+         oper = __builtin_fabs(oper);
    }
    void operator()( const f64_neg_t& op) {
-
       context.inc_pc();
       auto& oper = TO_F64(context.peek_operand());
-      oper = _eosio_f64_neg(oper);
+      if constexpr (use_softfloat)
+         oper = _eosio_f64_neg(oper);
+      else
+         oper = (-1.0)*oper;
    }
    void operator()( const f64_ceil_t& op) {
 
       context.inc_pc();
       auto& oper = TO_F64(context.peek_operand());
-      oper = _eosio_f64_ceil(oper);
+      if constexpr (use_softfloat)
+         oper = _eosio_f64_ceil(oper);
+      else
+         oper = __builtin_ceil(oper);
    }
    void operator()( const f64_floor_t& op) {
-
       context.inc_pc();
       auto& oper = TO_F64(context.peek_operand());
-      oper = _eosio_f64_floor(oper);
+      if constexpr (use_softfloat)
+         oper = _eosio_f64_floor(oper);
+      else
+         oper = __builtin_floor(oper);
    }
    void operator()( const f64_trunc_t& op) {
-
       context.inc_pc();
       auto& oper = TO_F64(context.peek_operand());
-      oper = _eosio_f64_trunc(oper);
+      if constexpr (use_softfloat)
+         oper = _eosio_f64_trunc(oper);
+      else
+         oper = __builtin_trunc(oper);
    }
    void operator()( const f64_nearest_t& op) {
-
       context.inc_pc();
       auto& oper = TO_F64(context.peek_operand());
-      oper = _eosio_f64_nearest(oper);
+      if constexpr (use_softfloat)
+         oper = _eosio_f64_nearest(oper);
+      else
+         oper = __builtin_nearbyint(oper);
    }
    void operator()( const f64_sqrt_t& op) {
-
       context.inc_pc();
       auto& oper = TO_F64(context.peek_operand());
-      oper = _eosio_f64_sqrt(oper);
+      if constexpr (use_softfloat)
+         oper = _eosio_f64_sqrt(oper);
+      else
+         oper = __builtin_sqrt(oper);
    }
    void operator()( const f64_add_t& op) {
-
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F64(context.peek_operand());
-      lhs = _eosio_f64_add(lhs, TO_F64(rhs));
+      if constexpr (use_softfloat)
+         lhs = _eosio_f64_add(lhs, TO_F64(rhs));
+      else
+         lhs += TO_F64(rhs);
    }
    void operator()( const f64_sub_t& op) {
-
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F64(context.peek_operand());
-      lhs = _eosio_f64_sub(lhs, TO_F64(rhs));
+      if constexpr (use_softfloat)
+         lhs = _eosio_f64_sub(lhs, TO_F64(rhs));
+      else
+         lhs -= TO_F64(rhs);
    }
    void operator()( const f64_mul_t& op) {
-
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F64(context.peek_operand());
-      lhs = _eosio_f64_mul(lhs, TO_F64(rhs));
+      if constexpr (use_softfloat)
+         lhs = _eosio_f64_mul(lhs, TO_F64(rhs));
+      else
+         lhs *= TO_F64(rhs);
    }
    void operator()( const f64_div_t& op) {
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F64(context.peek_operand());
-      lhs = _eosio_f64_div(lhs, TO_F64(rhs));
+      if constexpr (use_softfloat)
+         lhs = _eosio_f64_div(lhs, TO_F64(rhs));
+      else
+         lhs /= TO_F64(rhs);
    }
    void operator()( const f64_min_t& op) {
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F64(context.peek_operand());
-      lhs = _eosio_f64_min(lhs, TO_F64(rhs));
+      if constexpr (use_softfloat)
+         lhs = _eosio_f64_min(lhs, TO_F64(rhs));
+      else
+         lhs = __builtin_fmin(lhs, TO_F64(rhs));
    }
    void operator()( const f64_max_t& op) {
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F64(context.peek_operand());
-      lhs = _eosio_f64_max(lhs, TO_F64(rhs));
+      if constexpr (use_softfloat)
+         lhs = _eosio_f64_max(lhs, TO_F64(rhs));
+      else
+         lhs = __builtin_fmax(lhs, TO_F64(rhs));
    }
    void operator()( const f64_copysign_t& op) {
       context.inc_pc();
       const auto& rhs = context.pop_operand();
       auto& lhs = TO_F64(context.peek_operand());
-      lhs = _eosio_f64_copysign(lhs, TO_F64(rhs));
+      if constexpr (use_softfloat)
+         lhs = _eosio_f64_copysign(lhs, TO_F64(rhs));
+      else
+         lhs = __builtin_copysign(lhs, TO_F64(rhs));
    }
    void operator()( const i32_wrap_i64_t& op) {
       context.inc_pc();

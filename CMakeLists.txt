@@ -35,7 +35,7 @@ FIND_PACKAGE(Boost 1.50 REQUIRED COMPONENTS
     locale
     iostreams)
 
-set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_C_FLAGS} -O3 -std=c++17 -pg" ) # -mllvm -use-clf-aa-in-codegen=both" )
+set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_C_FLAGS} -O3 -std=c++17" )
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
    if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
@@ -48,7 +48,7 @@ if ( APPLE )
    set( CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -O3 -Wall -Wno-deprecated-declarations -mllvm -use-cfl-aa-in-codegen=both" )
    set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto" )
 else()
-   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -g" )
+   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall" )
    set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++ -static-libgcc" )
 endif()
 
@@ -391,5 +391,5 @@ target_include_directories( sf PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/softfloat/sou
 
 target_link_libraries( wasm_interpreter sf )
 
-#add_subdirectory(tests)
+add_subdirectory(tests)
 #add_subdirectory(tests/fuzz)
