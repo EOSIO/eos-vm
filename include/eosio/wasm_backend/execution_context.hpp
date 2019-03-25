@@ -2,8 +2,8 @@
 
 #include <optional>
 #include <eosio/wasm_backend/types.hpp>
-#include <eosio/wasm_backend/fixed_stack.hpp>
-//#include <eosio/wasm_backend/wasm_stack.hpp>
+//#include <eosio/wasm_backend/fixed_stack.hpp>
+#include <eosio/wasm_backend/wasm_stack.hpp>
 #include <eosio/wasm_backend/host_function.hpp>
 #include <string>
 
@@ -14,9 +14,9 @@ namespace eosio { namespace wasm_backend {
             execution_context(Backend& backend, module<Backend>& m, wasm_allocator& wa) :
               _mod(m),
               _alloc(wa),
-              _cs(constants::max_nested_structures+1000, backend),
-              _os(constants::max_stack_size+1000, backend),
-              _as(constants::max_call_depth+1000, backend) {
+              _cs(backend),
+              _os(backend),
+              _as(backend) {
 
               for (int i=0; i < _mod.exports.size(); i++)
               _mod.import_functions.resize(_mod.get_imported_functions_size());
@@ -352,12 +352,12 @@ namespace eosio { namespace wasm_backend {
             uint8_t*      _linear_memory    = nullptr;
             module<Backend>&     _mod;
             wasm_allocator&      _alloc;
-            fixed_stack<Backend> _cs;
-            fixed_stack<Backend> _os;
-            fixed_stack<Backend> _as;
-         // control_stack<Backend> _cs;
-         // operand_stack<Backend> _os;
-         // call_stack<Backend> _as;
+            //fixed_stack<Backend> _cs;
+            //fixed_stack<Backend> _os;
+            //fixed_stack<Backend> _as;
+            control_stack<Backend> _cs;
+            operand_stack<Backend> _os;
+            call_stack<Backend>    _as;
 
             registered_host_functions _rhf;
       };
