@@ -3,6 +3,9 @@
 #include <unordered_map>
 #include <string_view>
 #include <optional>
+#include <functional>
+#include <type_traits>
+#include <eosio/wasm_backend/wasm_stack.hpp>
 
 #define __BACKEND_GET_ARG(ARG, X, EXPECTED)                                \
    std::visit( overloaded {                                                \
@@ -16,6 +19,41 @@
 namespace eosio { namespace wasm_backend {
 
    namespace detail {
+
+      template <typename... Args, size_t... Is>
+      auto get_args_full(std::index_sequence<Is...>) {
+         std::tuple<std::decay_t<Args>...> tup;
+         return std::tuple<Args...>{std::get<Is>(tup)...};
+      }
+
+      template <typename R, typename... Args>
+      auto get_args_full(R(Args...)) {
+         return get_args_full<Args...>(std::index_sequence_for<Args...>{});
+      }
+
+      template <typename R, typename... Args>
+      auto get_args(R(Args...)) {
+         return std::tuple<std::decay_t<Args>...>{};
+      }
+
+      template <typename T>
+      struct to_stack_elem {
+         typedef eosio::wasm_backend::stack_elem type;
+      };
+
+      template <typename Backend, auto F, typename R, typename Args, size_t... Is>
+      auto create_function(std::index_sequence<Is...>) {
+         return std::function<void(eosio::wasm_backend::operand_stack<Backend>&)>{ 
+            [](eosio::wasm_backend::operand_stack<Backend>& os) { 
+               if constexpr (!std::is_same_v<R, void>) {
+                  // TODO fix this
+                  os.push(std::invoke(F, std::get<typename std::tuple_element<Is, Args>::type>(os.pop())...));
+               }
+               else
+                  std::invoke(F, std::get<typename std::tuple_element<Is, Args>::type>(os.pop())...);
+            }
+         };
+      }
 
       template <typename T>
       constexpr auto to_wasm_type() -> std::enable_if_t<std::is_integral<T>::value, uint8_t> {
@@ -136,28 +174,37 @@ namespace eosio { namespace wasm_backend {
    };
 
    struct registered_host_functions {
+      template <typename Backend>
       struct mappings {
          std::unordered_map<std::string, uint32_t> named_mapping;
          std::vector<host_function>                host_functions;
+         std::vector<std::function<void(operand_stack<Backend>&)>> functions;
          size_t                                    current_index = 0;
       };
 
-      static mappings& get_mappings() {
-         thread_local mappings _mappings;
+      template <typename Backend>
+      static mappings<Backend>& get_mappings() {
+         thread_local mappings<Backend> _mappings;
          return _mappings;
       }
 
-      template <auto Func>
+      template <auto Func, typename Backend>
       static void add(const std::string& mod, const std::string& name) {
-         mappings& current_mappings = get_mappings();
+         using deduced_full_ts = decltype(detail::get_args_full(Func));
+         using deduced_ts      = decltype(detail::get_args(Func));
+         using res_t           = decltype(std::apply(Func, deduced_ts{}));
+         static constexpr auto is = std::make_index_sequence<std::tuple_size<deduced_ts>::value>();
+
+         auto& current_mappings = get_mappings<Backend>();
          current_mappings.named_mapping[name] = current_mappings.current_index++;
          current_mappings.host_functions.push_back( function_types_provider(Func) ); 
+         current_mappings.functions.push_back( detail::create_function<Backend, Func, res_t, deduced_full_ts>(is) );
       }
 
       template <typename Module>
       static void resolve( Module& mod ) {
          mod.import_functions.resize(mod.get_imported_functions_size());
-         mappings& current_mappings = get_mappings();
+         auto& current_mappings = get_mappings<typename Module::backend_type>();
          for (int i=0; i < mod.imports.size(); i++) {
             std::string mod_name{ (char*)mod.imports[i].module_str.raw(), mod.imports[i].module_len };
             std::string fn_name{ (char*)mod.imports[i].field_str.raw(), mod.imports[i].field_len };
@@ -173,7 +220,7 @@ namespace eosio { namespace wasm_backend {
 #if not defined __x86_64__ and (__APPLE__ or __linux__)
          static_assert(false, "currently only supporting x86_64 on Linux and Apple");
 #endif
-         const auto& func = get_mappings().host_functions[index];
+         const auto& func = get_mappings<typename Execution_Context::backend_type>().host_functions[index];
          uint64_t args[calling_conv_arg_cnt] = {0};
 
          int i=0;
@@ -324,10 +371,10 @@ namespace eosio { namespace wasm_backend {
  
    };
 
-   template <auto F, typename Mod, typename Name >
+   template <auto F, typename Mod, typename Name, typename Backend >
    struct registered_function {
       registered_function() {
-         registered_host_functions::add<F>(std::string{Mod::value, Mod::len}, std::string{Name::value, Name::len}); 
+         registered_host_functions::add<F, Backend>(std::string{Mod::value, Mod::len}, std::string{Name::value, Name::len}); 
       }
 
       static constexpr auto function = F;

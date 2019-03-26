@@ -285,6 +285,7 @@ namespace eosio { namespace wasm_backend {
             }
 
             size_t insts = 0;
+            typedef Backend backend_type;
          private:
 
             template <typename Arg, typename... Args>
@@ -341,7 +342,7 @@ namespace eosio { namespace wasm_backend {
                   std::visit(visitor, _mod.code.at_no_check(_code_index).code.at_no_check(offset));
                } while (_executing);
             }
-
+            
             uint32_t      _pc               = 0;
             uint32_t      _exit_pc          = 0;
             uint32_t      _current_function = 0;
