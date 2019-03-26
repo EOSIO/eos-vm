@@ -166,6 +166,7 @@ namespace eosio { namespace wasm_backend {
          import_functions(backend, 0),
          function_sizes(backend, 0) {}
 
+      typedef B backend_type;
       guarded_vector<func_type<B>, B>       types;
       guarded_vector<import_entry<B>, B>    imports;
       guarded_vector<uint32_t, B>           functions;

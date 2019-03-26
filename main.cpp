@@ -10,7 +10,7 @@ void print(int a) {
    std::cout << "PRINT " << a << "\n";
 }
 
-registered_function<&print, decltype("env"_hfn), decltype("print"_hfn)> _rf;
+registered_function<&print, decltype("env"_hfn), decltype("print"_hfn), backend> _rf;
 
 int main(int argc, char** argv) {
    wasm_allocator wa;
