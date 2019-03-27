@@ -80,9 +80,10 @@ namespace eosio { namespace wasm_backend {
                }
                std::cout << " }\n";
             }
+            inline operand_stack<Backend>& get_operand_stack() { return _os; }
             inline module<Backend>& get_module() { return _mod; }
             inline uint8_t* linear_memory() { return _linear_memory; }
-         inline uint32_t table_elem(uint32_t i) { return _mod.elements[0].elems[i - _mod.elements[0].offset.value.i64]; }
+            inline uint32_t table_elem(uint32_t i) { return _mod.elements[0].elems[i - _mod.elements[0].offset.value.i64]; }
             inline void push_label( const stack_elem& el ) { _cs.push(el); }
             inline uint16_t current_label_index()const { return _cs.current_index(); }
             inline void eat_labels(uint16_t index) { _cs.eat(index); }
@@ -342,7 +343,7 @@ namespace eosio { namespace wasm_backend {
                   std::visit(visitor, _mod.code.at_no_check(_code_index).code.at_no_check(offset));
                } while (_executing);
             }
-            
+
             uint32_t      _pc               = 0;
             uint32_t      _exit_pc          = 0;
             uint32_t      _current_function = 0;
