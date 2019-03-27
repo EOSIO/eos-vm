@@ -40,8 +40,9 @@ namespace eosio { namespace wasm_backend {
          growable_allocator(size_t size) : buff(size, (char)0 ) {}
          template <typename T>
          T* alloc(size_t size=1) {
-            if ( index + size >= buff.size() )
+            if ( (sizeof(T)*size) + index >= buff.size() ) {
                buff.resize(buff.size()+buff.size()/2);
+            }
             T* ret = (T*)(buff.data()+index);
             index += sizeof(T)*size;
             return ret;

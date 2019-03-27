@@ -265,16 +265,22 @@ namespace eosio { namespace wasm_backend {
 
             while (code.offset() < bounds) {
                EOS_WB_ASSERT( pc_stack.size() <= constants::max_nested_structures, wasm_parse_exception, "nested structures validation failure");
+               std::cout << "OPS " << std::hex << (int)*code << std::dec << " ";
+               for (int ii=0; ii < op_index; ii++)
+                  std::cout << fb[ii].index() << ", ";
+               std::cout << "\n";
+
                switch ( *code++ ) {
                   // CONTROL FLOW OPERATORS
                   case opcodes::unreachable:
-                     fb[op_index++] = unreachable_t{}; break;
+                     new (&fb[op_index++]) unreachable_t; break;
                   case opcodes::nop:
-                     fb[op_index++] = nop_t{}; break;
+                     new (&fb[op_index++]) nop_t; break;
                   case opcodes::end:
                      {
                         if (pc_stack.size()) {
                            auto& el = fb[pc_stack.top()];
+                           std::cout << "INDEX " << el.index() << " " << pc_stack.top() << "\n";
                            std::visit(overloaded {
                               [=](block_t& bt) {
                                  bt.pc = op_index;
@@ -290,22 +296,22 @@ namespace eosio { namespace wasm_backend {
                            }, el);
                            pc_stack.pop();
                         }
-                        fb[op_index++] = end_t{};
+                        new (&fb[op_index++]) end_t; break;
                         break;
                      }
                   case opcodes::return_:
-                     fb[op_index++] = return__t{}; break;
+                     new (&fb[op_index++]) return__t; break;
                   case opcodes::block:
                      pc_stack.push(op_index);
-                     fb[op_index++] = block_t{*code++, 0};
+                     new (&fb[op_index++]) block_t(*code++); break;
                      break;
                   case opcodes::loop:
                      pc_stack.push(op_index);
-                     fb[op_index++] = loop_t{*code++, 0};
+                     new (&fb[op_index++]) loop_t(*code++); break;
                      break;
                   case opcodes::if_:
                      pc_stack.push(op_index);
-                     fb[op_index++] = if__t{*code++, 0};
+                     new (&fb[op_index++]) if__t(*code++); break;
                      break;
                   case opcodes::else_:
                      {
@@ -314,7 +320,7 @@ namespace eosio { namespace wasm_backend {
                         pc_stack.push(op_index);
                         auto& _if = std::get<if__t>(fb[old_index]);
                         _if.pc = op_index;
-                        fb[op_index++] = else__t{};
+                        new (&fb[op_index++]) else__t; break;
                         break;
                      }
                   case opcodes::br:

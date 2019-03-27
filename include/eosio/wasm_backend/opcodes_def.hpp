@@ -206,10 +206,12 @@
 
 #define CREATE_CONTROL_FLOW_TYPES(name, code) \
    struct name##_t {                          \
-      uint32_t data;                          \
-      uint32_t pc;                            \
-      uint16_t index;                         \
-      uint16_t op_index;                      \
+      name##_t(){} \
+      name##_t(uint32_t data) : data(data) {} \
+      uint32_t data = 0;                          \
+      uint32_t pc = 0;                            \
+      uint16_t index = 0;                         \
+      uint16_t op_index = 0;                      \
    };
 
 #define CREATE_BR_TABLE_TYPE(name, code) \

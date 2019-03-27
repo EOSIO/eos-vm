@@ -19,10 +19,10 @@ namespace eosio { namespace wasm_backend {
       public:
       backend(wasm_code& code, wasm_allocator& wa)
          : _walloc(wa),
-           _galloc(1024 * 1024),
+           _balloc(constants::max_code_size*2),
            _mod(*this),
            _ctx( *this, binary_parser<backend>{*this}.parse_module( code, _mod ), wa ) {
-         registered_host_functions::resolve(_mod);
+         //registered_host_functions::resolve(_mod);
       }
 
          template <typename... Args>
@@ -44,7 +44,7 @@ namespace eosio { namespace wasm_backend {
          }
 
          wasm_allocator& get_wasm_allocator() { return _walloc; }
-         growable_allocator& get_allocator() { return _galloc; }
+         bounded_allocator& get_allocator() { return _balloc; }
          module<backend>& get_module() { return _mod; }
 
          static std::vector<uint8_t> read_wasm( const std::string& fname ) {
@@ -65,7 +65,7 @@ namespace eosio { namespace wasm_backend {
       inline size_t get_instructions()const { return _ctx.insts; }
       private:
          wasm_allocator&    _walloc;
-         growable_allocator _galloc;
+         bounded_allocator  _balloc;
          module<backend>    _mod;
          execution_context<backend> _ctx;
    };
