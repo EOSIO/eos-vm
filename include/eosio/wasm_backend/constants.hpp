@@ -11,6 +11,7 @@ namespace eosio { namespace wasm_backend {
       max_nested_structures = 1024,
       max_call_depth        = 250,
       max_stack_size        = 8*1024,
+      max_code_size         = 20 * 1024 * 1024,
       max_memory            = 4ull << 31,
       max_useable_memory    = (33 * 1024 * 1024), //33mb
       page_size             = 64ull * 1024, //64kb

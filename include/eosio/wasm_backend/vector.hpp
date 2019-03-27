@@ -63,6 +63,7 @@ namespace eosio { namespace wasm_backend {
             static T _end;
             return _end;
          }
+
          inline T& operator[] (size_t i) const { return at(i); }
          inline T* raw() const { return _data; }
          inline size_t size() const { return _size; }
