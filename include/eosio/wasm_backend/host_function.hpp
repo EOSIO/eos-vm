@@ -15,7 +15,7 @@
          throw wasm_interpreter_exception{"invalid host function arg"};    \
       }                                                                    \
    }, X)
- 
+
 namespace eosio { namespace wasm_backend {
 
    namespace detail {
@@ -37,20 +37,93 @@ namespace eosio { namespace wasm_backend {
       }
 
       template <typename T>
-      struct to_stack_elem {
-         typedef eosio::wasm_backend::stack_elem type;
+      struct traits {
+         static constexpr uint8_t is_integral_offset = 0;
+         static constexpr uint8_t is_lval_ref_offset = 1;
+         static constexpr uint8_t is_ptr_offset      = 2;
+         static constexpr uint8_t is_float_offset    = 3;
+         static constexpr uint8_t is_4_bytes_offset  = 4;
+         static constexpr uint8_t value = (std::is_integral<T>::value << is_integral_offset) |
+                                          (std::is_lvalue_reference<T>::value << is_lval_ref_offset) |
+                                          (std::is_pointer<T>::value << is_ptr_offset) |
+                                          (std::is_floating_point<T>::value << is_float_offset) |
+                                          ((sizeof(T) == 4) << is_4_bytes_offset);
+         static constexpr uint8_t i32_value_i  = (1 << is_integral_offset) | (1 << is_4_bytes_offset);
+         static constexpr uint8_t i32_value_lv = (1 << is_lval_ref_offset) | (1 << is_4_bytes_offset);
+         static constexpr uint8_t i32_value_p  = (1 << is_ptr_offset) | (1 << is_4_bytes_offset);
+         static constexpr uint8_t i64_value_i  = (1 << is_integral_offset);
+         static constexpr uint8_t i64_value_lv = (1 << is_lval_ref_offset);
+         static constexpr uint8_t i64_value_p  = (1 << is_ptr_offset);
+         static constexpr uint8_t f32_value = (1 << is_float_offset) | (1 << is_4_bytes_offset);
+         static constexpr uint8_t f64_value = (1 << is_float_offset);
       };
+
+      template <uint8_t Traits>
+      struct _to_wasm_t;
+
+      template <>
+      struct _to_wasm_t<traits<int>::i32_value_i> {
+         typedef i32_const_t type;
+      };
+
+      template <>
+      struct _to_wasm_t<traits<int>::i32_value_lv> {
+         typedef i32_const_t type;
+      };
+
+      template <>
+      struct _to_wasm_t<traits<int>::i32_value_p> {
+         typedef i32_const_t type;
+      };
+
+      template <>
+      struct _to_wasm_t<traits<int>::i64_value_i> {
+         typedef i64_const_t type;
+      };
+
+      template <>
+      struct _to_wasm_t<traits<int>::i64_value_lv> {
+         typedef i64_const_t type;
+      };
+
+      template <>
+      struct _to_wasm_t<traits<int>::i64_value_p> {
+         typedef i64_const_t type;
+      };
+
+      template <>
+      struct _to_wasm_t<traits<int>::f32_value> {
+         typedef f32_const_t type;
+      };
+
+      template <>
+      struct _to_wasm_t<traits<int>::f64_value> {
+         typedef f64_const_t type;
+      };
+
+      template <typename T>
+      using to_wasm_t = typename _to_wasm_t<traits<T>::value>::type;
+
+      template <typename T>
+      constexpr auto return_value(T&& val) {
+         if constexpr(std::is_same_v<i32_const_t, T> || std::is_same_v<i64_const_t, T>) 
+            return val.data.ui;
+         else if constexpr(std::is_same_v<f32_const_t, T> || std::is_same_v<f64_const_t, T>) 
+            return val.data.f;
+      } 
 
       template <typename Backend, auto F, typename R, typename Args, size_t... Is>
       auto create_function(std::index_sequence<Is...>) {
-         return std::function<void(eosio::wasm_backend::operand_stack<Backend>&)>{ 
-            [](eosio::wasm_backend::operand_stack<Backend>& os) { 
+         return std::function<void(eosio::wasm_backend::operand_stack<Backend>&)>{
+            [](eosio::wasm_backend::operand_stack<Backend>& os) {
+               int i = sizeof...(Is)-1;
                if constexpr (!std::is_same_v<R, void>) {
                   // TODO fix this
-                  os.push(std::invoke(F, std::get<typename std::tuple_element<Is, Args>::type>(os.pop())...));
+                  os.push(to_wasm_t<R>{std::invoke(F, std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>::type>(os.pop())...)});
                }
                else
-                  std::invoke(F, std::get<typename std::tuple_element<Is, Args>::type>(os.pop())...);
+                  std::invoke(F, return_value(std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
+               os.trim(sizeof...(Is));
             }
          };
       }
@@ -134,13 +207,13 @@ namespace eosio { namespace wasm_backend {
    template <char... Str>
    struct host_function_name {
       static constexpr const char value[] = {Str...};
-      static constexpr size_t len = sizeof...(Str); 
+      static constexpr size_t len = sizeof...(Str);
       static constexpr bool is_same(const char* nm, size_t l) {
          if (len == l) {
             bool is_not_same = false;
             for (int i=0; i < len; i++) {
                is_not_same |= nm[i] != value[i];
-            } 
+            }
             return !is_not_same;
          }
          return false;
@@ -170,7 +243,7 @@ namespace eosio { namespace wasm_backend {
       static constexpr auto function = MP;
       static constexpr auto name = Name{};
       using name_t = Name;
-      static constexpr bool is_member = true; 
+      static constexpr bool is_member = true;
    };
 
    struct registered_host_functions {
@@ -197,7 +270,7 @@ namespace eosio { namespace wasm_backend {
 
          auto& current_mappings = get_mappings<Backend>();
          current_mappings.named_mapping[name] = current_mappings.current_index++;
-         current_mappings.host_functions.push_back( function_types_provider(Func) ); 
+         current_mappings.host_functions.push_back( function_types_provider(Func) );
          current_mappings.functions.push_back( detail::create_function<Backend, Func, res_t, deduced_full_ts>(is) );
       }
 
@@ -216,6 +289,9 @@ namespace eosio { namespace wasm_backend {
 
       template <typename Execution_Context>
       void operator()(Execution_Context& ctx, uint32_t index) {
+         const auto& _func = get_mappings<typename Execution_Context::backend_type>().functions[index];
+         std::invoke(_func, ctx.get_operand_stack());
+         return;
          static constexpr size_t calling_conv_arg_cnt = 6;
 #if not defined __x86_64__ and (__APPLE__ or __linux__)
          static_assert(false, "currently only supporting x86_64 on Linux and Apple");
@@ -227,22 +303,22 @@ namespace eosio { namespace wasm_backend {
          for (;i < func.params.size() && i < calling_conv_arg_cnt; i++) {
             const auto& op = ctx.pop_operand();
             switch (func.params[i]) {
-                  case types::i32: 
+                  case types::i32:
                   {
                      __BACKEND_GET_ARG(args[i], op, i32_const_t);
                      break;
                   }
-                  case types::i64: 
+                  case types::i64:
                   {
                      __BACKEND_GET_ARG(args[i], op, i64_const_t);
                      break;
                   }
-                  case types::f32: 
+                  case types::f32:
                   {
                      __BACKEND_GET_ARG(args[i], op, f32_const_t);
                      break;
                   }
-                  case types::f64: 
+                  case types::f64:
                   {
                      __BACKEND_GET_ARG(args[i], op, f64_const_t);
                      break;
@@ -276,7 +352,7 @@ namespace eosio { namespace wasm_backend {
                    "callq *%1\n\t"
                    "movq %%rax, %0"
                   : "=r"(return_val)
-                  : "a"(func.ptr), "g"(args[0]), "g"(args[1])
+                  : "a"(func.ptr), "g"(args[1]), "g"(args[0])
                   : "rdi", "rsi");
                break;
             case 3:
@@ -286,7 +362,7 @@ namespace eosio { namespace wasm_backend {
                    "callq *%1\n\t"
                    "movq %%rax, %0"
                   : "=r"(return_val)
-                  : "a"(func.ptr), "g"(args[0]), "g"(args[1]), "g"(args[2])
+                  : "a"(func.ptr), "g"(args[2]), "g"(args[1]), "g"(args[0])
                   : "rdi", "rsi", "rdx");
                break;
             case 4:
@@ -297,7 +373,7 @@ namespace eosio { namespace wasm_backend {
                    "callq *%1\n\t"
                    "movq %%rax, %0"
                   : "=r"(return_val)
-                  : "a"(func.ptr), "g"(args[0]), "g"(args[1]), "g"(args[2]), "g"(args[3])
+                  : "a"(func.ptr), "g"(args[3]), "g"(args[2]), "g"(args[1]), "g"(args[0])
                   : "rdi", "rsi", "rdx", "rcx");
                break;
             case 5:
@@ -309,7 +385,7 @@ namespace eosio { namespace wasm_backend {
                    "callq *%1\n\t"
                    "movq %%rax, %0"
                   : "=r"(return_val)
-                  : "a"(func.ptr), "g"(args[0]), "g"(args[1]), "g"(args[2]), "g"(args[3]), "g"(args[4])
+                  : "a"(func.ptr), "g"(args[4]), "g"(args[3]), "g"(args[2]), "g"(args[1]), "g"(args[0])
                   : "rdi", "rsi", "rdx", "rcx", "r8");
                break;
             case 6:
@@ -322,7 +398,7 @@ namespace eosio { namespace wasm_backend {
                    "callq *%1\n\t"
                    "movq %%rax, %0"
                   : "=r"(return_val)
-                  : "a"(func.ptr), "g"(args[0]), "g"(args[1]), "g"(args[2]), "g"(args[3]), "g"(args[4]), "g"(args[5])
+                  : "a"(func.ptr), "g"(args[5]), "g"(args[4]), "g"(args[3]), "g"(args[2]), "g"(args[1]), "g"(args[0])
                   : "rdi", "rsi", "rdx", "rcx", "r8", "r9");
                break;
             default:
@@ -341,7 +417,8 @@ namespace eosio { namespace wasm_backend {
                    "callq *%1\n\t"
                    "movq %%rax, %0"
                   : "=r"(return_val)
-                  : "a"(func.ptr), "g"(args[0]), "g"(args[1]), "g"(args[2]), "g"(args[3]), "g"(args[4]), "g"(args[5])
+
+                  : "a"(func.ptr), "g"(args[5]), "g"(args[4]), "g"(args[3]), "g"(args[2]), "g"(args[1]), "g"(args[0])
                   : "rdi", "rsi", "rdx", "rcx", "r8", "r9");
                for (int j=i; j < param_cnt; j++) {
                   asm( "popq %%rdi\n\t"
@@ -353,34 +430,34 @@ namespace eosio { namespace wasm_backend {
 
          if (has_ret) {
             switch (ret_type) {
-               case types::i32: 
+               case types::i32:
                   ctx.push_operand(i32_const_t{static_cast<uint32_t>(return_val)});
                   break;
-               case types::i64: 
+               case types::i64:
                   ctx.push_operand(i64_const_t{return_val});
                   break;
-               case types::f32: 
+               case types::f32:
                   ctx.push_operand(f32_const_t{static_cast<uint32_t>(return_val)});
                   break;
-               case types::f64: 
+               case types::f64:
                   ctx.push_operand(f64_const_t{return_val});
                   break;
             }
          }
       }
- 
+
    };
 
    template <auto F, typename Mod, typename Name, typename Backend >
    struct registered_function {
       registered_function() {
-         registered_host_functions::add<F, Backend>(std::string{Mod::value, Mod::len}, std::string{Name::value, Name::len}); 
+         registered_host_functions::add<F, Backend>(std::string{Mod::value, Mod::len}, std::string{Name::value, Name::len});
       }
 
       static constexpr auto function = F;
       static constexpr auto name = Name{};
       using name_t = Name;
-      static constexpr bool is_member = false; 
+      static constexpr bool is_member = false;
    };
 
 }} // ns eosio::wasm_backend

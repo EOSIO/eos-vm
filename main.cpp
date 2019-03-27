@@ -6,8 +6,8 @@
 using namespace eosio;
 using namespace eosio::wasm_backend;
 
-void print(int a) {
-   std::cout << "PRINT " << a << "\n";
+void print(int a, int b, int c, int d, int e, int f, int g) {
+   std::cout << "PRINT " << a << " " << b << " " << c << " " << d << " " << e << " " << f << " " << g << "\n";
 }
 
 registered_function<&print, decltype("env"_hfn), decltype("print"_hfn), backend> _rf;
