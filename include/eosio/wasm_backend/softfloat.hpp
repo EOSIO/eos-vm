@@ -1,0 +1,63 @@
+#pragma once
+#include <cinttypes>
+#include <eosio/wasm_backend/exceptions.hpp>
+namespace eosio { namespace wasm_backend {
+float _eosio_f32_add( float a, float b );
+float _eosio_f32_sub( float a, float b );
+float _eosio_f32_div( float a, float b );
+float _eosio_f32_mul( float a, float b );
+float _eosio_f32_min( float af, float bf );
+float _eosio_f32_max( float af, float bf );
+float _eosio_f32_copysign( float af, float bf );
+float _eosio_f32_abs( float af );
+float _eosio_f32_neg( float af );
+float _eosio_f32_sqrt( float a );
+float _eosio_f32_ceil( float af );
+float _eosio_f32_floor( float af );
+float _eosio_f32_trunc( float af );
+float _eosio_f32_nearest( float af );
+bool _eosio_f32_eq( float a, float b );
+bool _eosio_f32_ne( float a, float b );
+bool _eosio_f32_lt( float a, float b );
+bool _eosio_f32_le( float a, float b );
+bool _eosio_f32_gt( float af, float bf );
+bool _eosio_f32_ge( float af, float bf );
+double _eosio_f64_add( double a, double b );
+double _eosio_f64_sub( double a, double b );
+double _eosio_f64_div( double a, double b );
+double _eosio_f64_mul( double a, double b );
+double _eosio_f64_min( double af, double bf );
+double _eosio_f64_max( double af, double bf );
+double _eosio_f64_copysign( double af, double bf );
+double _eosio_f64_abs( double af );
+double _eosio_f64_neg( double af );
+double _eosio_f64_sqrt( double a );
+double _eosio_f64_ceil( double af );
+double _eosio_f64_floor( double af );
+double _eosio_f64_trunc( double af );
+double _eosio_f64_nearest( double af );
+bool _eosio_f64_eq( double a, double b );
+bool _eosio_f64_ne( double a, double b );
+bool _eosio_f64_lt( double a, double b );
+bool _eosio_f64_le( double a, double b );
+bool _eosio_f64_gt( double af, double bf );
+bool _eosio_f64_ge( double af, double bf );
+double _eosio_f32_promote( float a );
+float _eosio_f64_demote( double a );
+int32_t _eosio_f32_trunc_i32s( float af );
+int32_t _eosio_f64_trunc_i32s( double af );
+uint32_t _eosio_f32_trunc_i32u( float af );
+uint32_t _eosio_f64_trunc_i32u( double af );
+int64_t _eosio_f32_trunc_i64s( float af );
+int64_t _eosio_f64_trunc_i64s( double af );
+uint64_t _eosio_f32_trunc_i64u( float af );
+uint64_t _eosio_f64_trunc_i64u( double af );
+float _eosio_i32_to_f32( int32_t a );
+float _eosio_i64_to_f32( int64_t a );
+float _eosio_ui32_to_f32( uint32_t a );
+float _eosio_ui64_to_f32( uint64_t a );
+double _eosio_i32_to_f64( int32_t a );
+double _eosio_i64_to_f64( int64_t a );
+double _eosio_ui32_to_f64( uint32_t a );
+double _eosio_ui64_to_f64( uint64_t a );
+}} //ns eosio::wasm_backend
