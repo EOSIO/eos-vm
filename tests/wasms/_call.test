@@ -1,0 +1,121 @@
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("type-i32")), (uint32_t)0x132);
+
+BOOST_CHECK_EQUAL(TO_UINT64(*bkend("type-i64")), (uint64_t)0x164);
+
+BOOST_CHECK_EQUAL(TO_F32(*bkend("type-f32")), (float)0xf32);
+
+BOOST_CHECK_EQUAL(TO_F64(*bkend("type-f64")), (double)0xf64);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("type-first-i32")), (uint32_t)32);
+
+BOOST_CHECK_EQUAL(TO_UINT64(*bkend("type-first-i64")), (uint64_t)64);
+
+BOOST_CHECK_EQUAL(TO_F32(*bkend("type-first-f32")), (float)1.32);
+
+BOOST_CHECK_EQUAL(TO_F64(*bkend("type-first-f64")), (double)1.64);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("type-second-i32")), (uint32_t)32);
+
+BOOST_CHECK_EQUAL(TO_UINT64(*bkend("type-second-i64")), (uint64_t)64);
+
+BOOST_CHECK_EQUAL(TO_F32(*bkend("type-second-f32")), (float)32);
+
+BOOST_CHECK_EQUAL(TO_F64(*bkend("type-second-f64")), (double)64.1);
+
+BOOST_CHECK_EQUAL(TO_UINT64(*bkend()), (uint64_t)0);
+
+BOOST_CHECK_EQUAL(TO_UINT64(*bkend()), (uint64_t)1);
+
+BOOST_CHECK_EQUAL(TO_UINT64(*bkend()), (uint64_t)5);
+
+BOOST_CHECK_EQUAL(TO_UINT64(*bkend()), (uint64_t)25);
+
+BOOST_CHECK_EQUAL(TO_UINT64(*bkend()), (uint64_t)0);
+
+BOOST_CHECK_EQUAL(TO_UINT64(*bkend()), (uint64_t)1);
+
+BOOST_CHECK_EQUAL(TO_UINT64(*bkend()), (uint64_t)5);
+
+BOOST_CHECK_EQUAL(TO_UINT64(*bkend()), (uint64_t)25);
+
+BOOST_CHECK_EQUAL(TO_UINT64(*bkend()), (uint64_t)0);
+
+BOOST_CHECK_EQUAL(TO_UINT64(*bkend()), (uint64_t)1);
+
+BOOST_CHECK_EQUAL(TO_UINT64(*bkend()), (uint64_t)2);
+
+BOOST_CHECK_EQUAL(TO_UINT64(*bkend()), (uint64_t)5);
+
+BOOST_CHECK_EQUAL(TO_UINT64(*bkend()), (uint64_t)20);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend()), (uint32_t)0);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend()), (uint32_t)1);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend()), (uint32_t)100);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend()), (uint32_t)77);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend()), (uint32_t)0);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend()), (uint32_t)1);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend()), (uint32_t)200);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend()), (uint32_t)77);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-select-first")), (uint32_t)0x132);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-select-mid")), (uint32_t)2);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-select-last")), (uint32_t)2);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-if-condition")), (uint32_t)1);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-br_if-first")), (uint32_t)0x132);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-br_if-last")), (uint32_t)2);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-br_table-first")), (uint32_t)0x132);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-br_table-last")), (uint32_t)2);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-call_indirect-first")), (uint32_t)0x132);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-call_indirect-mid")), (uint32_t)2);
+
+BOOST_CHECK(!bkend("as-store-first"));
+
+BOOST_CHECK(!bkend("as-store-last"));
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-memory.grow-value")), (uint32_t)1);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-return-value")), (uint32_t)0x132);
+
+BOOST_CHECK(!bkend("as-drop-operand"));
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-br-value")), (uint32_t)0x132);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-set_local-value")), (uint32_t)0x132);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-tee_local-value")), (uint32_t)0x132);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-set_global-value")), (uint32_t)0x132);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-load-operand")), (uint32_t)1);
+
+BOOST_CHECK_EQUAL(TO_F32(*bkend("as-unary-operand")), (float)0x0p+0);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-binary-left")), (uint32_t)11);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-binary-right")), (uint32_t)9);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-test-operand")), (uint32_t)0);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-compare-left")), (uint32_t)1);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("as-compare-right")), (uint32_t)1);
+
+BOOST_CHECK_EQUAL(TO_UINT64(*bkend("as-convert-operand")), (uint64_t)1);
+

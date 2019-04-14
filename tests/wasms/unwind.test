@@ -1,0 +1,57 @@
+BOOST_CHECK_THROW(bkend("func-unwind-by-unreachable"), eosio::wasm_backend::wasm_interpreter_exception);
+
+BOOST_CHECK(!bkend("func-unwind-by-br"));
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("func-unwind-by-br-value")), (uint32_t)9);
+BOOST_CHECK(!bkend("func-unwind-by-br_if"));
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("func-unwind-by-br_if-value")), (uint32_t)9);
+BOOST_CHECK(!bkend("func-unwind-by-br_table"));
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("func-unwind-by-br_table-value")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("func-unwind-by-return")), (uint32_t)9);
+BOOST_CHECK_THROW(bkend("block-unwind-by-unreachable"), eosio::wasm_backend::wasm_interpreter_exception);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-unwind-by-br")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-unwind-by-br-value")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-unwind-by-br_if")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-unwind-by-br_if-value")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-unwind-by-br_table")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-unwind-by-br_table-value")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-unwind-by-return")), (uint32_t)9);
+BOOST_CHECK_THROW(bkend("block-nested-unwind-by-unreachable"), eosio::wasm_backend::wasm_interpreter_exception);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-nested-unwind-by-br")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-nested-unwind-by-br-value")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-nested-unwind-by-br_if")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-nested-unwind-by-br_if-value")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-nested-unwind-by-br_table")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-nested-unwind-by-br_table-value")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-nested-unwind-by-return")), (uint32_t)9);
+BOOST_CHECK_THROW(bkend("unary-after-unreachable"), eosio::wasm_backend::wasm_interpreter_exception);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("unary-after-br")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("unary-after-br_if")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("unary-after-br_table")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("unary-after-return")), (uint32_t)9);
+BOOST_CHECK_THROW(bkend("binary-after-unreachable"), eosio::wasm_backend::wasm_interpreter_exception);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("binary-after-br")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("binary-after-br_if")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("binary-after-br_table")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("binary-after-return")), (uint32_t)9);
+BOOST_CHECK_THROW(bkend("select-after-unreachable"), eosio::wasm_backend::wasm_interpreter_exception);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("select-after-br")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("select-after-br_if")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("select-after-br_table")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("select-after-return")), (uint32_t)9);
+BOOST_CHECK_THROW(bkend("block-value-after-unreachable"), eosio::wasm_backend::wasm_interpreter_exception);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-value-after-br")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-value-after-br_if")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-value-after-br_table")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("block-value-after-return")), (uint32_t)9);
+BOOST_CHECK_THROW(bkend("loop-value-after-unreachable"), eosio::wasm_backend::wasm_interpreter_exception);
+
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("loop-value-after-br")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("loop-value-after-br_if")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("loop-value-after-br_table")), (uint32_t)9);
+BOOST_CHECK_EQUAL(TO_UINT32(*bkend("loop-value-after-return")), (uint32_t)9);
