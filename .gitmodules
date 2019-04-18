@@ -1,6 +1,3 @@
-[submodule "fc"]
-	path = fc
-	url = https://github.com/eosio/fc
 [submodule "softfloat"]
 	path = softfloat
 	url = https://github.com/eosio/berkeley-softfloat-3

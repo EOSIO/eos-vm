@@ -17,6 +17,8 @@ int main(int argc, char** argv) {
    auto code = backend::read_wasm( argv[1] );
    auto t1 = std::chrono::high_resolution_clock::now();
    eosio::wasm_backend::backend bkend( code, wa );
+   eosio::wasm_backend::registered_host_functions::add<print>("env", "print");
+
    /*
    try {
       bkend.execute_all();

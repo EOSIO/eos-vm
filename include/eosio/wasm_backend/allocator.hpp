@@ -127,7 +127,7 @@ namespace eosio { namespace wasm_backend {
             mprotect(raw, page_size, PROT_READ|PROT_WRITE);
          }
          template <typename T>
-         inline T* get_base_ptr()const { return raw; }
+         inline T* get_base_ptr()const { return reinterpret_cast<T*>(raw); }
          inline int32_t get_current_page()const { return page; }
    };
  }} // namespace eosio::wasm_backend
