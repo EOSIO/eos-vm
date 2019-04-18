@@ -262,7 +262,7 @@ namespace eosio { namespace wasm_backend {
       }
 
       template <auto Func, typename Backend>
-      static void add(const std::string& mod, const std::string& name) {
+      static void add(const std::string mod, const std::string name) {
          using deduced_full_ts = decltype(detail::get_args_full(Func));
          using deduced_ts      = decltype(detail::get_args(Func));
          using res_t           = decltype(std::apply(Func, deduced_ts{}));

@@ -9,8 +9,8 @@ enable_testing()
 file(GLOB UNIT_TESTS "spec_tests.cpp" "f32_tests.cpp" "i32_tests.cpp" "i64_tests.cpp" ) #"*.cpp")
 
 add_subdirectory(wasms)
-add_executable( unit_test main.cpp ${UNIT_TESTS} )
-target_link_libraries( unit_test 
+add_executable( eos_vm_unit_tests main.cpp ${UNIT_TESTS} )
+target_link_libraries( eos_vm_unit_tests
     wasm_interpreter
     ${Boost_FILESYSTEM_LIBRARY}
     ${Boost_SYSTEM_LIBRARY}
@@ -20,7 +20,7 @@ target_link_libraries( unit_test
     ${PLATFORM_SPECIFIC_LIBS}
    )
 
-target_include_directories( unit_test PUBLIC
+target_include_directories( eos_vm_unit_tests PUBLIC
                             ${Boost_INCLUDE_DIRS}
                             ${CMAKE_SOURCE_DIR}/include
                             ${CMAKE_SOURCE_DIR}/fc/include )
