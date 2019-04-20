@@ -74,7 +74,12 @@ target_include_directories( wasm_interpreter PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}
                                                     "${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/include"
                                                     "${Boost_INCLUDE_DIRS}" )
 
-if (not ${USE_EXISTING_SOFTLOAT})
+
+if (${USE_EXISTING_SOFTFLOAT} STREQUAL "")
+   set(USE_EXISTING_SOFTFLOAT "False")
+endif()
+
+if (NOT USE_EXISTING_SOFTFLOAT)
    set( C_DEFINES "-DSOFTFLOAT_FAST_INT64 -DSOFTFLOAT_ROUND_EVEN -DINLINE_LEVEL=5 -DSOFTFLOAT_FAST_DIV32TO16 -DSOFTFLOAT_FAST_DIV64TO32" )
    set( CMAKE_C_FLAGS " -Wall -Werror-implicit-function-declaration -Wno-conversion ${CMAKE_C_FLAGS} ${C_DEFINES}" )
    set ( softfloat_sources
