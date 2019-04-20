@@ -83,12 +83,12 @@ namespace eosio { namespace wasm_backend {
 
       template <>
       struct _to_wasm_t<traits<int>::i64_value_lv> {
-         typedef i64_const_t type;
+         typedef i32_const_t type;
       };
 
       template <>
       struct _to_wasm_t<traits<int>::i64_value_p> {
-         typedef i64_const_t type;
+         typedef i32_const_t type;
       };
 
       template <>
@@ -104,13 +104,36 @@ namespace eosio { namespace wasm_backend {
       template <typename T>
       using to_wasm_t = typename _to_wasm_t<traits<T>::value>::type;
 
-      template <typename T>
-      constexpr auto return_value(T&& val) {
-         if constexpr(std::is_same_v<i32_const_t, T> || std::is_same_v<i64_const_t, T>) 
-            return val.data.ui;
-         else if constexpr(std::is_same_v<f32_const_t, T> || std::is_same_v<f64_const_t, T>) 
-            return val.data.f;
-      } 
+      template <typename S, typename T>
+      constexpr auto get_value(T&& val) -> std::enable_if_t<std::is_same_v<i32_const_t, T> && std::is_lvalue_reference_v<S>, S> {
+         return (*((std::remove_reference_t<S>*)(val.data.ui)));
+      }
+
+      template <typename S, typename T>
+      constexpr auto get_value(T&& val) -> std::enable_if_t<std::is_same_v<i32_const_t, T> && std::is_pointer_v<S>, S> {
+         return (S*)(val.data.ui);
+      }
+
+      template <typename S, typename T>
+      constexpr auto get_value(T&& val) -> std::enable_if_t<std::is_same_v<i32_const_t, T> && 
+                                           (!std::is_lvalue_reference_v<S> && !std::is_pointer_v<S>), S> {
+         return val.data.ui;
+      }
+
+      template <typename S, typename T>
+      constexpr auto get_value(T&& val) -> std::enable_if_t<std::is_same_v<i64_const_t, T>, S> {
+         return val.data.ui;
+      }
+
+      template <typename S, typename T>
+      constexpr auto get_value(T&& val) -> std::enable_if_t<std::is_same_v<f32_const_t, T>, S> {
+         return val.data.f;
+      }
+
+      template <typename S, typename T>
+      constexpr auto get_value(T&& val) -> std::enable_if_t<std::is_same_v<f64_const_t, T>, S> {
+         return val.data.f;
+      }
 
       template <typename Backend, auto F, typename R, typename Args, size_t... Is>
       auto create_function(std::index_sequence<Is...>) {
@@ -122,7 +145,7 @@ namespace eosio { namespace wasm_backend {
                   os.push(to_wasm_t<R>{std::invoke(F, std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>::type>(os.pop())...)});
                }
                else
-                  std::invoke(F, return_value(std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
+                  std::invoke(F, get_value<typename std::tuple_element<Is, Args>::type>(std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
                os.trim(sizeof...(Is));
             }
          };
@@ -278,6 +301,7 @@ namespace eosio { namespace wasm_backend {
       static void resolve( Module& mod ) {
          mod.import_functions.resize(mod.get_imported_functions_size());
          auto& current_mappings = get_mappings<typename Module::backend_type>();
+         std::cout << "HEE\n";
          for (int i=0; i < mod.imports.size(); i++) {
             std::string mod_name{ (char*)mod.imports[i].module_str.raw(), mod.imports[i].module_len };
             std::string fn_name{ (char*)mod.imports[i].field_str.raw(), mod.imports[i].field_len };

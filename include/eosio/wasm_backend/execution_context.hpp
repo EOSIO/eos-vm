@@ -340,7 +340,7 @@ namespace eosio { namespace wasm_backend {
                   if (_pc == _exit_pc && _as.size() <= 1) {
                      _executing = false;
                   }
-                  std::visit(visitor, _mod.code.at_no_check(_code_index).code.at_no_check(offset));
+                  std::visit(visitor, _mod.code.at(_code_index).code.at(offset));
                } while (_executing);
             }
 
