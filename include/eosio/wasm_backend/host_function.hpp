@@ -104,48 +104,48 @@ namespace eosio { namespace wasm_backend {
       template <typename T>
       using to_wasm_t = typename _to_wasm_t<traits<T>::value>::type;
 
-      template <typename S, typename T>
-      constexpr auto get_value(T&& val) -> std::enable_if_t<std::is_same_v<i32_const_t, T> && std::is_lvalue_reference_v<S>, S> {
-         return (*((std::remove_reference_t<S>*)(val.data.ui)));
+      template <typename S, typename T, typename Backend>
+      constexpr auto get_value(Backend& backend, T&& val) -> std::enable_if_t<std::is_same_v<i32_const_t, T> && std::is_lvalue_reference_v<S>, S> {
+         return (*((std::remove_reference_t<S>*)(backend.get_wasm_allocator().template get_base_ptr<uint8_t>()+val.data.ui)));
       }
 
-      template <typename S, typename T>
-      constexpr auto get_value(T&& val) -> std::enable_if_t<std::is_same_v<i32_const_t, T> && std::is_pointer_v<S>, S> {
-         return (S*)(val.data.ui);
+      template <typename S, typename T, typename Backend>
+      constexpr auto get_value(Backend& backend, T&& val) -> std::enable_if_t<std::is_same_v<i32_const_t, T> && std::is_pointer_v<S>, S> {
+         return (S)(backend.get_wasm_allocator().template get_base_ptr<uint8_t>()+val.data.ui);
       }
 
-      template <typename S, typename T>
-      constexpr auto get_value(T&& val) -> std::enable_if_t<std::is_same_v<i32_const_t, T> && 
+      template <typename S, typename T, typename Backend>
+      constexpr auto get_value(Backend& backend, T&& val) -> std::enable_if_t<std::is_same_v<i32_const_t, T> && 
                                            (!std::is_lvalue_reference_v<S> && !std::is_pointer_v<S>), S> {
          return val.data.ui;
       }
 
-      template <typename S, typename T>
-      constexpr auto get_value(T&& val) -> std::enable_if_t<std::is_same_v<i64_const_t, T>, S> {
+      template <typename S, typename T, typename Backend>
+      constexpr auto get_value(Backend& backend, T&& val) -> std::enable_if_t<std::is_same_v<i64_const_t, T>, S> {
          return val.data.ui;
       }
 
-      template <typename S, typename T>
-      constexpr auto get_value(T&& val) -> std::enable_if_t<std::is_same_v<f32_const_t, T>, S> {
+      template <typename S, typename T, typename Backend>
+      constexpr auto get_value(Backend& backend, T&& val) -> std::enable_if_t<std::is_same_v<f32_const_t, T>, S> {
          return val.data.f;
       }
 
-      template <typename S, typename T>
-      constexpr auto get_value(T&& val) -> std::enable_if_t<std::is_same_v<f64_const_t, T>, S> {
+      template <typename S, typename T, typename Backend>
+      constexpr auto get_value(Backend& backend, T&& val) -> std::enable_if_t<std::is_same_v<f64_const_t, T>, S> {
          return val.data.f;
       }
 
       template <typename Backend, auto F, typename R, typename Args, size_t... Is>
       auto create_function(std::index_sequence<Is...>) {
-         return std::function<void(eosio::wasm_backend::operand_stack<Backend>&)>{
-            [](eosio::wasm_backend::operand_stack<Backend>& os) {
+         return std::function<void(Backend& backend, eosio::wasm_backend::operand_stack<Backend>&)>{
+            [](Backend& backend, eosio::wasm_backend::operand_stack<Backend>& os) {
                int i = sizeof...(Is)-1;
                if constexpr (!std::is_same_v<R, void>) {
                   // TODO fix this
                   os.push(to_wasm_t<R>{std::invoke(F, std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>::type>(os.pop())...)});
                }
                else
-                  std::invoke(F, get_value<typename std::tuple_element<Is, Args>::type>(std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
+                  std::invoke(F, get_value<typename std::tuple_element<Is, Args>::type>(backend, std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
                os.trim(sizeof...(Is));
             }
          };
