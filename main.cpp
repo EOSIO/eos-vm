@@ -6,7 +6,29 @@
 using namespace eosio;
 using namespace eosio::wasm_backend;
 
-void print(const std::string& s) {
+struct sstr {
+   sstr(const char* s, size_t l) {
+      data = new char[l];
+      len  = l;
+   }
+   char* data;
+   size_t len;
+};
+
+void mabort() {
+   std::cout << "ABORT!!!\n";
+}
+
+void eosio_assert(const char*) {
+   std::cout << "EOSIO ASSERT\n";
+}
+
+void fmemset(char* dp, const char* sp, int32_t len) {
+   for (int i=0; i < len; i++)
+      dp[i] = sp[i];
+}
+
+void print(const char* s) {
    //std::cout << "PRINT " << a << " " << b << " " << c << " " << d << " " << e << " " << f << " " << g << "\n";
    std::cout << "PRINT " << s << "\n";
 }
@@ -19,6 +41,9 @@ int main(int argc, char** argv) {
    auto t1 = std::chrono::high_resolution_clock::now();
    eosio::wasm_backend::backend bkend( code, wa );
    eosio::wasm_backend::registered_host_functions::add<print, eosio::wasm_backend::backend>("env", "print");
+   eosio::wasm_backend::registered_host_functions::add<abort, eosio::wasm_backend::backend>("env", "mabort");
+   eosio::wasm_backend::registered_host_functions::add<eosio_assert, eosio::wasm_backend::backend>("env", "eosio_assert");
+   eosio::wasm_backend::registered_host_functions::add<fmemset, eosio::wasm_backend::backend>("env", "memset");
    eosio::wasm_backend::registered_host_functions::resolve( bkend.get_module() );
    try {
       bkend.execute_all();
