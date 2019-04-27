@@ -15,8 +15,10 @@
 #define __EOSIO_DBG__
 
 namespace eosio { namespace wasm_backend {
+   template <typename Host>
    class backend {
       public:
+      using host_t = Host;
       backend(wasm_code& code, wasm_allocator& wa)
          : _walloc(wa),
            _balloc(constants::max_code_size*2),
@@ -26,19 +28,19 @@ namespace eosio { namespace wasm_backend {
       }
 
          template <typename... Args>
-         inline std::optional<stack_elem> operator()(const std::string_view func, Args... args) {
+         inline std::optional<stack_elem> operator()(Host* host, const std::string_view func, Args... args) {
             #ifdef __EOSIO_DBG__
-               return _ctx.execute(debug_visitor<backend>{*this, _ctx}, func, args...);
+            return _ctx.execute(host, debug_visitor<backend>{*this, _ctx}, func, args...);
             #else
-               return _ctx.execute(interpret_visitor<backend>{*this, _ctx}, func, args...);
+            return _ctx.execute(host, interpret_visitor<backend>{*this, _ctx}, func, args...);
             #endif
          }
 
-         inline void execute_all() {
+         inline void execute_all(Host* host) {
             for (int i=0; i < _mod.exports.size(); i++) {
                if (_mod.exports[i].kind == external_kind::Function) {
                   std::string s{(const char*)_mod.exports[i].field_str.raw(), _mod.exports[i].field_len};
-                  _ctx.execute(interpret_visitor<backend>{*this, _ctx}, s);
+                  _ctx.execute(host, interpret_visitor<backend>{*this, _ctx}, s);
                }
             }
          }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <unordered_map>
 #include <string_view>
 #include <optional>
@@ -31,8 +32,33 @@ namespace eosio { namespace wasm_backend {
          return get_args_full<Args...>(std::index_sequence_for<Args...>{});
       }
 
+      template <typename R, typename Cls, typename... Args>
+      auto get_args_full(R (Cls::*)(Args...)) {
+         return get_args_full<Args...>(std::index_sequence_for<Args...>{});
+      }
+
+      template <typename T>
+      struct return_type_wrapper {
+         using type = T;
+      };
+
+      template <typename R, typename... Args>
+      auto get_return_t(R(Args...)) {
+         return return_type_wrapper<R>{};
+      }
+
+      template <typename R, typename Cls, typename... Args>
+      auto get_return_t(R (Cls::*)(Args...)) {
+         return return_type_wrapper<R>{};
+      }
+
       template <typename R, typename... Args>
       auto get_args(R(Args...)) {
+         return std::tuple<std::decay_t<Args>...>{};
+      }
+
+      template <typename R, typename Cls, typename... Args>
+      auto get_args(R (Cls::*)(Args...)) {
          return std::tuple<std::decay_t<Args>...>{};
       }
 
@@ -135,17 +161,33 @@ namespace eosio { namespace wasm_backend {
          return val.data.f;
       }
 
-      template <typename Backend, auto F, typename R, typename Args, size_t... Is>
+      template <typename Backend, typename Cls, auto F, typename R, typename Args, size_t... Is>
       auto create_function(std::index_sequence<Is...>) {
-         return std::function<void(Backend& backend, eosio::wasm_backend::operand_stack<Backend>&)>{
-            [](Backend& backend, eosio::wasm_backend::operand_stack<Backend>& os) {
-               int i = sizeof...(Is)-1;
+         return std::function<void(Cls*, Backend&, eosio::wasm_backend::operand_stack<Backend>&)>{
+            [](Cls* self, Backend& backend, eosio::wasm_backend::operand_stack<Backend>& os) {
+               size_t i = sizeof...(Is)-1;
                if constexpr (!std::is_same_v<R, void>) {
-                  // TODO fix this
-                  os.push(to_wasm_t<R>{std::invoke(F, std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>::type>(os.pop())...)});
+                  if constexpr (std::is_same_v<Cls, std::nullptr_t>) {
+                     os.push(to_wasm_t<R>{std::invoke(F, get_value<typename std::tuple_element<Is, Args>::type>(
+                        backend, std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(
+                           os.get_back(i - Is)))...)});
+                  } else {
+                     os.push(to_wasm_t<R>{std::invoke(F, self, get_value<typename std::tuple_element<Is, Args>::type>(
+                        backend, std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(
+                           os.get_back(i - Is)))...)});
+                  }
                }
-               else
-                  std::invoke(F, get_value<typename std::tuple_element<Is, Args>::type>(backend, std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
+               else {
+                  if constexpr (std::is_same_v<Cls, std::nullptr_t>) {
+                     std::invoke(F, get_value<typename std::tuple_element<Is, Args>::type>(
+                        backend, std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(
+                           os.get_back(i - Is)))...);
+                  } else {
+                     std::invoke(F, self, get_value<typename std::tuple_element<Is, Args>::type>(
+                        backend, std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(
+                           os.get_back(i - Is)))...);
+                  }
+               }
                os.trim(sizeof...(Is));
             }
          };
@@ -217,7 +259,7 @@ namespace eosio { namespace wasm_backend {
    };
 
    template <typename Ret, typename... Args>
-   host_function function_types_provider( Ret(*func)(Args...) ) {
+   host_function function_types_provider() {
       host_function hf;
       hf.ptr = (void*)func;
       hf.params = {to_wasm_type_v<Args>...};
@@ -225,6 +267,16 @@ namespace eosio { namespace wasm_backend {
          hf.ret = {to_wasm_type_v<Ret>};
       }
       return hf;
+   }
+
+   template <typename Ret, typename... Args>
+   host_function function_types_provider( Ret(*func)(Args...) ) {
+      return function_types_provider<Ret, Args...>();
+   }
+
+   template <typename Ret, typename Cls, typename... Args>
+   host_function function_types_provider( Ret(*func)(Args...) ) {
+      return function_types_provider<Ret, Args...>();
    }
 
    template <char... Str>
@@ -269,12 +321,13 @@ namespace eosio { namespace wasm_backend {
       static constexpr bool is_member = true;
    };
 
+   template <typename Cls>
    struct registered_host_functions {
       template <typename Backend>
       struct mappings {
          std::unordered_map<std::string, uint32_t> named_mapping;
          std::vector<host_function>                host_functions;
-         std::vector<std::function<void(operand_stack<Backend>&)>> functions;
+         std::vector<std::function<void(Cls*, Backend&, operand_stack<Backend>&)>> functions;
          size_t                                    current_index = 0;
       };
 
@@ -288,20 +341,19 @@ namespace eosio { namespace wasm_backend {
       static void add(const std::string mod, const std::string name) {
          using deduced_full_ts = decltype(detail::get_args_full(Func));
          using deduced_ts      = decltype(detail::get_args(Func));
-         using res_t           = decltype(std::apply(Func, deduced_ts{}));
+         using res_t           = typename decltype(detail::get_return_t(Func))::type;
          static constexpr auto is = std::make_index_sequence<std::tuple_size<deduced_ts>::value>();
 
          auto& current_mappings = get_mappings<Backend>();
          current_mappings.named_mapping[name] = current_mappings.current_index++;
-         current_mappings.host_functions.push_back( function_types_provider(Func) );
-         current_mappings.functions.push_back( detail::create_function<Backend, Func, res_t, deduced_full_ts>(is) );
+         //current_mappings.host_functions.push_back( function_types_provider(Func) );
+         current_mappings.functions.push_back( detail::create_function<Backend, Cls, Func, res_t, deduced_full_ts>(is) );
       }
 
       template <typename Module>
       static void resolve( Module& mod ) {
          mod.import_functions.resize(mod.get_imported_functions_size());
          auto& current_mappings = get_mappings<typename Module::backend_type>();
-         std::cout << "HEE\n";
          for (int i=0; i < mod.imports.size(); i++) {
             std::string mod_name{ (char*)mod.imports[i].module_str.raw(), mod.imports[i].module_len };
             std::string fn_name{ (char*)mod.imports[i].field_str.raw(), mod.imports[i].field_len };
@@ -312,9 +364,9 @@ namespace eosio { namespace wasm_backend {
       }
 
       template <typename Execution_Context>
-      void operator()(Execution_Context& ctx, uint32_t index) {
+      void operator()(Cls* host, Execution_Context& ctx, uint32_t index) {
          const auto& _func = get_mappings<typename Execution_Context::backend_type>().functions[index];
-         std::invoke(_func, ctx.get_operand_stack());
+         std::invoke(_func, host, ctx.get_backend(), ctx.get_operand_stack());
          return;
          static constexpr size_t calling_conv_arg_cnt = 6;
 #if not defined __x86_64__ and (__APPLE__ or __linux__)
@@ -472,10 +524,10 @@ namespace eosio { namespace wasm_backend {
 
    };
 
-   template <auto F, typename Mod, typename Name, typename Backend >
+   template <typename Cls, auto F, typename Mod, typename Name, typename Backend >
    struct registered_function {
       registered_function() {
-         registered_host_functions::add<F, Backend>(std::string{Mod::value, Mod::len}, std::string{Name::value, Name::len});
+         registered_host_functions<Cls>::template add<Cls, F, Backend>(std::string{Mod::value, Mod::len}, std::string{Name::value, Name::len});
       }
 
       static constexpr auto function = F;
