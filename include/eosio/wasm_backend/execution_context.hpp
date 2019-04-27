@@ -14,6 +14,7 @@ namespace eosio { namespace wasm_backend {
             execution_context(Backend& backend, module<Backend>& m, wasm_allocator& wa) :
               _mod(m),
               _alloc(wa),
+	      _backend(backend),
               _cs(backend),
               _os(backend),
               _as(backend) {
@@ -48,7 +49,7 @@ namespace eosio { namespace wasm_backend {
                   // TODO validate only importing functions
                   const auto& ft = _mod.types[_mod.imports[index].type.func_t];
                   type_check(ft);
-                  _rhf(*this, _mod.import_functions[index]);
+                  _rhf(_host, *this, _mod.import_functions[index]);
                   inc_pc();
                } else {
                   const auto& ft = _mod.types[_mod.functions[index - _mod.get_imported_functions_size()]];
@@ -181,6 +182,7 @@ namespace eosio { namespace wasm_backend {
             }
 
             inline void type_check( const func_type<Backend>& ft ) {
+               std::cout << "TYPE CHECK " << ft.param_count << "\n";
               for (int i=0; i < ft.param_count; i++) {
                 const auto& op = peek_operand((ft.param_count-1)-i);
                 std::visit(overloaded {
@@ -207,7 +209,8 @@ namespace eosio { namespace wasm_backend {
             inline bool executing()const { _executing; }
 
             template <typename Visitor, typename... Args>
-            inline std::optional<stack_elem> execute(Visitor&& visitor, const std::string_view func, Args... args) {
+            inline std::optional<stack_elem> execute(typename Backend::host_t* host, Visitor&& visitor, const std::string_view func, Args... args) {
+               _host = host;
                _alloc.reset();
 
                for (int i=0; i < _mod.data.size(); i++) {
@@ -235,11 +238,13 @@ namespace eosio { namespace wasm_backend {
 
                push_args(args...);
                push_call(func_index);
+               std::cout << "Function " << func << " index " << func_index << "\n";
                type_check(_mod.types[_mod.functions[func_index - _mod.import_functions.size()]]);
                setup_locals(func_index);
                _pc = _current_offset; // set to actual start of function
 
                execute(visitor);
+               std::cout << "WHO\n";
                stack_elem ret;
                //TODO clean this up
                try {
@@ -284,6 +289,8 @@ namespace eosio { namespace wasm_backend {
                   eat_operands(op_index);
                }
             }
+
+	    Backend& get_backend() { return _backend; }
 
             size_t insts = 0;
             typedef Backend backend_type;
@@ -333,7 +340,7 @@ namespace eosio { namespace wasm_backend {
             }
 
             template <typename Visitor>
-            void execute( Visitor&& visitor ) {
+            void execute(Visitor&& visitor ) {
                do {
                   insts++;
                   uint32_t offset = _pc - _current_offset;
@@ -354,6 +361,8 @@ namespace eosio { namespace wasm_backend {
             uint8_t*      _linear_memory    = nullptr;
             module<Backend>&     _mod;
             wasm_allocator&      _alloc;
+            Backend&             _backend;
+            typename Backend::host_t* _host;
             //fixed_stack<Backend> _cs;
             //fixed_stack<Backend> _os;
             //fixed_stack<Backend> _as;
@@ -361,6 +370,6 @@ namespace eosio { namespace wasm_backend {
             operand_stack<Backend> _os;
             call_stack<Backend>    _as;
 
-            registered_host_functions _rhf;
+            registered_host_functions<typename Backend::host_t> _rhf;
       };
 }} // ns eosio::wasm_backend
