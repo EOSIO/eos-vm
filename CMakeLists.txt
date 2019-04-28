@@ -1,6 +1,6 @@
-# Defines wasm_interpreter library
+# Defines eos-vm library
 cmake_minimum_required( VERSION 3.8 )
-project ( WasmInterpreter )
+project ( eos-vm )
 set( VERSION_MAJOR 0 )
 set( VERSION_MINOR 0 )
 set( VERSION_PATCH 0 )
@@ -53,7 +53,7 @@ if ( APPLE )
    set( CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -O3 -Wall -Wno-deprecated-declarations -mllvm -use-cfl-aa-in-codegen=both" )
    set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto" )
 else()
-   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall" )
+   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O3" )
    set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++ -static-libgcc" )
 endif()
 
@@ -63,19 +63,19 @@ set (CMAKE_EXPORT_COMPILE_COMMANDS "ON")
 message( STATUS "Configuring WasmInterpreter" )
 set( CMAKE_C_FLAGS " -Wall -Werror-implicit-function-declaration -Wno-conversion ${CMAKE_C_FLAGS} ${C_DEFINES}" )
 
-file( GLOB wasm_interpreter_sources "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp" )
-file( GLOB wasm_interpreter_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/eosio/wasm_backend/*.hpp" )
+file( GLOB eos_vm_sources "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp" )
+file( GLOB eos_vm_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/eosio/wasm_backend/*.hpp" )
 
-list( APPEND wasm_interpreter_sources ${wasm_interpreter_headers} )
-add_library ( wasm_interpreter STATIC ${wasm_interpreter_sources} )
+list( APPEND eos_vm_sources ${eos_vm_headers} )
+add_library ( eos-vm STATIC ${eos_vm_sources} )
 
 add_executable( prog ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp )
-target_link_libraries( prog wasm_interpreter )
+target_link_libraries( prog eos-vm )
 target_include_directories( prog PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/include")
 
-#add_executable( wasm_t ${CMAKE_SOURCE_DIR}/tests/fuzz/fuzz_parser.cpp ${fc} ${wasm_interpreter} ${filesystem} ${chrono} ${date_time})
+#add_executable( wasm_t ${CMAKE_SOURCE_DIR}/tests/fuzz/fuzz_parser.cpp ${fc} ${eos-vm} ${filesystem} ${chrono} ${date_time})
 
-target_include_directories( wasm_interpreter PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
+target_include_directories( eos-vm PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
                                                     "${CMAKE_CURRENT_SOURCE_DIR}/${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/include"
                                                     "${Boost_INCLUDE_DIRS}" )
 
@@ -84,6 +84,7 @@ if (NOT DEFINED ${USE_EXISTING_SOFTFLOAT} OR ${USE_EXISTING_SOFTFLOAT} STREQUAL 
    set(USE_EXISTING_SOFTFLOAT "False")
 endif()
 
+#set(USE_EXISTING_SOFTFLOAT "True")
 if (NOT USE_EXISTING_SOFTFLOAT)
    set( C_DEFINES "-DSOFTFLOAT_FAST_INT64 -DSOFTFLOAT_ROUND_EVEN -DINLINE_LEVEL=5 -DSOFTFLOAT_FAST_DIV32TO16 -DSOFTFLOAT_FAST_DIV64TO32" )
    set( CMAKE_C_FLAGS " -Wall -Werror-implicit-function-declaration -Wno-conversion ${CMAKE_C_FLAGS} ${C_DEFINES}" )
@@ -400,9 +401,9 @@ if (NOT USE_EXISTING_SOFTFLOAT)
    add_library ( sf STATIC ${softfloat_sources} )
    target_include_directories( sf PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/include" "${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/8086-SSE" "${CMAKE_CURRENT_SOURCE_DIR}/softfloat/build/Linux-x86_64-GCC" ${CMAKE_SOURCE_DIR})
 
-   target_link_libraries( wasm_interpreter sf )
+   target_link_libraries( eos-vm sf )
 else()
-   target_link_libraries( wasm_interpreter softfloat )
+   target_link_libraries( eos-vm softfloat )
 endif()
 
 if (NOT DEFINED ${BUILD_TESTS} OR ${BUILD_TESTS} STREQUAL "")

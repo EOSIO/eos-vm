@@ -43,7 +43,8 @@ int main(int argc, char** argv) {
    using rhf_t     = eosio::wasm_backend::registered_host_functions<foo_s>;
    auto code = backend_t::read_wasm( argv[1] );
    auto t1 = std::chrono::high_resolution_clock::now();
-   backend_t bkend( code, wa );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
    rhf_t::add<&foo_s::print, backend_t>("env", "print");
    rhf_t::add<&foo_s::mabort, backend_t>("env", "abort");
    rhf_t::add<&foo_s::eosio_assert, backend_t>("env", "eosio_assert");
@@ -51,7 +52,7 @@ int main(int argc, char** argv) {
    rhf_t::resolve( bkend.get_module() );
    try {
       foo_s fs;
-      bkend(&fs, "apply", (uint64_t)0, (uint64_t)0, (uint64_t)0);
+      bkend(&fs, "env", "apply", (uint64_t)0, (uint64_t)0, (uint64_t)0);
    } catch ( const wasm_interpreter_exception& ex ) {
       std::cerr << ex.what() << " : " << ex.detail() << "\n";
    } catch ( const wasm_invalid_element& ex ) {
