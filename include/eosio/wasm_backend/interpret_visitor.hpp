@@ -16,9 +16,8 @@ namespace eosio { namespace wasm_backend {
 
 template <typename Backend>
 struct interpret_visitor {
-   interpret_visitor(Backend& backend, execution_context<Backend>& ec) : context(ec), allocator(backend.get_wasm_allocator()) {}
+   interpret_visitor(Backend& backend, execution_context<Backend>& ec) : context(ec) {}
    execution_context<Backend>& context;
-   wasm_allocator& allocator;
 
    execution_context<Backend>& get_context() { return context; }
 

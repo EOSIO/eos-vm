@@ -19,20 +19,20 @@ namespace eosio { namespace wasm_backend {
    class backend {
       public:
       using host_t = Host;
-      backend(wasm_code& code, wasm_allocator& wa)
-         : _walloc(wa),
-           _balloc(constants::max_code_size*2),
+      backend(wasm_code& code)
+         : _balloc(constants::initial_module_size),
            _mod(*this),
-           _ctx( *this, binary_parser<backend>{*this}.parse_module( code, _mod ), wa ) {
-         //registered_host_functions::resolve(_mod);
+           _ctx( *this, binary_parser<backend>{*this}.parse_module( code, _mod ) ) {
       }
 
          template <typename... Args>
-         inline std::optional<stack_elem> operator()(Host* host, const std::string_view func, Args... args) {
+         inline bool operator()(Host* host, const std::string_view& mod,  const std::string_view& func, Args... args) {
             #ifdef __EOSIO_DBG__
-            return _ctx.execute(host, debug_visitor<backend>{*this, _ctx}, func, args...);
+            _ctx.execute(host, debug_visitor<backend>{*this, _ctx}, func, args...);
+            return true;
             #else
-            return _ctx.execute(host, interpret_visitor<backend>{*this, _ctx}, func, args...);
+            _ctx.execute(host, interpret_visitor<backend>{*this, _ctx}, func, args...);
+            return true;
             #endif
          }
 
@@ -45,9 +45,15 @@ namespace eosio { namespace wasm_backend {
             }
          }
 
-         wasm_allocator& get_wasm_allocator() { return _walloc; }
-         bounded_allocator& get_allocator() { return _balloc; }
-         module<backend>& get_module() { return _mod; }
+         inline void immediate_exit() { _ctx.exit(); }
+         inline void set_wasm_allocator( wasm_allocator* walloc ) {
+            _walloc = walloc;
+            _ctx.set_wasm_allocator( walloc );
+         }
+         inline wasm_allocator* get_wasm_allocator() { return _walloc; }
+
+         inline bounded_allocator& get_allocator() { return _balloc; }
+         inline module<backend>& get_module() { return _mod; }
 
          static std::vector<uint8_t> read_wasm( const std::string& fname ) {
             std::ifstream wasm_file( fname, std::ios::binary );
@@ -64,9 +70,9 @@ namespace eosio { namespace wasm_backend {
             wasm_file.close();
             return wasm;
          }
-      inline size_t get_instructions()const { return _ctx.insts; }
+         inline size_t get_instructions()const { return _ctx.insts; }
       private:
-         wasm_allocator&    _walloc;
+         wasm_allocator*    _walloc; // non owning pointer
          bounded_allocator  _balloc;
          module<backend>    _mod;
          execution_context<backend> _ctx;

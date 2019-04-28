@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <utility>
 #include <unordered_map>
 #include <string_view>
 #include <optional>
@@ -20,7 +21,6 @@
 namespace eosio { namespace wasm_backend {
 
    namespace detail {
-
       template <typename... Args, size_t... Is>
       auto get_args_full(std::index_sequence<Is...>) {
          std::tuple<std::decay_t<Args>...> tup;
@@ -132,12 +132,12 @@ namespace eosio { namespace wasm_backend {
 
       template <typename S, typename T, typename Backend>
       constexpr auto get_value(Backend& backend, T&& val) -> std::enable_if_t<std::is_same_v<i32_const_t, T> && std::is_lvalue_reference_v<S>, S> {
-         return (*((std::remove_reference_t<S>*)(backend.get_wasm_allocator().template get_base_ptr<uint8_t>()+val.data.ui)));
+         return (*((std::remove_reference_t<S>*)(backend.get_wasm_allocator()->template get_base_ptr<uint8_t>()+val.data.ui)));
       }
 
       template <typename S, typename T, typename Backend>
       constexpr auto get_value(Backend& backend, T&& val) -> std::enable_if_t<std::is_same_v<i32_const_t, T> && std::is_pointer_v<S>, S> {
-         return (S)(backend.get_wasm_allocator().template get_base_ptr<uint8_t>()+val.data.ui);
+         return (S)(backend.get_wasm_allocator()->template get_base_ptr<uint8_t>()+val.data.ui);
       }
 
       template <typename S, typename T, typename Backend>
@@ -320,15 +320,25 @@ namespace eosio { namespace wasm_backend {
       using name_t = Name;
       static constexpr bool is_member = true;
    };
+  
+   using host_func_pair = std::pair<std::string, std::string>; 
+   struct host_func_pair_hash {
+      template <class T, class U>
+      std::size_t operator() (const std::pair<T,U>& p) const {
+         return std::hash<T>()(p.first) ^ std::hash<U>()(p.second);
+      }
+   };
 
    template <typename Cls>
    struct registered_host_functions {
       template <typename Backend>
       struct mappings {
-         std::unordered_map<std::string, uint32_t> named_mapping;
-         std::vector<host_function>                host_functions;
-         std::vector<std::function<void(Cls*, Backend&, operand_stack<Backend>&)>> functions;
-         size_t                                    current_index = 0;
+         std::unordered_map<std::pair<std::string, std::string>, 
+		            uint32_t, host_func_pair_hash>  named_mapping;
+         std::vector<host_function>                         host_functions;
+         std::vector<std::function<
+	    void(Cls*, Backend&, operand_stack<Backend>&)>> functions;
+         size_t                                             current_index = 0;
       };
 
       template <typename Backend>
@@ -338,15 +348,14 @@ namespace eosio { namespace wasm_backend {
       }
 
       template <auto Func, typename Backend>
-      static void add(const std::string mod, const std::string name) {
+      static void add(const std::string& mod, const std::string& name) {
          using deduced_full_ts = decltype(detail::get_args_full(Func));
          using deduced_ts      = decltype(detail::get_args(Func));
          using res_t           = typename decltype(detail::get_return_t(Func))::type;
          static constexpr auto is = std::make_index_sequence<std::tuple_size<deduced_ts>::value>();
 
          auto& current_mappings = get_mappings<Backend>();
-         current_mappings.named_mapping[name] = current_mappings.current_index++;
-         //current_mappings.host_functions.push_back( function_types_provider(Func) );
+         current_mappings.named_mapping[{mod, name}] = current_mappings.current_index++;
          current_mappings.functions.push_back( detail::create_function<Backend, Cls, Func, res_t, deduced_full_ts>(is) );
       }
 
@@ -357,9 +366,8 @@ namespace eosio { namespace wasm_backend {
          for (int i=0; i < mod.imports.size(); i++) {
             std::string mod_name{ (char*)mod.imports[i].module_str.raw(), mod.imports[i].module_len };
             std::string fn_name{ (char*)mod.imports[i].field_str.raw(), mod.imports[i].field_len };
-            EOS_WB_ASSERT(current_mappings.named_mapping.count(fn_name), wasm_link_exception, "no mapping for imported function");
-            mod.import_functions[i] = current_mappings.named_mapping[fn_name];
-            std::cout << "fn " << fn_name << "\n";
+            EOS_WB_ASSERT(current_mappings.named_mapping.count({mod_name, fn_name}), wasm_link_exception, "no mapping for imported function");
+            mod.import_functions[i] = current_mappings.named_mapping[{mod_name, fn_name}];
          }
       }
 
@@ -367,159 +375,6 @@ namespace eosio { namespace wasm_backend {
       void operator()(Cls* host, Execution_Context& ctx, uint32_t index) {
          const auto& _func = get_mappings<typename Execution_Context::backend_type>().functions[index];
          std::invoke(_func, host, ctx.get_backend(), ctx.get_operand_stack());
-         return;
-         static constexpr size_t calling_conv_arg_cnt = 6;
-#if not defined __x86_64__ and (__APPLE__ or __linux__)
-         static_assert(false, "currently only supporting x86_64 on Linux and Apple");
-#endif
-         const auto& func = get_mappings<typename Execution_Context::backend_type>().host_functions[index];
-         uint64_t args[calling_conv_arg_cnt] = {0};
-
-         int i=0;
-         for (;i < func.params.size() && i < calling_conv_arg_cnt; i++) {
-            const auto& op = ctx.pop_operand();
-            switch (func.params[i]) {
-                  case types::i32:
-                  {
-                     __BACKEND_GET_ARG(args[i], op, i32_const_t);
-                     break;
-                  }
-                  case types::i64:
-                  {
-                     __BACKEND_GET_ARG(args[i], op, i64_const_t);
-                     break;
-                  }
-                  case types::f32:
-                  {
-                     __BACKEND_GET_ARG(args[i], op, f32_const_t);
-                     break;
-                  }
-                  case types::f64:
-                  {
-                     __BACKEND_GET_ARG(args[i], op, f64_const_t);
-                     break;
-                  }
-            }
-         }
-
-         const size_t  param_cnt = func.params.size(); // must be volatile to ensure that it is a memory operand
-         const bool    has_ret   = func.ret.size();
-         const uint8_t ret_type  = has_ret ? func.ret[0] : 0;
-
-         uint64_t return_val = 0;
-         switch (func.params.size()) {
-            case 0:
-               asm( "callq *%1\n\t"
-                    "movq %%rax, %0"
-                  : "=r"(return_val)
-                  : "a"(func.ptr));
-               break;
-            case 1:
-               asm("movq %2, %%rdi\n\t"
-                   "callq *%1\n\t"
-                   "movq %%rax, %0"
-                  : "=r"(return_val)
-                  : "a"(func.ptr), "g"(args[0])
-                  : "rdi");
-               break;
-            case 2:
-               asm("movq %2, %%rdi\n\t"
-                   "movq %3, %%rsi\n\t"
-                   "callq *%1\n\t"
-                   "movq %%rax, %0"
-                  : "=r"(return_val)
-                  : "a"(func.ptr), "g"(args[1]), "g"(args[0])
-                  : "rdi", "rsi");
-               break;
-            case 3:
-               asm("movq %2, %%rdi\n\t"
-                   "movq %3, %%rsi\n\t"
-                   "movq %4, %%rdx\n\t"
-                   "callq *%1\n\t"
-                   "movq %%rax, %0"
-                  : "=r"(return_val)
-                  : "a"(func.ptr), "g"(args[2]), "g"(args[1]), "g"(args[0])
-                  : "rdi", "rsi", "rdx");
-               break;
-            case 4:
-               asm("movq %2, %%rdi\n\t"
-                   "movq %3, %%rsi\n\t"
-                   "movq %4, %%rdx\n\t"
-                   "movq %5, %%rcx\n\t"
-                   "callq *%1\n\t"
-                   "movq %%rax, %0"
-                  : "=r"(return_val)
-                  : "a"(func.ptr), "g"(args[3]), "g"(args[2]), "g"(args[1]), "g"(args[0])
-                  : "rdi", "rsi", "rdx", "rcx");
-               break;
-            case 5:
-               asm("movq %2, %%rdi\n\t"
-                   "movq %3, %%rsi\n\t"
-                   "movq %4, %%rdx\n\t"
-                   "movq %5, %%rcx\n\t"
-                   "movq %6, %%r8\n\t"
-                   "callq *%1\n\t"
-                   "movq %%rax, %0"
-                  : "=r"(return_val)
-                  : "a"(func.ptr), "g"(args[4]), "g"(args[3]), "g"(args[2]), "g"(args[1]), "g"(args[0])
-                  : "rdi", "rsi", "rdx", "rcx", "r8");
-               break;
-            case 6:
-               asm("movq %2, %%rdi\n\t"
-                   "movq %3, %%rsi\n\t"
-                   "movq %4, %%rdx\n\t"
-                   "movq %5, %%rcx\n\t"
-                   "movq %6, %%r8\n\t"
-                   "movq %7, %%r9\n\t"
-                   "callq *%1\n\t"
-                   "movq %%rax, %0"
-                  : "=r"(return_val)
-                  : "a"(func.ptr), "g"(args[5]), "g"(args[4]), "g"(args[3]), "g"(args[2]), "g"(args[1]), "g"(args[0])
-                  : "rdi", "rsi", "rdx", "rcx", "r8", "r9");
-               break;
-            default:
-               for (int j=i; j < param_cnt; j++) {
-                  const auto& stack_op = args[j];
-                  asm( "pushq %0"
-                       :
-                       : "a"(stack_op));
-               }
-               asm("movq %2, %%rdi\n\t"
-                   "movq %3, %%rsi\n\t"
-                   "movq %4, %%rdx\n\t"
-                   "movq %5, %%rcx\n\t"
-                   "movq %6, %%r8\n\t"
-                   "movq %7, %%r9\n\t"
-                   "callq *%1\n\t"
-                   "movq %%rax, %0"
-                  : "=r"(return_val)
-
-                  : "a"(func.ptr), "g"(args[5]), "g"(args[4]), "g"(args[3]), "g"(args[2]), "g"(args[1]), "g"(args[0])
-                  : "rdi", "rsi", "rdx", "rcx", "r8", "r9");
-               for (int j=i; j < param_cnt; j++) {
-                  asm( "popq %%rdi\n\t"
-                       :
-                       :
-                       : "rdi");
-               }
-         }
-
-         if (has_ret) {
-            switch (ret_type) {
-               case types::i32:
-                  ctx.push_operand(i32_const_t{static_cast<uint32_t>(return_val)});
-                  break;
-               case types::i64:
-                  ctx.push_operand(i64_const_t{return_val});
-                  break;
-               case types::f32:
-                  ctx.push_operand(f32_const_t{static_cast<uint32_t>(return_val)});
-                  break;
-               case types::f64:
-                  ctx.push_operand(f64_const_t{return_val});
-                  break;
-            }
-         }
       }
 
    };
@@ -527,13 +382,13 @@ namespace eosio { namespace wasm_backend {
    template <typename Cls, auto F, typename Mod, typename Name, typename Backend >
    struct registered_function {
       registered_function() {
-         registered_host_functions<Cls>::template add<Cls, F, Backend>(std::string{Mod::value, Mod::len}, std::string{Name::value, Name::len});
+         registered_host_functions<Cls>::template add<Cls, F, Backend>(
+			 std::string{Mod::value, Mod::len}, std::string{Name::value, Name::len});
       }
 
       static constexpr auto function = F;
       static constexpr auto name = Name{};
       using name_t = Name;
-      static constexpr bool is_member = false;
    };
 
 }} // ns eosio::wasm_backend
