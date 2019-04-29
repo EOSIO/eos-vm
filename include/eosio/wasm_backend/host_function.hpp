@@ -187,7 +187,7 @@ namespace eosio { namespace wasm_backend {
       return val.data.f;
    }
 
-   template <typename Backend, typename Cls, auto F, typename R, typename Args, size_t... Is>
+   template <typename Backend, typename Cls, typename Cls2, auto F, typename R, typename Args, size_t... Is>
    auto create_function(std::index_sequence<Is...>) {
       return std::function<void(Cls*, Backend&, eosio::wasm_backend::operand_stack<Backend>&)>{
          [](Cls* self, Backend& backend, eosio::wasm_backend::operand_stack<Backend>& os) {
@@ -199,7 +199,7 @@ namespace eosio { namespace wasm_backend {
                   os.trim(sizeof...(Is));
                   os.push(*(to_wasm_t<R>*)&res);
                } else {
-                  auto res = std::invoke(F, self, get_value<typename std::tuple_element<Is, Args>::type>(
+                  auto res = std::invoke(F, (Cls2*)self, get_value<typename std::tuple_element<Is, Args>::type>(
                              backend, std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
                   os.trim(sizeof...(Is));
                   os.push(*(to_wasm_t<R>*)&res);
@@ -211,7 +211,7 @@ namespace eosio { namespace wasm_backend {
                      backend, std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(
                         os.get_back(i - Is)))...);
                } else {
-                  std::invoke(F, self, get_value<typename std::tuple_element<Is, Args>::type>(
+                  std::invoke(F, (Cls2*)self, get_value<typename std::tuple_element<Is, Args>::type>(
                      backend, std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(
                         os.get_back(i - Is)))...);
                }
@@ -364,27 +364,26 @@ namespace eosio { namespace wasm_backend {
 		            uint32_t, host_func_pair_hash>  named_mapping;
          std::vector<host_function>                         host_functions;
          std::vector<std::function<
-	    void(Cls*, Backend&, operand_stack<Backend>&)>> functions;
+            void(Cls*, Backend&, operand_stack<Backend>&)>> functions;
          size_t                                             current_index = 0;
       };
 
       template <typename Backend>
       static mappings<Backend>& get_mappings() {
-         thread_local mappings<Backend> _mappings;
+         static mappings<Backend> _mappings;
          return _mappings;
       }
 
-      template <auto Func, typename Backend>
+      template <typename Cls2, auto Func, typename Backend>
       static void add(const std::string& mod, const std::string& name) {
          using deduced_full_ts = decltype(get_args_full(Func));
          using deduced_ts      = decltype(get_args(Func));
          using res_t           = typename decltype(get_return_t(Func))::type;
          static constexpr auto is = std::make_index_sequence<std::tuple_size<deduced_ts>::value>();
 
-         std::cout << "ADDING MOD " << mod << "\n"; //<< " FN " << name << "\n";
          auto& current_mappings = get_mappings<Backend>();
          current_mappings.named_mapping[{mod, name}] = current_mappings.current_index++;
-         current_mappings.functions.push_back( create_function<Backend, Cls, Func, res_t, deduced_full_ts>(is) );
+         current_mappings.functions.push_back( create_function<Backend, Cls, Cls2, Func, res_t, deduced_full_ts>(is) );
       }
 
       template <typename Module>
@@ -394,11 +393,6 @@ namespace eosio { namespace wasm_backend {
          for (int i=0; i < mod.imports.size(); i++) {
             std::string mod_name{ (char*)mod.imports[i].module_str.raw(), mod.imports[i].module_len };
             std::string fn_name{ (char*)mod.imports[i].field_str.raw(), mod.imports[i].field_len };
-            auto ss = "env"_hfn;
-            std::string e = "env";
-            if (e == std::string{decltype(ss)::value, decltype(ss)::len})
-               std::cout << "OEIROJWOJWEFOJWFEOJ\n";
-            std::cout << "MOD " << mod_name << " FN " << fn_name << "\n";
             EOS_WB_ASSERT(current_mappings.named_mapping.count({mod_name, fn_name}), wasm_link_exception, "no mapping for imported function");
             mod.import_functions[i] = current_mappings.named_mapping[{mod_name, fn_name}];
          }
@@ -412,11 +406,10 @@ namespace eosio { namespace wasm_backend {
 
    };
 
-   template <typename Cls, auto F, typename Backend >
+   template <typename Cls, typename Cls2, auto F, typename Backend >
    struct registered_function {
-      registered_function(const std::string& mod, const std::string& name) {
-         std::cout << "MOD " << mod << "\n";
-         registered_host_functions<Cls>::template add<F, Backend>(mod, name);
+      registered_function(std::string mod, std::string name) {
+         registered_host_functions<Cls>::template add<Cls2, F, Backend>(mod, name);
       }
    };
 
