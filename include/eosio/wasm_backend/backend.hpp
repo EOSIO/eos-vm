@@ -27,6 +27,11 @@ namespace eosio { namespace wasm_backend {
 
          template <typename... Args>
          inline bool operator()(Host* host, const std::string_view& mod,  const std::string_view& func, Args... args) {
+            return call(host, mod, func, args...);
+         }
+
+         template <typename... Args>
+         inline bool call(Host* host, const std::string_view& mod,  const std::string_view& func, Args... args) {
             #ifdef __EOSIO_DBG__
             _ctx.execute(host, debug_visitor<backend>{*this, _ctx}, func, args...);
             return true;

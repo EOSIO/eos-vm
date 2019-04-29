@@ -201,7 +201,7 @@ namespace eosio { namespace wasm_backend {
             inline void set_pc( uint32_t pc ) { _pc = pc; }
             inline void set_relative_pc( uint32_t pc ) { _pc = _current_offset+pc; }
             inline void inc_pc() { _pc++; }
-            inline void exit()const { _executing = false; }
+            inline void exit() { _executing = false; }
             inline bool executing()const { _executing; }
 
             template <typename Visitor, typename... Args>
