@@ -82,8 +82,9 @@ struct interpret_visitor {
       op.index = context.current_label_index();
       op.op_index = context.current_operands_index();
       const auto& oper = context.pop_operand();
-      if (!TO_UINT32(oper))
-         context.set_relative_pc(op.pc+1);
+      if (!TO_UINT32(oper)) {
+         context.set_relative_pc(op.pc+2);
+      }
       context.push_label(op);
    }
    void operator()( const else__t& op) {
@@ -109,6 +110,8 @@ struct interpret_visitor {
          context.jump(op.default_target);
    }
    void operator()( const call_t& op) {
+      std::cout << "CALLING " << op.index << "\n";
+      context.print_stack();
       context.call(op.index);
       // TODO place these in parser
       //EOS_WB_ASSERT(b.index < funcs_size, wasm_interpreter_exception, "call index out of bounds");
@@ -349,6 +352,7 @@ struct interpret_visitor {
       context.inc_pc();
       auto& t = TO_UINT32(context.peek_operand());
       t = t == 0;
+      std::cout << "i32_eqz " << t << "\n";
    }
    void operator()( const i32_eq_t & op) {
       context.inc_pc();
@@ -1191,8 +1195,6 @@ struct interpret_visitor {
    void operator()( const error_t& op) {
       context.inc_pc();
    }
-
-   uint32_t tab_width;
 };
 
 }} // ns eosio::wasm_backend

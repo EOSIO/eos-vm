@@ -29,6 +29,12 @@ namespace eosio { namespace wasm_backend {
    struct reduce_type<bool> {
       using type = uint32_t;
    };
+  
+   // wasm c++ size_t is 32 bits
+   template <>
+   struct reduce_type<size_t> {
+      using type = uint32_t;
+   };
 
    template <typename... Args, size_t... Is>
    auto get_args_full(std::index_sequence<Is...>) {
@@ -153,38 +159,87 @@ namespace eosio { namespace wasm_backend {
 
    template <typename T>
    using to_wasm_t = typename _to_wasm_t<traits<T>::value>::type;
+   
+   struct align_ptr_triple {
+      void* o = nullptr;
+      void* n = nullptr;
+      size_t s;
+   }; 
 
-   template <typename S, typename T, typename Backend>
-   constexpr auto get_value(Backend& backend, T&& val) -> std::enable_if_t<std::is_same_v<i32_const_t, T> && std::is_lvalue_reference_v<S>, S> {
-      return (*((std::remove_reference_t<S>*)(backend.get_wasm_allocator()->template get_base_ptr<uint8_t>()+val.data.ui)));
+   // TODO clean this up
+   template <typename S, typename Args, size_t I, typename T, typename Backend, typename Cleanups>
+   constexpr auto get_value(eosio::wasm_backend::operand_stack<Backend>& op, Cleanups& cleanups, Backend& backend, T&& val) -> std::enable_if_t<std::is_same_v<i32_const_t, T> && std::is_pointer_v<S>, S> {
+      size_t i = std::tuple_size<Args>::value-1;
+      auto* ptr = (std::remove_reference_t<S>*)(backend.get_wasm_allocator()->template get_base_ptr<uint8_t>()+val.data.ui);
+      if constexpr (std::tuple_size<Args>::value > I) {
+         const auto& len = std::get<to_wasm_t<typename std::tuple_element<I, Args>>::type>(op.get_back(i-I));
+         if ((uintptr_t)ptr % alignof(S) != 0) {
+            align_ptr_triple apt;
+            apt.s = sizeof(S)*len;
+            std::vector<std::remove_const_t<S>> cpy(len > 0 ? len : 1);
+            apt.o = ptr;
+            ptr = &cpy[0];
+            apt.n = ptr;
+            memcpy(apt.n, apt.o, apt.s);
+            cleanups.emplace_back(std::move(apt));
+         }
+      }
+      return ptr;
    }
 
-   template <typename S, typename T, typename Backend>
-   constexpr auto get_value(Backend& backend, T&& val) -> std::enable_if_t<std::is_same_v<i32_const_t, T> && std::is_pointer_v<S>, S> {
-      return (S)(backend.get_wasm_allocator()->template get_base_ptr<uint8_t>()+val.data.ui);
+   template <typename S, typename Args, size_t I, typename T, typename Backend, typename Cleanups>
+   constexpr auto get_value(eosio::wasm_backend::operand_stack<Backend>& op, Cleanups& cleanups, Backend& backend, T&& val) -> std::enable_if_t<std::is_same_v<i32_const_t, T> && std::is_lvalue_reference_v<S>, S> {
+      size_t i = std::tuple_size<Args>::value-1;
+      auto& ref = *(std::remove_reference_t<S>*)(backend.get_wasm_allocator()->template get_base_ptr<uint8_t>()+val.data.ui);
+      if constexpr (std::tuple_size<Args>::value > I) {
+         std::remove_reference_t<S>* ptr = &ref;
+         const auto& len = std::get<to_wasm_t<typename std::tuple_element<I, Args>>::type>(op.get_back(i-I)).data.ui;
+         if ((uintptr_t)ptr % alignof(S) != 0) {
+            align_ptr_triple apt;
+            apt.s = sizeof(S)*len;
+            std::vector<std::remove_const_t<S>> cpy(len > 0 ? len : 1);
+            apt.o = ptr;
+            ptr = &cpy[0];
+            apt.n = ptr;
+            memcpy(apt.n, apt.o, apt.s);
+            ref = *(std::remove_reference_t<S>*)apt.n;
+            cleanups.emplace_back(std::move(apt));
+         }
+      }
+      return ref;
    }
 
-   template <typename S, typename T, typename Backend>
-   constexpr auto get_value(Backend& backend, T&& val) -> std::enable_if_t<std::is_same_v<i32_const_t, T> && 
-                                          std::is_fundamental_v<S> &&
-                                          (!std::is_lvalue_reference_v<S> && !std::is_pointer_v<S>), S> {
+   template <typename S, typename Args, size_t I, typename T, typename Backend, typename Cleanups>
+   constexpr auto get_value(eosio::wasm_backend::operand_stack<Backend>& op, Cleanups&,  Backend& backend, T&& val) 
+                     -> std::enable_if_t<std::is_same_v<i32_const_t, T> && 
+                        std::is_fundamental_v<S> &&
+                        (!std::is_lvalue_reference_v<S> && !std::is_pointer_v<S>), S> {
       return val.data.ui;
    }
 
-   template <typename S, typename T, typename Backend>
-   constexpr auto get_value(Backend& backend, T&& val) -> std::enable_if_t<std::is_same_v<i64_const_t, T> &&
-                                                                           std::is_fundamental_v<S>, S> {
+   template <typename S, typename Args, size_t I, typename T, typename Backend, typename Cleanups>
+   constexpr auto get_value(eosio::wasm_backend::operand_stack<Backend>& op, Cleanups&, Backend& backend, T&& val) 
+                     -> std::enable_if_t<std::is_same_v<i64_const_t, T> &&
+                        std::is_fundamental_v<S>, S> {
       return val.data.ui;
    }
 
-   template <typename S, typename T, typename Backend>
-   constexpr auto get_value(Backend& backend, T&& val) -> std::enable_if_t<std::is_same_v<f32_const_t, T>, S> {
+   template <typename S, typename Args, size_t I, typename T, typename Backend, typename Cleanups>
+   constexpr auto get_value(eosio::wasm_backend::operand_stack<Backend>& op, Cleanups&, Backend& backend, T&& val) 
+                     -> std::enable_if_t<std::is_same_v<f32_const_t, T>, S> {
       return val.data.f;
    }
 
-   template <typename S, typename T, typename Backend>
-   constexpr auto get_value(Backend& backend, T&& val) -> std::enable_if_t<std::is_same_v<f64_const_t, T>, S> {
+   template <typename S, typename Args, size_t I, typename T, typename Backend, typename Cleanups>
+   constexpr auto get_value(eosio::wasm_backend::operand_stack<Backend>& op, Cleanups&, Backend& backend, T&& val) 
+                     -> std::enable_if_t<std::is_same_v<f64_const_t, T>, S> {
       return val.data.f;
+   }
+
+   constexpr void cleanup(const std::vector<align_ptr_triple>& cleanups) {
+      for (const auto& apt : cleanups)
+         if (apt.o && apt.n)
+            memcpy(apt.o, apt.n, apt.s);
    }
 
    template <typename Backend, typename Cls, typename Cls2, auto F, typename R, typename Args, size_t... Is>
@@ -192,31 +247,31 @@ namespace eosio { namespace wasm_backend {
       return std::function<void(Cls*, Backend&, eosio::wasm_backend::operand_stack<Backend>&)>{
          [](Cls* self, Backend& backend, eosio::wasm_backend::operand_stack<Backend>& os) {
             size_t i = sizeof...(Is)-1;
+            std::vector<align_ptr_triple> cleanups;
             if constexpr (!std::is_same_v<R, void>) {
                if constexpr (std::is_same_v<Cls, std::nullptr_t>) {
-                  auto res = std::invoke(F, get_value<typename std::tuple_element<Is, Args>::type>(
-                             backend, std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
+                  auto res = std::invoke(F, get_value<typename std::tuple_element<Is, Args>::type, Args, Is+1>(os, backend, cleanups,
+                             std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
                   os.trim(sizeof...(Is));
                   os.push(*(to_wasm_t<R>*)&res);
                } else {
-                  auto res = std::invoke(F, (Cls2*)self, get_value<typename std::tuple_element<Is, Args>::type>(
-                             backend, std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
+                  auto res = std::invoke(F, (Cls2*)self, get_value<typename std::tuple_element<Is, Args>::type, Args, Is+1>(os, cleanups, backend,
+                             std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
                   os.trim(sizeof...(Is));
                   os.push(*(to_wasm_t<R>*)&res);
                }
             }
             else {
                if constexpr (std::is_same_v<Cls, std::nullptr_t>) {
-                  std::invoke(F, get_value<typename std::tuple_element<Is, Args>::type>(
-                     backend, std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(
-                        os.get_back(i - Is)))...);
+                  std::invoke(F, get_value<typename std::tuple_element<Is, Args>::type, Args, Is+1>(os, cleanups, backend,
+                     std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
                } else {
-                  std::invoke(F, (Cls2*)self, get_value<typename std::tuple_element<Is, Args>::type>(
-                     backend, std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(
-                        os.get_back(i - Is)))...);
+                  std::invoke(F, (Cls2*)self, get_value<typename std::tuple_element<Is, Args>::type, Args, Is+1>(os, cleanups, backend,
+                     std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
                }
                os.trim(sizeof...(Is));
             }
+            cleanup(cleanups);
          }
       };
    }
@@ -380,8 +435,8 @@ namespace eosio { namespace wasm_backend {
          using deduced_ts      = decltype(get_args(Func));
          using res_t           = typename decltype(get_return_t(Func))::type;
          static constexpr auto is = std::make_index_sequence<std::tuple_size<deduced_ts>::value>();
-
          auto& current_mappings = get_mappings<Backend>();
+         printf("FN MAP %s %d\n", name.c_str(), current_mappings.current_index);
          current_mappings.named_mapping[{mod, name}] = current_mappings.current_index++;
          current_mappings.functions.push_back( create_function<Backend, Cls, Cls2, Func, res_t, deduced_full_ts>(is) );
       }
@@ -401,6 +456,7 @@ namespace eosio { namespace wasm_backend {
       template <typename Execution_Context>
       void operator()(Cls* host, Execution_Context& ctx, uint32_t index) {
          const auto& _func = get_mappings<typename Execution_Context::backend_type>().functions[index];
+         printf("INDEX %d\n", index);
          std::invoke(_func, host, ctx.get_backend(), ctx.get_operand_stack());
       }
 
