@@ -69,9 +69,9 @@ file( GLOB eos_vm_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/eosio/wasm_backen
 list( APPEND eos_vm_sources ${eos_vm_headers} )
 add_library ( eos-vm STATIC ${eos_vm_sources} )
 
-add_executable( prog ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp )
-target_link_libraries( prog eos-vm )
-target_include_directories( prog PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/include")
+#add_executable( prog ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp )
+#target_link_libraries( prog eos-vm )
+#target_include_directories( prog PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/include")
 
 #add_executable( wasm_t ${CMAKE_SOURCE_DIR}/tests/fuzz/fuzz_parser.cpp ${fc} ${eos-vm} ${filesystem} ${chrono} ${date_time})
 
