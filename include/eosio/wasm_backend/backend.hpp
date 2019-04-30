@@ -12,7 +12,7 @@
 #include <eosio/wasm_backend/execution_context.hpp>
 #include <eosio/wasm_backend/types.hpp>
 
-#define __EOSIO_DBG__
+//#define __EOSIO_DBG__
 
 namespace eosio { namespace wasm_backend {
    template <typename Host>

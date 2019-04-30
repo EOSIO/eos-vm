@@ -172,14 +172,14 @@ namespace eosio { namespace wasm_backend {
       size_t i = std::tuple_size<Args>::value-1;
       auto* ptr = (std::remove_reference_t<S>*)(backend.get_wasm_allocator()->template get_base_ptr<uint8_t>()+val.data.ui);
       if constexpr (std::tuple_size<Args>::value > I) {
-         const auto& len = std::get<to_wasm_t<typename std::tuple_element<I, Args>>::type>(op.get_back(i-I));
+         const auto& len = std::get<to_wasm_t<typename std::tuple_element<I, Args>::type>>(op.get_back(i-I)).data.ui;
          if ((uintptr_t)ptr % alignof(S) != 0) {
             align_ptr_triple apt;
             apt.s = sizeof(S)*len;
             std::vector<std::remove_const_t<S>> cpy(len > 0 ? len : 1);
-            apt.o = ptr;
+            apt.o = (void*)ptr;
             ptr = &cpy[0];
-            apt.n = ptr;
+            apt.n = (void*)ptr;
             memcpy(apt.n, apt.o, apt.s);
             cleanups.emplace_back(std::move(apt));
          }
@@ -190,20 +190,20 @@ namespace eosio { namespace wasm_backend {
    template <typename S, typename Args, size_t I, typename T, typename Backend, typename Cleanups>
    constexpr auto get_value(eosio::wasm_backend::operand_stack<Backend>& op, Cleanups& cleanups, Backend& backend, T&& val) -> std::enable_if_t<std::is_same_v<i32_const_t, T> && std::is_lvalue_reference_v<S>, S> {
       size_t i = std::tuple_size<Args>::value-1;
-      auto& ref = *(std::remove_reference_t<S>*)(backend.get_wasm_allocator()->template get_base_ptr<uint8_t>()+val.data.ui);
+      std::remove_const_t<S> ref = *(std::remove_reference_t<std::remove_const_t<S>>*)(backend.get_wasm_allocator()->template get_base_ptr<uint8_t>()+val.data.ui);
       if constexpr (std::tuple_size<Args>::value > I) {
-         std::remove_reference_t<S>* ptr = &ref;
-         const auto& len = std::get<to_wasm_t<typename std::tuple_element<I, Args>>::type>(op.get_back(i-I)).data.ui;
+         auto* ptr = &ref;
+         const auto& len = std::get<to_wasm_t<typename std::tuple_element<I, Args>::type>>(op.get_back(i-I)).data.ui;
          if ((uintptr_t)ptr % alignof(S) != 0) {
             align_ptr_triple apt;
             apt.s = sizeof(S)*len;
-            std::vector<std::remove_const_t<S>> cpy(len > 0 ? len : 1);
-            apt.o = ptr;
+            std::vector<std::remove_reference_t<std::remove_const_t<S>>> cpy(len > 0 ? len : 1);
+            apt.o = (void*)ptr;
             ptr = &cpy[0];
-            apt.n = ptr;
+            apt.n = (void*)ptr;
             memcpy(apt.n, apt.o, apt.s);
-            ref = *(std::remove_reference_t<S>*)apt.n;
             cleanups.emplace_back(std::move(apt));
+            return *(std::remove_reference_t<std::remove_const_t<S>>*)apt.n;
          }
       }
       return ref;
@@ -253,12 +253,12 @@ namespace eosio { namespace wasm_backend {
                   auto res = std::invoke(F, get_value<typename std::tuple_element<Is, Args>::type, Args, Is+1>(os, backend, cleanups,
                              std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
                   os.trim(sizeof...(Is));
-                  os.push(*(to_wasm_t<R>*)&res);
+                  os.push(res);
                } else {
                   auto res = std::invoke(F, (Cls2*)self, get_value<typename std::tuple_element<Is, Args>::type, Args, Is+1>(os, cleanups, backend,
                              std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
                   os.trim(sizeof...(Is));
-                  os.push(*(to_wasm_t<R>*)&res);
+                  os.push(res);
                }
             }
             else {
@@ -436,7 +436,6 @@ namespace eosio { namespace wasm_backend {
          using res_t           = typename decltype(get_return_t(Func))::type;
          static constexpr auto is = std::make_index_sequence<std::tuple_size<deduced_ts>::value>();
          auto& current_mappings = get_mappings<Backend>();
-         printf("FN MAP %s %d\n", name.c_str(), current_mappings.current_index);
          current_mappings.named_mapping[{mod, name}] = current_mappings.current_index++;
          current_mappings.functions.push_back( create_function<Backend, Cls, Cls2, Func, res_t, deduced_full_ts>(is) );
       }
