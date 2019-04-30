@@ -45,6 +45,7 @@ namespace eosio { namespace wasm_backend {
                   // TODO validate only importing functions
                   //const auto& ft = _mod.types[_mod.imports[index].type.func_t];
                   //type_check(ft);
+		  std::cout << "RHF CALL " << _host << "\n";
                   _rhf(_host, *this, _mod.import_functions[index]);
                   inc_pc();
                } else {
@@ -207,6 +208,7 @@ namespace eosio { namespace wasm_backend {
             template <typename Visitor, typename... Args>
             inline std::optional<stack_elem> execute(typename Backend::host_t* host, Visitor&& visitor, const std::string_view func, Args... args) {
                _host = host;
+	       std::cout << "EC HOST " << host << "\n";
                _alloc->reset();
                _linear_memory = _alloc->get_base_ptr<uint8_t>();
                for (int i=0; i < _mod.data.size(); i++) {
