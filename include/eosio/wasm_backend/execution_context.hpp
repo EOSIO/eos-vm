@@ -42,21 +42,16 @@ namespace eosio { namespace wasm_backend {
             inline void call(uint32_t index) {
                 // TODO validate index is valid
                if (index < _mod.get_imported_functions_size()) {
-                  std::cout << "Import " << index << "\n";
                   // TODO validate only importing functions
                   //const auto& ft = _mod.types[_mod.imports[index].type.func_t];
                   //type_check(ft);
                   _rhf(_host, *this, _mod.import_functions[index]);
                   inc_pc();
                } else {
-                  std::cout << "FN " << index << "\n";
                   //const auto& ft = _mod.types[_mod.functions[index - _mod.get_imported_functions_size()]];
                   //type_check(ft);
-                  std::cout << "after type_check\n";
                   push_call(index);
-                  std::cout << "after push_call\n";
                   setup_locals(index);
-                  std::cout << "after setup_locals\n";
                   const uint32_t& pc = _mod.function_sizes[index];
                   set_pc( pc );
                   _current_offset = pc;

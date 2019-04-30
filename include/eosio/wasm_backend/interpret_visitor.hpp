@@ -352,7 +352,6 @@ struct interpret_visitor {
       context.inc_pc();
       auto& t = TO_UINT32(context.peek_operand());
       t = t == 0;
-      std::cout << "i32_eqz " << t << "\n";
    }
    void operator()( const i32_eq_t & op) {
       context.inc_pc();

@@ -235,6 +235,41 @@ namespace eosio { namespace wasm_backend {
                      -> std::enable_if_t<std::is_same_v<f64_const_t, T>, S> {
       return val.data.f;
    }
+   
+   template <typename T, typename Backend>
+   constexpr auto resolve_result( T&& res, Backend&& backend ) -> std::enable_if_t<std::is_pointer_v<T> || std::is_reference_v<T>, i32_const_t> {
+      uintptr_t ptr = 0;
+      if constexpr (std::is_reference_v<T>) {
+         std::cout << "I1 " << (uintptr_t)&res - (uintptr_t)backend.get_wasm_allocator()->template get_base_ptr<uint8_t>() << "\n";
+         std::cout << "R " << (uintptr_t)&res << "\n";
+         std::cout << "BP " << (uintptr_t)backend.get_wasm_allocator()->template get_base_ptr<uint8_t>() << "\n";
+         return i32_const_t{(uint32_t)((uintptr_t)&res - (uintptr_t)backend.get_wasm_allocator()->template get_base_ptr<uint8_t>())};
+      }
+      else {
+         std::cout << "I2 " << (uintptr_t)res - (uintptr_t)backend.get_wasm_allocator()->template get_base_ptr<uint8_t>() << "\n";
+         return i32_const_t{(uint32_t)((uintptr_t)res - (uintptr_t)backend.get_wasm_allocator()->template get_base_ptr<uint8_t>())};
+      }
+   }
+
+   template <typename T, typename Backend>
+   constexpr auto resolve_result( T&& res, Backend&& backend ) -> std::enable_if_t<!(std::is_pointer_v<T> || std::is_reference_v<T>) && std::is_same_v<to_wasm_t<T>, i32_const_t>, i32_const_t> {
+      return i32_const_t{*(uint32_t*)&res};
+   }
+
+   template <typename T, typename Backend>
+   constexpr auto resolve_result( T&& res, Backend&& backend ) -> std::enable_if_t<!(std::is_pointer_v<T> || std::is_reference_v<T>) && std::is_same_v<to_wasm_t<T>, i64_const_t>, i64_const_t> {
+      return i64_const_t{*(uint64_t*)&res};
+   }
+
+   template <typename T, typename Backend>
+   constexpr auto resolve_result( T&& res, Backend&& backend ) -> std::enable_if_t<!(std::is_pointer_v<T> || std::is_reference_v<T>) && std::is_same_v<to_wasm_t<T>, f32_const_t>, f32_const_t> {
+      return f32_const_t{*(uint32_t*)&res};
+   }
+
+   template <typename T, typename Backend>
+   constexpr auto resolve_result( T&& res, Backend&& backend ) -> std::enable_if_t<!(std::is_pointer_v<T> || std::is_reference_v<T>) && std::is_same_v<to_wasm_t<T>, f64_const_t>, f64_const_t> {
+      return f64_const_t{*(uint64_t*)&res};
+   }
 
    constexpr void cleanup(const std::vector<align_ptr_triple>& cleanups) {
       for (const auto& apt : cleanups)
@@ -253,12 +288,12 @@ namespace eosio { namespace wasm_backend {
                   auto res = std::invoke(F, get_value<typename std::tuple_element<Is, Args>::type, Args, Is+1>(os, backend, cleanups,
                              std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
                   os.trim(sizeof...(Is));
-                  os.push(res);
+                  os.push(resolve_result(res, backend));
                } else {
                   auto res = std::invoke(F, (Cls2*)self, get_value<typename std::tuple_element<Is, Args>::type, Args, Is+1>(os, cleanups, backend,
                              std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
                   os.trim(sizeof...(Is));
-                  os.push(res);
+                  os.push(resolve_result(res, backend));
                }
             }
             else {
