@@ -45,10 +45,10 @@ int main(int argc, char** argv) {
    auto t1 = std::chrono::high_resolution_clock::now();
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
-   rhf_t::add<&foo_s::print, backend_t>("env", "print");
-   rhf_t::add<&foo_s::mabort, backend_t>("env", "abort");
-   rhf_t::add<&foo_s::eosio_assert, backend_t>("env", "eosio_assert");
-   rhf_t::add<&foo_s::fmemset, backend_t>("env", "memset");
+   rhf_t::add<foo_s, &foo_s::print, backend_t>("env", "print");
+   rhf_t::add<foo_s, &foo_s::mabort, backend_t>("env", "abort");
+   rhf_t::add<foo_s, &foo_s::eosio_assert, backend_t>("env", "eosio_assert");
+   rhf_t::add<foo_s, &foo_s::fmemset, backend_t>("env", "memset");
    rhf_t::resolve( bkend.get_module() );
    try {
       foo_s fs;
