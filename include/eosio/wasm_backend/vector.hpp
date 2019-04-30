@@ -19,9 +19,9 @@ namespace eosio { namespace wasm_backend {
 
          inline void resize( size_t size ) {
             if (size > _size) {
-               T* old_data = _data;
-               _data = _owner->get_allocator().template alloc<T>( size );
-               memcpy(_data, old_data, _size);
+               _owner->get_allocator().template alloc<T>( size );
+               // shouldn't need to memcpy, old memory is still in the same linear region
+               //memcpy(_data, old_data, _size);
             }
             _size = size;
          }

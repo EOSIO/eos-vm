@@ -10,17 +10,19 @@
 //      FC_THROW_EXCEPTION( exc_type, FORMAT, __VA_ARGS__ );            \
 //   FC_MULTILINE_MACRO_END
 //
-#define FC_LOG_AND_RETHROW() \
-   catch (...) {             \
-      throw;                 \
-   }
+//#define FC_LOG_AND_RETHROW() \
+//   catch (...) {             \
+//      throw;                 \
+//   }
 
+#if !defined(LIKELY) && !defined(UNLIKELY)
 #if __has_builtin(__builtin_expect)
 #define LIKELY(x) __builtin_expect(!!(x), 1)
 #define UNLIKELY(x) __builtin_expect(!!(x), 0)
 #else
 #define LIKELY(x) !!(x) 
 #define UNLIKELY(x) !!(x)
+#endif
 #endif
 
 #define EOS_WB_ASSERT( expr, exc_type, msg ) \

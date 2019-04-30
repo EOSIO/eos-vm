@@ -170,13 +170,13 @@ namespace eosio { namespace wasm_backend {
    template <typename S, typename Args, size_t I, typename T, typename Backend, typename Cleanups>
    constexpr auto get_value(eosio::wasm_backend::operand_stack<Backend>& op, Cleanups& cleanups, Backend& backend, T&& val) -> std::enable_if_t<std::is_same_v<i32_const_t, T> && std::is_pointer_v<S>, S> {
       size_t i = std::tuple_size<Args>::value-1;
-      auto* ptr = (std::remove_reference_t<S>*)(backend.get_wasm_allocator()->template get_base_ptr<uint8_t>()+val.data.ui);
+      auto ptr = (std::remove_reference_t<S>)(backend.get_wasm_allocator()->template get_base_ptr<uint8_t>()+val.data.ui);
       if constexpr (std::tuple_size<Args>::value > I) {
          const auto& len = std::get<to_wasm_t<typename std::tuple_element<I, Args>::type>>(op.get_back(i-I)).data.ui;
          if ((uintptr_t)ptr % alignof(S) != 0) {
             align_ptr_triple apt;
             apt.s = sizeof(S)*len;
-            std::vector<std::remove_const_t<S>> cpy(len > 0 ? len : 1);
+            std::vector<std::remove_const_t<std::remove_pointer_t<S>>> cpy(len > 0 ? len : 1);
             apt.o = (void*)ptr;
             ptr = &cpy[0];
             apt.n = (void*)ptr;
@@ -465,7 +465,7 @@ namespace eosio { namespace wasm_backend {
          static mappings<Backend> _mappings;
          return _mappings;
       }
-
+      
       template <typename Cls2, auto Func, typename Backend>
       static void add(const std::string& mod, const std::string& name) {
          using deduced_full_ts = decltype(get_args_full(Func));

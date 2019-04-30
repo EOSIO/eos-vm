@@ -37,23 +37,36 @@ namespace eosio { namespace wasm_backend {
 
    class growable_allocator {
       public:
-         growable_allocator(size_t size) : buff(size, (char)0 ) {}
+         static constexpr size_t max_memory_size = 1024 * 1024 * 1024; // 1GB
+         static constexpr size_t chunk_size      = 128 * 1024; //128KB
+         // size in bytes
+         growable_allocator(size_t size) : _size(size), _base(nullptr) {
+            _base = (uint8_t*)mmap(NULL, max_memory_size, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+            size_t chunks_to_alloc = (size) / chunk_size;
+            _size += (chunk_size*chunks_to_alloc);
+            _base = (uint8_t*)mmap((uint8_t*)_base, size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+            std::cout << "gralloc " << std::hex << (void*)(uintptr_t)_base << std::dec << "\n";
+         }
          template <typename T>
          T* alloc(size_t size=1) {
-            if ( (sizeof(T)*size) + index >= buff.size() ) {
-               buff.resize(buff.size()+buff.size()/2);
+            if ( (sizeof(T)*size) + _offset >= _size ) {
+               size_t chunks_to_alloc = (sizeof(T)*size) / chunk_size;
+               mmap((uint8_t*)_base+_size, (sizeof(T)*size), PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+               _size += (chunk_size*chunks_to_alloc);
             }
-            T* ret = (T*)(buff.data()+index);
-            index += sizeof(T)*size;
-            return ret;
+            _offset += (sizeof(T)*size);
+            std::cout << "gralloc alloc" << std::hex << (void*)(uintptr_t)(_base+_offset) << std::dec << "\n";
+            return (T*)(_base+_offset);
          }
          void free() {
-            EOS_WB_ASSERT( index > 0, wasm_double_free, "double free" );
-            index = 0;
+            EOS_WB_ASSERT(false, wasm_bad_alloc, "unimplemented")
          }
-         void reset() { index = 0; }
-         std::basic_string<uint8_t> buff;
-         size_t index = 0;
+         void reset() { 
+            _offset = 0; 
+         }
+         size_t _offset = 0;
+         size_t _size  = 0;
+         uint8_t* _base;
    };
 
    template <typename T>

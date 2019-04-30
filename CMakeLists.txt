@@ -26,6 +26,12 @@ IF( WIN32 )
   set(BOOST_ALL_DYN_LINK OFF) # force dynamic linking for all libraries
 ENDIF(WIN32)
 
+find_program(CCACHE_PROGRAM ccache)
+if (CCACHE_PROGRAM)
+   message(STATUS "EOS-VM found ccache")
+   set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
+endif()
+
 FIND_PACKAGE(Boost 1.50 REQUIRED COMPONENTS
     thread
     date_time
@@ -69,9 +75,9 @@ file( GLOB eos_vm_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/eosio/wasm_backen
 list( APPEND eos_vm_sources ${eos_vm_headers} )
 add_library ( eos-vm STATIC ${eos_vm_sources} )
 
-#add_executable( prog ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp )
-#target_link_libraries( prog eos-vm )
-#target_include_directories( prog PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/include")
+add_executable( prog ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp )
+target_link_libraries( prog eos-vm )
+target_include_directories( prog PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/include")
 
 #add_executable( wasm_t ${CMAKE_SOURCE_DIR}/tests/fuzz/fuzz_parser.cpp ${fc} ${eos-vm} ${filesystem} ${chrono} ${date_time})
 
@@ -84,7 +90,7 @@ if (NOT DEFINED ${USE_EXISTING_SOFTFLOAT} OR ${USE_EXISTING_SOFTFLOAT} STREQUAL 
    set(USE_EXISTING_SOFTFLOAT "False")
 endif()
 
-set(USE_EXISTING_SOFTFLOAT "True")
+#set(USE_EXISTING_SOFTFLOAT "True")
 if (NOT USE_EXISTING_SOFTFLOAT)
    set( C_DEFINES "-DSOFTFLOAT_FAST_INT64 -DSOFTFLOAT_ROUND_EVEN -DINLINE_LEVEL=5 -DSOFTFLOAT_FAST_DIV32TO16 -DSOFTFLOAT_FAST_DIV64TO32" )
    set( CMAKE_C_FLAGS " -Wall -Werror-implicit-function-declaration -Wno-conversion ${CMAKE_C_FLAGS} ${C_DEFINES}" )

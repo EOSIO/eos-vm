@@ -3,12 +3,14 @@
 #include <limits>
 #include <eosio/wasm_backend/exceptions.hpp>
 
+#if !defined(LIKELY) && !defined(UNLIKELY)
 #if __has_builtin(__builtin_expect)
 #define LIKELY(x) __builtin_expect(!!(x), 1)
 #define UNLIKELY(x) __builtin_expect(!!(x), 0)
 #else
 #define LIKELY(x) !!(x)
 #define UNLIKELY(x) !!(x)
+#endif
 #endif
 
 namespace eosio { namespace wasm_backend {
@@ -93,6 +95,7 @@ namespace eosio { namespace wasm_backend {
       }
 
       inline T at(size_t index) const {
+         std::cout << "Index " << index << " " << (void*)(&raw_ptr[index]) << "\n";
          EOS_WB_ASSERT((uintptr_t)orig_ptr + index <= (uintptr_t)bnds, guarded_ptr_exception, "accessing out of bounds");
          return raw_ptr[index];
       }
@@ -102,8 +105,7 @@ namespace eosio { namespace wasm_backend {
       }
 
       inline T operator[](size_t index) const {
-         EOS_WB_ASSERT((uintptr_t)orig_ptr + index <= (uintptr_t)bnds, guarded_ptr_exception, "accessing out of bounds");
-         return raw_ptr[index];
+         return at(index);
       }
    };
 }} // namespace eosio::wasm_backend
