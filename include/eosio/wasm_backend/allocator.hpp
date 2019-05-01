@@ -39,6 +39,10 @@ namespace eosio { namespace wasm_backend {
       public:
          static constexpr size_t max_memory_size = 1024 * 1024 * 1024; // 1GB
          static constexpr size_t chunk_size      = 128 * 1024; //128KB
+         static constexpr size_t align_amt       = 16;
+         static constexpr size_t align_offset(size_t offset) {
+           return (offset + align_amt-1) & ~(align_amt-1);
+         }
          // size in bytes
          growable_allocator(size_t size) : _size(size), _base(nullptr) {
             _base = (uint8_t*)mmap(NULL, max_memory_size, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
@@ -49,12 +53,15 @@ namespace eosio { namespace wasm_backend {
          }
          template <typename T>
          T* alloc(size_t size=1) {
-            if ( (sizeof(T)*size) + _offset >= _size ) {
-               size_t chunks_to_alloc = (sizeof(T)*size) / chunk_size;
-               mmap((uint8_t*)_base+_size, (sizeof(T)*size), PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+            size_t aligned = align_offset((sizeof(T)*size)+_offset);
+            std::cout << "ALIGN " << aligned << " " << _offset << " " << (sizeof(T)*size) << "\n";
+            if ( aligned >= _size ) {
+               size_t chunks_to_alloc = aligned / chunk_size;
+               std::cout << "CH " << chunks_to_alloc << "\n";
+               mmap((uint8_t*)_base+_size, (chunk_size*chunks_to_alloc), PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
                _size += (chunk_size*chunks_to_alloc);
             }
-            _offset += (sizeof(T)*size);
+            _offset = aligned;
             std::cout << "gralloc alloc" << std::hex << (void*)(uintptr_t)(_base+_offset) << std::dec << "\n";
             return (T*)(_base+_offset);
          }

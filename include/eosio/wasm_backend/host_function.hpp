@@ -483,8 +483,8 @@ namespace eosio { namespace wasm_backend {
          mod.import_functions.resize(mod.get_imported_functions_size());
          auto& current_mappings = get_mappings<typename Module::backend_type>();
          for (int i=0; i < mod.imports.size(); i++) {
-            std::string mod_name{ (char*)mod.imports[i].module_str.raw(), mod.imports[i].module_len };
-            std::string fn_name{ (char*)mod.imports[i].field_str.raw(), mod.imports[i].field_len };
+            std::string mod_name = vector_to_string(mod.imports[i].module_str);
+            std::string fn_name = vector_to_string(mod.imports[i].field_str);
             EOS_WB_ASSERT(current_mappings.named_mapping.count({mod_name, fn_name}), wasm_link_exception, "no mapping for imported function");
             printf("Link %s %s %zu\n", mod_name.c_str(), fn_name.c_str(), current_mappings.named_mapping[{mod_name, fn_name}]);
             mod.import_functions[i] = current_mappings.named_mapping[{mod_name, fn_name}];

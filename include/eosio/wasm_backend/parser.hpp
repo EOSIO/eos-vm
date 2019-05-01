@@ -1,9 +1,9 @@
 #pragma once
 
 #include <vector>
-//#include <variant>
 
 #include <stack>
+#include <eosio/wasm_backend/utils.hpp>
 #include <eosio/wasm_backend/types.hpp>
 #include <eosio/wasm_backend/vector.hpp>
 #include <eosio/wasm_backend/constants.hpp>
@@ -123,15 +123,11 @@ namespace eosio { namespace wasm_backend {
 
          void parse_import_entry( wasm_code_ptr& code, import_entry<Backend>& entry ) {
             auto len = parse_varuint32( code );
-            entry.module_len = len;
-            entry.module_str = decltype(entry.module_str){ _backend, entry.module_len };
-            memcpy( (char*)entry.module_str.raw(), code.raw(), entry.module_len );
-            code += entry.module_len;
+            entry.module_str.copy(code.raw(), len);
+            code += len;
             len = parse_varuint32( code );
-            entry.field_len = len;
-            entry.field_str = decltype(entry.field_str){ _backend, entry.field_len };
-            memcpy( (char*)entry.field_str.raw(), code.raw(), entry.field_len );
-            code += entry.field_len;
+            entry.field_str.copy(code.raw(), len);
+            code += len;
             entry.kind = (external_kind)(*code++);
             auto type = parse_varuint32( code );
             switch ((uint8_t)entry.kind) {
@@ -171,10 +167,9 @@ namespace eosio { namespace wasm_backend {
          }
 
          void parse_export_entry( wasm_code_ptr& code, export_entry<Backend>& entry ) {
-            entry.field_len = parse_varuint32( code );
-            entry.field_str = decltype(entry.field_str){ _backend, entry.field_len };
-            memcpy( (char*)entry.field_str.raw(), code.raw(), entry.field_len );
-            code += entry.field_len;
+            auto len = parse_varuint32( code );
+            entry.field_str.copy(code.raw(), len);
+            code += len;
             entry.kind = (external_kind)(*code++);
             entry.index = parse_varuint32( code );
          }
