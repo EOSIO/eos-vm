@@ -102,9 +102,7 @@ namespace eosio { namespace wasm_backend {
    };
    template <typename B> 
    struct import_entry {
-      uint32_t module_len;
       guarded_vector<uint8_t, B> module_str;
-      uint32_t field_len;
       guarded_vector<uint8_t, B> field_str;
       external_kind kind;
       import_type   type;
@@ -112,7 +110,6 @@ namespace eosio { namespace wasm_backend {
 
    template <typename B> 
    struct export_entry {
-      uint32_t      field_len;
       guarded_vector<uint8_t, B> field_str;
       external_kind kind;
       uint32_t      index;
@@ -167,6 +164,7 @@ namespace eosio { namespace wasm_backend {
          function_sizes(backend, 0) {}
 
       typedef B backend_type;
+      uint32_t                              start;
       guarded_vector<func_type<B>, B>       types;
       guarded_vector<import_entry<B>, B>    imports;
       guarded_vector<uint32_t, B>           functions;
@@ -174,7 +172,6 @@ namespace eosio { namespace wasm_backend {
       guarded_vector<memory_type, B>        memories;
       guarded_vector<global_variable, B>    globals;
       guarded_vector<export_entry<B>, B>    exports;
-      uint32_t                              start;
       guarded_vector<elem_segment<B>, B>    elements;
       guarded_vector<function_body<B>, B>   code;
       guarded_vector<data_segment<B>, B>    data;

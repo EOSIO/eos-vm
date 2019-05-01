@@ -19,9 +19,9 @@ namespace eosio { namespace wasm_backend {
 
          inline void resize( size_t size ) {
             if (size > _size) {
-               _owner->get_allocator().template alloc<T>( size );
-               // shouldn't need to memcpy, old memory is still in the same linear region
-               //memcpy(_data, old_data, _size);
+               T* ptr = _owner->get_allocator().template alloc<T>( size );
+               if (_size == 0)
+                 _data = ptr;
             }
             _size = size;
          }
@@ -68,6 +68,12 @@ namespace eosio { namespace wasm_backend {
          inline T* raw() const { return _data; }
          inline size_t size() const { return _size; }
          inline void set( T* data, size_t size ) { _size = size; _data = data; _index = size-1; }
+         inline void copy( T* data, size_t size ) {
+           resize(size);
+           for (int i=0; i < size; i++)
+             _data[i] = data[i];
+           _index = size-1;
+         }
 
       private:
          size_t _size  = 0;
@@ -75,4 +81,14 @@ namespace eosio { namespace wasm_backend {
          T*     _data  = nullptr;
          size_t _index = 0;
    };
+
+   template <typename T>
+   std::string vector_to_string( T&& vec ) {
+     std::string str;
+     std::cout << "vs " << vec.size() << "\n";
+     str.reserve(vec.size());
+     for (int i=0; i < vec.size(); i++)
+       str[i] = vec[i];
+     return str;
+   }
 }} // namespace eosio::wasm_backend

@@ -17,7 +17,14 @@ namespace eosio { namespace wasm_backend {
    // helpers for std::visit
    template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
    template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-   
+
+   template <typename T>
+   volatile bool no_sse_memcpy(T* to, T* from, size_t len) {
+     for (int i=0; i < len; i++)
+       to[i] = from[i];
+     return true;
+   }
+
    template <typename T>
    struct guarded_ptr {
       T* raw_ptr;
