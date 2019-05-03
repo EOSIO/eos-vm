@@ -6,74 +6,74 @@ set( VERSION_MINOR 0 )
 set( VERSION_PATCH 0 )
 
 set( CMAKE_CXX_STANDARD 17 )
-#set( CXX_STANDARD_REQUIRED ON )
 
-set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
-set(THREADS_PREFER_PTHREAD_FLAG TRUE)
-find_package(Threads)
-link_libraries(Threads::Threads)
+include(CMakeDependentOption)
 
-find_package( Gperftools QUIET )
-if( GPERFTOOLS_FOUND )
-    message( STATUS "Found gperftools; compiling tests with TCMalloc")
-    list( APPEND PLATFORM_SPECIFIC_LIBS tcmalloc )
+option(USE_EXISITING_SOFTFLOAT "use exisiting softfloat library")
+option(ENABLE_TESTS "enable building and running of unit tests" ON)
+CMAKE_DEPENDENT_OPTION( ENABLE_FUZZ_TESTS "enable fuzz testing" OFF "ENABLE_TESTS" ON )
+option(DISABLE_CCACHE "disable building with CCache or SCCache if they are present")
+option(DISABLE_GPERFTOOLS "disable building with Gperftools if it is present")
+option(ENABLE_ADDRESS_SANITIZER "build with address sanitization")
+option(ENABLE_UNDEFINED_BEHAVIOR_SANITIZER "build with undefined behavior sanitization")
+option(ENABLE_PROFILE "enable build for pixie or gprof")
+
+
+
+#set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+#set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+#find_package(Threads)
+#link_libraries(Threads::Threads)
+
+if (NOT DISABLE_CCACHE)
+   find_program(CCACHE_PROGRAM ccache)
+   if (CCACHE_PROGRAM)
+      message(STATUS "EOS-VM found ccache")
+      set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
+   endif()
 endif()
 
-SET( Boost_USE_STATIC_LIBS ON CACHE STRING "ON or OFF" )
-IF( WIN32 )
-  SET(BOOST_ROOT $ENV{BOOST_ROOT})
-  set(Boost_USE_MULTITHREADED ON)
-  set(BOOST_ALL_DYN_LINK OFF) # force dynamic linking for all libraries
-ENDIF(WIN32)
-
-find_program(CCACHE_PROGRAM ccache)
-if (CCACHE_PROGRAM)
-   message(STATUS "EOS-VM found ccache")
-   set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
+if (ENABLE_PROFILE)
+   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg" )
 endif()
 
-FIND_PACKAGE(Boost 1.50 REQUIRED COMPONENTS
-    thread
-    date_time
-    filesystem
-    system
-    program_options
-    signals
-    serialization
-    chrono
-    unit_test_framework
-    context
-    locale
-    iostreams)
+if (ENABLE_ADDRESS_SANITIZER)
+   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address" )
+   set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address" )
+endif()
+
+if (ENABLE_UNDEFINED_BEHAVIOR_SANITIZER)
+   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined" )
+   set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=undefined" )
+endif()
+
+#FIND_PACKAGE(Boost 1.50 REQUIRED COMPONENTS
+#    thread
+#    date_time
+#    filesystem
+#    system
+#    program_options
+#    signals
+#    serialization
+#    chrono
+#    unit_test_framework
+#    context
+#    locale
+#    iostreams)
 
 #set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_C_FLAGS} -O3 -std=c++17" )
-
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-   if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
-      set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mllvm -use-cfl-aa-in-codegen=both" )
-   endif()
-   #set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto" )
-endif()
-
-if ( APPLE )
-   set( CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -O3 -Wall -Wno-deprecated-declarations -mllvm -use-cfl-aa-in-codegen=both" )
-   set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto" )
-else()
-   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall" )
-   set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++ -static-libgcc" )
-endif()
 
 # generate compile command database for external tools
 set (CMAKE_EXPORT_COMPILE_COMMANDS "ON")
 
-message( STATUS "Configuring WasmInterpreter" )
-set( CMAKE_C_FLAGS " -Wall -Werror-implicit-function-declaration -Wno-conversion ${CMAKE_C_FLAGS} ${C_DEFINES}" )
+#message( STATUS "Configuring WasmInterpreter" )
+#set( CMAKE_C_FLAGS " -Wall -Werror-implicit-function-declaration -Wno-conversion ${CMAKE_C_FLAGS} ${C_DEFINES}" )
 
-file( GLOB eos_vm_sources "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp" )
 file( GLOB eos_vm_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/eosio/wasm_backend/*.hpp" )
 
-list( APPEND eos_vm_sources ${eos_vm_headers} )
-add_library ( eos-vm STATIC ${eos_vm_sources} )
+add_library( eos-vm INTERFACE )
+target_include_directories( eos-vm INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include
+                                             ${CMAKE_CURRENT_SOURCE_DIR}/external/softfloat/source/include )
 
 add_executable( prog ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp )
 target_link_libraries( prog eos-vm )
@@ -81,342 +81,23 @@ target_include_directories( prog PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "$
 
 #add_executable( wasm_t ${CMAKE_SOURCE_DIR}/tests/fuzz/fuzz_parser.cpp ${fc} ${eos-vm} ${filesystem} ${chrono} ${date_time})
 
-target_include_directories( eos-vm PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
-                                                    "${CMAKE_CURRENT_SOURCE_DIR}/${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/include"
-                                                    "${Boost_INCLUDE_DIRS}" )
-
-
-if (NOT DEFINED ${USE_EXISTING_SOFTFLOAT} OR ${USE_EXISTING_SOFTFLOAT} STREQUAL "")
-   set(USE_EXISTING_SOFTFLOAT "False")
-endif()
-
 #set(USE_EXISTING_SOFTFLOAT "True")
 if (NOT USE_EXISTING_SOFTFLOAT)
-   set( C_DEFINES "-DSOFTFLOAT_FAST_INT64 -DSOFTFLOAT_ROUND_EVEN -DINLINE_LEVEL=5 -DSOFTFLOAT_FAST_DIV32TO16 -DSOFTFLOAT_FAST_DIV64TO32" )
-   set( CMAKE_C_FLAGS " -Wall -Werror-implicit-function-declaration -Wno-conversion ${CMAKE_C_FLAGS} ${C_DEFINES}" )
-   set ( softfloat_sources
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_eq128.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_le128.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_lt128.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_shortShiftLeft128.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_shortShiftRight128.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_shortShiftRightJam64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_shortShiftRightJam64Extra.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_shortShiftRightJam128.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_shortShiftRightJam128Extra.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_shiftRightJam32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_shiftRightJam64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_shiftRightJam64Extra.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_shiftRightJam128.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_shiftRightJam128Extra.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_shiftRightJam256M.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_countLeadingZeros8.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_countLeadingZeros16.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_countLeadingZeros32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_countLeadingZeros64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_add128.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_add256M.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_sub128.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_sub256M.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_mul64ByShifted32To128.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_mul64To128.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_mul128By32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_mul128To256M.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_approxRecip_1Ks.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_approxRecip32_1.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_approxRecipSqrt_1Ks.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_approxRecipSqrt32_1.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/8086-SSE/softfloat_raiseFlags.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/8086-SSE/s_f16UIToCommonNaN.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/8086-SSE/s_commonNaNToF16UI.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/8086-SSE/s_propagateNaNF16UI.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/8086-SSE/s_f32UIToCommonNaN.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/8086-SSE/s_commonNaNToF32UI.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/8086-SSE/s_propagateNaNF32UI.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/8086-SSE/s_f64UIToCommonNaN.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/8086-SSE/s_commonNaNToF64UI.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/8086-SSE/s_propagateNaNF64UI.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/8086-SSE/extF80M_isSignalingNaN.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/8086-SSE/s_extF80UIToCommonNaN.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/8086-SSE/s_commonNaNToExtF80UI.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/8086-SSE/s_propagateNaNExtF80UI.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/8086-SSE/f128M_isSignalingNaN.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/8086-SSE/s_f128UIToCommonNaN.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/8086-SSE/s_commonNaNToF128UI.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/8086-SSE/s_propagateNaNF128UI.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_roundToUI32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_roundToUI64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_roundToI32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_roundToI64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_normSubnormalF16Sig.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_roundPackToF16.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_normRoundPackToF16.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_addMagsF16.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_subMagsF16.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_mulAddF16.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_normSubnormalF32Sig.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_roundPackToF32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_normRoundPackToF32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_addMagsF32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_subMagsF32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_mulAddF32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_normSubnormalF64Sig.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_roundPackToF64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_normRoundPackToF64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_addMagsF64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_subMagsF64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_mulAddF64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_normSubnormalExtF80Sig.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_roundPackToExtF80.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_normRoundPackToExtF80.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_addMagsExtF80.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_subMagsExtF80.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_normSubnormalF128Sig.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_roundPackToF128.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_normRoundPackToF128.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_addMagsF128.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_subMagsF128.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/s_mulAddF128.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/softfloat_state.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/ui32_to_f16.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/ui32_to_f32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/ui32_to_f64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/ui32_to_extF80.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/ui32_to_extF80M.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/ui32_to_f128.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/ui32_to_f128M.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/ui64_to_f16.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/ui64_to_f32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/ui64_to_f64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/ui64_to_extF80.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/ui64_to_extF80M.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/ui64_to_f128.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/ui64_to_f128M.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/i32_to_f16.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/i32_to_f32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/i32_to_f64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/i32_to_extF80.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/i32_to_extF80M.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/i32_to_f128.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/i32_to_f128M.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/i64_to_f16.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/i64_to_f32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/i64_to_f64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/i64_to_extF80.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/i64_to_extF80M.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/i64_to_f128.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/i64_to_f128M.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_to_ui32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_to_ui64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_to_i32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_to_i64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_to_ui32_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_to_ui64_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_to_i32_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_to_i64_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_to_f32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_to_f64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_to_extF80.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_to_extF80M.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_to_f128.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_to_f128M.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_roundToInt.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_add.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_sub.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_mul.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_mulAdd.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_div.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_rem.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_sqrt.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_eq.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_le.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_lt.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_eq_signaling.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_le_quiet.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_lt_quiet.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f16_isSignalingNaN.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_to_ui32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_to_ui64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_to_i32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_to_i64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_to_ui32_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_to_ui64_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_to_i32_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_to_i64_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_to_f16.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_to_f64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_to_extF80.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_to_extF80M.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_to_f128.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_to_f128M.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_roundToInt.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_add.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_sub.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_mul.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_mulAdd.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_div.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_rem.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_sqrt.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_eq.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_le.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_lt.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_eq_signaling.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_le_quiet.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_lt_quiet.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f32_isSignalingNaN.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_to_ui32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_to_ui64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_to_i32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_to_i64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_to_ui32_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_to_ui64_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_to_i32_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_to_i64_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_to_f16.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_to_f32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_to_extF80.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_to_extF80M.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_to_f128.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_to_f128M.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_roundToInt.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_add.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_sub.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_mul.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_mulAdd.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_div.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_rem.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_sqrt.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_eq.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_le.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_lt.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_eq_signaling.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_le_quiet.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_lt_quiet.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f64_isSignalingNaN.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_to_ui32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_to_ui64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_to_i32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_to_i64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_to_ui32_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_to_ui64_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_to_i32_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_to_i64_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_to_f16.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_to_f32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_to_f64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_to_f128.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_roundToInt.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_add.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_sub.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_mul.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_div.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_rem.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_sqrt.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_eq.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_le.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_lt.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_eq_signaling.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_le_quiet.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_lt_quiet.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80_isSignalingNaN.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80M_to_ui32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80M_to_ui64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80M_to_i32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80M_to_i64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80M_to_ui32_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80M_to_ui64_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80M_to_i32_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80M_to_i64_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80M_to_f16.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80M_to_f32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80M_to_f64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80M_to_f128M.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80M_roundToInt.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80M_add.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80M_sub.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80M_mul.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80M_div.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80M_rem.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80M_sqrt.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80M_eq.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80M_le.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80M_lt.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80M_eq_signaling.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80M_le_quiet.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/extF80M_lt_quiet.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_to_ui32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_to_ui64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_to_i32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_to_i64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_to_ui32_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_to_ui64_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_to_i32_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_to_i64_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_to_f16.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_to_f32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_to_extF80.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_to_f64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_roundToInt.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_add.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_sub.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_mul.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_mulAdd.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_div.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_rem.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_sqrt.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_eq.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_le.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_lt.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_eq_signaling.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_le_quiet.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_lt_quiet.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128_isSignalingNaN.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_to_ui32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_to_ui64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_to_i32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_to_i64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_to_ui32_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_to_ui64_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_to_i32_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_to_i64_r_minMag.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_to_f16.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_to_f32.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_to_extF80M.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_to_f64.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_roundToInt.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_add.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_sub.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_mul.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_mulAdd.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_div.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_rem.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_sqrt.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_eq.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_le.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_lt.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_eq_signaling.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_le_quiet.c
-     ${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/f128M_lt_quiet.c
-   )
-
-   file ( GLOB softfloat_headers "${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/include/*.h"
-                                 "${CMAKE_CURRENT_SOURCE_DIR}/softfloat/build/Linux-x86_64-GCC/platform.h"
-                                 "${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/8086-SSE/specialize.h" )
-   list( APPEND softfloat_sources ${softfloat_headers} )
-
-   add_library ( sf STATIC ${softfloat_sources} )
-   target_include_directories( sf PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/include" "${CMAKE_CURRENT_SOURCE_DIR}/softfloat/source/8086-SSE" "${CMAKE_CURRENT_SOURCE_DIR}/softfloat/build/Linux-x86_64-GCC" ${CMAKE_SOURCE_DIR})
-
-   target_link_libraries( eos-vm sf )
+   add_subdirectory( external )
+   target_link_libraries( eos-vm INTERFACE sf )
 else()
-   target_link_libraries( eos-vm softfloat )
+   target_link_libraries( eos-vm INTERFACE softfloat )
 endif()
 
-if (NOT DEFINED ${BUILD_TESTS} OR ${BUILD_TESTS} STREQUAL "")
-  set(BUILD_TESTS "False")
+if (ENABLE_TESTS)
+   #add_subdirectory(tests)
+   include(CTest)
+   add_subdirectory(external/Catch2)
+   include(external/Catch2/contrib/Catch.cmake)
+   include_directories(external/Catch2/single_include)
+   add_subdirectory(memory_tests)
+   if (ENABLE_FUZZ_TESTS)
+      add_subdirectory(fuzz)
+   endif()
+   #add_subdirectory(tests/fuzz)
 endif()
-
-if (BUILD_TESTS)
-  add_subdirectory(tests)
-endif()
-#add_subdirectory(tests/fuzz)

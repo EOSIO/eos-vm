@@ -146,9 +146,9 @@ namespace eosio { namespace wasm_backend {
    using wasm_code          = std::vector<uint8_t>;
    using wasm_code_ptr      = guarded_ptr<uint8_t>;
 
-   template <typename B>
+   template <typename Backend>
    struct module {
-      module(B& backend) :
+      module(Backend& backend) :
          types(backend, 0),
          imports(backend, 0),
          functions(backend, 0),
@@ -163,7 +163,6 @@ namespace eosio { namespace wasm_backend {
          import_functions(backend, 0),
          function_sizes(backend, 0) {}
 
-      typedef B backend_type;
       uint32_t                              start;
       guarded_vector<func_type<B>, B>       types;
       guarded_vector<import_entry<B>, B>    imports;

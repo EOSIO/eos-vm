@@ -17,6 +17,12 @@ namespace eosio { namespace wasm_backend {
             _data(owner.get_allocator().template alloc<T>( _size )) {
          }
 
+         managed_vector() :
+            _size(size),
+            _owner(nullptr),
+            _data(nullptr) {
+         }
+
          inline void resize( size_t size ) {
             if (size > _size) {
                T* ptr = _owner->get_allocator().template alloc<T>( size );
