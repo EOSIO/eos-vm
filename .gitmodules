@@ -1,3 +1,6 @@
 [submodule "softfloat"]
-	path = softfloat
+	path = external/softfloat
 	url = https://github.com/eosio/berkeley-softfloat-3
+[submodule "external/Catch2"]
+	path = external/Catch2
+	url = https://github.com/catchorg/Catch2

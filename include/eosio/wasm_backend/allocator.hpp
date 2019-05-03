@@ -38,39 +38,54 @@ namespace eosio { namespace wasm_backend {
    class growable_allocator {
       public:
          static constexpr size_t max_memory_size = 1024 * 1024 * 1024; // 1GB
-         static constexpr size_t chunk_size      = 128 * 1024; //128KB
+         static constexpr size_t chunk_size      = 128 * 1024;         // 128KB
          static constexpr size_t align_amt       = 16;
          static constexpr size_t align_offset(size_t offset) {
            return (offset + align_amt-1) & ~(align_amt-1);
          }
+
          // size in bytes
          growable_allocator(size_t size) : _size(size), _base(nullptr) {
             _base = (uint8_t*)mmap(NULL, max_memory_size, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-            size_t chunks_to_alloc = (size) / chunk_size;
+            std::cout << "_base before " << (int*)_base << std::endl;
+            size_t chunks_to_alloc = size / chunk_size;
             _size += (chunk_size*chunks_to_alloc);
-            _base = (uint8_t*)mmap((uint8_t*)_base, size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-            std::cout << "gralloc " << std::hex << (void*)(uintptr_t)_base << std::dec << "\n";
+            mprotect((uint8_t*)_base, _size, PROT_READ|PROT_WRITE);
+            std::cout << "_base after " << (int*)_base << std::endl;
+            std::cout << "size " << size << " _size " << _size << "\n";
+            std::cout << "gralloc " << std::hex << (void*)_base << std::dec << "\n";
          }
+
+         ~growable_allocator() {
+            munmap(_base, max_memory_size);
+         }
+
+         // TODO use Outcome library
          template <typename T>
-         T* alloc(size_t size=1) {
+         T* alloc(size_t size=0) {
             size_t aligned = align_offset((sizeof(T)*size)+_offset);
-            std::cout << "ALIGN " << aligned << " " << _offset << " " << (sizeof(T)*size) << "\n";
+            std::cout << "ALIGN " << aligned << " OFFSET " << _offset << " SIZE " << (sizeof(T)*size) << " JSIZE " << size << " TSIZE " << sizeof(T) << "\n";
             if ( aligned >= _size ) {
                size_t chunks_to_alloc = aligned / chunk_size;
-               std::cout << "CH " << chunks_to_alloc << "\n";
-               mmap((uint8_t*)_base+_size, (chunk_size*chunks_to_alloc), PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+               std::cout << "CHUNKS_TO_ALLOC " << chunks_to_alloc << "\n";
+               mprotect((uint8_t*)_base+_size, (chunk_size*chunks_to_alloc), PROT_READ|PROT_WRITE);
                _size += (chunk_size*chunks_to_alloc);
             }
+            
+            T* ptr = (T*)(_base+_offset);
             _offset = aligned;
-            std::cout << "gralloc alloc" << std::hex << (void*)(uintptr_t)(_base+_offset) << std::dec << "\n";
-            return (T*)(_base+_offset);
+            std::cout << ptr << " " << _offset << std::endl;
+            return ptr;
          }
+
          void free() {
-            EOS_WB_ASSERT(false, wasm_bad_alloc, "unimplemented")
+            EOS_WB_ASSERT(false, wasm_bad_alloc, "unimplemented");
          }
+
          void reset() { 
             _offset = 0; 
          }
+
          size_t _offset = 0;
          size_t _size  = 0;
          uint8_t* _base;

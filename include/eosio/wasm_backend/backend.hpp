@@ -44,7 +44,7 @@ namespace eosio { namespace wasm_backend {
          inline void execute_all(Host* host) {
             for (int i=0; i < _mod.exports.size(); i++) {
                if (_mod.exports[i].kind == external_kind::Function) {
-                  std::string s{(const char*)_mod.exports[i].field_str.raw(), _mod.exports[i].field_len};
+                  std::string s{(const char*)_mod.exports[i].field_str.raw(), _mod.exports[i].field_str.size()};
                   _ctx.execute(host, interpret_visitor<backend>{*this, _ctx}, s);
                }
             }
@@ -78,7 +78,7 @@ namespace eosio { namespace wasm_backend {
          inline size_t get_instructions()const { return _ctx.insts; }
       private:
          wasm_allocator*    _walloc; // non owning pointer
-         growable_allocator  _galloc;
+         growable_allocator _galloc;
          module<backend>    _mod;
          execution_context<backend> _ctx;
    };

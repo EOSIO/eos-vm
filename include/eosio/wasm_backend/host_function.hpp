@@ -272,7 +272,7 @@ namespace eosio { namespace wasm_backend {
       return f64_const_t{*(uint64_t*)&res};
    }
 
-   constexpr void cleanup(const std::vector<align_ptr_triple>& cleanups) {
+   void cleanup(const std::vector<align_ptr_triple>& cleanups) {
       for (const auto& apt : cleanups)
          if (apt.o && apt.n)
             memcpy(apt.o, apt.n, apt.s);
