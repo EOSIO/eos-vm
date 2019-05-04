@@ -17,10 +17,11 @@ namespace eosio { namespace wasm_backend {
 
    template <typename T>
    inline bool is_a( const stack_elem& el ){ return std::holds_alternative<T>(el); }
-   template <size_t Elems, typename Backend>
+
+   template <size_t Elems, typename Allocator>
    class fixed_stack {
       public:
-         fixed_stack(Backend& backend) : _s(guarded_vector<stack_elem, Backend>{ backend, Elems }){}
+         fixed_stack(Allocator& alloc) : _s(managed_vector<stack_elem, Allocator>{ alloc, Elems }){}
          void push(stack_elem e) {
             _s[_index++] = e;
          }
@@ -59,18 +60,13 @@ namespace eosio { namespace wasm_backend {
             return _index;
          }
       private:
-         guarded_vector<stack_elem, Backend> _s;
-         uint16_t                  _index = 0;
+         managed_vector<stack_elem, Allocator> _s;
+         uint16_t                              _index = 0;
    };
-   
-   template <typename Backend>
-   using control_stack = fixed_stack<constants::max_nested_structures, Backend>;
 
-   template <typename Backend>
-   using operand_stack = fixed_stack<constants::max_stack_size, Backend>;
-
-   template <typename Backend>
-   using call_stack    = fixed_stack<constants::max_call_depth, Backend>;
+   using control_stack = fixed_stack<constants::max_nested_structures, bounded_allocator>;
+   using operand_stack = fixed_stack<constants::max_stack_size, bounded_allocator>;
+   using call_stack    = fixed_stack<constants::max_call_depth, bounded_allocator>;
 
 }} // namespace eosio::wasm_backend
 
