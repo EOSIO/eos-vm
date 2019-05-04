@@ -20,10 +20,10 @@ option(ENABLE_PROFILE "enable build for pixie or gprof")
 
 
 
-#set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
-#set(THREADS_PREFER_PTHREAD_FLAG TRUE)
-#find_package(Threads)
-#link_libraries(Threads::Threads)
+set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+find_package(Threads)
+link_libraries(Threads::Threads)
 
 if (NOT DISABLE_CCACHE)
    find_program(CCACHE_PROGRAM ccache)

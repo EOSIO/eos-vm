@@ -14,17 +14,16 @@ static constexpr bool use_softfloat = false;
 
 namespace eosio { namespace wasm_backend {
 
-template <typename Backend>
+template <typename ExecutionContext>
 struct interpret_visitor {
-   interpret_visitor(Backend& backend, execution_context<Backend>& ec) : context(ec) {}
-   execution_context<Backend>& context;
-
-   execution_context<Backend>& get_context() { return context; }
+   interpret_visitor(ExecutionContext& ec) : context(ec) {}
+   ExecutionContext& context;
 
    void operator()( const unreachable_t& op) {
       context.inc_pc();
       throw wasm_interpreter_exception{"unreachable"};
    }
+
    void operator()( const nop_t& op) {
 
       context.inc_pc();
@@ -33,6 +32,7 @@ struct interpret_visitor {
    void operator()( const fend_t& op) {
       context.apply_pop_call();
    }
+
    void operator()( const end_t& op) {
       const auto& label = context.pop_label();
       uint16_t op_index = 0;

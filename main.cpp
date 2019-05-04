@@ -20,16 +20,17 @@ struct foo_s {
       std::cout << "ABORT!!!\n";
    }
 
-   void eosio_assert(const char*) {
+   void eosio_assert(int a, const char*) {
       std::cout << "EOSIO ASSERT\n";
    }
 
-   void fmemset(char* dp, const char* sp, int32_t len) {
+   char* fmemset(char* dp, const char* sp, int32_t len) {
       for (int i=0; i < len; i++)
          dp[i] = sp[i];
+      return dp;
    }
 
-   void print(const char* s) {
+   void print(uint64_t s) {
       //std::cout << "PRINT " << a << " " << b << " " << c << " " << d << " " << e << " " << f << " " << g << "\n";
       std::cout << "PRINT " << s << "\n";
    }
@@ -45,10 +46,10 @@ int main(int argc, char** argv) {
    auto t1 = std::chrono::high_resolution_clock::now();
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
-   rhf_t::add<foo_s, &foo_s::print, backend_t>("env", "print");
-   rhf_t::add<foo_s, &foo_s::mabort, backend_t>("env", "abort");
-   rhf_t::add<foo_s, &foo_s::eosio_assert, backend_t>("env", "eosio_assert");
-   rhf_t::add<foo_s, &foo_s::fmemset, backend_t>("env", "memset");
+   rhf_t::add<foo_s, &foo_s::print, wasm_allocator>("env", "printi");
+   rhf_t::add<foo_s, &foo_s::mabort, wasm_allocator>("env", "abort");
+   rhf_t::add<foo_s, &foo_s::eosio_assert, wasm_allocator>("env", "eosio_assert");
+   rhf_t::add<foo_s, &foo_s::fmemset, wasm_allocator>("env", "memset");
    rhf_t::resolve( bkend.get_module() );
    try {
       foo_s fs;
