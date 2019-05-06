@@ -39,6 +39,7 @@ namespace eosio { namespace wasm_backend {
                   // TODO validate only importing functions
                   //const auto& ft = _mod.types[_mod.imports[index].type.func_t];
                   //type_check(ft);
+                  print_stack();
                   _rhf(_host, *this, _mod.import_functions[index]);
                   inc_pc();
                } else {
@@ -74,7 +75,7 @@ namespace eosio { namespace wasm_backend {
             inline module& get_module() { return _mod; }
             inline void set_wasm_allocator(wasm_allocator* alloc) { _wasm_alloc = alloc; }
             inline auto get_wasm_allocator() { return _wasm_alloc; }
-            inline uint8_t* linear_memory() { return _linear_memory; }
+            inline char* linear_memory() { return _linear_memory; }
             inline uint32_t table_elem(uint32_t i) { return _mod.elements[0].elems[i - _mod.elements[0].offset.value.i64]; }
             inline void push_label( const stack_elem& el ) { _cs.push(el); }
             inline uint16_t current_label_index()const { return _cs.current_index(); }
@@ -87,13 +88,11 @@ namespace eosio { namespace wasm_backend {
             inline void push_call( const stack_elem& el ) { _as.push(el); }
             inline stack_elem pop_call() { return _as.pop(); }
             inline void push_call(uint32_t index) {
-	       print_stack();
                const auto& ftype     = _mod.types[_mod.functions[index-_mod.get_imported_functions_size()]];
                _last_op_index = _os.size() - ftype.param_count;
                _as.push( activation_frame{ _pc+1, _current_offset, _code_index,
                                            static_cast<uint16_t>(_last_op_index),
                                            ftype.return_type } );
-	       std::cout << "push() _last_op_index " << _last_op_index << "\n";
             }
 
             inline void apply_pop_call() {
@@ -118,8 +117,7 @@ namespace eosio { namespace wasm_backend {
                      push_operand(el);
                   if (_as.size()) {
                      _last_op_index = std::get<activation_frame>(_as.peek()).op_index;
-		     std::cout << "pop() _last_op_index " << _last_op_index << "\n";
-		  }
+                  }
                }
             }
             inline stack_elem pop_label() { return _cs.pop(); }
@@ -206,7 +204,8 @@ namespace eosio { namespace wasm_backend {
             inline std::optional<stack_elem> execute(Host* host, Visitor&& visitor, const std::string_view func, Args... args) {
                _host = host;
                _wasm_alloc->reset();
-               _linear_memory = _wasm_alloc->get_base_ptr<uint8_t>();
+               _linear_memory = _wasm_alloc->get_base_ptr<char>();
+               std::cout << "_linear_memory " << (int*)_linear_memory << "\n";
                for (int i=0; i < _mod.data.size(); i++) {
                   const auto& data_seg = _mod.data[i];
                   //TODO validate only use memory idx 0 in parse
@@ -347,7 +346,7 @@ namespace eosio { namespace wasm_backend {
             uint32_t        _current_offset   = 0;
             uint16_t        _last_op_index    = 0;
             bool            _executing        = false;
-            uint8_t*        _linear_memory    = nullptr;
+            char*           _linear_memory    = nullptr;
             module&         _mod;
             wasm_allocator* _wasm_alloc;
             Host*           _host;
