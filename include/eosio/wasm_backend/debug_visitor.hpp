@@ -4,10 +4,10 @@
 
 namespace eosio { namespace wasm_backend {
 
-template <typename Backend>
-struct debug_visitor : public interpret_visitor<Backend> {
-   using interpret_visitor<Backend>::interpret_visitor;
-
+template <typename ExecutionCTX>
+struct debug_visitor : public interpret_visitor<ExecutionCTX> {
+   debug_visitor(ExecutionCTX& ctx) : interpret_visitor<ExecutionCTX>(ctx) {}
+   ExecutionCTX& get_context() { return interpret_visitor<ExecutionCTX>::get_context(); }
    CONTROL_FLOW_OPS(DBG_VISIT)
    BR_TABLE_OP(DBG_VISIT)
    RETURN_OP(DBG_VISIT)

@@ -12,7 +12,7 @@
 #include <eosio/wasm_backend/execution_context.hpp>
 #include <eosio/wasm_backend/types.hpp>
 
-//#define __EOSIO_DBG__
+#define __EOSIO_DBG__
 
 namespace eosio { namespace wasm_backend {
    template <typename Host>
@@ -72,7 +72,6 @@ namespace eosio { namespace wasm_backend {
          wasm_file.close();
          return wasm;
       }
-      inline size_t get_instructions()const { return _ctx.insts; }
    private:
       wasm_allocator*         _walloc; // non owning pointer
       module                  _mod;

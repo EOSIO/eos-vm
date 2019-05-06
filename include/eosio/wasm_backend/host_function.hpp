@@ -156,7 +156,11 @@ namespace eosio { namespace wasm_backend {
       void* n = nullptr;
       size_t s;
    };
-
+   
+   static inline constexpr void bytes_copy( void* out, void* in, size_t sz ) {
+      for (int i=0; i < sz; i++)
+        ((char*)out)[i] = ((char*)in)[i];
+   }
    // TODO clean this up
    template <typename S, typename Args, size_t I, typename T, typename WAlloc, typename Cleanups>
    constexpr auto get_value(operand_stack& op, Cleanups& cleanups, WAlloc* alloc, T&& val) -> std::enable_if_t<std::is_same_v<i32_const_t, T> && std::is_pointer_v<S>, S> {
@@ -171,7 +175,7 @@ namespace eosio { namespace wasm_backend {
             apt.o = (void*)ptr;
             ptr = &cpy[0];
             apt.n = (void*)ptr;
-            memcpy(apt.n, apt.o, apt.s);
+            bytes_copy(apt.n, apt.o, apt.s);
             cleanups.emplace_back(std::move(apt));
          }
       }
@@ -192,7 +196,7 @@ namespace eosio { namespace wasm_backend {
             apt.o = (void*)ptr;
             ptr = &cpy[0];
             apt.n = (void*)ptr;
-            memcpy(apt.n, apt.o, apt.s);
+            bytes_copy(apt.n, apt.o, apt.s);
             cleanups.emplace_back(std::move(apt));
             return *(std::remove_reference_t<std::remove_const_t<S>>*)apt.n;
          }
@@ -258,17 +262,16 @@ namespace eosio { namespace wasm_backend {
       return f64_const_t{*(uint64_t*)&res};
    }
 
-   void cleanup(const std::vector<align_ptr_triple>& cleanups) {
-      for (const auto& apt : cleanups)
-         if (apt.o && apt.n)
-            memcpy(apt.o, apt.n, apt.s);
-   }
-
    template <typename WAlloc, typename Cls, typename Cls2, auto F, typename R, typename Args, size_t... Is>
    auto create_function(std::index_sequence<Is...>) {
       return std::function<void(Cls*, WAlloc*, operand_stack&)>{
          [](Cls* self, WAlloc* walloc, operand_stack& os) {
             size_t i = sizeof...(Is)-1;
+	    auto cleanup = [](const std::vector<align_ptr_triple>& cleanups) {
+               for (const auto& apt : cleanups)
+                  if (apt.o && apt.n) memcpy( apt.o, apt.n, apt.s );
+	    };
+
             std::vector<align_ptr_triple> cleanups;
             if constexpr (!std::is_same_v<R, void>) {
                if constexpr (std::is_same_v<Cls, std::nullptr_t>) {

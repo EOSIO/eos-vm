@@ -322,7 +322,7 @@ namespace eosio { namespace wasm_backend {
                         pc_stack.push(op_index);
                         auto& _if = std::get<if__t>(fb[old_index]);
                         _if.pc = op_index;
-                        fb[op_index++] = else__t{*code++}; break;
+                        fb[op_index++] = else__t{}; break;
                         //new (&fb[op_index++]) else__t; break;
                         break;
                      }
@@ -338,7 +338,7 @@ namespace eosio { namespace wasm_backend {
                      }
                      break;
                   case opcodes::call:
-                     fb[op_index++] = call_t{parse_varuint32(code)}; break;
+		     fb[op_index++] = call_t{parse_varuint32(code)}; break;
                   case opcodes::call_indirect:
                      fb[op_index++] = call_indirect_t{parse_varuint32(code)}; code++; break;
                   case opcodes::drop:
@@ -352,7 +352,7 @@ namespace eosio { namespace wasm_backend {
                   case opcodes::tee_local:
                      fb[op_index++] = tee_local_t{parse_varuint32(code)}; break;
                   case opcodes::get_global:
-                     fb[op_index++] = get_global_t{parse_varuint32(code)}; break;
+		     fb[op_index++] = get_global_t{parse_varuint32(code)}; break;
                   case opcodes::set_global:
                      fb[op_index++] = set_global_t{parse_varuint32(code)}; break;
                   case opcodes::i32_load:
@@ -406,7 +406,7 @@ namespace eosio { namespace wasm_backend {
                   case opcodes::grow_memory:
                      fb[op_index++] = grow_memory_t{}; code++; break;
                   case opcodes::i32_const: 
-                     fb[op_index++] = i32_const_t{parse_varint32(code)}; break;
+		     fb[op_index++] = i32_const_t{parse_varint32(code)}; break;
                   case opcodes::i64_const:
                      fb[op_index++] = i64_const_t{parse_varint64(code)}; break;
                   case opcodes::f32_const:
@@ -530,7 +530,7 @@ namespace eosio { namespace wasm_backend {
                   case opcodes::i64_mul:
                      fb[op_index++] = i64_mul_t{}; break;
                   case opcodes::i64_div_s:
-                     fb[op_index++] = i64_div_s_t{}; break;
+		     fb[op_index++] = i64_div_s_t{}; break;
                   case opcodes::i64_div_u:
                      fb[op_index++] = i64_div_u_t{}; break;
                   case opcodes::i64_rem_s:
@@ -669,17 +669,17 @@ namespace eosio { namespace wasm_backend {
          void parse_data_segment( wasm_code_ptr& code, data_segment& ds ) {
             ds.index  = parse_varuint32( code );
             parse_init_expr( code, ds.offset );
-            ds.size   = parse_varuint32( code );
-            ds.data.set( code.raw(), ds.size );
-            code += ds.size;
+            ds.data.set( code.raw(), parse_varuint32( code ) );
+            code += ds.data.size();
          }
 
          template <typename Elem, typename ParseFunc>
          inline void parse_section_impl( wasm_code_ptr& code, vec<Elem>& elems, ParseFunc&& elem_parse ) {
             auto count = parse_varuint32( code );
             elems = vec<Elem>{ _allocator, count };
-            for (size_t i=0; i < count; i++ )
+            for (size_t i=0; i < count; i++ ) {
                elem_parse(code, elems.at(i));
+	    }
          }
          
          template <uint8_t id> 
