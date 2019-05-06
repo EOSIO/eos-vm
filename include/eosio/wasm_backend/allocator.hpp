@@ -47,10 +47,10 @@ namespace eosio { namespace wasm_backend {
 
          // size in bytes
          growable_allocator(size_t size) : _size(size), _base(nullptr) {
-            _base = (uint8_t*)mmap(NULL, max_memory_size, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+            _base = (char*)mmap(NULL, max_memory_size, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
             size_t chunks_to_alloc = size / chunk_size;
             _size += (chunk_size*chunks_to_alloc);
-            mprotect((uint8_t*)_base, _size, PROT_READ|PROT_WRITE);
+            mprotect((char*)_base, _size, PROT_READ|PROT_WRITE);
          }
 
          ~growable_allocator() {
@@ -63,7 +63,7 @@ namespace eosio { namespace wasm_backend {
             size_t aligned = align_offset((sizeof(T)*size)+_offset);
             if ( aligned >= _size ) {
                size_t chunks_to_alloc = aligned / chunk_size;
-               mprotect((uint8_t*)_base+_size, (chunk_size*chunks_to_alloc), PROT_READ|PROT_WRITE);
+               mprotect((char*)_base+_size, (chunk_size*chunks_to_alloc), PROT_READ|PROT_WRITE);
                _size += (chunk_size*chunks_to_alloc);
             }
             
@@ -82,7 +82,7 @@ namespace eosio { namespace wasm_backend {
 
          size_t _offset = 0;
          size_t _size  = 0;
-         uint8_t* _base;
+         char* _base;
    };
 
    template <typename T>
@@ -114,8 +114,8 @@ namespace eosio { namespace wasm_backend {
 
    class wasm_allocator {
       private:
-         uint8_t* raw       = nullptr;
-         uint8_t* _previous = raw;
+         char* raw       = nullptr;
+         char* _previous = raw;
          int32_t page       = 0;
 
          void set_up_signals() {
@@ -142,10 +142,11 @@ namespace eosio { namespace wasm_backend {
          }
          wasm_allocator() {
             set_up_signals();
-            raw = (uint8_t*)mmap(NULL, max_memory, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+            raw = (char*)mmap(NULL, max_memory, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
             _previous = raw;
             mprotect(raw, page_size, PROT_READ|PROT_WRITE);
             page = 1;
+            std::cout << "wasm_allocator()\n";
          }
          void reset() {
             uint64_t size = page_size * page;

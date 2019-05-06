@@ -157,15 +157,11 @@ namespace eosio { namespace wasm_backend {
       size_t s;
    };
    
-   static inline constexpr void bytes_copy( void* out, void* in, size_t sz ) {
-      for (int i=0; i < sz; i++)
-        ((char*)out)[i] = ((char*)in)[i];
-   }
    // TODO clean this up
    template <typename S, typename Args, size_t I, typename T, typename WAlloc, typename Cleanups>
    constexpr auto get_value(operand_stack& op, Cleanups& cleanups, WAlloc* alloc, T&& val) -> std::enable_if_t<std::is_same_v<i32_const_t, T> && std::is_pointer_v<S>, S> {
       size_t i = std::tuple_size<Args>::value-1;
-      auto ptr = (std::remove_reference_t<S>)(alloc->template get_base_ptr<uint8_t>()+val.data.ui);
+      auto ptr = (std::remove_const_t<S>)(alloc->template get_base_ptr<uint8_t>()+val.data.ui);
       if constexpr (std::tuple_size<Args>::value > I) {
          const auto& len = std::get<to_wasm_t<typename std::tuple_element<I, Args>::type>>(op.get_back(i-I)).data.ui;
          if ((uintptr_t)ptr % alignof(S) != 0) {
@@ -175,7 +171,7 @@ namespace eosio { namespace wasm_backend {
             apt.o = (void*)ptr;
             ptr = &cpy[0];
             apt.n = (void*)ptr;
-            bytes_copy(apt.n, apt.o, apt.s);
+            memcpy(apt.n, apt.o, apt.s);
             cleanups.emplace_back(std::move(apt));
          }
       }
@@ -185,21 +181,19 @@ namespace eosio { namespace wasm_backend {
    template <typename S, typename Args, size_t I, typename T, typename WAlloc, typename Cleanups>
    constexpr auto get_value(operand_stack& op, Cleanups& cleanups, WAlloc* alloc, T&& val) -> std::enable_if_t<std::is_same_v<i32_const_t, T> && std::is_lvalue_reference_v<S>, S> {
       size_t i = std::tuple_size<Args>::value-1;
-      std::remove_const_t<S> ref = *(std::remove_reference_t<std::remove_const_t<S>>*)(alloc->template get_base_ptr<uint8_t>()+val.data.ui);
-      if constexpr (std::tuple_size<Args>::value > I) {
-         auto* ptr = &ref;
-         const auto& len = std::get<to_wasm_t<typename std::tuple_element<I, Args>::type>>(op.get_back(i-I)).data.ui;
-         if ((uintptr_t)ptr % alignof(S) != 0) {
-            align_ptr_triple apt;
-            apt.s = sizeof(S)*len;
-            std::vector<std::remove_reference_t<std::remove_const_t<S>>> cpy(len > 0 ? len : 1);
-            apt.o = (void*)ptr;
-            ptr = &cpy[0];
-            apt.n = (void*)ptr;
-            bytes_copy(apt.n, apt.o, apt.s);
+      std::remove_const_t<S> ref = *(std::remove_const_t<std::remove_reference_t<S>>*)(alloc->template get_base_ptr<uint8_t>()+val.data.ui);
+      auto* ptr = &ref;
+      if ((uintptr_t)ptr % alignof(S) != 0) {
+         std::remove_const_t<std::remove_reference_t<S>> copy;
+         align_ptr_triple apt;
+         apt.s = sizeof(S);
+         apt.o = (void*)ptr;
+         ptr = &copy;
+         apt.n = (void*)ptr;
+         memcpy(apt.n, apt.o, apt.s);
+         if constexpr (!std::is_const_v<S>)
             cleanups.emplace_back(std::move(apt));
-            return *(std::remove_reference_t<std::remove_const_t<S>>*)apt.n;
-         }
+         return *(std::remove_const_t<std::remove_reference_t<S>>*)apt.n;
       }
       return ref;
    }
@@ -280,6 +274,7 @@ namespace eosio { namespace wasm_backend {
                   os.trim(sizeof...(Is));
                   os.push(resolve_result(res, walloc));
                } else {
+                  std::cout << "SELF0 " << (Cls2*)self << "\n";
                   auto res = std::invoke(F, (Cls2*)self, get_value<typename std::tuple_element<Is, Args>::type, Args, Is+1>(os, cleanups, walloc,
                              std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
                   os.trim(sizeof...(Is));
@@ -291,6 +286,7 @@ namespace eosio { namespace wasm_backend {
                   std::invoke(F, get_value<typename std::tuple_element<Is, Args>::type, Args, Is+1>(os, cleanups, walloc,
                      std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
                } else {
+                  std::cout << "SELF1 " << (Cls2*)self << "\n";
                   std::invoke(F, (Cls2*)self, get_value<typename std::tuple_element<Is, Args>::type, Args, Is+1>(os, cleanups, walloc,
                      std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
                }
