@@ -17,6 +17,7 @@ namespace eosio { namespace wasm_backend {
             mem_size = size;
             raw = std::unique_ptr<uint8_t[]>(new uint8_t[mem_size]);
             memset(raw.get(), 0, mem_size);
+	    std::cout << "bounded_allocator()\n";
          }
          template <typename T>
          T* alloc(size_t size=1) {
@@ -47,13 +48,9 @@ namespace eosio { namespace wasm_backend {
          // size in bytes
          growable_allocator(size_t size) : _size(size), _base(nullptr) {
             _base = (uint8_t*)mmap(NULL, max_memory_size, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-            std::cout << "_base before " << (int*)_base << std::endl;
             size_t chunks_to_alloc = size / chunk_size;
             _size += (chunk_size*chunks_to_alloc);
             mprotect((uint8_t*)_base, _size, PROT_READ|PROT_WRITE);
-            std::cout << "_base after " << (int*)_base << std::endl;
-            std::cout << "size " << size << " _size " << _size << "\n";
-            std::cout << "gralloc " << std::hex << (void*)_base << std::dec << "\n";
          }
 
          ~growable_allocator() {
@@ -64,17 +61,14 @@ namespace eosio { namespace wasm_backend {
          template <typename T>
          T* alloc(size_t size=0) {
             size_t aligned = align_offset((sizeof(T)*size)+_offset);
-            std::cout << "ALIGN " << aligned << " OFFSET " << _offset << " SIZE " << (sizeof(T)*size) << " JSIZE " << size << " TSIZE " << sizeof(T) << "\n";
             if ( aligned >= _size ) {
                size_t chunks_to_alloc = aligned / chunk_size;
-               std::cout << "CHUNKS_TO_ALLOC " << chunks_to_alloc << "\n";
                mprotect((uint8_t*)_base+_size, (chunk_size*chunks_to_alloc), PROT_READ|PROT_WRITE);
                _size += (chunk_size*chunks_to_alloc);
             }
             
             T* ptr = (T*)(_base+_offset);
             _offset = aligned;
-            std::cout << ptr << " " << _offset << std::endl;
             return ptr;
          }
 

@@ -98,7 +98,6 @@ namespace eosio { namespace wasm_backend {
    template <typename T>
    std::string vector_to_string( T&& vec ) {
      std::string str;
-     std::cout << "vs " << vec.size() << "\n";
      str.reserve(vec.size());
      for (int i=0; i < vec.size(); i++)
        str[i] = vec[i];

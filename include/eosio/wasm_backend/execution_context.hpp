@@ -39,7 +39,6 @@ namespace eosio { namespace wasm_backend {
                   // TODO validate only importing functions
                   //const auto& ft = _mod.types[_mod.imports[index].type.func_t];
                   //type_check(ft);
-                  std::cout << "RHF CALL " << _host << "\n";
                   _rhf(_host, *this, _mod.import_functions[index]);
                   inc_pc();
                } else {
@@ -85,15 +84,16 @@ namespace eosio { namespace wasm_backend {
             inline void eat_operands(uint16_t index) { _os.eat(index); }
             inline void set_operand( uint16_t index, const stack_elem& el ) { _os.set(_last_op_index+index, el); }
             inline uint16_t current_operands_index()const { return _os.current_index(); }
-            inline size_t operands()const { return _os.size(); }
             inline void push_call( const stack_elem& el ) { _as.push(el); }
             inline stack_elem pop_call() { return _as.pop(); }
             inline void push_call(uint32_t index) {
+	       print_stack();
                const auto& ftype     = _mod.types[_mod.functions[index-_mod.get_imported_functions_size()]];
                _last_op_index = _os.size() - ftype.param_count;
                _as.push( activation_frame{ _pc+1, _current_offset, _code_index,
                                            static_cast<uint16_t>(_last_op_index),
                                            ftype.return_type } );
+	       std::cout << "push() _last_op_index " << _last_op_index << "\n";
             }
 
             inline void apply_pop_call() {
@@ -116,8 +116,10 @@ namespace eosio { namespace wasm_backend {
                   eat_operands(op_index);
                   if (ret_type)
                      push_operand(el);
-                  if (_as.size())
+                  if (_as.size()) {
                      _last_op_index = std::get<activation_frame>(_as.peek()).op_index;
+		     std::cout << "pop() _last_op_index " << _last_op_index << "\n";
+		  }
                }
             }
             inline stack_elem pop_label() { return _cs.pop(); }
@@ -209,11 +211,11 @@ namespace eosio { namespace wasm_backend {
                   const auto& data_seg = _mod.data[i];
                   //TODO validate only use memory idx 0 in parse
                   auto addr = _linear_memory + data_seg.offset.value.i64;
-                  if ( data_seg.offset.value.i64 + data_seg.size >= _wasm_alloc->get_current_page() * constants::page_size ) {
-                     uint32_t pages_needed = (((data_seg.offset.value.i64 + data_seg.size) - constants::page_size)/constants::page_size) + 1;
+                  if ( data_seg.offset.value.i64 + data_seg.data.size() >= _wasm_alloc->get_current_page() * constants::page_size ) {
+                     uint32_t pages_needed = (((data_seg.offset.value.i64 + data_seg.data.size()) - constants::page_size)/constants::page_size) + 1;
                      grow_linear_memory(pages_needed);
                   }
-                  memcpy((char*)(addr), data_seg.data.raw(), data_seg.size);
+                  memcpy((char*)(addr), data_seg.data.raw(), data_seg.data.size());
                }
 
                uint32_t func_index = _mod.get_exported_function(func);
@@ -228,9 +230,9 @@ namespace eosio { namespace wasm_backend {
                _as.eat(0);
                _cs.eat(0);
 
-               push_args(args...);
                push_call(func_index);
-               type_check(_mod.types[_mod.functions[func_index - _mod.import_functions.size()]]);
+               push_args(args...);
+               //type_check(_mod.types[_mod.functions[func_index - _mod.import_functions.size()]]);
                setup_locals(func_index);
                _pc = _current_offset; // set to actual start of function
 
@@ -280,7 +282,6 @@ namespace eosio { namespace wasm_backend {
                }
             }
 
-            size_t insts = 0;
          private:
 
             template <typename Arg, typename... Args>
@@ -305,7 +306,8 @@ namespace eosio { namespace wasm_backend {
 
             inline void setup_locals(uint32_t index) {
                const auto& fn = _mod.code[index-_mod.get_imported_functions_size()];
-               for (int i=0; i < fn.local_count; i++) {
+		    std::cout << "Locals " << fn.locals.size() << "\n";
+               for (int i=0; i < fn.locals.size(); i++) {
                   for (int j=0; j < fn.locals[i].count; j++)
                      switch (fn.locals[i].type) {
                         case types::i32:
@@ -329,7 +331,6 @@ namespace eosio { namespace wasm_backend {
             template <typename Visitor>
             void execute(Visitor&& visitor ) {
                do {
-                  insts++;
                   uint32_t offset = _pc - _current_offset;
                   if (_pc == _exit_pc && _as.size() <= 1) {
                      _executing = false;
@@ -338,7 +339,7 @@ namespace eosio { namespace wasm_backend {
                } while (_executing);
             }
 
-            bounded_allocator _base_allocator = {4*1024*1024};
+            bounded_allocator _base_allocator = {(constants::max_stack_size+constants::max_call_depth+constants::max_nested_structures)*sizeof(stack_elem)};
             uint32_t        _pc               = 0;
             uint32_t        _exit_pc          = 0;
             uint32_t        _current_function = 0;

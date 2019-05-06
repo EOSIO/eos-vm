@@ -19,7 +19,7 @@ option(ENABLE_UNDEFINED_BEHAVIOR_SANITIZER "build with undefined behavior saniti
 option(ENABLE_PROFILE "enable build for pixie or gprof")
 
 
-
+set(CMAKE_EXPORT_COMPILE_COMMANDS=ON)
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads)

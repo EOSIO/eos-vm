@@ -102,7 +102,6 @@ namespace eosio { namespace wasm_backend {
       }
 
       inline T at(size_t index) const {
-         std::cout << "Index " << index << " " << (void*)(&raw_ptr[index]) << "\n";
          EOS_WB_ASSERT((uintptr_t)orig_ptr + index <= (uintptr_t)bnds, guarded_ptr_exception, "accessing out of bounds");
          return raw_ptr[index];
       }

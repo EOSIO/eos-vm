@@ -18,6 +18,8 @@ template <typename ExecutionContext>
 struct interpret_visitor {
    interpret_visitor(ExecutionContext& ec) : context(ec) {}
    ExecutionContext& context;
+   
+   ExecutionContext& get_context() { return context; }
 
    void operator()( const unreachable_t& op) {
       context.inc_pc();
@@ -83,7 +85,7 @@ struct interpret_visitor {
       op.op_index = context.current_operands_index();
       const auto& oper = context.pop_operand();
       if (!TO_UINT32(oper)) {
-         context.set_relative_pc(op.pc+2);
+         context.set_relative_pc(op.pc+1);
       }
       context.push_label(op);
    }
@@ -110,17 +112,10 @@ struct interpret_visitor {
          context.jump(op.default_target);
    }
    void operator()( const call_t& op) {
-      std::cout << "CALLING " << op.index << "\n";
-      context.print_stack();
+      std::cout << "Call " << op.index << std::endl;
       context.call(op.index);
       // TODO place these in parser
       //EOS_WB_ASSERT(b.index < funcs_size, wasm_interpreter_exception, "call index out of bounds");
-      /*
-      if (ftype.return_count > 0) {
-         EOS_WB_ASSERT(ftype.return_count <= 1, wasm_interpreter_exception, "mvp only supports single value returns");
-         context.push_operand(ret_val);
-      }
-      */
    }
    void operator()( const call_indirect_t& op) {
       const auto& index = TO_UINT32(context.pop_operand());
@@ -140,6 +135,12 @@ struct interpret_visitor {
    }
    void operator()( const get_local_t& op) {
       context.inc_pc();
+      std::cout << "op.index " << op.index << "\n";
+      const auto& cc = context.get_operand(op.index);
+      if (std::holds_alternative<i64_const_t>(cc))
+         std::cout << "i64 (" << TO_UINT64(cc) << ")\n";
+      else if (std::holds_alternative<i32_const_t>(cc))
+         std::cout << "i32 (" << TO_UINT32(cc) << ")\n";
       context.push_operand(context.get_operand(op.index));
    }
    void operator()( const set_local_t& op) {
@@ -148,6 +149,8 @@ struct interpret_visitor {
    }
    void operator()( const tee_local_t& op) {
       context.inc_pc();
+      std::cout << "op.index " << op.index << std::endl;
+      context.print_stack();
       const auto& oper = context.pop_operand();
       context.set_operand(op.index, oper);
       context.push_operand(oper);
@@ -1101,7 +1104,6 @@ struct interpret_visitor {
    }
    void operator()( const i64_trunc_s_f32_t& op) {
       context.inc_pc();
-      context.print_stack();
       auto& oper = context.peek_operand();
       oper = i64_const_t{_eosio_f32_trunc_i64s(TO_F32(oper))};
    }

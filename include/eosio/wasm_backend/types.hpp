@@ -126,7 +126,6 @@ namespace eosio { namespace wasm_backend {
 
    struct function_body {
       uint32_t body_size;
-      uint32_t local_count;
       guarded_vector<local_entry> locals;
       guarded_vector<opcode>      code;
    };
@@ -134,7 +133,6 @@ namespace eosio { namespace wasm_backend {
    struct data_segment {
       uint32_t  index;
       init_expr offset;
-      uint32_t  size;
       guarded_vector<uint8_t> data;
    };
 

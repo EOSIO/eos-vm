@@ -26,12 +26,13 @@ namespace eosio { namespace wasm_backend {
             _s[_index++] = e;
          }
          stack_elem& get(uint32_t index)const {
+            //std::cout << "get() index " << index << "\n";
             EOS_WB_ASSERT(index <= _index, wasm_interpreter_exception, "invalid stack index");
             return _s[index];
          }
          void set(uint32_t index, const stack_elem& el) {
+            std::cout << "set() index " << index << "\n";
             EOS_WB_ASSERT(index <= _index, wasm_interpreter_exception, "invalid stack index");
-            EOS_WB_ASSERT(el.index() == _s[index].index(), wasm_invalid_element, "set element must match the type of held element");
             _s[index] = el;
          }
          stack_elem pop() {
@@ -54,6 +55,7 @@ namespace eosio { namespace wasm_backend {
             return _s[_index-1-i];
          }
          void trim(size_t amt) {
+            std::cout << "trim " << amt << std::endl;
             _index -= amt;
          }
          uint16_t size()const {
