@@ -26,12 +26,10 @@ namespace eosio { namespace wasm_backend {
             _s[_index++] = e;
          }
          stack_elem& get(uint32_t index)const {
-            //std::cout << "get() index " << index << "\n";
             EOS_WB_ASSERT(index <= _index, wasm_interpreter_exception, "invalid stack index");
             return _s[index];
          }
          void set(uint32_t index, const stack_elem& el) {
-            std::cout << "set() index " << index << "\n";
             EOS_WB_ASSERT(index <= _index, wasm_interpreter_exception, "invalid stack index");
             _s[index] = el;
          }
@@ -55,7 +53,6 @@ namespace eosio { namespace wasm_backend {
             return _s[_index-1-i];
          }
          void trim(size_t amt) {
-            std::cout << "trim " << amt << std::endl;
             _index -= amt;
          }
          uint16_t size()const {

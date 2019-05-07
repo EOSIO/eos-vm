@@ -286,8 +286,9 @@
 #define IDENTITY_END(name, code) \
    eosio::wasm_backend::name##_t
 
-#define DBG_VISIT(name, code)                                                        \
-   void operator()( name##_t& op ) {                              		     \
+#define DBG_VISIT(name, code)                                                     \
+   void operator()( name##_t& op ) {                              		          \
       std::cout << "Found " << #name << " at " << get_context().get_pc() << "\n"; \
-      interpret_visitor<ExecutionCTX>::operator()(op);                               \
+      interpret_visitor<ExecutionCTX>::operator()(op);                            \
+      /*get_context().print_stack();*/                                          \
    }
