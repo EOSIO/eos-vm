@@ -16,8 +16,6 @@ namespace eosio { namespace wasm_backend {
          bounded_allocator(size_t size) {
             mem_size = size;
             raw = std::unique_ptr<uint8_t[]>(new uint8_t[mem_size]);
-            memset(raw.get(), 0, mem_size);
-	    std::cout << "bounded_allocator()\n";
          }
          template <typename T>
          T* alloc(size_t size=1) {
@@ -46,11 +44,13 @@ namespace eosio { namespace wasm_backend {
          }
 
          // size in bytes
-         growable_allocator(size_t size) : _size(size), _base(nullptr) {
+         growable_allocator(size_t size) {
             _base = (char*)mmap(NULL, max_memory_size, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-            size_t chunks_to_alloc = size / chunk_size;
-            _size += (chunk_size*chunks_to_alloc);
-            mprotect((char*)_base, _size, PROT_READ|PROT_WRITE);
+            if (size != 0) {
+               size_t chunks_to_alloc = (size / chunk_size) + 1;
+               _size += (chunk_size*chunks_to_alloc);
+               mprotect((char*)_base, _size, PROT_READ|PROT_WRITE);
+            }
          }
 
          ~growable_allocator() {
@@ -146,7 +146,6 @@ namespace eosio { namespace wasm_backend {
             _previous = raw;
             mprotect(raw, page_size, PROT_READ|PROT_WRITE);
             page = 1;
-            std::cout << "wasm_allocator()\n";
          }
          void reset() {
             uint64_t size = page_size * page;

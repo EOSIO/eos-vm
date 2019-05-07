@@ -669,7 +669,8 @@ namespace eosio { namespace wasm_backend {
          void parse_data_segment( wasm_code_ptr& code, data_segment& ds ) {
             ds.index  = parse_varuint32( code );
             parse_init_expr( code, ds.offset );
-            ds.data.set( code.raw(), parse_varuint32( code ) );
+            ds.data = decltype(ds.data){ _allocator, parse_varuint32(code) };
+            ds.data.copy( code.raw(), ds.data.size() );
             code += ds.data.size();
          }
 

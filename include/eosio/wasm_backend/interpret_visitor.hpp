@@ -82,11 +82,11 @@ struct interpret_visitor {
    void operator()( if__t& op) {
       context.inc_pc();
       op.index = context.current_label_index();
-      op.op_index = context.current_operands_index();
       const auto& oper = context.pop_operand();
       if (!TO_UINT32(oper)) {
          context.set_relative_pc(op.pc+1);
       }
+      op.op_index = context.current_operands_index();
       context.push_label(op);
    }
    void operator()( const else__t& op) {
@@ -112,7 +112,7 @@ struct interpret_visitor {
          context.jump(op.default_target);
    }
    void operator()( const call_t& op) {
-      std::cout << "Call " << op.index << std::endl;
+      std::cout << "Calling " << op.index << std::endl;
       context.call(op.index);
       // TODO place these in parser
       //EOS_WB_ASSERT(b.index < funcs_size, wasm_interpreter_exception, "call index out of bounds");
@@ -136,24 +136,21 @@ struct interpret_visitor {
    void operator()( const get_local_t& op) {
       context.inc_pc();
       std::cout << "op.index " << op.index << "\n";
-      const auto& cc = context.get_operand(op.index);
-      if (std::holds_alternative<i64_const_t>(cc))
-         std::cout << "i64 (" << TO_UINT64(cc) << ")\n";
-      else if (std::holds_alternative<i32_const_t>(cc))
-         std::cout << "i32 (" << TO_UINT32(cc) << ")\n";
       context.push_operand(context.get_operand(op.index));
    }
    void operator()( const set_local_t& op) {
       context.inc_pc();
+      std::cout << "op.index " << op.index << "\n";
       context.set_operand(op.index, context.pop_operand());
    }
    void operator()( const tee_local_t& op) {
       context.inc_pc();
-      std::cout << "op.index " << op.index << std::endl;
       context.print_stack();
       const auto& oper = context.pop_operand();
+      std::cout << "op.index " << op.index << "\n";
       context.set_operand(op.index, oper);
       context.push_operand(oper);
+      std::cout << "made it after\n";
    }
    void operator()( const get_global_t& op) {
       context.inc_pc();

@@ -205,7 +205,6 @@ namespace eosio { namespace wasm_backend {
                _host = host;
                _wasm_alloc->reset();
                _linear_memory = _wasm_alloc->get_base_ptr<char>();
-               std::cout << "_linear_memory " << (int*)_linear_memory << "\n";
                for (int i=0; i < _mod.data.size(); i++) {
                   const auto& data_seg = _mod.data[i];
                   //TODO validate only use memory idx 0 in parse
@@ -305,7 +304,6 @@ namespace eosio { namespace wasm_backend {
 
             inline void setup_locals(uint32_t index) {
                const auto& fn = _mod.code[index-_mod.get_imported_functions_size()];
-		    std::cout << "Locals " << fn.locals.size() << "\n";
                for (int i=0; i < fn.locals.size(); i++) {
                   for (int j=0; j < fn.locals[i].count; j++)
                      switch (fn.locals[i].type) {
