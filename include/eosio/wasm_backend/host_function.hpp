@@ -11,6 +11,11 @@
 
 namespace eosio { namespace wasm_backend {
 
+   template <typename Derived, typename Base>
+   struct construct_derived {
+      static auto value(Base& base) { return Derived(base); }
+   };
+
    template <typename T>
    struct reduce_type {
       using type = T;
@@ -275,7 +280,7 @@ namespace eosio { namespace wasm_backend {
                   os.push(resolve_result(res, walloc));
                } else {
                   std::cout << "SELF0 " << (Cls2*)self << "\n";
-                  auto res = std::invoke(F, (Cls2*)self, get_value<typename std::tuple_element<Is, Args>::type, Args, Is+1>(os, cleanups, walloc,
+                  auto res = std::invoke(F, construct_derived<Cls2, Cls>::value(*self), get_value<typename std::tuple_element<Is, Args>::type, Args, Is+1>(os, cleanups, walloc,
                              std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
                   os.trim(sizeof...(Is));
                   os.push(resolve_result(res, walloc));
@@ -287,7 +292,7 @@ namespace eosio { namespace wasm_backend {
                      std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
                } else {
                   std::cout << "SELF1 " << (Cls2*)self << "\n";
-                  std::invoke(F, (Cls2*)self, get_value<typename std::tuple_element<Is, Args>::type, Args, Is+1>(os, cleanups, walloc,
+                  std::invoke(F, construct_derived<Cls2, Cls>::value(*self), get_value<typename std::tuple_element<Is, Args>::type, Args, Is+1>(os, cleanups, walloc,
                      std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
                }
                os.trim(sizeof...(Is));
