@@ -55,7 +55,6 @@ namespace eosio { namespace wasm_backend {
 
    struct func_type {
       value_type                 form;  // value for the func type constructor
-      uint32_t                   param_count;
       guarded_vector<value_type> param_types;
       uint8_t                    return_count;
       value_type                 return_type;
@@ -175,7 +174,7 @@ namespace eosio { namespace wasm_backend {
       auto& get_function_type(uint32_t index)const {
          if (index < get_imported_functions_size())
             return types[imports[index].type.func_t];
-         return types[functions[index]];
+         return types[functions[index-get_imported_functions_size()]];
       } 
 
       uint32_t get_exported_function(const std::string_view str) {

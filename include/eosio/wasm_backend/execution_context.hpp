@@ -12,8 +12,7 @@ namespace eosio { namespace wasm_backend {
       class execution_context {
          public:
             execution_context(module& m) :
-              _mod(m),
-              _linear_memory(nullptr) {
+              _linear_memory(nullptr), _mod(m) {
               for (int i=0; i < _mod.exports.size(); i++)
               _mod.import_functions.resize(_mod.get_imported_functions_size());
               _mod.function_sizes.resize(_mod.get_functions_total());
@@ -37,9 +36,8 @@ namespace eosio { namespace wasm_backend {
                 // TODO validate index is valid
                if (index < _mod.get_imported_functions_size()) {
                   // TODO validate only importing functions
-                  //const auto& ft = _mod.types[_mod.imports[index].type.func_t];
-                  //type_check(ft);
-                  print_stack();
+                  const auto& ft = _mod.types[_mod.imports[index].type.func_t];
+                  type_check(ft);
                   _rhf(_host, *this, _mod.import_functions[index]);
                   inc_pc();
                } else {
@@ -88,8 +86,9 @@ namespace eosio { namespace wasm_backend {
             inline void push_call( const stack_elem& el ) { _as.push(el); }
             inline stack_elem pop_call() { return _as.pop(); }
             inline void push_call(uint32_t index) {
-               const auto& ftype     = _mod.types[_mod.functions[index-_mod.get_imported_functions_size()]];
-               _last_op_index = _os.size() - ftype.param_count;
+               const auto& ftype = _mod.get_function_type( index );
+               _last_op_index = _os.size() - ftype.param_types.size();
+               std::cout << "_last_op_index " << _last_op_index << " fps " << ftype.param_types.size() << "\n";
                _as.push( activation_frame{ _pc+1, _current_offset, _code_index,
                                            static_cast<uint16_t>(_last_op_index),
                                            ftype.return_type } );
@@ -126,6 +125,7 @@ namespace eosio { namespace wasm_backend {
             inline stack_elem get_global(uint32_t index) {
                EOS_WB_ASSERT( index < _mod.globals.size(), wasm_interpreter_exception, "global index out of range" );
                const auto& gl = _mod.globals[index];
+               // computed g
                switch (gl.type.content_type) {
                   case types::i32:
                      return i32_const_t{*(uint32_t*)&gl.init.value.i32};
@@ -175,8 +175,8 @@ namespace eosio { namespace wasm_backend {
             }
 
             inline void type_check( const func_type& ft ) {
-              for (int i=0; i < ft.param_count; i++) {
-                const auto& op = peek_operand((ft.param_count-1)-i);
+              for (int i=0; i < ft.param_types.size(); i++) {
+                const auto& op = peek_operand((ft.param_types.size()-1)-i);
                 std::visit(overloaded {
                     [&](const i32_const_t&) {
                       EOS_WB_ASSERT(ft.param_types[i] == types::i32, wasm_interpreter_exception, "function param type mismatch");
@@ -228,15 +228,14 @@ namespace eosio { namespace wasm_backend {
                _as.eat(0);
                _cs.eat(0);
 
-               push_call(func_index);
                push_args(args...);
+               push_call(func_index);
                //type_check(_mod.types[_mod.functions[func_index - _mod.import_functions.size()]]);
                setup_locals(func_index);
                _pc = _current_offset; // set to actual start of function
 
                execute(visitor);
                stack_elem ret;
-               //TODO clean this up
                try {
                   ret = pop_operand();
                } catch(...) {
@@ -306,8 +305,10 @@ namespace eosio { namespace wasm_backend {
                const auto& fn = _mod.code[index-_mod.get_imported_functions_size()];
                for (int i=0; i < fn.locals.size(); i++) {
                   for (int j=0; j < fn.locals[i].count; j++)
+                     // computed g
                      switch (fn.locals[i].type) {
                         case types::i32:
+                           std::cout << "Push operand\n";
                            push_operand(i32_const_t{(uint32_t)0});
                            break;
                         case types::i64:

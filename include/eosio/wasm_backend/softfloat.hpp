@@ -33,7 +33,7 @@ static inline float _eosio_f32_div( float a, float b ) {
 }
 
 static inline float _eosio_f32_mul( float a, float b ) {
-   float32_t ret = ::f32_div( to_softfloat32(a), to_softfloat32(b) );
+   float32_t ret = ::f32_mul( to_softfloat32(a), to_softfloat32(b) );
    return *reinterpret_cast<float*>(&ret);
 }
 

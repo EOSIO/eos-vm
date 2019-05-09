@@ -1,0 +1,25 @@
+#pragma once
+
+namespace eosio { namespace wasm_backend {
+   static constexpr auto f32_wasm           = "${CMAKE_SOURCE_DIR}/tests/wasms/f32.wasm";
+   static constexpr auto f32_bitwise_wasm   = "${CMAKE_SOURCE_DIR}/tests/wasms/f32_bitwise.wasm";
+   static constexpr auto f32_cmp_wasm       = "${CMAKE_SOURCE_DIR}/tests/wasms/f32_cmp.wasm";
+   static constexpr auto i32_wasm           = "${CMAKE_SOURCE_DIR}/tests/wasms/i32.wasm";
+   static constexpr auto i64_wasm           = "${CMAKE_SOURCE_DIR}/tests/wasms/i64.wasm";
+   static constexpr auto address_i32_wasm   = "${CMAKE_SOURCE_DIR}/tests/wasms/address_i32.wasm";
+   static constexpr auto address_i64_wasm   = "${CMAKE_SOURCE_DIR}/tests/wasms/address_i64.wasm";
+   static constexpr auto address_f32_wasm   = "${CMAKE_SOURCE_DIR}/tests/wasms/address_f32.wasm";
+   static constexpr auto address_f64_wasm   = "${CMAKE_SOURCE_DIR}/tests/wasms/address_f64.wasm";
+   static constexpr auto blocks_wasm        = "${CMAKE_SOURCE_DIR}/tests/wasms/blocks.wasm";
+   static constexpr auto br_wasm            = "${CMAKE_SOURCE_DIR}/tests/wasms/br.wasm";
+   static constexpr auto br_if_wasm         = "${CMAKE_SOURCE_DIR}/tests/wasms/br_if.wasm";
+   static constexpr auto br_table_wasm      = "${CMAKE_SOURCE_DIR}/tests/wasms/br_table.wasm";
+   static constexpr auto break_drop_wasm    = "${CMAKE_SOURCE_DIR}/tests/wasms/break_drop.wasm";
+   static constexpr auto call_wasm          = "${CMAKE_SOURCE_DIR}/tests/wasms/call.wasm";
+   static constexpr auto call_indirect_wasm = "${CMAKE_SOURCE_DIR}/tests/wasms/call_indirect.wasm";
+   static constexpr auto conversions_wasm   = "${CMAKE_SOURCE_DIR}/tests/wasms/conversions.wasm";
+   static constexpr auto endianness_wasm    = "${CMAKE_SOURCE_DIR}/tests/wasms/endianness.wasm";
+   static constexpr auto fac_wasm           = "${CMAKE_SOURCE_DIR}/tests/wasms/fac.wasm";
+   static constexpr auto loop_wasm          = "${CMAKE_SOURCE_DIR}/tests/wasms/loop.wasm";
+   static constexpr auto unwind_wasm        = "${CMAKE_SOURCE_DIR}/tests/wasms/unwind.wasm";
+}} // ns eosio::wasm_backend

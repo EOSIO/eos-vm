@@ -47,22 +47,6 @@ if (ENABLE_UNDEFINED_BEHAVIOR_SANITIZER)
    set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=undefined" )
 endif()
 
-#FIND_PACKAGE(Boost 1.50 REQUIRED COMPONENTS
-#    thread
-#    date_time
-#    filesystem
-#    system
-#    program_options
-#    signals
-#    serialization
-#    chrono
-#    unit_test_framework
-#    context
-#    locale
-#    iostreams)
-
-#set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_C_FLAGS} -O3 -std=c++17" )
-
 # generate compile command database for external tools
 set (CMAKE_EXPORT_COMPILE_COMMANDS "ON")
 
@@ -90,14 +74,15 @@ else()
 endif()
 
 if (ENABLE_TESTS)
-   #add_subdirectory(tests)
    include(CTest)
    add_subdirectory(external/Catch2)
    include(external/Catch2/contrib/Catch.cmake)
+   configure_file(tests/wasm_config.hpp.in ${CMAKE_BINARY_DIR}/tests/wasm_config.hpp)
    include_directories(external/Catch2/single_include)
+   include_directories(${CMAKE_BINARY_DIR}/tests)
    add_subdirectory(memory_tests)
+   add_subdirectory(tests)
    if (ENABLE_FUZZ_TESTS)
       add_subdirectory(fuzz)
    endif()
-   #add_subdirectory(tests/fuzz)
 endif()

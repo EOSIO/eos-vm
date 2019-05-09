@@ -39,6 +39,11 @@ namespace eosio { namespace wasm_backend {
          #endif
       }
 
+      template <typename... Args>
+      inline auto call_with_return(Host* host, const std::string_view& mod,  const std::string_view& func, Args... args) {
+         return _ctx.execute(host, interpret_visitor(_ctx), func, args...);
+      }
+
       inline void execute_all(Host* host) {
          for (int i=0; i < _mod.exports.size(); i++) {
             if (_mod.exports[i].kind == external_kind::Function) {
@@ -73,7 +78,7 @@ namespace eosio { namespace wasm_backend {
          return wasm;
       }
    private:
-      wasm_allocator*         _walloc; // non owning pointer
+      wasm_allocator*         _walloc = nullptr; // non owning pointer
       module                  _mod;
       execution_context<Host> _ctx;
    };

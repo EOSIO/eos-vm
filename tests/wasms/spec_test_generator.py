@@ -52,7 +52,7 @@ def get_test():
         if assert_trap.match(line):
             func_name = line.split()[2]
             sl = line.split()
-            boost_test += "\nBOOST_CHECK_THROW(bkend("+func_name+", "
+            boost_test += "\nCHECK_THROW_AS(bkend("+func_name+", "
             tmp = ""
             for i in range(3, len(sl)-2):
                 if i % 2 == 0:
@@ -71,7 +71,7 @@ def get_test():
         elif assert_check_params.match(line):
             func_name = line.split()[2]
             sl = line.split()
-            boost_test += "\nBOOST_CHECK(!bkend("+func_name+", "
+            boost_test += "\nCHECK(!bkend("+func_name+", "
             tmp = ""
             for i in range(3, len(sl)):
                 if i % 2 == 0:
@@ -79,14 +79,14 @@ def get_test():
             boost_test += tmp[:-2]+"));"
         elif assert_check.match(line):
             func_name = line.split()[2]
-            boost_test += "\nBOOST_CHECK(!bkend("+func_name+";"
+            boost_test += "\nCHECK(!bkend("+func_name+";"
         elif assert_return_params.match(line):
             func_name = line.split()[2]
             sl = line.split()
             if i64_const.match(line):
                 cast = "TO_UINT64"
                 value = "(uint64_t)"+eat_paren(line.split()[-1])
-                boost_test += "\nBOOST_CHECK_EQUAL("+cast+"(*bkend("+func_name+", "
+                boost_test += "\nCHECK("+cast+"(*bkend("+func_name+" == "
                 tmp = ""
                 cast = ""
                 for i in range(3, len(sl)-2):
@@ -108,7 +108,7 @@ def get_test():
                 func_name = line.split()[2]
                 cast = "TO_F32"
                 value = "(float)"+eat_paren(line.split()[-1])
-                boost_test += "\nBOOST_CHECK_EQUAL("+cast+"(*bkend("+func_name+", "
+                boost_test += "\nCHECK("+cast+"(*bkend("+func_name+" == "
                 tmp = ""
                 cast = ""
                 for i in range(3, len(sl)-2):
@@ -130,7 +130,7 @@ def get_test():
                 func_name = line.split()[2]
                 cast = "TO_F64"
                 value = "(double)"+eat_paren(line.split()[-1])
-                boost_test += "\nBOOST_CHECK_EQUAL("+cast+"(*bkend("+func_name+", "
+                boost_test += "\nCHECK("+cast+"(*bkend("+func_name+" == "
                 tmp = ""
                 cast = ""
                 for i in range(3, len(sl)-2):
@@ -151,7 +151,7 @@ def get_test():
             elif i32_const.match(line):
                 cast = "TO_UINT32"
                 value = "(uint32_t)"+eat_paren(line.split()[-1])
-                boost_test += "\nBOOST_CHECK_EQUAL("+cast+"(*bkend("+func_name+", "
+                boost_test += "\nCHECK("+cast+"(*bkend("+func_name+" == "
                 tmp = ""
                 cast = ""
                 for i in range(3, len(sl)-2):
@@ -169,27 +169,27 @@ def get_test():
                             cast = "(double)"
                 boost_test += tmp[:-2]+")), "+value+");\n"
             else:
-                boost_test += "\nBOOST_CHECK(!bkend("+func_name+"));"
+                boost_test += "\nCHECK(!bkend("+func_name+"));"
         elif assert_return.match(line):
             func_name = eat_paren(line.split()[2])
             if i32_const.match(line):
                 cast = "TO_UINT32"
                 value = "(uint32_t)"+eat_paren(line.split()[4])
-                boost_test += "\nBOOST_CHECK_EQUAL("+cast+"(*bkend("+func_name+")), "+value+");"
+                boost_test += "\nCHECK("+cast+"(*bkend("+func_name+")) == "+value+");"
             elif f32_const.match(line):
                 cast = "TO_F32"
                 value = "(float)"+eat_paren(line.split()[4])
-                boost_test += "\nBOOST_CHECK_EQUAL("+cast+"(*bkend("+func_name+")), "+value+");"
+                boost_test += "\nCHECK("+cast+"(*bkend("+func_name+")) == "+value+");"
             elif i64_const.match(line):
                 cast = "TO_UINT64"
                 value = "(uint64_t)"+eat_paren(line.split()[4])
-                boost_test += "\nBOOST_CHECK_EQUAL("+cast+"(*bkend("+func_name+")), "+value+");"
+                boost_test += "\nCHECK("+cast+"(*bkend("+func_name+")) == "+value+");"
             elif f64_const.match(line):
                 cast = "TO_F64"
                 value = "(double)"+eat_paren(line.split()[4])
-                boost_test += "\nBOOST_CHECK_EQUAL("+cast+"(*bkend("+func_name+")), "+value+");"
+                boost_test += "\nCHECK("+cast+"(*bkend("+func_name+")) == "+value+");"
             else:
-                boost_test += "\nBOOST_CHECK(!bkend("+func_name+"));"
+                boost_test += "\nCHECK(!bkend("+func_name+"));"
             
 
     return [test_wast, boost_test]
