@@ -88,7 +88,6 @@ namespace eosio { namespace wasm_backend {
             inline void push_call(uint32_t index) {
                const auto& ftype = _mod.get_function_type( index );
                _last_op_index = _os.size() - ftype.param_types.size();
-               std::cout << "_last_op_index " << _last_op_index << " fps " << ftype.param_types.size() << "\n";
                _as.push( activation_frame{ _pc+1, _current_offset, _code_index,
                                            static_cast<uint16_t>(_last_op_index),
                                            ftype.return_type } );
@@ -308,7 +307,6 @@ namespace eosio { namespace wasm_backend {
                      // computed g
                      switch (fn.locals[i].type) {
                         case types::i32:
-                           std::cout << "Push operand\n";
                            push_operand(i32_const_t{(uint32_t)0});
                            break;
                         case types::i64:
