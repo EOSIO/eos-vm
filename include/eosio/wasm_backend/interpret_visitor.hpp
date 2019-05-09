@@ -112,6 +112,8 @@ struct interpret_visitor {
          context.jump(op.default_target);
    }
    [[gnu::always_inline]] void operator()( const call_t& op) {
+      std::cout << "Calling " << op.index << "\n";
+      context.print_stack();
       context.call(op.index);
       // TODO place these in parser
       //EOS_WB_ASSERT(b.index < funcs_size, wasm_interpreter_exception, "call index out of bounds");

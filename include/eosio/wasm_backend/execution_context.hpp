@@ -33,6 +33,7 @@ namespace eosio { namespace wasm_backend {
             inline int32_t current_linear_memory()const { return _wasm_alloc->get_current_page(); }
 
             inline void call(uint32_t index) {
+	       std::cout << "_last_op_index " << _last_op_index << "\n";
                 // TODO validate index is valid
                if (index < _mod.get_imported_functions_size()) {
                   // TODO validate only importing functions

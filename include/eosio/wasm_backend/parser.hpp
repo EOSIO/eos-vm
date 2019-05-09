@@ -307,7 +307,6 @@ namespace eosio { namespace wasm_backend {
                      break;
                   case opcodes::loop:
                      pc_stack.push(op_index);
-		     std::cout << "loop " << (int)*code << "\n";
                      fb[op_index++] = loop_t{*code++}; break;
                      //new (&fb[op_index++]) loop_t(*code++); break;
                      break;
@@ -330,7 +329,6 @@ namespace eosio { namespace wasm_backend {
                   case opcodes::br:
                      fb[op_index++] = br_t{parse_varuint32(code)}; break;
                   case opcodes::br_if:
-		     std::cout << "br_if\n";
                      fb[op_index++] = br_if_t{parse_varuint32(code)}; break;
                   case opcodes::br_table:
                      {
@@ -340,7 +338,6 @@ namespace eosio { namespace wasm_backend {
                      }
                      break;
                   case opcodes::call:
-		     std::cout << "Call\n";
 		     fb[op_index++] = call_t{parse_varuint32(code)}; break;
                   case opcodes::call_indirect:
                      fb[op_index++] = call_indirect_t{parse_varuint32(code)}; code++; break;
@@ -349,7 +346,6 @@ namespace eosio { namespace wasm_backend {
                   case opcodes::select:
                      fb[op_index++] = select_t{}; break;
                   case opcodes::get_local:
-		     std::cout << "get_local\n";
                      fb[op_index++] = get_local_t{parse_varuint32(code)}; break;
                   case opcodes::set_local:
                      fb[op_index++] = set_local_t{parse_varuint32(code)}; break;

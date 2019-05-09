@@ -265,7 +265,8 @@ namespace eosio { namespace wasm_backend {
    auto create_function(std::index_sequence<Is...>) {
       return std::function<void(Cls*, WAlloc*, operand_stack&)>{
          [](Cls* self, WAlloc* walloc, operand_stack& os) {
-            size_t i = sizeof...(Is)-1;
+            size_t i = sizeof...(Is);
+	    std::cout << "i " << i << "\n";
 	    auto cleanup = [](const std::vector<align_ptr_triple>& cleanups) {
                for (const auto& apt : cleanups)
                   if (apt.o && apt.n) memcpy( apt.o, apt.n, apt.s );
