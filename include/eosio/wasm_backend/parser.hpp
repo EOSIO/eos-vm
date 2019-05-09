@@ -406,7 +406,7 @@ namespace eosio { namespace wasm_backend {
                   case opcodes::grow_memory:
                      fb[op_index++] = grow_memory_t{}; code++; break;
                   case opcodes::i32_const: 
-		     fb[op_index++] = i32_const_t{parse_varint32(code)}; break;
+                     fb[op_index++] = i32_const_t{parse_varint32(code)}; break;
                   case opcodes::i64_const:
                      fb[op_index++] = i64_const_t{parse_varint64(code)}; break;
                   case opcodes::f32_const:

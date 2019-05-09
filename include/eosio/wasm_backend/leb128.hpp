@@ -182,9 +182,10 @@ namespace eosio { namespace wasm_backend {
                ret |= storage[i] & 0x7f;
             }
             if (bytes_used >= 1) {
-               size_t shift = ((bytes_used) * 7);
+               //size_t shift = ((bytes_used) * 7);
+               size_t shift = ((sizeof(T)*8)-1);
                if (storage[bytes_used-1] & 0x40)
-                  ret |= (-1ull) << shift;
+                  ret |= (1ull) << shift;
             }
             return *(T*)&ret;
          }
