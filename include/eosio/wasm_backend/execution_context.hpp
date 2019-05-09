@@ -33,7 +33,6 @@ namespace eosio { namespace wasm_backend {
             inline int32_t current_linear_memory()const { return _wasm_alloc->get_current_page(); }
 
             inline void call(uint32_t index) {
-	       std::cout << "_last_op_index " << _last_op_index << "\n";
                 // TODO validate index is valid
                if (index < _mod.get_imported_functions_size()) {
                   // TODO validate only importing functions
@@ -56,6 +55,7 @@ namespace eosio { namespace wasm_backend {
             void print_stack() {
                std::cout << "STACK { ";
                for (int i=0; i < _os.size(); i++) {
+                  std::cout << "(" << i << ")";
                   if (std::holds_alternative<i32_const_t>(_os.get(i)))
                      std::cout << "i32:"<<std::get<i32_const_t>(_os.get(i)).data.ui << ", ";
                   else if (std::holds_alternative<i64_const_t>(_os.get(i)))
@@ -82,9 +82,9 @@ namespace eosio { namespace wasm_backend {
             inline void push_operand( const stack_elem& el ) { _os.push(el); }
             inline stack_elem get_operand( uint16_t index )const { return _os.get(_last_op_index+index); }
             inline void eat_operands(uint16_t index) { _os.eat(index); }
-            inline void set_operand( uint16_t index, const stack_elem& el ) { _os.set(_last_op_index+index, el); }
+            inline void set_operand(uint16_t index, const stack_elem& el) { _os.set(_last_op_index+index, el); }
             inline uint16_t current_operands_index()const { return _os.current_index(); }
-            inline void push_call( const stack_elem& el ) { _as.push(el); }
+            inline void push_call(const stack_elem& el) { _as.push(el); }
             inline stack_elem pop_call() { return _as.pop(); }
             inline void push_call(uint32_t index) {
                const auto& ftype = _mod.get_function_type( index );
@@ -332,7 +332,7 @@ namespace eosio { namespace wasm_backend {
                   if (_pc == _exit_pc && _as.size() <= 1) {
                      _executing = false;
                   }
-                  std::visit(visitor, _mod.code.at(_code_index).code.at(offset));
+                  std::visit(visitor, _mod.code.at_no_check(_code_index).code.at_no_check(offset));
                } while (_executing);
             }
 

@@ -146,7 +146,6 @@ namespace eosio { namespace wasm_backend {
             _previous = raw;
             mprotect(raw, page_size, PROT_READ|PROT_WRITE);
             page = 1;
-            std::cout << "wasm_allocator() " << this << "\n";
          }
          void reset() {
             uint64_t size = page_size * page;

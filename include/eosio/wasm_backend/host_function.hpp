@@ -87,6 +87,9 @@ namespace eosio { namespace wasm_backend {
    auto get_args(R (Cls::*)(Args...)const) {
       return std::tuple<std::decay_t<Args>...>{};
    }
+   
+   template <typename T>
+   using reduce_type_t = typename reduce_type<T>::type;
 
    template <typename T>
    struct traits {
@@ -95,11 +98,11 @@ namespace eosio { namespace wasm_backend {
       static constexpr uint8_t is_ptr_offset      = 2;
       static constexpr uint8_t is_float_offset    = 3;
       static constexpr uint8_t is_4_bytes_offset  = 4;
-      static constexpr uint8_t value = (std::is_integral<typename reduce_type<T>::type>::value << is_integral_offset) |
-                                       (std::is_lvalue_reference<typename reduce_type<T>::type>::value << is_lval_ref_offset) |
-                                       (std::is_pointer<typename reduce_type<T>::type>::value << is_ptr_offset) |
-                                       (std::is_floating_point<typename reduce_type<T>::type>::value << is_float_offset) |
-                                       ((sizeof(typename reduce_type<T>::type) == 4) << is_4_bytes_offset);
+      static constexpr uint8_t value = (std::is_integral_v<reduce_type_t<T>> << is_integral_offset) |
+                                       (std::is_lvalue_reference_v<reduce_type_t<T>> << is_lval_ref_offset) |
+                                       (std::is_pointer_v<reduce_type_t<T>> << is_ptr_offset) |
+                                       (std::is_floating_point_v<reduce_type_t<T>> << is_float_offset) |
+                                       ((sizeof(reduce_type_t<T>) == 4) << is_4_bytes_offset);
       static constexpr uint8_t i32_value_i  = (1 << is_integral_offset) | (1 << is_4_bytes_offset);
       static constexpr uint8_t i32_value_lv = (1 << is_lval_ref_offset) | (1 << is_4_bytes_offset);
       static constexpr uint8_t i32_value_p  = (1 << is_ptr_offset) | (1 << is_4_bytes_offset);
@@ -163,76 +166,47 @@ namespace eosio { namespace wasm_backend {
    };
    
    // TODO clean this up
-   template <typename S, typename Args, size_t I, typename T, typename WAlloc, typename Cleanups>
-   constexpr auto get_value(operand_stack& op, Cleanups& cleanups, WAlloc* alloc, T&& val) -> std::enable_if_t<std::is_same_v<i32_const_t, T> && std::is_pointer_v<S>, S> {
-      size_t i = std::tuple_size<Args>::value-1;
-      auto ptr = (std::remove_const_t<S>)(alloc->template get_base_ptr<uint8_t>()+val.data.ui);
-      if constexpr (std::tuple_size<Args>::value > I) {
-         const auto& len = std::get<to_wasm_t<typename std::tuple_element<I, Args>::type>>(op.get_back(i-I)).data.ui;
-         if ((uintptr_t)ptr % alignof(S) != 0) {
-            align_ptr_triple apt;
-            apt.s = sizeof(S)*len;
-            std::vector<std::remove_const_t<std::remove_pointer_t<S>>> cpy(len > 0 ? len : 1);
-            apt.o = (void*)ptr;
-            ptr = &cpy[0];
-            apt.n = (void*)ptr;
-            memcpy(apt.n, apt.o, apt.s);
-            cleanups.emplace_back(std::move(apt));
-         }
-      }
-      return ptr;
+   template <typename S, typename Args, typename T, typename WAlloc>
+   constexpr auto get_value(WAlloc* alloc, T&& val) 
+         -> std::enable_if_t<std::is_same_v<i32_const_t, T> && std::is_pointer_v<S>, S> {
+      return (std::remove_const_t<S>)(alloc->template get_base_ptr<char>()+val.data.ui);
    }
 
-   template <typename S, typename Args, size_t I, typename T, typename WAlloc, typename Cleanups>
-   constexpr auto get_value(operand_stack& op, Cleanups& cleanups, WAlloc* alloc, T&& val) -> std::enable_if_t<std::is_same_v<i32_const_t, T> && std::is_lvalue_reference_v<S>, S> {
-      size_t i = std::tuple_size<Args>::value-1;
-      std::remove_const_t<S> ref = *(std::remove_const_t<std::remove_reference_t<S>>*)(alloc->template get_base_ptr<uint8_t>()+val.data.ui);
-      auto* ptr = &ref;
-      if ((uintptr_t)ptr % alignof(S) != 0) {
-         std::remove_const_t<std::remove_reference_t<S>> copy;
-         align_ptr_triple apt;
-         apt.s = sizeof(S);
-         apt.o = (void*)ptr;
-         ptr = &copy;
-         apt.n = (void*)ptr;
-         memcpy(apt.n, apt.o, apt.s);
-         if constexpr (!std::is_const_v<S>)
-            cleanups.emplace_back(std::move(apt));
-         return *(std::remove_const_t<std::remove_reference_t<S>>*)apt.n;
-      }
-      return ref;
+   template <typename S, typename Args, typename T, typename WAlloc>
+   constexpr auto get_value(WAlloc* alloc, T&& val) 
+         -> std::enable_if_t<std::is_same_v<i32_const_t, T> && std::is_lvalue_reference_v<S>, S> {
+      return *(std::remove_const_t<std::remove_reference_t<S>>*)(alloc->template get_base_ptr<uint8_t>()+val.data.ui);
    }
 
-   template <typename S, typename Args, size_t I, typename T, typename WAlloc, typename Cleanups>
-   constexpr auto get_value(operand_stack& op, Cleanups&, WAlloc* alloc, T&& val) 
+   template <typename S, typename Args, typename T, typename WAlloc>
+   constexpr auto get_value(WAlloc* alloc, T&& val) 
                      -> std::enable_if_t<std::is_same_v<i32_const_t, T> && 
                         std::is_fundamental_v<S> &&
                         (!std::is_lvalue_reference_v<S> && !std::is_pointer_v<S>), S> {
       return val.data.ui;
    }
 
-   template <typename S, typename Args, size_t I, typename T, typename WAlloc, typename Cleanups>
-   constexpr auto get_value(operand_stack& op, Cleanups&, WAlloc* walloc, T&& val) 
+   template <typename S, typename Args, typename T, typename WAlloc>
+   constexpr auto get_value(WAlloc* walloc, T&& val) 
                      -> std::enable_if_t<std::is_same_v<i64_const_t, T> &&
                         std::is_fundamental_v<S>, S> {
       return val.data.ui;
    }
 
-   template <typename S, typename Args, size_t I, typename T, typename WAlloc, typename Cleanups>
-   constexpr auto get_value(operand_stack& op, Cleanups&, WAlloc* alloc, T&& val) 
+   template <typename S, typename Args, typename T, typename WAlloc>
+   constexpr auto get_value(WAlloc* alloc, T&& val) 
                      -> std::enable_if_t<std::is_same_v<f32_const_t, T>, S> {
       return val.data.f;
    }
 
-   template <typename S, typename Args, size_t I, typename T, typename WAlloc, typename Cleanups>
-   constexpr auto get_value(operand_stack& op, Cleanups&, WAlloc* alloc, T&& val) 
+   template <typename S, typename Args, typename T, typename WAlloc>
+   constexpr auto get_value(WAlloc* alloc, T&& val) 
                      -> std::enable_if_t<std::is_same_v<f64_const_t, T>, S> {
       return val.data.f;
    }
    
    template <typename T, typename WAlloc>
    constexpr auto resolve_result( T&& res, WAlloc* alloc ) -> std::enable_if_t<std::is_pointer_v<T> || std::is_reference_v<T>, i32_const_t> {
-      uintptr_t ptr = 0;
       if constexpr (std::is_reference_v<T>) {
          return i32_const_t{(uint32_t)((uintptr_t)&res - (uintptr_t)alloc->template get_base_ptr<uint8_t>())};
       }
@@ -265,22 +239,15 @@ namespace eosio { namespace wasm_backend {
    auto create_function(std::index_sequence<Is...>) {
       return std::function<void(Cls*, WAlloc*, operand_stack&)>{
          [](Cls* self, WAlloc* walloc, operand_stack& os) {
-            size_t i = sizeof...(Is);
-	    std::cout << "i " << i << "\n";
-	    auto cleanup = [](const std::vector<align_ptr_triple>& cleanups) {
-               for (const auto& apt : cleanups)
-                  if (apt.o && apt.n) memcpy( apt.o, apt.n, apt.s );
-	    };
-
-            std::vector<align_ptr_triple> cleanups;
+            size_t i = sizeof...(Is)-1;
             if constexpr (!std::is_same_v<R, void>) {
                if constexpr (std::is_same_v<Cls, std::nullptr_t>) {
-                  R res = std::invoke(F, get_value<typename std::tuple_element<Is, Args>::type, Args, Is+1>(os, cleanups, walloc, 
+                  R res = std::invoke(F, get_value<typename std::tuple_element<Is, Args>::type, Args>(walloc, 
                              std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
                   os.trim(sizeof...(Is));
                   os.push(resolve_result<R>(std::move(res), walloc));
                } else {
-                  R res = std::invoke(F, construct_derived<Cls2, Cls>::value(*self), get_value<typename std::tuple_element<Is, Args>::type, Args, Is+1>(os, cleanups, walloc,
+                  R res = std::invoke(F, construct_derived<Cls2, Cls>::value(*self), get_value<typename std::tuple_element<Is, Args>::type, Args>(walloc,
                              std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
                   os.trim(sizeof...(Is));
                   os.push(resolve_result<R>(std::move(res), walloc));
@@ -288,15 +255,14 @@ namespace eosio { namespace wasm_backend {
             }
             else {
                if constexpr (std::is_same_v<Cls, std::nullptr_t>) {
-                  std::invoke(F, get_value<typename std::tuple_element<Is, Args>::type, Args, Is+1>(os, cleanups, walloc,
+                  std::invoke(F, get_value<typename std::tuple_element<Is, Args>::type, Args>(walloc,
                      std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
                } else {
-                  std::invoke(F, construct_derived<Cls2, Cls>::value(*self), get_value<typename std::tuple_element<Is, Args>::type, Args, Is+1>(os, cleanups, walloc,
+                  std::invoke(F, construct_derived<Cls2, Cls>::value(*self), get_value<typename std::tuple_element<Is, Args>::type, Args>(walloc,
                      std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
                }
                os.trim(sizeof...(Is));
             }
-            cleanup(cleanups);
          }
       };
    }
