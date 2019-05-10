@@ -116,7 +116,7 @@ namespace eosio { namespace wasm_backend {
       private:
          char* raw       = nullptr;
          char* _previous = raw;
-         int32_t page       = 0;
+         int32_t page    = 0;
 
          void set_up_signals() {
             struct sigaction sa;
@@ -132,28 +132,29 @@ namespace eosio { namespace wasm_backend {
          T* alloc(size_t size=1 /*in pages*/) {
             EOS_WB_ASSERT(page + size <= max_pages, wasm_bad_alloc, "exceeded max number of pages");
             mprotect(raw + (page_size * page), (page_size * size), PROT_READ|PROT_WRITE);
-            page += size;
             T* ptr = (T*)_previous;
             _previous = (raw + (page_size * page));
+            page += size;
+	    std::cout << "Alloc " << size << " " << page << "\n";
             return ptr;
          }
          void free() {
             munmap(raw, max_memory);
          }
          wasm_allocator() {
-            set_up_signals();
+            //set_up_signals();
             raw = (char*)mmap(NULL, max_memory, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
             _previous = raw;
-            mprotect(raw, page_size, PROT_READ|PROT_WRITE);
-            page = 1;
+            mprotect(raw, 3*page_size, PROT_READ|PROT_WRITE);
+            page = 3;
          }
          void reset() {
             uint64_t size = page_size * page;
             _previous = raw;
             memset(raw, 0, size);
-            page = 1;
+            page = 3;
             mprotect(raw, size, PROT_NONE);
-            mprotect(raw, page_size, PROT_READ|PROT_WRITE);
+            mprotect(raw, 3*page_size, PROT_READ|PROT_WRITE);
          }
          template <typename T>
          inline T* get_base_ptr()const { return reinterpret_cast<T*>(raw); }

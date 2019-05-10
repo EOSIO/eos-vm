@@ -26,7 +26,8 @@ namespace eosio { namespace wasm_backend {
 
             inline int32_t grow_linear_memory( int32_t pages ) {
                const int32_t sz = _wasm_alloc->get_current_page();
-               _wasm_alloc->alloc<uint8_t>(pages);
+               std::cout << "Pages " << pages << "\n";
+               _wasm_alloc->alloc<char>(pages);
                return sz;
             }
 
