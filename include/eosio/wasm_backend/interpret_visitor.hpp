@@ -252,6 +252,7 @@ struct interpret_visitor {
       const auto& val = context.pop_operand();
       const auto& ptr = context.pop_operand();
       uint8_t* store_loc = (uint8_t*)(context.linear_memory()+op.offset+TO_UINT32(ptr));
+      std::cout << (int*)store_loc << " " << (int*)context.linear_memory() << " " <<  op.offset << " " << TO_UINT32(ptr) << "\n";
       *store_loc = static_cast<uint8_t>(TO_UINT32(val));
    }
    [[gnu::always_inline]] inline void operator()( const i32_store16_t & op) {
@@ -309,8 +310,11 @@ struct interpret_visitor {
    }
    [[gnu::always_inline]] inline void operator()( const grow_memory_t& op) {
       context.inc_pc();
+      context.print_stack();
       auto& oper = TO_UINT32(context.peek_operand());
+      std::cout << "grow_memory " << oper << "\n";
       oper = context.grow_linear_memory( oper );
+      context.print_stack();
    }
    [[gnu::always_inline]] inline void operator()( const i32_const_t& op) {
       context.inc_pc();
