@@ -4,3 +4,6 @@
 [submodule "external/Catch2"]
 	path = external/Catch2
 	url = https://github.com/catchorg/Catch2
+[submodule "external/outcome"]
+	path = external/outcome
+	url = https://github.com/ned14/outcome

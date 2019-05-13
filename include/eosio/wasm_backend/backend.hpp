@@ -27,6 +27,32 @@ namespace eosio { namespace wasm_backend {
       inline bool operator()(Host* host, const std::string_view& mod,  const std::string_view& func, Args... args) {
          return call(host, mod, func, args...);
       }
+      
+      inline void reset() {
+         _walloc->reset();
+      }
+
+      template <typename... Args>
+      inline bool call_indirect(Host* host, uint32_t func_index, Args... args) {
+         #ifdef __EOSIO_DBG__
+         _ctx.execute_func_table(host, debug_visitor(_ctx), func_index, args...);
+         return true;
+         #else
+         _ctx.execute_func_table(host, interpret_visitor(_ctx), func_index, args...);
+         return true;
+         #endif
+      }
+
+      template <typename... Args>
+      inline bool call(Host* host, uint32_t func_index, Args... args) {
+         #ifdef __EOSIO_DBG__
+         _ctx.execute(host, debug_visitor(_ctx), func_index, args...);
+         return true;
+         #else
+         _ctx.execute(host, interpret_visitor(_ctx), func_index, args...);
+         return true;
+         #endif
+      }
 
       template <typename... Args>
       inline bool call(Host* host, const std::string_view& mod,  const std::string_view& func, Args... args) {
