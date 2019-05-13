@@ -9,7 +9,8 @@ set( CMAKE_CXX_STANDARD 17 )
 
 include(CMakeDependentOption)
 
-option(USE_EXISITING_SOFTFLOAT "use exisiting softfloat library")
+option(USE_EXISTING_SOFTFLOAT "use exisiting softfloat library")
+option(USE_EXISTING_BOOST "use boost (>= v1.70.0) for `outcome` library")
 option(ENABLE_TESTS "enable building and running of unit tests" ON)
 CMAKE_DEPENDENT_OPTION( ENABLE_FUZZ_TESTS "enable fuzz testing" OFF "ENABLE_TESTS" ON )
 option(DISABLE_CCACHE "disable building with CCache or SCCache if they are present")
@@ -50,9 +51,6 @@ endif()
 # generate compile command database for external tools
 set (CMAKE_EXPORT_COMPILE_COMMANDS "ON")
 
-#message( STATUS "Configuring WasmInterpreter" )
-#set( CMAKE_C_FLAGS " -Wall -Werror-implicit-function-declaration -Wno-conversion ${CMAKE_C_FLAGS} ${C_DEFINES}" )
-
 file( GLOB eos_vm_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/eosio/wasm_backend/*.hpp" )
 
 add_library( eos-vm INTERFACE )
@@ -65,12 +63,16 @@ target_include_directories( prog PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "$
 
 #add_executable( wasm_t ${CMAKE_SOURCE_DIR}/tests/fuzz/fuzz_parser.cpp ${fc} ${eos-vm} ${filesystem} ${chrono} ${date_time})
 
-#set(USE_EXISTING_SOFTFLOAT "True")
 if (NOT USE_EXISTING_SOFTFLOAT)
-   add_subdirectory( external )
-   target_link_libraries( eos-vm INTERFACE sf )
-else()
-   target_link_libraries( eos-vm INTERFACE softfloat )
+   add_subdirectory( external/softfloat )
+endif()
+
+target_link_libraries( eos-vm INTERFACE softfloat )
+
+if (!USE_EXISTING_BOOST)
+   add_definitions(EOSIO_USE_EXTERNAL_OUTCOME 1)
+   add_subdirectory( external/outcome )
+   #else()
 endif()
 
 if (ENABLE_TESTS)
