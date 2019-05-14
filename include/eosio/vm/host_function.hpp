@@ -10,6 +10,10 @@
 #include <unordered_map>
 #include <utility>
 
+#include <cxxabi.h>
+#include <string>
+#include <memory>
+
 namespace eosio { namespace vm {
 
    template <typename Derived, typename Base>
@@ -236,6 +240,16 @@ namespace eosio { namespace vm {
       return f64_const_t{*(uint64_t*)&res};
    }
 
+
+   static inline std::string demangle( const char* mangled_name ) {
+
+	       size_t len = 0 ;
+	           int status = 0 ;
+		       ::std::unique_ptr< char, decltype(&::std::free) > ptr(
+		       __cxxabiv1::__cxa_demangle( mangled_name, nullptr, &len, &status ), &::std::free ) ;
+		   return ptr.get() ;
+   }
+
    template <typename WAlloc, typename Cls, typename Cls2, auto F, typename R, typename Args, size_t... Is>
    auto create_function(std::index_sequence<Is...>) {
       return std::function<void(Cls*, WAlloc*, operand_stack&)>{
@@ -247,20 +261,24 @@ namespace eosio { namespace vm {
                              std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
                   os.trim(sizeof...(Is));
                   os.push(resolve_result<R>(std::move(res), walloc));
+		  std::cout << "RFunc " << demangle(typeid(F).name()) << " " << demangle(typeid(Args).name()) << "\n";
                } else {
                   R res = std::invoke(F, construct_derived<Cls2, Cls>::value(*self), get_value<typename std::tuple_element<Is, Args>::type, Args>(walloc,
                              std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
                   os.trim(sizeof...(Is));
                   os.push(resolve_result<R>(std::move(res), walloc));
+		  std::cout << "RCFunc " << demangle(typeid(F).name()) << " " << demangle(typeid(Args).name()) << "\n";
                }
             }
             else {
                if constexpr (std::is_same_v<Cls, std::nullptr_t>) {
                   std::invoke(F, get_value<typename std::tuple_element<Is, Args>::type, Args>(walloc,
                      std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
+		  std::cout << "Func " << demangle(typeid(F).name()) << " " << demangle(typeid(Args).name()) << "\n";
                } else {
                   std::invoke(F, construct_derived<Cls2, Cls>::value(*self), get_value<typename std::tuple_element<Is, Args>::type, Args>(walloc,
                      std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
+		  std::cout << "CFunc " << demangle(typeid(F).name()) << " " << demangle(typeid(Args).name()) << "\n";
                }
                os.trim(sizeof...(Is));
             }
