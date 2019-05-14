@@ -1,6 +1,6 @@
 #pragma once
 
-namespace eosio { namespace wasm_backend {
+namespace eosio { namespace vm {
    static constexpr auto f32_wasm           = "${CMAKE_SOURCE_DIR}/tests/wasms/f32.wasm";
    static constexpr auto f32_bitwise_wasm   = "${CMAKE_SOURCE_DIR}/tests/wasms/f32_bitwise.wasm";
    static constexpr auto f32_cmp_wasm       = "${CMAKE_SOURCE_DIR}/tests/wasms/f32_cmp.wasm";
@@ -22,4 +22,4 @@ namespace eosio { namespace wasm_backend {
    static constexpr auto fac_wasm           = "${CMAKE_SOURCE_DIR}/tests/wasms/fac.wasm";
    static constexpr auto loop_wasm          = "${CMAKE_SOURCE_DIR}/tests/wasms/loop.wasm";
    static constexpr auto unwind_wasm        = "${CMAKE_SOURCE_DIR}/tests/wasms/unwind.wasm";
-}} // ns eosio::wasm_backend
+}} // ns eosio::vm

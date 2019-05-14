@@ -1,8 +1,8 @@
 #pragma once
 
-#include <eosio/wasm_backend/types.hpp>
+#include <eosio/vm/types.hpp>
 
-namespace eosio { namespace wasm_backend {
+namespace eosio { namespace vm {
    enum section_id {
       custom_section = 0,
       type_section   = 1,
@@ -18,4 +18,4 @@ namespace eosio { namespace wasm_backend {
       data_section     = 11,
       num_of_elems
    };
-}} // eosio::wasm_backend
+}} // ns eosio::vm

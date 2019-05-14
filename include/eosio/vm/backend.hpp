@@ -1,20 +1,20 @@
 #pragma once
 
+#include <eosio/vm/allocator.hpp>
+#include <eosio/vm/debug_visitor.hpp>
+#include <eosio/vm/execution_context.hpp>
+#include <eosio/vm/interpret_visitor.hpp>
+#include <eosio/vm/parser.hpp>
+#include <eosio/vm/types.hpp>
+
 #include <vector>
 #include <fstream>
 #include <optional>
 #include <string_view>
 
-#include <eosio/wasm_backend/allocator.hpp>
-#include <eosio/wasm_backend/parser.hpp>
-#include <eosio/wasm_backend/interpret_visitor.hpp>
-#include <eosio/wasm_backend/debug_visitor.hpp>
-#include <eosio/wasm_backend/execution_context.hpp>
-#include <eosio/wasm_backend/types.hpp>
-
 //#define __EOSIO_DBG__
 
-namespace eosio { namespace wasm_backend {
+namespace eosio { namespace vm {
    template <typename Host>
    class backend {
       public:
@@ -82,4 +82,4 @@ namespace eosio { namespace wasm_backend {
       module                  _mod;
       execution_context<Host> _ctx;
    };
-}} // ns eosio::wasm_backend
+}} // ns eosio::vm

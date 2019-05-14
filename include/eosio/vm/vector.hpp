@@ -1,12 +1,11 @@
 #pragma once
 
-#include <string>
-#include <utility>
-#include <initializer_list>
-#include <eosio/wasm_backend/exceptions.hpp>
-#include <eosio/wasm_backend/memory_manager.hpp>
+#include <eosio/vm/exceptions.hpp>
 
-namespace eosio { namespace wasm_backend {
+#include <utility>
+#include <string>
+
+namespace eosio { namespace vm {
    
    template <typename T, typename Allocator> 
    class managed_vector {
@@ -103,4 +102,4 @@ namespace eosio { namespace wasm_backend {
        str[i] = vec[i];
      return str;
    }
-}} // namespace eosio::wasm_backend
+}} // namespace eosio::vm

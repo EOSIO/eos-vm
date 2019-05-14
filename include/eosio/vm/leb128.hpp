@@ -1,12 +1,12 @@
 #pragma once
 
+#include <eosio/vm/exceptions.hpp>
+#include <eosio/vm/guarded_ptr.hpp>
+
 #include <iostream>
 #include <array>
 
-#include <eosio/wasm_backend/exceptions.hpp>
-#include <eosio/wasm_backend/utils.hpp>
-
-namespace eosio { namespace wasm_backend {
+namespace eosio { namespace vm {
    template <size_t N>
    inline size_t constexpr bytes_needed() {
       if constexpr (N == 1 || N == 7)
@@ -29,23 +29,20 @@ namespace eosio { namespace wasm_backend {
          
          inline constexpr void from(bool v) { storage[0] = v; }
          inline constexpr void from(uint8_t v) {
-            //static_assert(N >= 7, "cant use this constructor with N < 7");
             storage[0] = v & 0x7f;
          }
          inline constexpr void from(uint32_t v) {
-            //static_assert(N >= 32, "cant use this constructor with N < 32");
-            int i=0;
+	    bytes_used = 0;
             #pragma unroll
-            for (; i < bytes_needed<N>(); i++) {
-               storage[i] = v & 0x7f;
+            for (; bytes_used < bytes_needed<N>(); bytes_used++) {
+               storage[bytes_used] = v & 0x7f;
                v >>= 7;
-               if (v!= 0) {
-                  storage[i] |= 0x80;
-               } else {
+               if (v!= 0)
+                  storage[bytes_used] |= 0x80;
+	       else
                   break;
-               }
             }
-            bytes_used = ++i;
+            bytes_used++;
          }
          
          inline constexpr void from( guarded_ptr<uint8_t>& code ) {
@@ -157,20 +154,16 @@ namespace eosio { namespace wasm_backend {
          template <typename T>
          inline constexpr void _from(T v) {
             bool is_neg = v < 0;
-            int i=0;
+            bytes_used = 0;
             #pragma unroll
-            for (; i < bytes_needed<N>(); i++) {
-               storage[i] = v & 0x7f;
-               v >>= 7;
-               if (is_neg)
-                  v |= (~0u << (N - 7));
-               if ((v == 0 && !(v & 0x40)) || (v == -1 && (v & 0x40))) {
+            for (; bytes_used < bytes_needed<N>(); bytes_used++) {
+	       storage[bytes_used] = v & 0x7f;
+	       v >>= 7;
+	       if ((v == -1 && (v & 0x40)) || (v == 0 && !(v & 0x40)))
                   break;
-               } else {
-                  storage[i] |= 0x80;
-               }
-            }
-            bytes_used = i+1;
+	       storage[bytes_used] |= 0x80;
+	    }
+            bytes_used++;
          }
 
          template <typename T>
@@ -182,10 +175,9 @@ namespace eosio { namespace wasm_backend {
                ret |= storage[i] & 0x7f;
             }
             if (bytes_used >= 1) {
-               //size_t shift = ((bytes_used) * 7);
-               size_t shift = ((sizeof(T)*8)-1);
+               size_t shift = ((bytes_used) * 7);
                if (storage[bytes_used-1] & 0x40)
-                  ret |= (1ull) << shift;
+                  ret |= (-1ull) << shift;
             }
             return *(T*)&ret;
          }
@@ -194,4 +186,4 @@ namespace eosio { namespace wasm_backend {
          uint8_t bytes_used = bytes_needed<N>(); 
    };
 
-}} // ns eosio::wasm_backend
+}} // ns eosio::vm

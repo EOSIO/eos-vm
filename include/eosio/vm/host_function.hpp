@@ -1,15 +1,16 @@
 #pragma once
 
-#include <cstddef>
-#include <utility>
-#include <unordered_map>
-#include <string_view>
-#include <optional>
-#include <functional>
-#include <type_traits>
-#include <eosio/wasm_backend/wasm_stack.hpp>
+#include <eosio/vm/wasm_stack.hpp>
 
-namespace eosio { namespace wasm_backend {
+#include <cstddef>
+#include <functional>
+#include <optional>
+#include <string_view>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
+
+namespace eosio { namespace vm {
 
    template <typename Derived, typename Base>
    struct construct_derived {
@@ -464,4 +465,4 @@ namespace eosio { namespace wasm_backend {
       }
    };
 
-}} // ns eosio::wasm_backend
+}} // ns eosio::vm

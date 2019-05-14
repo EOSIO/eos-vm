@@ -1,5 +1,8 @@
 #pragma once
 
+#include <eosio/vm/constants.hpp>
+#include <eosio/vm/exceptions.hpp>
+
 #include <sys/mman.h>
 #include <signal.h>
 #include <cstring>
@@ -7,10 +10,8 @@
 #include <memory>
 #include <vector>
 #include <iostream>
-#include <eosio/wasm_backend/exceptions.hpp>
-#include <eosio/wasm_backend/constants.hpp>
 
-namespace eosio { namespace wasm_backend {
+namespace eosio { namespace vm {
    class bounded_allocator {
       public:
          bounded_allocator(size_t size) {
@@ -160,4 +161,4 @@ namespace eosio { namespace wasm_backend {
          inline T* get_base_ptr()const { return reinterpret_cast<T*>(raw); }
          inline int32_t get_current_page()const { return page; }
    };
- }} // namespace eosio::wasm_backend
+ }} // namespace eosio::vm

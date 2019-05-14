@@ -1,6 +1,6 @@
 #pragma once
 
-namespace eosio { namespace wasm_backend {
+namespace eosio { namespace vm {
    enum constants {
       magic   = 0x6D736100,
       version = 0x1,
@@ -17,4 +17,4 @@ namespace eosio { namespace wasm_backend {
       page_size             = 64ull * 1024, //64kb
       max_pages             = (max_useable_memory/page_size) - 1 // -1 for the zero page
    };
-}} // namespace eosio::wasm_backend
+}} // namespace eosio::vm

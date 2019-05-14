@@ -1,13 +1,13 @@
 #pragma once
 
+#include <eosio/vm/types.hpp>
+#include <eosio/vm/wasm_stack.hpp>
+#include <eosio/vm/host_function.hpp>
+
 #include <optional>
-#include <eosio/wasm_backend/types.hpp>
-//#include <eosio/wasm_backend/fixed_stack.hpp>
-#include <eosio/wasm_backend/wasm_stack.hpp>
-#include <eosio/wasm_backend/host_function.hpp>
 #include <string>
 
-namespace eosio { namespace wasm_backend {
+namespace eosio { namespace vm {
       template <typename Host>
       class execution_context {
          public:
@@ -209,9 +209,9 @@ namespace eosio { namespace wasm_backend {
                for (int i=0; i < _mod.data.size(); i++) {
                   const auto& data_seg = _mod.data[i];
                   //TODO validate only use memory idx 0 in parse
-                  auto addr = _linear_memory + data_seg.offset.value.i64;
-                  if ( data_seg.offset.value.i64 + data_seg.data.size() >= _wasm_alloc->get_current_page() * constants::page_size ) {
-                     uint32_t pages_needed = (((data_seg.offset.value.i64 + data_seg.data.size()) - constants::page_size)/constants::page_size) + 1;
+                  auto addr = _linear_memory + data_seg.offset.value.i32;
+                  if ( data_seg.offset.value.i32 + data_seg.data.size() >= _wasm_alloc->get_current_page() * constants::page_size ) {
+                     uint32_t pages_needed = (((data_seg.offset.value.i32 + data_seg.data.size()) - constants::page_size)/constants::page_size) + 1;
                      grow_linear_memory(pages_needed);
                   }
                   memcpy((char*)(addr), data_seg.data.raw(), data_seg.data.size());
@@ -354,4 +354,4 @@ namespace eosio { namespace wasm_backend {
             call_stack      _as = {_base_allocator};
             registered_host_functions<Host>   _rhf;
       };
-}} // ns eosio::wasm_backend
+}} // ns eosio::vm
