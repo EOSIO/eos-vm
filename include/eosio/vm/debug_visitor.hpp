@@ -1,8 +1,8 @@
 #pragma once
 
-#include <eosio/wasm_backend/interpret_visitor.hpp>
+#include <eosio/vm/interpret_visitor.hpp>
 
-namespace eosio { namespace wasm_backend {
+namespace eosio { namespace vm {
 
 template <typename ExecutionCTX>
 struct debug_visitor : public interpret_visitor<ExecutionCTX> {

@@ -1,10 +1,11 @@
 #pragma once
-#include <eosio/wasm_backend/opcodes_def.hpp>
-#include <eosio/wasm_backend/vector.hpp>
+#include <eosio/vm/opcodes_def.hpp>
+#include <eosio/vm/vector.hpp>
+
 #include <map>
 #include <variant>
 
-namespace eosio { namespace wasm_backend {
+namespace eosio { namespace vm {
    enum opcodes {
       CONTROL_FLOW_OPS(CREATE_ENUM)
       BR_TABLE_OP(CREATE_ENUM)
@@ -88,4 +89,4 @@ namespace eosio { namespace wasm_backend {
       ERROR_OPS(IDENTITY_END)
       >;
 
-}} // namespace eosio::wasm_backend
+}} // namespace eosio::vm

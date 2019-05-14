@@ -1,30 +1,8 @@
 #pragma once
 
-#include <limits>
-#include <eosio/wasm_backend/exceptions.hpp>
+#include <eosio/vm/exceptions.hpp>
 
-#if !defined(LIKELY) && !defined(UNLIKELY)
-#if __has_builtin(__builtin_expect)
-#define LIKELY(x) __builtin_expect(!!(x), 1)
-#define UNLIKELY(x) __builtin_expect(!!(x), 0)
-#else
-#define LIKELY(x) !!(x)
-#define UNLIKELY(x) !!(x)
-#endif
-#endif
-
-namespace eosio { namespace wasm_backend {
-   // helpers for std::visit
-   template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-   template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-
-   template <typename T>
-   volatile bool no_sse_memcpy(T* to, T* from, size_t len) {
-     for (int i=0; i < len; i++)
-       to[i] = from[i];
-     return true;
-   }
-
+namespace eosio { namespace vm {
    template <typename T>
    struct guarded_ptr {
       T* raw_ptr;
@@ -114,4 +92,4 @@ namespace eosio { namespace wasm_backend {
          return at(index);
       }
    };
-}} // namespace eosio::wasm_backend
+}} // ns eosio::vm

@@ -4,16 +4,18 @@
  * definitions from https://github.com/WebAssembly/design/blob/master/BinaryEncoding.md
  */
 
-#include <string>
-#include <cstring>
-#include <vector>
-#include <eosio/wasm_backend/leb128.hpp>
-#include <eosio/wasm_backend/utils.hpp>
-#include <eosio/wasm_backend/allocator.hpp>
-#include <eosio/wasm_backend/vector.hpp>
-#include <eosio/wasm_backend/opcodes.hpp>
+#include <eosio/vm/allocator.hpp>
+#include <eosio/vm/guarded_ptr.hpp>
+#include <eosio/vm/leb128.hpp>
+#include <eosio/vm/opcodes.hpp>
+#include <eosio/vm/utils.hpp>
+#include <eosio/vm/vector.hpp>
 
-namespace eosio { namespace wasm_backend {
+#include <cstring>
+#include <string>
+#include <vector>
+
+namespace eosio { namespace vm {
    enum types {
       i32 = 0x7f,
       i64 = 0x7e,
@@ -191,4 +193,4 @@ namespace eosio { namespace wasm_backend {
       }
    };
 
-}} // namespace eosio::wasm_backend
+}} // namespace eosio::vm

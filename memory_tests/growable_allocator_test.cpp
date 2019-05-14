@@ -3,10 +3,10 @@
 
 #include <iostream>
 #include <fstream>
-#include <eosio/wasm_backend/backend.hpp>
+#include <eosio/vm/backend.hpp>
 
 using namespace eosio;
-using namespace eosio::wasm_backend;
+using namespace eosio::vm;
 
 TEST_CASE( "Allocate until failure", "[alloc_fail]" ) {
    growable_allocator ga(1); // allocate 1 page

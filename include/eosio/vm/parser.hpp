@@ -1,15 +1,15 @@
 #pragma once
 
-#include <vector>
+#include <eosio/vm/constants.hpp>
+#include <eosio/vm/sections.hpp>
+#include <eosio/vm/types.hpp>
+#include <eosio/vm/utils.hpp>
+#include <eosio/vm/vector.hpp>
 
 #include <stack>
-#include <eosio/wasm_backend/utils.hpp>
-#include <eosio/wasm_backend/types.hpp>
-#include <eosio/wasm_backend/vector.hpp>
-#include <eosio/wasm_backend/constants.hpp>
-#include <eosio/wasm_backend/sections.hpp>
+#include <vector>
 
-namespace eosio { namespace wasm_backend {
+namespace eosio { namespace vm {
    class binary_parser {
       public:
          binary_parser(growable_allocator& alloc) : _allocator(alloc) {}
@@ -209,16 +209,18 @@ namespace eosio { namespace wasm_backend {
             switch ( ie.opcode ) {
             case opcodes::i32_const:
                ie.value.i32 = parse_varint32( code );
+	       std::cout << "Init Expr32 " << ie.value.i32 << "\n";
                break;
             case opcodes::i64_const:
                ie.value.i64 = parse_varint64( code );
+	       std::cout << "Init Expr64 " << ie.value.i64 << "\n";
                break;
             case opcodes::f32_const:
-               ie.value.f32 = *((uint32_t*)code.raw());
+               ie.value.i32 = *code.raw();
                code += sizeof(uint32_t);
                break;
             case opcodes::f64_const:
-               ie.value.f64 = *((uint64_t*)code.raw());
+               ie.value.i64 = *code.raw();
                code += sizeof(uint64_t);
                break;
             default:
@@ -772,4 +774,4 @@ namespace eosio { namespace wasm_backend {
       private:
          growable_allocator& _allocator; 
    };
-}} // namespace eosio::wasm_backend
+}} // namespace eosio::vm

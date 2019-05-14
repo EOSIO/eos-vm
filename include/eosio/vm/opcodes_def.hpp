@@ -282,9 +282,9 @@
    };
 
 #define IDENTITY(name, code) \
-   eosio::wasm_backend::name##_t,
+   eosio::vm::name##_t,
 #define IDENTITY_END(name, code) \
-   eosio::wasm_backend::name##_t
+   eosio::vm::name##_t
 
 #define DBG_VISIT(name, code)                                                     \
    void operator()( name##_t& op ) {                              		          \

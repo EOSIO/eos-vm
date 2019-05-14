@@ -1,10 +1,10 @@
 #include <iostream>
 #include <fstream>
 #include <chrono>
-#include <eosio/wasm_backend/backend.hpp>
+#include <eosio/vm/backend.hpp>
 
 using namespace eosio;
-using namespace eosio::wasm_backend;
+using namespace eosio::vm;
 
 struct sstr {
    sstr(const char* s, size_t l) {
@@ -40,8 +40,8 @@ struct foo_s {
 
 int main(int argc, char** argv) {
    wasm_allocator wa;
-   using backend_t = eosio::wasm_backend::backend<foo_s>;
-   using rhf_t     = eosio::wasm_backend::registered_host_functions<foo_s>;
+   using backend_t = eosio::vm::backend<foo_s>;
+   using rhf_t     = eosio::vm::registered_host_functions<foo_s>;
    auto code = backend_t::read_wasm( argv[1] );
    auto t1 = std::chrono::high_resolution_clock::now();
    backend_t bkend( code );

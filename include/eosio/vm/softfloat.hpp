@@ -1,10 +1,12 @@
 #pragma once
-#include <cinttypes>
+#include <eosio/vm/exceptions.hpp>
+
 #include <cfloat>
-#include <eosio/wasm_backend/exceptions.hpp>
+#include <cinttypes>
+
 #include <softfloat.hpp>
 
-namespace eosio { namespace wasm_backend {
+namespace eosio { namespace vm {
 static inline constexpr uint32_t inv_float_eps = 0x4B000000;
 static inline constexpr uint64_t inv_double_eps = 0x4330000000000000;
 
@@ -469,4 +471,4 @@ static inline double _eosio_ui32_to_f64( uint32_t a ) {
 static inline double _eosio_ui64_to_f64( uint64_t a ) {
    return from_softfloat64(ui64_to_f64( a ));
 }
-}} //ns eosio::wasm_backend
+}} //ns eosio::vm
