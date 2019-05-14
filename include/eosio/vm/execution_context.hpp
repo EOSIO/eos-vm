@@ -26,7 +26,6 @@ namespace eosio { namespace vm {
 
             inline int32_t grow_linear_memory( int32_t pages ) {
                const int32_t sz = _wasm_alloc->get_current_page();
-               std::cout << "Pages " << pages << "\n";
                _wasm_alloc->alloc<char>(pages);
                return sz;
             }
@@ -198,6 +197,8 @@ namespace eosio { namespace vm {
             inline void set_pc( uint32_t pc ) { _pc = pc; }
             inline void set_relative_pc( uint32_t pc ) { _pc = _current_offset+pc; }
             inline void inc_pc() { _pc++; }
+	    inline uint32_t get_code_index()const { return _code_index; }
+	    inline uint32_t get_code_offset()const { return _pc - _current_offset; }
             inline void exit() { _executing = false; }
             inline bool executing()const { _executing; }
 
@@ -209,7 +210,6 @@ namespace eosio { namespace vm {
             template <typename Visitor, typename... Args>
             inline std::optional<stack_elem> execute(Host* host, Visitor&& visitor, const std::string_view func, Args... args) {
                uint32_t func_index = _mod.get_exported_function(func);
-               std::cout << "Func index " << func_index << "\n";
                return execute(host, std::forward<Visitor>(visitor), func_index, std::forward<Args>(args)...);
             }
 

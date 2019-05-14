@@ -209,11 +209,9 @@ namespace eosio { namespace vm {
             switch ( ie.opcode ) {
             case opcodes::i32_const:
                ie.value.i32 = parse_varint32( code );
-	       std::cout << "Init Expr32 " << ie.value.i32 << "\n";
                break;
             case opcodes::i64_const:
                ie.value.i64 = parse_varint64( code );
-	       std::cout << "Init Expr64 " << ie.value.i64 << "\n";
                break;
             case opcodes::f32_const:
                ie.value.i32 = *code.raw();
