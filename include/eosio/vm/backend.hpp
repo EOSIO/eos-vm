@@ -12,7 +12,7 @@
 #include <optional>
 #include <string_view>
 
-//#define __EOSIO_DBG__
+#define __EOSIO_DBG__
 
 namespace eosio { namespace vm {
    template <typename Host>

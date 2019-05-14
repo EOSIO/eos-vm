@@ -31,12 +31,6 @@ namespace eosio { namespace vm {
       using type = uint32_t;
    };
 
-   // wasm c++ size_t is 32 bits
-   template <>
-   struct reduce_type<size_t> {
-      using type = uint32_t;
-   };
-
    template <typename... Args, size_t... Is>
    auto get_args_full(std::index_sequence<Is...>) {
       std::tuple<std::decay_t<Args>...> tup;
@@ -242,12 +236,11 @@ namespace eosio { namespace vm {
 
 
    static inline std::string demangle( const char* mangled_name ) {
-
-	       size_t len = 0 ;
-	           int status = 0 ;
-		       ::std::unique_ptr< char, decltype(&::std::free) > ptr(
-		       __cxxabiv1::__cxa_demangle( mangled_name, nullptr, &len, &status ), &::std::free ) ;
-		   return ptr.get() ;
+       size_t len = 0 ;
+       int status = 0 ;
+       ::std::unique_ptr< char, decltype(&::std::free) > ptr(
+       __cxxabiv1::__cxa_demangle( mangled_name, nullptr, &len, &status ), &::std::free ) ;
+       return ptr.get() ;
    }
 
    template <typename WAlloc, typename Cls, typename Cls2, auto F, typename R, typename Args, size_t... Is>
@@ -261,24 +254,20 @@ namespace eosio { namespace vm {
                              std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
                   os.trim(sizeof...(Is));
                   os.push(resolve_result<R>(std::move(res), walloc));
-		  std::cout << "RFunc " << demangle(typeid(F).name()) << " " << demangle(typeid(Args).name()) << "\n";
                } else {
                   R res = std::invoke(F, construct_derived<Cls2, Cls>::value(*self), get_value<typename std::tuple_element<Is, Args>::type, Args>(walloc,
                              std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
                   os.trim(sizeof...(Is));
                   os.push(resolve_result<R>(std::move(res), walloc));
-		  std::cout << "RCFunc " << demangle(typeid(F).name()) << " " << demangle(typeid(Args).name()) << "\n";
                }
             }
             else {
                if constexpr (std::is_same_v<Cls, std::nullptr_t>) {
                   std::invoke(F, get_value<typename std::tuple_element<Is, Args>::type, Args>(walloc,
                      std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
-		  std::cout << "Func " << demangle(typeid(F).name()) << " " << demangle(typeid(Args).name()) << "\n";
                } else {
                   std::invoke(F, construct_derived<Cls2, Cls>::value(*self), get_value<typename std::tuple_element<Is, Args>::type, Args>(walloc,
                      std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(os.get_back(i - Is)))...);
-		  std::cout << "CFunc " << demangle(typeid(F).name()) << " " << demangle(typeid(Args).name()) << "\n";
                }
                os.trim(sizeof...(Is));
             }

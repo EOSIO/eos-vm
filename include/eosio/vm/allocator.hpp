@@ -136,7 +136,6 @@ namespace eosio { namespace vm {
             T* ptr = (T*)_previous;
             _previous = (raw + (page_size * page));
             page += size;
-	    std::cout << "Alloc " << size << " " << page << "\n";
             return ptr;
          }
          void free() {

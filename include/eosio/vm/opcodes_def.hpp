@@ -287,8 +287,8 @@
    eosio::vm::name##_t
 
 #define DBG_VISIT(name, code)                                                     \
-   void operator()( name##_t& op ) {                              		          \
-      std::cout << "Found " << #name << " at " << get_context().get_pc() << "\n"; \
+   void operator()( name##_t& op ) {                              		  \
+      std::cout << "Found " << #name << " at " << get_context().get_pc() << " " << get_context().get_code_index() << " " << get_context().get_code_offset() << "\n"; \
       interpret_visitor<ExecutionCTX>::operator()(op);                            \
       get_context().print_stack();                                                \
    }
