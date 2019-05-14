@@ -53,7 +53,8 @@ int main(int argc, char** argv) {
    rhf_t::resolve( bkend.get_module() );
    try {
       foo_s fs;
-      bkend(&fs, "env", "apply", (uint64_t)0, (uint64_t)0, (uint64_t)0);
+      //bkend(&fs, "env", "apply", (uint64_t)0, (uint64_t)0, (uint64_t)0);
+      bkend.call(&fs, 2);
    } catch ( const wasm_interpreter_exception& ex ) {
       std::cerr << ex.what() << " : " << ex.detail() << "\n";
    } catch ( const wasm_invalid_element& ex ) {

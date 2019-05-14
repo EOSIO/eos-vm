@@ -202,9 +202,21 @@ namespace eosio { namespace vm {
             inline bool executing()const { _executing; }
 
             template <typename Visitor, typename... Args>
+            inline std::optional<stack_elem> execute_func_table(Host* host, Visitor&& visitor, uint32_t table_index, Args... args) {
+               return execute(host, std::forward<Visitor>(visitor), table_elem(table_index), std::forward<Args>(args)...);
+            }
+
+            template <typename Visitor, typename... Args>
             inline std::optional<stack_elem> execute(Host* host, Visitor&& visitor, const std::string_view func, Args... args) {
+               uint32_t func_index = _mod.get_exported_function(func);
+               std::cout << "Func index " << func_index << "\n";
+               return execute(host, std::forward<Visitor>(visitor), func_index, std::forward<Args>(args)...);
+            }
+
+            template <typename Visitor, typename... Args>
+            inline std::optional<stack_elem> execute(Host* host, Visitor&& visitor, uint32_t func_index, Args... args) {
+               EOS_WB_ASSERT(func_index < std::numeric_limits<uint32_t>::max(), wasm_interpreter_exception, "cannot execute function, function not found");
                _host = host;
-               _wasm_alloc->reset();
                _linear_memory = _wasm_alloc->get_base_ptr<char>();
                for (int i=0; i < _mod.data.size(); i++) {
                   const auto& data_seg = _mod.data[i];
@@ -217,8 +229,6 @@ namespace eosio { namespace vm {
                   memcpy((char*)(addr), data_seg.data.raw(), data_seg.data.size());
                }
 
-               uint32_t func_index = _mod.get_exported_function(func);
-               EOS_WB_ASSERT(func_index < std::numeric_limits<uint32_t>::max(), wasm_interpreter_exception, "cannot execute function, function not found");
                _current_function = func_index;
                _code_index       = func_index - _mod.import_functions.size();
                _current_offset   = _mod.function_sizes[_current_function];
