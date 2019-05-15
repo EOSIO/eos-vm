@@ -2,11 +2,21 @@
 
 #include <algorithm>
 #include <eosio/vm/utils.hpp>
+#include <outcome.hpp>
 #include <iostream>
 #include <tuple>
 #include <type_traits>
+#include <variant>
 
 namespace eosio { namespace vm {
+
+// helpers for visit
+//template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+//template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+
+//forward declaration
+template <typename... Alternatives>
+class variant;
 
 // implementation details
 namespace detail {
@@ -53,7 +63,24 @@ struct get_alternatives_index<N, T, Alternative> {
    static constexpr auto value = N;
 };
 
+template <size_t I, class Visitor, template<typename...> class Variant, typename... Alts>
+inline auto __visit( Visitor&& vis, const Variant<Alts...>& var ) {
+   if constexpr ( I < sizeof...(Alts) ) {
+      if ( I == var.index() ) {
+         return vis( var.template get<I>() );
+      } else {
+         return __visit<I+1>( std::forward<Visitor>(vis), var );
+      }
+   } else {
+      //TODO add outcome stuff
+   }
+}
 } // namespace detail
+
+template <class Visitor, template<typename...> class Variant, typename... Alts>
+constexpr auto visit( Visitor&& vis, const Variant<Alts...>& var ) {
+   return detail::__visit<0>( std::forward<Visitor>(vis), var );
+}
 
 template <typename... Alternatives>
 class variant {
@@ -68,11 +95,22 @@ class variant {
       _which = detail::get_alternatives_index<0, T, Alternatives...>::value;
    }
 
-   uint8_t index() const { return _which; }
+   inline constexpr uint8_t index() const { return _which; }
 
    template <size_t Index>
    inline constexpr auto&& get_check() {
+      //TODO add outcome stuff
       return ;
+   }
+
+   template <size_t Index>
+   inline constexpr const auto& get()const {
+      return *reinterpret_cast<const typename std::tuple_element<Index, alternatives_tuple>::type*>(&_storage);
+   }
+
+   template <typename Alt>
+   inline constexpr const auto& get()const {
+      return *reinterpret_cast<const Alt*>(&_storage);
    }
 
    template <size_t Index>
@@ -84,6 +122,8 @@ class variant {
    inline constexpr auto&& get() {
       return *reinterpret_cast<Alt*>(&_storage);
    }
+
+   static constexpr size_t size() { return std::tuple_size_v<alternatives_tuple>; }
 
  private:
    using alternatives_tuple = std::tuple<Alternatives...>;
