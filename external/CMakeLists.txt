@@ -313,7 +313,7 @@ file ( GLOB softfloat_headers "softfloat/source/include/*.h"
                               "softfloat/source/8086-SSE/specialize.h" )
 list( APPEND softfloat_sources ${softfloat_headers} )
 
-add_library ( sf STATIC ${softfloat_sources} )
-target_include_directories( sf PUBLIC softfloat/source/include 
+add_library ( softfloat STATIC ${softfloat_sources} )
+target_include_directories( softfloat PUBLIC softfloat/source/include 
                                       softfloat/source/8086-SSE 
                                       softfloat/build/Linux-x86_64-GCC )

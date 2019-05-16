@@ -55,7 +55,8 @@ file( GLOB eos_vm_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/eosio/wasm_backen
 
 add_library( eos-vm INTERFACE )
 target_include_directories( eos-vm INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include
-                                             ${CMAKE_CURRENT_SOURCE_DIR}/external/softfloat/source/include )
+                                             ${CMAKE_CURRENT_SOURCE_DIR}/external/softfloat/source/include
+                                             ${CMAKE_CURRENT_SOURCE_DIR}/external/outcome/single-header )
 
 add_executable( prog ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp )
 target_link_libraries( prog eos-vm )

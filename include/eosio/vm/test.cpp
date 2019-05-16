@@ -1,5 +1,5 @@
 #include "variant.hpp"
-#include "error_codes_def.hpp"
+//#include "error_codes_def.hpp"
 #include <variant>
 
 using namespace eosio::vm;
@@ -22,6 +22,10 @@ struct vis {
    }
 };
 
+namespace a::b {
+int foo;
+}
+
 int main() {
    std::cout << "Variant\n";
    unsigned long long s = 34;
@@ -33,6 +37,6 @@ int main() {
                        [&](auto v) { std::cout << "Visiting other \n"; s += 15; } }, v );
 
    std::cout << s << "\n";
-   std::error_code ec = parser_errors::invalid_magic_number;   
-   std::cout << "EC " << ec << "\n";
+//   std::error_code ec = parser_errors::invalid_magic_number;   
+//   std::cout << "EC " << ec << "\n";
 }
