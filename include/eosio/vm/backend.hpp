@@ -20,7 +20,16 @@ namespace eosio { namespace vm {
       public:
       using host_t = Host;
 
-      backend(wasm_code& code) : _ctx( binary_parser{_mod.allocator}.parse_module( code, _mod ) ) {
+      outcome::result<result_void> load_wasm( wasm_code& code ) {
+         OUTCOME_TRY( _, binary_parser{_mod.allocator}.parse_module( code, _mod ) );
+         _ctx = std::make_unique(execution_context<Host>(_mod));
+         return result_void{};
+      }
+
+      outcome::result<result_void> load_wasm( const char* bytes, size_t sz ) {
+        OUTCOME_TRY( _, binary_parser{_mod.allocator}.parse_module( bytes, sz, _mod ) );
+         _ctx = std::make_unique(execution_context<Host>(_mod));
+         return result_void{};
       }
 
       template <typename... Args>
@@ -35,10 +44,10 @@ namespace eosio { namespace vm {
       template <typename... Args>
       inline bool call_indirect(Host* host, uint32_t func_index, Args... args) {
          #ifdef __EOSIO_DBG__
-         _ctx.execute_func_table(host, debug_visitor(_ctx), func_index, args...);
+         _ctx->execute_func_table(host, debug_visitor(*_ctx), func_index, args...);
          return true;
          #else
-         _ctx.execute_func_table(host, interpret_visitor(_ctx), func_index, args...);
+         _ctx->execute_func_table(host, interpret_visitor(*_ctx), func_index, args...);
          return true;
          #endif
       }
@@ -46,10 +55,10 @@ namespace eosio { namespace vm {
       template <typename... Args>
       inline bool call(Host* host, uint32_t func_index, Args... args) {
          #ifdef __EOSIO_DBG__
-         _ctx.execute(host, debug_visitor(_ctx), func_index, args...);
+         _ctx->execute(host, debug_visitor(*_ctx), func_index, args...);
          return true;
          #else
-         _ctx.execute(host, interpret_visitor(_ctx), func_index, args...);
+         _ctx->execute(host, interpret_visitor(*_ctx), func_index, args...);
          return true;
          #endif
       }
@@ -57,24 +66,24 @@ namespace eosio { namespace vm {
       template <typename... Args>
       inline bool call(Host* host, const std::string_view& mod,  const std::string_view& func, Args... args) {
          #ifdef __EOSIO_DBG__
-         _ctx.execute(host, debug_visitor(_ctx), func, args...);
+         _ctx->execute(host, debug_visitor(*_ctx), func, args...);
          return true;
          #else
-         _ctx.execute(host, interpret_visitor(_ctx), func, args...);
+         _ctx->execute(host, interpret_visitor(*_ctx), func, args...);
          return true;
          #endif
       }
 
       template <typename... Args>
       inline auto call_with_return(Host* host, const std::string_view& mod,  const std::string_view& func, Args... args) {
-         return _ctx.execute(host, interpret_visitor(_ctx), func, args...);
+         return _ctx->execute(host, interpret_visitor(*_ctx), func, args...);
       }
 
       inline void execute_all(Host* host) {
          for (int i=0; i < _mod.exports.size(); i++) {
             if (_mod.exports[i].kind == external_kind::Function) {
                std::string s{(const char*)_mod.exports[i].field_str.raw(), _mod.exports[i].field_str.size()};
-               _ctx.execute(host, interpret_visitor(_ctx), s);
+               _ctx->execute(host, interpret_visitor(*_ctx), s);
             }
          }
       }
@@ -82,7 +91,7 @@ namespace eosio { namespace vm {
       inline void immediate_exit() { _ctx.exit(); }
       inline void set_wasm_allocator( wasm_allocator* walloc ) {
          _walloc = walloc;
-         _ctx.set_wasm_allocator( walloc );
+         _ctx->set_wasm_allocator( walloc );
       }
 
       inline wasm_allocator* get_wasm_allocator() { return _walloc; }
@@ -106,6 +115,6 @@ namespace eosio { namespace vm {
    private:
       wasm_allocator*         _walloc = nullptr; // non owning pointer
       module                  _mod;
-      execution_context<Host> _ctx;
+      std::unique_ptr<execution_context<Host>> _ctx;
    };
 }} // ns eosio::vm

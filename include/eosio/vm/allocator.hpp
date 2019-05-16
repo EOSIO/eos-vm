@@ -2,37 +2,100 @@
 
 #include <eosio/vm/constants.hpp>
 #include <eosio/vm/exceptions.hpp>
+#include <eosio/vm/outcome.hpp>
 
 #include <sys/mman.h>
 #include <signal.h>
 #include <cstring>
 #include <string>
 #include <memory>
+#include <optional>
 #include <vector>
 #include <iostream>
+#include <unordered_set>
+#include <tuple>
+#include <setjmp.h>
 
 namespace eosio { namespace vm {
+    struct allocator_registration {
+      using allocator_memory_range = std::tuple<uintptr_t, size_t, jmp_buf>;
+
+      static std::unordered_set<allocator_memory_range> allocators_regions;
+
+      template <typename Allocator>
+      static void register_allocator( Allocator&& allocator ) {
+        allocators_regions.emplace( allocator.get_base_address(), allocator.get_max_size(), jmp_buf{} );
+      }
+
+      template <typename Allocator>
+      static void unregister_allocator( Allocator&& allocator ) {
+        allocators_regions.erase( {allocator.get_base_address(), allocator.get_max_size(), jmp_buf{} );
+      }
+
+      static std::optional<allocator_memory_range&> get( uintptr_t address ) {
+         for (auto& amr : allocators_regions )
+           if ( std::get<0>(amr) <= address && address < (std::get<0>(amr) + std::get<1>(amr)) )
+             return amr;
+         return {};
+      }
+    };
+
+    [[noreturn]] void default_wasm_segfault_handler(int sig, siginfo_t* siginfo, void*) {
+       if (const auto& amr = allocator_registration::get( siginfo.si_address ))
+         longjmp(std::get<2>(amr), 1);
+       else
+         raise(sig);
+    }
+
+    outcome::result<result_void> setup_signal_handler( ) {
+       struct sigaction sa;
+       sa.sa_sigaction = &default_wasm_segfault_handler;
+       sigemptyset(&sa.sa_mask);
+       sa.sa_flags   = SA_NODEFER | SA_SIGINFO;
+       sigaction(SIGSEGV, &sa, NULL);
+       sigaction(SIGBUS, &sa, NULL);
+    }
+
    class bounded_allocator {
       public:
-         bounded_allocator(size_t size) {
-            mem_size = size;
-            raw = std::unique_ptr<uint8_t[]>(new uint8_t[mem_size]);
+        static outcome::result<bounded_allocator&&> init(size_t sz) {
+           bounded_allocator ba(sz);
+           if (LIKELY(_valid))
+             return std::move(ba);
+           return system_errors::constructor_failure;
+        }
+
+        template <typename T>
+        outcome::result<T*> alloc(size_t size = 1) {
+          EOS_VM_ASSERT((sizeof(T) * size) + _index <= _size, memory_errors::bad_alloc);
+
+          T *ret = (T *)(_raw.get() + _index);
+          _index += sizeof(T) * size;
+          return ret;
          }
-         template <typename T>
-         T* alloc(size_t size=1) {
-            EOS_WB_ASSERT( (sizeof(T)*size)+index <= mem_size, wasm_bad_alloc, "wasm failed to allocate native" );
-            T* ret = (T*)(raw.get()+index);
-            index += sizeof(T)*size;
-            return ret;
+
+         outcome::result<result_void> free() {
+            EOS_VM_ASSERT(_index > 0, memory_errors::double_free);
+            _index = 0;
          }
-         void free() {
-            EOS_WB_ASSERT( index > 0, wasm_double_free, "double free" );
-            index = 0;
+
+         void reset() { _index = 0; }
+
+         uintptr_t get_base_address()const { return _raw.get(); }
+         size_t get_max_size()const { return _size; }
+
+       private:
+         bounded_allocator(size_t size) : _size(size) {
+           try {
+             _raw = std::unique_ptr<char[]>(new char[_size]);
+           } catch (...) {
+             _valid = false; 
+           }
          }
-         void reset() { index = 0; }
-         size_t mem_size;
-         std::unique_ptr<uint8_t[]> raw;
-         size_t index = 0;
+         bool _valid = true;
+         size_t _size = 0;
+         std::unique_ptr<char[]> _raw = nullptr;
+         size_t _index = 0;
    };
 
    class growable_allocator {
@@ -44,27 +107,25 @@ namespace eosio { namespace vm {
            return (offset + align_amt-1) & ~(align_amt-1);
          }
 
-         // size in bytes
-         growable_allocator(size_t size) {
-            _base = (char*)mmap(NULL, max_memory_size, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-            if (size != 0) {
-               size_t chunks_to_alloc = (size / chunk_size) + 1;
-               _size += (chunk_size*chunks_to_alloc);
-               mprotect((char*)_base, _size, PROT_READ|PROT_WRITE);
-            }
+         static outcome::result<growable_allocator&&> init(size_t sz) {
+            growable_allocator ga(sz);
+            if (LIKELY(_valid))
+              return std::move(ga);
+            return system_errors::constructor_failure;
          }
 
          ~growable_allocator() {
-            munmap(_base, max_memory_size);
+            if (LIKELY(_valid))
+               munmap(_base, max_memory_size);
          }
 
-         // TODO use Outcome library
          template <typename T>
          T* alloc(size_t size=0) {
             size_t aligned = align_offset((sizeof(T)*size)+_offset);
             if ( aligned >= _size ) {
                size_t chunks_to_alloc = aligned / chunk_size;
-               mprotect((char*)_base+_size, (chunk_size*chunks_to_alloc), PROT_READ|PROT_WRITE);
+               EOS_VM_ASSERT_INVALIDATE(mprotect((char*)_base+_size, (chunk_size*chunks_to_alloc), PROT_READ|PROT_WRITE) == -1,
+                                        memory_errors::bad_alloc);
                _size += (chunk_size*chunks_to_alloc);
             }
             
@@ -74,50 +135,39 @@ namespace eosio { namespace vm {
          }
 
          void free() {
-            EOS_WB_ASSERT(false, wasm_bad_alloc, "unimplemented");
+            EOS_VM_ASSERT(false, system_errors::unimplemented_failure);
          }
 
          void reset() { 
             _offset = 0; 
          }
 
+     private:
+         // size in bytes
+         growable_allocator(size_t size, bool& failed) : _size((size/chunk_size)) {
+           _base = (char*)mmap(NULL, max_memory_size, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+           failed = _base == MAP_FAILED;
+           if (size != 0) {
+             size_t chunks_to_alloc = (size / chunk_size) + 1;
+             _size += (chunk_size*chunks_to_alloc);
+             failed |= mprotect((char*)_base, _size, PROT_READ|PROT_WRITE) == -1;
+           }
+         }
+
+         bool _valid = true;
          size_t _offset = 0;
          size_t _size  = 0;
          char* _base;
    };
 
-   template <typename T>
-   class fixed_stack_allocator {
-      private:
-         T* raw = nullptr;
-         size_t max_size = 0;
-         void set_up_signals() {
-            struct sigaction sa;
-            sa.sa_sigaction = [](int sig, siginfo_t*, void*) { throw stack_memory_exception{"stack memory out-of-bounds"}; };
-            sigemptyset(&sa.sa_mask);
-            sa.sa_flags   = SA_NODEFER | SA_SIGINFO;
-            sigaction(SIGSEGV, &sa, NULL);
-            sigaction(SIGBUS, &sa, NULL);
-         }
-
-      public:
-         template <typename U>
-         void free() {
-            munmap(raw, max_memory);
-         }
-         fixed_stack_allocator(size_t max_size) : max_size(max_size) {
-            set_up_signals();
-            raw = (T*)mmap(NULL, max_memory, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-            mprotect(raw, max_size*sizeof(T), PROT_READ|PROT_WRITE);
-         }
-         inline T* get_base_ptr()const { return raw; }
-   };
 
    class wasm_allocator {
       private:
-         char* raw       = nullptr;
-         char* _previous = raw;
-         int32_t page    = 0;
+         bool _valid     = true;
+         char* _raw       = nullptr;
+         char* _previous = _raw;
+         int32_t _page    = 0;
+         static long_jump_table 
 
          void set_up_signals() {
             struct sigaction sa;
@@ -127,7 +177,9 @@ namespace eosio { namespace vm {
             sigaction(SIGSEGV, &sa, NULL);
             sigaction(SIGBUS, &sa, NULL);
          }
-
+         wasm_allocator() {
+           
+         }
       public:
          template <typename T>
          T* alloc(size_t size=1 /*in pages*/) {

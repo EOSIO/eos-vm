@@ -7,7 +7,7 @@ set( VERSION_PATCH 0 )
 enable_testing()
 
 #file(GLOB UNIT_TESTS "spec_tests.cpp" "f32_tests.cpp" "i32_tests.cpp" "i64_tests.cpp" ) #"*.cpp")
-file(GLOB UNIT_TESTS "i32_tests.cpp" "i64_tests.cpp" "f32_tests.cpp" "spec_tests.cpp" "varint_tests.cpp" "variant_tests.cpp" )
+file(GLOB UNIT_TESTS "i32_tests.cpp" "i64_tests.cpp" "f32_tests.cpp" "spec_tests.cpp" "varint_tests.cpp" "variant_tests.cpp" "outcome_tests.cpp" )
 
 add_subdirectory(wasms)
 add_executable( eos_vm_unit_tests main.cpp ${UNIT_TESTS} )
