@@ -1,6 +1,7 @@
 #pragma once
 #include <eosio/vm/opcodes_def.hpp>
 #include <eosio/vm/vector.hpp>
+#include <eosio/vm/variant.hpp>
 
 #include <map>
 #include <variant>
@@ -69,7 +70,7 @@ namespace eosio { namespace vm {
    CONVERSION_OPS(CREATE_TYPES)
    SYNTHETIC_OPS(CREATE_SYNTHETIC_TYPES)
    ERROR_OPS(CREATE_TYPES)
-   
+
    using opcode = std::variant<
       CONTROL_FLOW_OPS(IDENTITY)
       BR_TABLE_OP(IDENTITY)
@@ -89,4 +90,22 @@ namespace eosio { namespace vm {
       ERROR_OPS(IDENTITY_END)
       >;
 
+   using opcode2 = eosio::vm::variant<
+      CONTROL_FLOW_OPS(IDENTITY)
+      BR_TABLE_OP(IDENTITY)
+      RETURN_OP(IDENTITY)
+      CALL_OPS(IDENTITY)
+      PARAMETRIC_OPS(IDENTITY)
+      VARIABLE_ACCESS_OPS(IDENTITY)
+      MEMORY_OPS(IDENTITY)
+      I32_CONSTANT_OPS(IDENTITY)
+      I64_CONSTANT_OPS(IDENTITY)
+      F32_CONSTANT_OPS(IDENTITY)
+      F64_CONSTANT_OPS(IDENTITY)
+      COMPARISON_OPS(IDENTITY)
+      NUMERIC_OPS(IDENTITY)
+      CONVERSION_OPS(IDENTITY)
+      SYNTHETIC_OPS(IDENTITY)
+      ERROR_OPS(IDENTITY_END)
+      >;
 }} // namespace eosio::vm

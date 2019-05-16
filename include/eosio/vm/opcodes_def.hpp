@@ -181,114 +181,116 @@
       opcode_macro(f64_convert_s_i64, 0xB9) \
       opcode_macro(f64_convert_u_i64, 0xBA) \
       opcode_macro(f64_promote_f32, 0xBB) \
-      opcode_macro(i32_reinterpret_f32, 0xBC) \
-      opcode_macro(i64_reinterpret_f64, 0xBD) \
-      opcode_macro(f32_reinterpret_i32, 0xBE) \
-      opcode_macro(f64_reinterpret_i64, 0xBF) 
-#define SYNTHETIC_OPS(opcode_macro) \
+      opcode_macro(i32_reinterpret_f32, 0xBC)                                                                          \
+      opcode_macro(i64_reinterpret_f64, 0xBD)                                                                          \
+      opcode_macro(f32_reinterpret_i32, 0xBE)                                                                          \
+      opcode_macro(f64_reinterpret_i64, 0xBF)
+#define SYNTHETIC_OPS(opcode_macro)                                                                                    \
       opcode_macro(fend, 0xC0)
-#define ERROR_OPS(opcode_macro) \
-      opcode_macro(error, 0xC2) 
+#define ERROR_OPS(opcode_macro)                                                                                        \
+      opcode_macro(error, 0xC2)
 
-#define CREATE_ENUM(name, code) \
-   name = code,
+#define CREATE_ENUM(name, code) name = code,
 
-#define CREATE_STRINGS(name, code) \
-   #name,
+#define CREATE_STRINGS(name, code) #name,
 
-#define CREATE_SYNTHETIC_TYPES(name, code)       \
-   struct name##_t {                            \
-      uint32_t pc;                              \
+#define CREATE_SYNTHETIC_TYPES(name, code)                                                                             \
+   struct name##_t {                                                                                                   \
+      uint32_t pc;                                                                                                     \
    };
 
-#define CREATE_MAP(name, code) \
-  {code, #name},
+#define CREATE_MAP(name, code) { code, #name },
 
-#define CREATE_CONTROL_FLOW_TYPES(name, code) \
-   struct name##_t {                          \
-      name##_t(){} \
-      name##_t(uint32_t data) : data(data) {} \
-      uint32_t data = 0;                          \
-      uint32_t pc = 0;                            \
-      uint16_t index = 0;                         \
-      uint16_t op_index = 0;                      \
+#define CREATE_CONTROL_FLOW_TYPES(name, code)                                                                          \
+   struct name##_t {                                                                                                   \
+      name##_t() {}                                                                                                    \
+      name##_t(uint32_t data) : data(data) {}                                                                          \
+      uint32_t data     = 0;                                                                                           \
+      uint32_t pc       = 0;                                                                                           \
+      uint16_t index    = 0;                                                                                           \
+      uint16_t op_index = 0;                                                                                           \
    };
 
-#define CREATE_BR_TABLE_TYPE(name, code) \
-   struct name##_t {                     \
-      uint32_t* table;                   \
-      uint32_t  size;                    \
-      uint32_t  default_target;          \
+#define CREATE_BR_TABLE_TYPE(name, code)                                                                               \
+   struct name##_t {                                                                                                   \
+      uint32_t* table;                                                                                                 \
+      uint32_t  size;                                                                                                  \
+      uint32_t  default_target;                                                                                        \
    };
 
-#define CREATE_TYPES(name, code) \
+#define CREATE_TYPES(name, code)                                                                                       \
    struct name##_t {};
 
-#define CREATE_CALL_TYPES(name, code) \
-   struct name##_t {                  \
-      uint32_t index;                 \
+#define CREATE_CALL_TYPES(name, code)                                                                                  \
+   struct name##_t {                                                                                                   \
+      uint32_t index;                                                                                                  \
    };
 
-#define CREATE_VARIABLE_ACCESS_TYPES(name, code) \
-   struct name##_t {                             \
-      uint32_t index;                            \
+#define CREATE_VARIABLE_ACCESS_TYPES(name, code)                                                                       \
+   struct name##_t {                                                                                                   \
+      uint32_t index;                                                                                                  \
    };
 
-#define CREATE_MEMORY_TYPES(name, code) \
-   struct name##_t {                    \
-      uint32_t flags_align;             \
-      uint32_t offset;                  \
+#define CREATE_MEMORY_TYPES(name, code)                                                                                \
+   struct name##_t {                                                                                                   \
+      uint32_t flags_align;                                                                                            \
+      uint32_t offset;                                                                                                 \
    };
 
-
-#define CREATE_I32_CONSTANT_TYPE(name, code)          \
-   struct name##_t {                                  \
-      explicit name##_t (uint32_t n) { data.ui = n; } \
-      explicit name##_t (int32_t n) { data.i = n; }   \
-      union {                                         \
-         uint32_t ui;                                 \
-         int32_t  i;                                  \
-      } data;                                         \
+#define CREATE_I32_CONSTANT_TYPE(name, code)                                                                           \
+   struct name##_t {                                                                                                   \
+      explicit name##_t(uint32_t n) { data.ui = n; }                                                                   \
+      explicit name##_t(int32_t n) { data.i = n; }                                                                     \
+      union {                                                                                                          \
+         uint32_t ui;                                                                                                  \
+         int32_t  i;                                                                                                   \
+      } data;                                                                                                          \
    };
 
-#define CREATE_I64_CONSTANT_TYPE(name, code)          \
-   struct name##_t {                                  \
-      explicit name##_t (uint64_t n) { data.ui = n; } \
-      explicit name##_t (int64_t n) { data.i = n; }   \
-      union {                                         \
-         uint64_t ui;                                 \
-         int64_t  i;                                  \
-      } data;                                         \
+#define CREATE_I64_CONSTANT_TYPE(name, code)                                                                           \
+   struct name##_t {                                                                                                   \
+      explicit name##_t(uint64_t n) { data.ui = n; }                                                                   \
+      explicit name##_t(int64_t n) { data.i = n; }                                                                     \
+      union {                                                                                                          \
+         uint64_t ui;                                                                                                  \
+         int64_t  i;                                                                                                   \
+      } data;                                                                                                          \
    };
 
-#define CREATE_F32_CONSTANT_TYPE(name, code)          \
-   struct name##_t {                                  \
-      explicit name##_t (uint32_t n) { data.ui = n; } \
-      explicit name##_t (float n) { data.f = n; }     \
-      union {                                         \
-         uint32_t ui;                                 \
-         float f;                                     \
-      } data;                                         \
+#define CREATE_F32_CONSTANT_TYPE(name, code)                                                                           \
+   struct name##_t {                                                                                                   \
+      explicit name##_t(uint32_t n) { data.ui = n; }                                                                   \
+      explicit name##_t(float n) { data.f = n; }                                                                       \
+      union {                                                                                                          \
+         uint32_t ui;                                                                                                  \
+         float    f;                                                                                                   \
+      } data;                                                                                                          \
    };
 
-#define CREATE_F64_CONSTANT_TYPE(name, code)          \
-   struct name##_t {                                  \
-      explicit name##_t (uint64_t n) { data.ui = n; } \
-      explicit name##_t (double n) { data.f = n; }    \
-      union {                                         \
-         uint64_t ui;                                 \
-         double f;                                    \
-      } data;                                         \
+#define CREATE_F64_CONSTANT_TYPE(name, code)                                                                           \
+   struct name##_t {                                                                                                   \
+      explicit name##_t(uint64_t n) { data.ui = n; }                                                                   \
+      explicit name##_t(double n) { data.f = n; }                                                                      \
+      union {                                                                                                          \
+         uint64_t ui;                                                                                                  \
+         double   f;                                                                                                   \
+      } data;                                                                                                          \
    };
 
-#define IDENTITY(name, code) \
-   eosio::vm::name##_t,
-#define IDENTITY_END(name, code) \
-   eosio::vm::name##_t
+#define IDENTITY(name, code) eosio::vm::name##_t,
+#define IDENTITY_END(name, code) eosio::vm::name##_t
 
-#define DBG_VISIT(name, code)                                                     \
-   void operator()( name##_t& op ) {                              		  \
-      std::cout << "Found " << #name << " at " << get_context().get_pc() << " " << get_context().get_code_index() << " " << get_context().get_code_offset() << "\n"; \
-      interpret_visitor<ExecutionCTX>::operator()(op);                            \
-      get_context().print_stack();                                                \
+#define CREATE_LABEL(name, code) __eos_vm_label_##name : __eos_vm_visitor(__eos_vm_variant.get<eosio::vm::name##_t>());
+
+#define CREATE_TABLE_ENTRY(name, code) &&__eos_vm_label_##name,
+
+#define DBG_VISIT(name, code)                                                                                          \
+   void operator()(name##_t& op) {                                                                                     \
+      std::cout << "Found " << #name << " at " << get_context().get_pc() << " " << get_context().get_code_index()      \
+                << " " << get_context().get_code_offset() << "\n";                                                     \
+      interpret_visitor<ExecutionCTX>::operator()(op);                                                                 \
+      get_context().print_stack();                                                                                     \
    }
+
+#define DBG2_VISIT(name, code)                                                                                         \
+   void operator()(name##_t& op) { std::cout << "Found " << #name << "\n"; }
