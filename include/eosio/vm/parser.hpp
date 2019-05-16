@@ -5,6 +5,7 @@
 #include <eosio/vm/types.hpp>
 #include <eosio/vm/utils.hpp>
 #include <eosio/vm/vector.hpp>
+#include <eosio/vm/outcome.hpp>
 
 #include <stack>
 #include <vector>
@@ -41,18 +42,18 @@ namespace eosio { namespace vm {
             return varint<64>(code).to();
          }
 
-         inline module& parse_module( wasm_code& code, module& mod ) {
+         inline outcome::result<result_void> parse_module( wasm_code& code, module& mod ) {
             wasm_code_ptr cp(code.data(), 0);
-            parse_module(cp, code.size(), mod);
-            return mod;
+            return parse_module(cp, code.size(), mod);
          }
 
-         void parse_module( wasm_code_ptr& code_ptr, size_t sz, module& mod ) {
+         outcome::result<result_void> parse_module( wasm_code_ptr& code_ptr, size_t sz, module& mod ) {
+            //if 
             EOS_WB_ASSERT(parse_magic( code_ptr ) == constants::magic, wasm_parse_exception, "magic number did not match");
             EOS_WB_ASSERT(parse_version( code_ptr ) == constants::version, wasm_parse_exception, "version number did not match");
             for ( int i=0; i < section_id::num_of_elems; i++ ) {
                if (code_ptr.offset() == sz)
-                  return;
+                  return result_void{};
                code_ptr.add_bounds( constants::id_size );
                auto id = parse_section_id( code_ptr );
                code_ptr.add_bounds( constants::varuint32_size );

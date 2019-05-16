@@ -11,7 +11,7 @@ include(CMakeDependentOption)
 
 option(USE_EXISTING_SOFTFLOAT "use exisiting softfloat library")
 option(USE_EXISTING_BOOST "use boost (>= v1.70.0) for `outcome` library")
-option(ENABLE_TESTS "enable building and running of unit tests" ON)
+option(ENABLE_TESTS "enable building and running of unit tests" OFF)
 CMAKE_DEPENDENT_OPTION( ENABLE_FUZZ_TESTS "enable fuzz testing" OFF "ENABLE_TESTS" ON )
 option(DISABLE_CCACHE "disable building with CCache or SCCache if they are present")
 option(DISABLE_GPERFTOOLS "disable building with Gperftools if it is present")
@@ -70,10 +70,9 @@ endif()
 
 target_link_libraries( eos-vm INTERFACE softfloat )
 
-if (!USE_EXISTING_BOOST)
-   add_definitions(EOSIO_USE_EXTERNAL_OUTCOME 1)
+if (NOT USE_EXISTING_BOOST)
+   add_definitions(-DEOSIO_USE_EXTERNAL_OUTCOME)
    add_subdirectory( external/outcome )
-   #else()
 endif()
 
 if (ENABLE_TESTS)

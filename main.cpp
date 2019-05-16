@@ -44,7 +44,8 @@ int main(int argc, char** argv) {
    using rhf_t     = eosio::vm::registered_host_functions<foo_s>;
    auto code = backend_t::read_wasm( argv[1] );
    auto t1 = std::chrono::high_resolution_clock::now();
-   backend_t bkend( code );
+   backend_t bkend;
+   bkend.load_wasm( code );
    bkend.set_wasm_allocator( &wa );
    rhf_t::add<foo_s, &foo_s::print, wasm_allocator>("env", "printi");
    rhf_t::add<foo_s, &foo_s::mabort, wasm_allocator>("env", "abort");
