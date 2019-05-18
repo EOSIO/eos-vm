@@ -117,8 +117,8 @@ class variant {
 
    template <size_t Index>
    inline constexpr auto&& get_check() {
-      //TODO add outcome stuff
-      return ;
+      // TODO add outcome stuff
+      return 3;
    }
 
    template <size_t Index>
