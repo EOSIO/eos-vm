@@ -142,7 +142,7 @@ namespace eosio { namespace vm {
             munmap(raw, max_memory);
          }
          wasm_allocator() {
-            //set_up_signals();
+            set_up_signals();
             raw = (char*)mmap(NULL, max_memory, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
             _previous = raw;
             mprotect(raw, 3*page_size, PROT_READ|PROT_WRITE);

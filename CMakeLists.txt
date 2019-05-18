@@ -2,15 +2,17 @@
 cmake_minimum_required( VERSION 3.8 )
 project ( eos-vm )
 set( VERSION_MAJOR 0 )
-set( VERSION_MINOR 0 )
+set( VERSION_MINOR 1 )
 set( VERSION_PATCH 0 )
 
 set( CMAKE_CXX_STANDARD 17 )
+set( CMAKE_CXX_EXTENSIONS ON )
 
 include(CMakeDependentOption)
 
 option(USE_EXISTING_SOFTFLOAT "use exisiting softfloat library")
 option(USE_EXISTING_BOOST "use boost (>= v1.70.0) for `outcome` library")
+option(ENABLE_MEMORY_OPS_ALIGNMENT "enable the backend to obey alignment hints" OFF)
 option(ENABLE_TESTS "enable building and running of unit tests" ON)
 CMAKE_DEPENDENT_OPTION( ENABLE_FUZZ_TESTS "enable fuzz testing" OFF "ENABLE_TESTS" ON )
 option(DISABLE_CCACHE "disable building with CCache or SCCache if they are present")
@@ -29,8 +31,9 @@ link_libraries(Threads::Threads)
 if (NOT DISABLE_CCACHE)
    find_program(CCACHE_PROGRAM ccache)
    if (CCACHE_PROGRAM)
-      message(STATUS "EOS-VM found ccache")
+      message(STATUS "eos-vm using ccache")
       set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
+      set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK    "${CCACHE_PROGRAM}")
    endif()
 endif()
 
@@ -70,10 +73,14 @@ endif()
 
 target_link_libraries( eos-vm INTERFACE softfloat )
 
-if (!USE_EXISTING_BOOST)
-   add_definitions(EOSIO_USE_EXTERNAL_OUTCOME 1)
+if (NOT USE_EXISTING_BOOST)
+   add_definitions(-DEOS_VM_USE_EXTERNAL_OUTCOME)
    add_subdirectory( external/outcome )
    #else()
+endif()
+
+if (ENABLE_MEMORY_OPS_ALIGNMENT)
+   add_definitions(-DEOS_VM_ALIGN_MEMORY_OPS)
 endif()
 
 if (ENABLE_TESTS)
