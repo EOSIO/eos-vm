@@ -410,9 +410,9 @@ namespace eosio { namespace vm {
                   case opcodes::i64_const:
                      fb[op_index++] = i64_const_t{parse_varint64(code)}; break;
                   case opcodes::f32_const:
-                     fb[op_index++] = f32_const_t{*(uint32_t*)code.raw()}; code += 4; break;
+                     fb[op_index++] = f32_const_t{*(float*)code.raw()}; code += 4; break;
                   case opcodes::f64_const:
-                     fb[op_index++] = f64_const_t{*(uint64_t*)code.raw()}; code += 8; break;
+                     fb[op_index++] = f64_const_t{*(double*)code.raw()}; code += 8; break;
                   case opcodes::i32_eqz:
                      fb[op_index++] = i32_eqz_t{}; break;
                   case opcodes::i32_eq:

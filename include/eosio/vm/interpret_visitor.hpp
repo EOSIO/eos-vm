@@ -27,7 +27,6 @@ namespace eosio { namespace vm {
 
       static inline constexpr void* align_address(void* addr, size_t align_amt) {
          if constexpr (should_align_memory_ops) {
-            std::cout << "Aligning2\n";
             addr = (void*)(((uintptr_t)addr + (1 << align_amt) - 1) & ~((1 << align_amt) - 1));
             return addr;
          } else {
@@ -114,7 +113,6 @@ namespace eosio { namespace vm {
             context.jump(op.default_target);
       }
       [[gnu::always_inline]] inline void operator()(const call_t& op) {
-         std::cout << "call -> " << op.index << "\n";
          context.call(op.index);
          // TODO place these in parser
          // EOS_WB_ASSERT(b.index < funcs_size, wasm_interpreter_exception, "call index out of bounds");
@@ -189,7 +187,6 @@ namespace eosio { namespace vm {
       }
       [[gnu::always_inline]] inline void operator()(const i32_load16_u_t& op) {
          context.inc_pc();
-         std::cout << "offset " << op.offset << "\n";
          const auto& ptr  = context.pop_operand();
          uint16_t*   _ptr = (uint16_t*)align_address((uint16_t*)(context.linear_memory() + op.offset + to_ui32(ptr)),
                                                    op.flags_align);
@@ -256,7 +253,6 @@ namespace eosio { namespace vm {
          const auto& ptr  = context.pop_operand();
          uint64_t*   _ptr = (uint64_t*)align_address((uint64_t*)(context.linear_memory() + op.offset + to_ui32(ptr)),
                                                    op.flags_align);
-         std::cout << "_ptr " << *_ptr << " " << *((double*)(_ptr)) << "\n";
          context.push_operand(f64_const_t{ *_ptr });
       }
       [[gnu::always_inline]] inline void operator()(const i32_store_t& op) {
@@ -851,6 +847,7 @@ namespace eosio { namespace vm {
       [[gnu::always_inline]] inline void operator()(const f32_neg_t& op) {
          context.inc_pc();
          auto& oper = to_f32(context.peek_operand());
+         std::cout << "Oper " << oper << "\n";
          if constexpr (use_softfloat)
             oper = _eosio_f32_neg(oper);
          else
