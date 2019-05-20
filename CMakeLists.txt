@@ -68,7 +68,7 @@ target_include_directories( prog PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "$
 #add_executable( wasm_t ${CMAKE_SOURCE_DIR}/tests/fuzz/fuzz_parser.cpp ${fc} ${eos-vm} ${filesystem} ${chrono} ${date_time})
 
 if (NOT USE_EXISTING_SOFTFLOAT)
-   add_subdirectory( external )
+   #add_subdirectory( external )
 endif()
 
 target_link_libraries( eos-vm INTERFACE softfloat )

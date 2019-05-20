@@ -47,6 +47,12 @@ namespace eosio { namespace vm {
             return mod;
          }
 
+         inline module& parse_module2(wasm_code_ptr &code_ptr, size_t sz,
+                                   module &mod) {
+           parse_module(code_ptr, sz, mod);
+           return mod;
+         }
+
          void parse_module( wasm_code_ptr& code_ptr, size_t sz, module& mod ) {
             EOS_WB_ASSERT(parse_magic( code_ptr ) == constants::magic, wasm_parse_exception, "magic number did not match");
             EOS_WB_ASSERT(parse_version( code_ptr ) == constants::version, wasm_parse_exception, "version number did not match");
@@ -771,5 +777,5 @@ namespace eosio { namespace vm {
 
       private:
          growable_allocator& _allocator; 
-   };
+         };
 }} // namespace eosio::vm
