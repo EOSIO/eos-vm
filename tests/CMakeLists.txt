@@ -11,12 +11,14 @@ enable_testing()
 
 ### disable catch2 from installing it's own signal handlers
 add_definitions(-DCATCH_CONFIG_NO_POSIX_SIGNALS)
-file(GLOB SPEC_TESTS "spec_tests/address_tests.cpp" )
+file(GLOB SPEC_TESTS "spec_tests/*.cpp" )
 
 add_subdirectory(wasms)
 add_executable( eos_vm_unit_tests main.cpp ${SPEC_TESTS} )
 target_link_libraries( eos_vm_unit_tests eos-vm Catch2::Catch2 )
 
 target_include_directories( eos_vm_unit_tests PUBLIC ${CMAKE_SOURCE_DIR}/include )
+
+add_executable( spec_test_generator ${CMAKE_CURRENT_SOURCE_DIR}/spec_tests/spec_test_generator/spec_test_generator.cpp )
 
 catch_discover_tests( eos_vm_unit_tests )
