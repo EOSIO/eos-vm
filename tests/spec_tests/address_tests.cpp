@@ -238,7 +238,7 @@ TEST_CASE( "Testing wasm <address_3_wasm>", "[address_3_wasm_tests]" ) {
    CHECK(to_f32(*bkend.call_with_return(nullptr, "env", "32_good2", static_cast<uint32_t>(0))) == static_cast<float>(0));
    CHECK(to_f32(*bkend.call_with_return(nullptr, "env", "32_good3", static_cast<uint32_t>(0))) == static_cast<float>(0));
    CHECK(to_f32(*bkend.call_with_return(nullptr, "env", "32_good4", static_cast<uint32_t>(0))) == static_cast<float>(0));
-   CHECK(to_f32(*bkend.call_with_return(nullptr, "env", "32_good5", static_cast<uint32_t>(0))) == static_cast<float>(2144337921));
+   CHECK(to_fui32(*bkend.call_with_return(nullptr, "env", "32_good5", static_cast<uint32_t>(0))) == static_cast<uint32_t>(2144337921));
    CHECK(to_f32(*bkend.call_with_return(nullptr, "env", "32_good1", static_cast<uint32_t>(65524))) == static_cast<float>(0));
    CHECK(to_f32(*bkend.call_with_return(nullptr, "env", "32_good2", static_cast<uint32_t>(65524))) == static_cast<float>(0));
    CHECK(to_f32(*bkend.call_with_return(nullptr, "env", "32_good3", static_cast<uint32_t>(65524))) == static_cast<float>(0));
@@ -264,7 +264,7 @@ TEST_CASE( "Testing wasm <address_4_wasm>", "[address_4_wasm_tests]" ) {
    CHECK(to_f64(*bkend.call_with_return(nullptr, "env", "64_good2", static_cast<uint32_t>(0))) == static_cast<double>(0));
    CHECK(to_f64(*bkend.call_with_return(nullptr, "env", "64_good3", static_cast<uint32_t>(0))) == static_cast<double>(0));
    CHECK(to_f64(*bkend.call_with_return(nullptr, "env", "64_good4", static_cast<uint32_t>(0))) == static_cast<double>(0));
-   CHECK(to_f64(*bkend.call_with_return(nullptr, "env", "64_good5", static_cast<uint32_t>(0))) == static_cast<double>(9222246136947933185));
+   CHECK(to_fui64(*bkend.call_with_return(nullptr, "env", "64_good5", static_cast<uint32_t>(0))) == static_cast<uint64_t>(0x7ffc000000000001));
    CHECK(to_f64(*bkend.call_with_return(nullptr, "env", "64_good1", static_cast<uint32_t>(65510))) == static_cast<double>(0));
    CHECK(to_f64(*bkend.call_with_return(nullptr, "env", "64_good2", static_cast<uint32_t>(65510))) == static_cast<double>(0));
    CHECK(to_f64(*bkend.call_with_return(nullptr, "env", "64_good3", static_cast<uint32_t>(65510))) == static_cast<double>(0));
@@ -280,5 +280,3 @@ TEST_CASE( "Testing wasm <address_4_wasm>", "[address_4_wasm_tests]" ) {
    CHECK_THROWS_AS(bkend(nullptr, "env", "64_bad", static_cast<uint32_t>(0)), std::exception);
    CHECK_THROWS_AS(bkend(nullptr, "env", "64_bad", static_cast<uint32_t>(1)), std::exception);
 }
-
-

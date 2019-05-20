@@ -1,0 +1,2 @@
+* TODO Add support for `assert_malformed` and `assert_invalid` for binary spec tests.
+* TODO Figure out what is going on with `br_if_tests.cpp` `as-loop-last <- 1`, this should be an infinite loop (the test seems incorrect).
