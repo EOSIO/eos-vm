@@ -228,7 +228,7 @@ namespace eosio { namespace vm {
                   }
                   memcpy((char*)(addr), data_seg.data.raw(), data_seg.data.size());
                }
-
+               std::cout << "Execute " << func_index << "\n";
                _current_function = func_index;
                _code_index       = func_index - _mod.import_functions.size();
                _current_offset   = _mod.function_sizes[_current_function];
@@ -343,6 +343,7 @@ namespace eosio { namespace vm {
                   if (_pc == _exit_pc && _as.size() <= 1) {
                      _executing = false;
                   }
+                  std::cout << "OP " << _mod.code.at_no_check(_code_index).code.at_no_check(offset).index() << "\n";
                   std::visit(visitor, _mod.code.at_no_check(_code_index).code.at_no_check(offset));
                } while (_executing);
             }
