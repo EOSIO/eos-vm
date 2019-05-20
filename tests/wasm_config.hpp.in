@@ -410,4 +410,5 @@ namespace eosio { namespace vm {
    static constexpr auto br_table_19_wasm             = "${CMAKE_SOURCE_DIR}/tests/spec_tests/br_table.19.wasm";
    static constexpr auto br_table_20_wasm             = "${CMAKE_SOURCE_DIR}/tests/spec_tests/br_table.20.wasm";
    static constexpr auto br_table_21_wasm             = "${CMAKE_SOURCE_DIR}/tests/spec_tests/br_table.21.wasm";
+   static constexpr auto break_drop_0_wasm             = "${CMAKE_SOURCE_DIR}/tests/spec_tests/break_drop.0.wasm";
 }} // ns eosio::vm
