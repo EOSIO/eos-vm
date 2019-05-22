@@ -1,0 +1,73 @@
+TEST_CASE( "Testing wasm <linking_test_0_wasm>", "[linking_test_0_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( linking_test_0_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <linking_test_10_wasm>", "[linking_test_10_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( linking_test_10_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "call", static_cast<uint32_t>(2))) == static_cast<uint32_t>(4));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "Mt.call", static_cast<uint32_t>(2))) == static_cast<uint32_t>(4));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "call", static_cast<uint32_t>(2))) == static_cast<uint32_t>(5));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "call Mt.call", static_cast<uint32_t>(2))) == static_cast<uint32_t>(4));
+   CHECK_THROWS_AS(bkend(nullptr, "env", "call", static_cast<uint32_t>(1)), std::exception);
+   CHECK_THROWS_AS(bkend(nullptr, "env", "Mt.call", static_cast<uint32_t>(1)), std::exception);
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "call", static_cast<uint32_t>(1))) == static_cast<uint32_t>(5));
+   CHECK_THROWS_AS(bkend(nullptr, "env", "call Mt.call", static_cast<uint32_t>(1)), std::exception);
+   CHECK_THROWS_AS(bkend(nullptr, "env", "call", static_cast<uint32_t>(0)), std::exception);
+   CHECK_THROWS_AS(bkend(nullptr, "env", "Mt.call", static_cast<uint32_t>(0)), std::exception);
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "call", static_cast<uint32_t>(0))) == static_cast<uint32_t>(5));
+   CHECK_THROWS_AS(bkend(nullptr, "env", "call Mt.call", static_cast<uint32_t>(0)), std::exception);
+   CHECK_THROWS_AS(bkend(nullptr, "env", "call", static_cast<uint32_t>(20)), std::exception);
+   CHECK_THROWS_AS(bkend(nullptr, "env", "Mt.call", static_cast<uint32_t>(20)), std::exception);
+   CHECK_THROWS_AS(bkend(nullptr, "env", "call", static_cast<uint32_t>(7)), std::exception);
+   CHECK_THROWS_AS(bkend(nullptr, "env", "call Mt.call", static_cast<uint32_t>(20)), std::exception);
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "call", static_cast<uint32_t>(3))) == static_cast<uint32_t>(4294967292));
+   CHECK_THROWS_AS(bkend(nullptr, "env", "call", static_cast<uint32_t>(4)), std::exception);
+}
+
+TEST_CASE( "Testing wasm <linking_test_11_wasm>", "[linking_test_11_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( linking_test_11_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "call", static_cast<uint32_t>(3))) == static_cast<uint32_t>(4));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "Mt.call", static_cast<uint32_t>(3))) == static_cast<uint32_t>(4));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "call Mt.call", static_cast<uint32_t>(3))) == static_cast<uint32_t>(4));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "call", static_cast<uint32_t>(3))) == static_cast<uint32_t>(4));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "call", static_cast<uint32_t>(2))) == static_cast<uint32_t>(4294967292));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "Mt.call", static_cast<uint32_t>(2))) == static_cast<uint32_t>(4294967292));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "call", static_cast<uint32_t>(2))) == static_cast<uint32_t>(5));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "call Mt.call", static_cast<uint32_t>(2))) == static_cast<uint32_t>(4294967292));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "call", static_cast<uint32_t>(2))) == static_cast<uint32_t>(4294967292));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "call", static_cast<uint32_t>(1))) == static_cast<uint32_t>(6));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "Mt.call", static_cast<uint32_t>(1))) == static_cast<uint32_t>(6));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "call", static_cast<uint32_t>(1))) == static_cast<uint32_t>(5));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "call Mt.call", static_cast<uint32_t>(1))) == static_cast<uint32_t>(6));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "call", static_cast<uint32_t>(1))) == static_cast<uint32_t>(6));
+   CHECK_THROWS_AS(bkend(nullptr, "env", "call", static_cast<uint32_t>(0)), std::exception);
+   CHECK_THROWS_AS(bkend(nullptr, "env", "Mt.call", static_cast<uint32_t>(0)), std::exception);
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "call", static_cast<uint32_t>(0))) == static_cast<uint32_t>(5));
+   CHECK_THROWS_AS(bkend(nullptr, "env", "call Mt.call", static_cast<uint32_t>(0)), std::exception);
+   CHECK_THROWS_AS(bkend(nullptr, "env", "call", static_cast<uint32_t>(0)), std::exception);
+   CHECK_THROWS_AS(bkend(nullptr, "env", "call", static_cast<uint32_t>(20)), std::exception);
+}
+
+TEST_CASE( "Testing wasm <linking_test_12_wasm>", "[linking_test_12_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( linking_test_12_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <linking_test_13_wasm>", "[linking_test_13_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( linking_test_13_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+

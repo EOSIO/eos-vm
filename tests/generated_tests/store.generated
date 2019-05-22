@@ -1,0 +1,16 @@
+TEST_CASE( "Testing wasm <store_test_0_wasm>", "[store_test_0_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( store_test_0_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(!bkend.call_with_return(nullptr, "env", "as-block-value", )));
+   CHECK(!bkend.call_with_return(nullptr, "env", "as-loop-value", )));
+   CHECK(!bkend.call_with_return(nullptr, "env", "as-br-value", )));
+   CHECK(!bkend.call_with_return(nullptr, "env", "as-br_if-value", )));
+   CHECK(!bkend.call_with_return(nullptr, "env", "as-br_if-value-cond", )));
+   CHECK(!bkend.call_with_return(nullptr, "env", "as-br_table-value", )));
+   CHECK(!bkend.call_with_return(nullptr, "env", "as-return-value", )));
+   CHECK(!bkend.call_with_return(nullptr, "env", "as-if-then", )));
+   CHECK(!bkend.call_with_return(nullptr, "env", "as-if-else", )));
+}
+

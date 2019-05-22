@@ -1,0 +1,295 @@
+TEST_CASE( "Testing wasm <imports_test_0_wasm>", "[imports_test_0_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_0_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_116_wasm>", "[imports_test_116_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_116_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_1_wasm>", "[imports_test_1_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_1_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(!bkend.call_with_return(nullptr, "env", "print32", static_cast<uint32_t>(13))));
+   CHECK(!bkend.call_with_return(nullptr, "env", "print64", static_cast<uint64_t>(24))));
+}
+
+TEST_CASE( "Testing wasm <imports_test_34_wasm>", "[imports_test_34_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_34_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "get-0", )) == static_cast<uint32_t>(666));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "get-1", )) == static_cast<uint32_t>(666));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "get-x", )) == static_cast<uint32_t>(666));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "get-y", )) == static_cast<uint32_t>(666));
+}
+
+TEST_CASE( "Testing wasm <imports_test_35_wasm>", "[imports_test_35_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_35_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_36_wasm>", "[imports_test_36_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_36_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_3_wasm>", "[imports_test_3_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_3_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_45_wasm>", "[imports_test_45_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_45_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK_THROWS_AS(bkend(nullptr, "env", "call", static_cast<uint32_t>(0)), std::exception);
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "call", static_cast<uint32_t>(1))) == static_cast<uint32_t>(11));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "call", static_cast<uint32_t>(2))) == static_cast<uint32_t>(22));
+   CHECK_THROWS_AS(bkend(nullptr, "env", "call", static_cast<uint32_t>(3)), std::exception);
+   CHECK_THROWS_AS(bkend(nullptr, "env", "call", static_cast<uint32_t>(100)), std::exception);
+}
+
+TEST_CASE( "Testing wasm <imports_test_46_wasm>", "[imports_test_46_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_46_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK_THROWS_AS(bkend(nullptr, "env", "call", static_cast<uint32_t>(0)), std::exception);
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "call", static_cast<uint32_t>(1))) == static_cast<uint32_t>(11));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "call", static_cast<uint32_t>(2))) == static_cast<uint32_t>(22));
+   CHECK_THROWS_AS(bkend(nullptr, "env", "call", static_cast<uint32_t>(3)), std::exception);
+   CHECK_THROWS_AS(bkend(nullptr, "env", "call", static_cast<uint32_t>(100)), std::exception);
+}
+
+TEST_CASE( "Testing wasm <imports_test_4_wasm>", "[imports_test_4_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_4_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_50_wasm>", "[imports_test_50_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_50_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_51_wasm>", "[imports_test_51_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_51_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_52_wasm>", "[imports_test_52_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_52_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_53_wasm>", "[imports_test_53_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_53_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_54_wasm>", "[imports_test_54_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_54_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_55_wasm>", "[imports_test_55_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_55_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_56_wasm>", "[imports_test_56_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_56_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_57_wasm>", "[imports_test_57_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_57_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_58_wasm>", "[imports_test_58_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_58_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_59_wasm>", "[imports_test_59_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_59_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_5_wasm>", "[imports_test_5_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_5_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_60_wasm>", "[imports_test_60_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_60_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_6_wasm>", "[imports_test_6_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_6_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_71_wasm>", "[imports_test_71_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_71_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "load", static_cast<uint32_t>(0))) == static_cast<uint32_t>(0));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "load", static_cast<uint32_t>(10))) == static_cast<uint32_t>(16));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "load", static_cast<uint32_t>(8))) == static_cast<uint32_t>(1048576));
+   CHECK_THROWS_AS(bkend(nullptr, "env", "load", static_cast<uint32_t>(1000000)), std::exception);
+}
+
+TEST_CASE( "Testing wasm <imports_test_72_wasm>", "[imports_test_72_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_72_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "load", static_cast<uint32_t>(0))) == static_cast<uint32_t>(0));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "load", static_cast<uint32_t>(10))) == static_cast<uint32_t>(16));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "load", static_cast<uint32_t>(8))) == static_cast<uint32_t>(1048576));
+   CHECK_THROWS_AS(bkend(nullptr, "env", "load", static_cast<uint32_t>(1000000)), std::exception);
+}
+
+TEST_CASE( "Testing wasm <imports_test_76_wasm>", "[imports_test_76_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_76_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_77_wasm>", "[imports_test_77_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_77_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_78_wasm>", "[imports_test_78_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_78_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_79_wasm>", "[imports_test_79_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_79_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_7_wasm>", "[imports_test_7_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_7_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_80_wasm>", "[imports_test_80_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_80_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_81_wasm>", "[imports_test_81_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_81_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_82_wasm>", "[imports_test_82_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_82_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_83_wasm>", "[imports_test_83_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_83_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_84_wasm>", "[imports_test_84_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_84_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_8_wasm>", "[imports_test_8_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_8_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <imports_test_99_wasm>", "[imports_test_99_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_99_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "grow", static_cast<uint32_t>(0))) == static_cast<uint32_t>(1));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "grow", static_cast<uint32_t>(1))) == static_cast<uint32_t>(1));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "grow", static_cast<uint32_t>(0))) == static_cast<uint32_t>(2));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "grow", static_cast<uint32_t>(1))) == static_cast<uint32_t>(4294967295));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "grow", static_cast<uint32_t>(0))) == static_cast<uint32_t>(2));
+}
+
+TEST_CASE( "Testing wasm <imports_test_9_wasm>", "[imports_test_9_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( imports_test_9_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+

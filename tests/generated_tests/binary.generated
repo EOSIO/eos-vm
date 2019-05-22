@@ -1,0 +1,49 @@
+TEST_CASE( "Testing wasm <binary_test_0_wasm>", "[binary_test_0_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( binary_test_0_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <binary_test_1_wasm>", "[binary_test_1_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( binary_test_1_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <binary_test_2_wasm>", "[binary_test_2_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( binary_test_2_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <binary_test_3_wasm>", "[binary_test_3_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( binary_test_3_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <binary_test_48_wasm>", "[binary_test_48_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( binary_test_48_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <binary_test_53_wasm>", "[binary_test_53_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( binary_test_53_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <binary_test_54_wasm>", "[binary_test_54_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( binary_test_54_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+

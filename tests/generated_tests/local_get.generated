@@ -1,0 +1,26 @@
+TEST_CASE( "Testing wasm <local_get_test_0_wasm>", "[local_get_test_0_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( local_get_test_0_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "type-local-i32", )) == static_cast<uint32_t>(0));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "type-local-i64", )) == static_cast<uint64_t>(0));
+   CHECK(to_f32(*bkend.call_with_return(nullptr, "env", "type-local-f32", )) == static_cast<float>(0));
+   CHECK(to_f64(*bkend.call_with_return(nullptr, "env", "type-local-f64", )) == static_cast<double>(0));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "type-param-i32", static_cast<uint32_t>(2))) == static_cast<uint32_t>(2));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "type-param-i64", static_cast<uint64_t>(3))) == static_cast<uint64_t>(3));
+   CHECK(to_f32(*bkend.call_with_return(nullptr, "env", "type-param-f32", static_cast<float>(1082969293))) == static_cast<float>(1082969293));
+   CHECK(to_f64(*bkend.call_with_return(nullptr, "env", "type-param-f64", static_cast<double>(4617878467915022336))) == static_cast<double>(4617878467915022336));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-block-value", static_cast<uint32_t>(6))) == static_cast<uint32_t>(6));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-loop-value", static_cast<uint32_t>(7))) == static_cast<uint32_t>(7));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-br-value", static_cast<uint32_t>(8))) == static_cast<uint32_t>(8));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-br_if-value", static_cast<uint32_t>(9))) == static_cast<uint32_t>(9));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-br_if-value-cond", static_cast<uint32_t>(10))) == static_cast<uint32_t>(10));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-br_table-value", static_cast<uint32_t>(1))) == static_cast<uint32_t>(2));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-return-value", static_cast<uint32_t>(0))) == static_cast<uint32_t>(0));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-if-then", static_cast<uint32_t>(1))) == static_cast<uint32_t>(1));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-if-else", static_cast<uint32_t>(0))) == static_cast<uint32_t>(0));
+   CHECK(!bkend.call_with_return(nullptr, "env", "type-mixed", static_cast<uint64_t>(1), static_cast<float>(1074580685), static_cast<double>(4614613358185178726), static_cast<uint32_t>(4), static_cast<uint32_t>(5), )));
+   CHECK(to_f64(*bkend.call_with_return(nullptr, "env", "read", static_cast<uint64_t>(1), static_cast<float>(1073741824), static_cast<double>(4614613358185178726), static_cast<uint32_t>(4), static_cast<uint32_t>(5), )) == static_cast<double>(4630094481904264806));
+}
+

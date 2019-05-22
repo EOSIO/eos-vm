@@ -1,0 +1,175 @@
+TEST_CASE( "Testing wasm <data_test_0_wasm>", "[data_test_0_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( data_test_0_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <data_test_10_wasm>", "[data_test_10_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( data_test_10_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <data_test_11_wasm>", "[data_test_11_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( data_test_11_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <data_test_12_wasm>", "[data_test_12_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( data_test_12_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <data_test_13_wasm>", "[data_test_13_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( data_test_13_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <data_test_14_wasm>", "[data_test_14_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( data_test_14_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <data_test_15_wasm>", "[data_test_15_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( data_test_15_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <data_test_16_wasm>", "[data_test_16_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( data_test_16_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <data_test_17_wasm>", "[data_test_17_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( data_test_17_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <data_test_18_wasm>", "[data_test_18_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( data_test_18_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <data_test_19_wasm>", "[data_test_19_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( data_test_19_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <data_test_1_wasm>", "[data_test_1_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( data_test_1_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <data_test_20_wasm>", "[data_test_20_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( data_test_20_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <data_test_21_wasm>", "[data_test_21_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( data_test_21_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <data_test_22_wasm>", "[data_test_22_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( data_test_22_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <data_test_23_wasm>", "[data_test_23_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( data_test_23_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <data_test_24_wasm>", "[data_test_24_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( data_test_24_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <data_test_2_wasm>", "[data_test_2_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( data_test_2_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <data_test_3_wasm>", "[data_test_3_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( data_test_3_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <data_test_4_wasm>", "[data_test_4_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( data_test_4_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <data_test_5_wasm>", "[data_test_5_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( data_test_5_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <data_test_6_wasm>", "[data_test_6_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( data_test_6_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <data_test_7_wasm>", "[data_test_7_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( data_test_7_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <data_test_8_wasm>", "[data_test_8_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( data_test_8_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <data_test_9_wasm>", "[data_test_9_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( data_test_9_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+

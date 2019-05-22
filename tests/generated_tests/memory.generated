@@ -1,0 +1,101 @@
+TEST_CASE( "Testing wasm <memory_test_0_wasm>", "[memory_test_0_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( memory_test_0_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <memory_test_1_wasm>", "[memory_test_1_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( memory_test_1_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <memory_test_25_wasm>", "[memory_test_25_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( memory_test_25_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "data", )) == static_cast<uint32_t>(1));
+   CHECK(to_f64(*bkend.call_with_return(nullptr, "env", "cast", )) == static_cast<double>(4631107791820423168));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32_load8_s", static_cast<uint32_t>(4294967295))) == static_cast<uint32_t>(4294967295));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32_load8_u", static_cast<uint32_t>(4294967295))) == static_cast<uint32_t>(255));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32_load16_s", static_cast<uint32_t>(4294967295))) == static_cast<uint32_t>(4294967295));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32_load16_u", static_cast<uint32_t>(4294967295))) == static_cast<uint32_t>(65535));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32_load8_s", static_cast<uint32_t>(100))) == static_cast<uint32_t>(100));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32_load8_u", static_cast<uint32_t>(200))) == static_cast<uint32_t>(200));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32_load16_s", static_cast<uint32_t>(20000))) == static_cast<uint32_t>(20000));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32_load16_u", static_cast<uint32_t>(40000))) == static_cast<uint32_t>(40000));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32_load8_s", static_cast<uint32_t>(4275856707))) == static_cast<uint32_t>(67));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32_load8_s", static_cast<uint32_t>(878104047))) == static_cast<uint32_t>(4294967279));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32_load8_u", static_cast<uint32_t>(4275856707))) == static_cast<uint32_t>(67));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32_load8_u", static_cast<uint32_t>(878104047))) == static_cast<uint32_t>(239));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32_load16_s", static_cast<uint32_t>(4275856707))) == static_cast<uint32_t>(25923));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32_load16_s", static_cast<uint32_t>(878104047))) == static_cast<uint32_t>(4294954479));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32_load16_u", static_cast<uint32_t>(4275856707))) == static_cast<uint32_t>(25923));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32_load16_u", static_cast<uint32_t>(878104047))) == static_cast<uint32_t>(52719));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64_load8_s", static_cast<uint64_t>(18446744073709551615))) == static_cast<uint64_t>(18446744073709551615));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64_load8_u", static_cast<uint64_t>(18446744073709551615))) == static_cast<uint64_t>(255));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64_load16_s", static_cast<uint64_t>(18446744073709551615))) == static_cast<uint64_t>(18446744073709551615));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64_load16_u", static_cast<uint64_t>(18446744073709551615))) == static_cast<uint64_t>(65535));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64_load32_s", static_cast<uint64_t>(18446744073709551615))) == static_cast<uint64_t>(18446744073709551615));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64_load32_u", static_cast<uint64_t>(18446744073709551615))) == static_cast<uint64_t>(4294967295));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64_load8_s", static_cast<uint64_t>(100))) == static_cast<uint64_t>(100));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64_load8_u", static_cast<uint64_t>(200))) == static_cast<uint64_t>(200));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64_load16_s", static_cast<uint64_t>(20000))) == static_cast<uint64_t>(20000));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64_load16_u", static_cast<uint64_t>(40000))) == static_cast<uint64_t>(40000));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64_load32_s", static_cast<uint64_t>(20000))) == static_cast<uint64_t>(20000));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64_load32_u", static_cast<uint64_t>(40000))) == static_cast<uint64_t>(40000));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64_load8_s", static_cast<uint64_t>(18364758543954109763))) == static_cast<uint64_t>(67));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64_load8_s", static_cast<uint64_t>(3771275841602506223))) == static_cast<uint64_t>(18446744073709551599));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64_load8_u", static_cast<uint64_t>(18364758543954109763))) == static_cast<uint64_t>(67));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64_load8_u", static_cast<uint64_t>(3771275841602506223))) == static_cast<uint64_t>(239));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64_load16_s", static_cast<uint64_t>(18364758543954109763))) == static_cast<uint64_t>(25923));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64_load16_s", static_cast<uint64_t>(3771275841602506223))) == static_cast<uint64_t>(18446744073709538799));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64_load16_u", static_cast<uint64_t>(18364758543954109763))) == static_cast<uint64_t>(25923));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64_load16_u", static_cast<uint64_t>(3771275841602506223))) == static_cast<uint64_t>(52719));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64_load32_s", static_cast<uint64_t>(18364758543954109763))) == static_cast<uint64_t>(1446274371));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64_load32_s", static_cast<uint64_t>(3771275841602506223))) == static_cast<uint64_t>(18446744071976963567));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64_load32_u", static_cast<uint64_t>(18364758543954109763))) == static_cast<uint64_t>(1446274371));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64_load32_u", static_cast<uint64_t>(3771275841602506223))) == static_cast<uint64_t>(2562379247));
+}
+
+TEST_CASE( "Testing wasm <memory_test_2_wasm>", "[memory_test_2_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( memory_test_2_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <memory_test_3_wasm>", "[memory_test_3_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( memory_test_3_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <memory_test_6_wasm>", "[memory_test_6_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( memory_test_6_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "memsize", )) == static_cast<uint32_t>(0));
+}
+
+TEST_CASE( "Testing wasm <memory_test_7_wasm>", "[memory_test_7_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( memory_test_7_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "memsize", )) == static_cast<uint32_t>(0));
+}
+
+TEST_CASE( "Testing wasm <memory_test_8_wasm>", "[memory_test_8_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( memory_test_8_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "memsize", )) == static_cast<uint32_t>(1));
+}
+

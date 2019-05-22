@@ -1,0 +1,3 @@
+{"source_filename": "/Users/john.debord/eosio/spec/test/generated_tests/inline-module.test",
+ "commands": [
+  {"type": "module", "line": 1, "filename": "inline-module.test.0.wasm"}]}

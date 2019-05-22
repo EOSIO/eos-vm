@@ -1,0 +1,81 @@
+TEST_CASE( "Testing wasm <globals_test_0_wasm>", "[globals_test_0_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( globals_test_0_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "get-a", )) == static_cast<uint32_t>(4294967294));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "get-b", )) == static_cast<uint64_t>(18446744073709551611));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "get-x", )) == static_cast<uint32_t>(4294967284));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "get-y", )) == static_cast<uint64_t>(18446744073709551601));
+   CHECK(to_f32(*bkend.call_with_return(nullptr, "env", "get-1", )) == static_cast<float>(3225419776));
+   CHECK(to_f64(*bkend.call_with_return(nullptr, "env", "get-2", )) == static_cast<double>(13839561654909534208));
+   CHECK(to_f32(*bkend.call_with_return(nullptr, "env", "get-5", )) == static_cast<float>(3243245568));
+   CHECK(to_f64(*bkend.call_with_return(nullptr, "env", "get-6", )) == static_cast<double>(13847442954257432576));
+   CHECK(!bkend.call_with_return(nullptr, "env", "set-x", static_cast<uint32_t>(6))));
+   CHECK(!bkend.call_with_return(nullptr, "env", "set-y", static_cast<uint64_t>(7))));
+   CHECK(!bkend.call_with_return(nullptr, "env", "set-5", static_cast<float>(1090519040))));
+   CHECK(!bkend.call_with_return(nullptr, "env", "set-6", static_cast<double>(4621256167635550208))));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "get-x", )) == static_cast<uint32_t>(6));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "get-y", )) == static_cast<uint64_t>(7));
+   CHECK(to_f32(*bkend.call_with_return(nullptr, "env", "get-5", )) == static_cast<float>(1090519040));
+   CHECK(to_f64(*bkend.call_with_return(nullptr, "env", "get-6", )) == static_cast<double>(4621256167635550208));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-select-first", )) == static_cast<uint32_t>(6));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-select-mid", )) == static_cast<uint32_t>(2));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-select-last", )) == static_cast<uint32_t>(2));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-loop-first", )) == static_cast<uint32_t>(6));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-loop-mid", )) == static_cast<uint32_t>(6));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-loop-last", )) == static_cast<uint32_t>(6));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-if-condition", )) == static_cast<uint32_t>(2));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-if-then", )) == static_cast<uint32_t>(6));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-if-else", )) == static_cast<uint32_t>(6));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-br_if-first", )) == static_cast<uint32_t>(6));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-br_if-last", )) == static_cast<uint32_t>(2));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-br_table-first", )) == static_cast<uint32_t>(6));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-br_table-last", )) == static_cast<uint32_t>(2));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-call_indirect-first", )) == static_cast<uint32_t>(6));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-call_indirect-mid", )) == static_cast<uint32_t>(2));
+   CHECK_THROWS_AS(bkend(nullptr, "env", "as-call_indirect-last", ), std::exception);
+   CHECK(!bkend.call_with_return(nullptr, "env", "as-store-first", )));
+   CHECK(!bkend.call_with_return(nullptr, "env", "as-store-last", )));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-load-operand", )) == static_cast<uint32_t>(1));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-memory.grow-value", )) == static_cast<uint32_t>(1));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-call-value", )) == static_cast<uint32_t>(6));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-return-value", )) == static_cast<uint32_t>(6));
+   CHECK(!bkend.call_with_return(nullptr, "env", "as-drop-operand", )));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-br-value", )) == static_cast<uint32_t>(6));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-local.set-value", static_cast<uint32_t>(1))) == static_cast<uint32_t>(6));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-local.tee-value", static_cast<uint32_t>(1))) == static_cast<uint32_t>(6));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-global.set-value", )) == static_cast<uint32_t>(6));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-unary-operand", )) == static_cast<uint32_t>(0));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-binary-operand", )) == static_cast<uint32_t>(36));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "as-compare-operand", )) == static_cast<uint32_t>(1));
+}
+
+TEST_CASE( "Testing wasm <globals_test_14_wasm>", "[globals_test_14_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( globals_test_14_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <globals_test_17_wasm>", "[globals_test_17_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( globals_test_17_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <globals_test_2_wasm>", "[globals_test_2_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( globals_test_2_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <globals_test_3_wasm>", "[globals_test_3_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( globals_test_3_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+

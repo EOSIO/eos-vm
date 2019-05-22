@@ -1,0 +1,97 @@
+TEST_CASE( "Testing wasm <float_literals_test_0_wasm>", "[float_literals_test_0_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( float_literals_test_0_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32.nan", )) == static_cast<uint32_t>(2143289344));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32.positive_nan", )) == static_cast<uint32_t>(2143289344));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32.negative_nan", )) == static_cast<uint32_t>(4290772992));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32.plain_nan", )) == static_cast<uint32_t>(2143289344));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32.informally_known_as_plain_snan", )) == static_cast<uint32_t>(2141192192));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32.all_ones_nan", )) == static_cast<uint32_t>(4294967295));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32.misc_nan", )) == static_cast<uint32_t>(2139169605));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32.misc_positive_nan", )) == static_cast<uint32_t>(2142257232));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32.misc_negative_nan", )) == static_cast<uint32_t>(4289379550));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32.infinity", )) == static_cast<uint32_t>(2139095040));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32.positive_infinity", )) == static_cast<uint32_t>(2139095040));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32.negative_infinity", )) == static_cast<uint32_t>(4286578688));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32.zero", )) == static_cast<uint32_t>(0));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32.positive_zero", )) == static_cast<uint32_t>(0));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32.negative_zero", )) == static_cast<uint32_t>(2147483648));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32.misc", )) == static_cast<uint32_t>(1086918619));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32.min_positive", )) == static_cast<uint32_t>(1));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32.min_normal", )) == static_cast<uint32_t>(8388608));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32.max_subnormal", )) == static_cast<uint32_t>(8388607));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32.max_finite", )) == static_cast<uint32_t>(2139095039));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32.trailing_dot", )) == static_cast<uint32_t>(1149239296));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32_dec.zero", )) == static_cast<uint32_t>(0));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32_dec.positive_zero", )) == static_cast<uint32_t>(0));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32_dec.negative_zero", )) == static_cast<uint32_t>(2147483648));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32_dec.misc", )) == static_cast<uint32_t>(1086918619));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32_dec.min_positive", )) == static_cast<uint32_t>(1));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32_dec.min_normal", )) == static_cast<uint32_t>(8388608));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32_dec.max_subnormal", )) == static_cast<uint32_t>(8388607));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32_dec.max_finite", )) == static_cast<uint32_t>(2139095039));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32_dec.trailing_dot", )) == static_cast<uint32_t>(1343554297));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "f32_dec.root_beer_float", )) == static_cast<uint32_t>(1065353217));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64.nan", )) == static_cast<uint64_t>(9221120237041090560));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64.positive_nan", )) == static_cast<uint64_t>(9221120237041090560));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64.negative_nan", )) == static_cast<uint64_t>(18444492273895866368));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64.plain_nan", )) == static_cast<uint64_t>(9221120237041090560));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64.informally_known_as_plain_snan", )) == static_cast<uint64_t>(9219994337134247936));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64.all_ones_nan", )) == static_cast<uint64_t>(18446744073709551615));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64.misc_nan", )) == static_cast<uint64_t>(9218888453225749180));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64.misc_positive_nan", )) == static_cast<uint64_t>(9219717281780008969));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64.misc_negative_nan", )) == static_cast<uint64_t>(18442992325002076997));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64.infinity", )) == static_cast<uint64_t>(9218868437227405312));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64.positive_infinity", )) == static_cast<uint64_t>(9218868437227405312));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64.negative_infinity", )) == static_cast<uint64_t>(18442240474082181120));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64.zero", )) == static_cast<uint64_t>(0));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64.positive_zero", )) == static_cast<uint64_t>(0));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64.negative_zero", )) == static_cast<uint64_t>(9223372036854775808));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64.misc", )) == static_cast<uint64_t>(4618760256179416344));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64.min_positive", )) == static_cast<uint64_t>(1));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64.min_normal", )) == static_cast<uint64_t>(4503599627370496));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64.max_subnormal", )) == static_cast<uint64_t>(4503599627370495));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64.max_finite", )) == static_cast<uint64_t>(9218868437227405311));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64.trailing_dot", )) == static_cast<uint64_t>(5057542381537067008));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64_dec.zero", )) == static_cast<uint64_t>(0));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64_dec.positive_zero", )) == static_cast<uint64_t>(0));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64_dec.negative_zero", )) == static_cast<uint64_t>(9223372036854775808));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64_dec.misc", )) == static_cast<uint64_t>(4618760256179416344));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64_dec.min_positive", )) == static_cast<uint64_t>(1));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64_dec.min_normal", )) == static_cast<uint64_t>(4503599627370496));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64_dec.max_subnormal", )) == static_cast<uint64_t>(4503599627370495));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64_dec.max_finite", )) == static_cast<uint64_t>(9218868437227405311));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64_dec.trailing_dot", )) == static_cast<uint64_t>(6103021453049119613));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "f64_dec.root_beer_float", )) == static_cast<uint64_t>(4607182419335945764));
+   CHECK(to_f32(*bkend.call_with_return(nullptr, "env", "f32-dec-sep1", )) == static_cast<float>(1232348160));
+   CHECK(to_f32(*bkend.call_with_return(nullptr, "env", "f32-dec-sep2", )) == static_cast<float>(1148846080));
+   CHECK(to_f32(*bkend.call_with_return(nullptr, "env", "f32-dec-sep3", )) == static_cast<float>(1148897552));
+   CHECK(to_f32(*bkend.call_with_return(nullptr, "env", "f32-dec-sep4", )) == static_cast<float>(1482758550));
+   CHECK(to_f32(*bkend.call_with_return(nullptr, "env", "f32-dec-sep5", )) == static_cast<float>(1847438964));
+   CHECK(to_f32(*bkend.call_with_return(nullptr, "env", "f32-hex-sep1", )) == static_cast<float>(1294004234));
+   CHECK(to_f32(*bkend.call_with_return(nullptr, "env", "f32-hex-sep2", )) == static_cast<float>(1205143424));
+   CHECK(to_f32(*bkend.call_with_return(nullptr, "env", "f32-hex-sep3", )) == static_cast<float>(1193345009));
+   CHECK(to_f32(*bkend.call_with_return(nullptr, "env", "f32-hex-sep4", )) == static_cast<float>(1240465408));
+   CHECK(to_f32(*bkend.call_with_return(nullptr, "env", "f32-hex-sep5", )) == static_cast<float>(1437319208));
+   CHECK(to_f64(*bkend.call_with_return(nullptr, "env", "f64-dec-sep1", )) == static_cast<double>(4696837146684686336));
+   CHECK(to_f64(*bkend.call_with_return(nullptr, "env", "f64-dec-sep2", )) == static_cast<double>(4652007308841189376));
+   CHECK(to_f64(*bkend.call_with_return(nullptr, "env", "f64-dec-sep3", )) == static_cast<double>(4652034942576659200));
+   CHECK(to_f64(*bkend.call_with_return(nullptr, "env", "f64-dec-sep4", )) == static_cast<double>(2796837019126844485));
+   CHECK(to_f64(*bkend.call_with_return(nullptr, "env", "f64-dec-sep5", )) == static_cast<double>(5027061507362119324));
+   CHECK(to_f64(*bkend.call_with_return(nullptr, "env", "f64-hex-sep1", )) == static_cast<double>(4838519794133185330));
+   CHECK(to_f64(*bkend.call_with_return(nullptr, "env", "f64-hex-sep2", )) == static_cast<double>(4682231715257647104));
+   CHECK(to_f64(*bkend.call_with_return(nullptr, "env", "f64-hex-sep3", )) == static_cast<double>(4675897489574114112));
+   CHECK(to_f64(*bkend.call_with_return(nullptr, "env", "f64-hex-sep4", )) == static_cast<double>(4701195061021376512));
+   CHECK(to_f64(*bkend.call_with_return(nullptr, "env", "f64-hex-sep5", )) == static_cast<double>(4806880140420149248));
+}
+
+TEST_CASE( "Testing wasm <float_literals_test_1_wasm>", "[float_literals_test_1_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( float_literals_test_1_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_f64(*bkend.call_with_return(nullptr, "env", "4294967249", )) == static_cast<double>(4751297606777307136));
+}
+

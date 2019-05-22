@@ -1,0 +1,11 @@
+TEST_CASE( "Testing wasm <memory_redundancy_test_0_wasm>", "[memory_redundancy_test_0_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( memory_redundancy_test_0_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "test_store_to_load", )) == static_cast<uint32_t>(128));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "test_redundant_load", )) == static_cast<uint32_t>(128));
+   CHECK(to_f32(*bkend.call_with_return(nullptr, "env", "test_dead_store", )) == static_cast<float>(35));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "malloc_aliasing", )) == static_cast<uint32_t>(43));
+}
+

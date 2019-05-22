@@ -1,0 +1,222 @@
+TEST_CASE( "Testing wasm <int_exprs_test_0_wasm>", "[int_exprs_test_0_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( int_exprs_test_0_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.no_fold_cmp_s_offset", static_cast<uint32_t>(2147483647), static_cast<uint32_t>(0), )) == static_cast<uint32_t>(1));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.no_fold_cmp_u_offset", static_cast<uint32_t>(4294967295), static_cast<uint32_t>(0), )) == static_cast<uint32_t>(1));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i64.no_fold_cmp_s_offset", static_cast<uint64_t>(9223372036854775807), static_cast<uint64_t>(0), )) == static_cast<uint32_t>(1));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i64.no_fold_cmp_u_offset", static_cast<uint64_t>(18446744073709551615), static_cast<uint64_t>(0), )) == static_cast<uint32_t>(1));
+}
+
+TEST_CASE( "Testing wasm <int_exprs_test_10_wasm>", "[int_exprs_test_10_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( int_exprs_test_10_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.no_fold_rem_s_2", static_cast<uint32_t>(4294967285))) == static_cast<uint32_t>(4294967295));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.no_fold_rem_s_2", static_cast<uint64_t>(18446744073709551605))) == static_cast<uint64_t>(18446744073709551615));
+}
+
+TEST_CASE( "Testing wasm <int_exprs_test_11_wasm>", "[int_exprs_test_11_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( int_exprs_test_11_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK_THROWS_AS(bkend(nullptr, "env", "i32.div_s_0", static_cast<uint32_t>(71)), std::exception);
+   CHECK_THROWS_AS(bkend(nullptr, "env", "i32.div_u_0", static_cast<uint32_t>(71)), std::exception);
+   CHECK_THROWS_AS(bkend(nullptr, "env", "i64.div_s_0", static_cast<uint64_t>(71)), std::exception);
+   CHECK_THROWS_AS(bkend(nullptr, "env", "i64.div_u_0", static_cast<uint64_t>(71)), std::exception);
+}
+
+TEST_CASE( "Testing wasm <int_exprs_test_12_wasm>", "[int_exprs_test_12_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( int_exprs_test_12_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.div_s_3", static_cast<uint32_t>(71))) == static_cast<uint32_t>(23));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.div_s_3", static_cast<uint32_t>(1610612736))) == static_cast<uint32_t>(536870912));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.div_u_3", static_cast<uint32_t>(71))) == static_cast<uint32_t>(23));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.div_u_3", static_cast<uint32_t>(3221225472))) == static_cast<uint32_t>(1073741824));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.div_s_3", static_cast<uint64_t>(71))) == static_cast<uint64_t>(23));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.div_s_3", static_cast<uint64_t>(3458764513820540928))) == static_cast<uint64_t>(1152921504606846976));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.div_u_3", static_cast<uint64_t>(71))) == static_cast<uint64_t>(23));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.div_u_3", static_cast<uint64_t>(13835058055282163712))) == static_cast<uint64_t>(4611686018427387904));
+}
+
+TEST_CASE( "Testing wasm <int_exprs_test_13_wasm>", "[int_exprs_test_13_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( int_exprs_test_13_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.div_s_5", static_cast<uint32_t>(71))) == static_cast<uint32_t>(14));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.div_s_5", static_cast<uint32_t>(1342177280))) == static_cast<uint32_t>(268435456));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.div_u_5", static_cast<uint32_t>(71))) == static_cast<uint32_t>(14));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.div_u_5", static_cast<uint32_t>(2684354560))) == static_cast<uint32_t>(536870912));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.div_s_5", static_cast<uint64_t>(71))) == static_cast<uint64_t>(14));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.div_s_5", static_cast<uint64_t>(5764607523034234880))) == static_cast<uint64_t>(1152921504606846976));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.div_u_5", static_cast<uint64_t>(71))) == static_cast<uint64_t>(14));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.div_u_5", static_cast<uint64_t>(11529215046068469760))) == static_cast<uint64_t>(2305843009213693952));
+}
+
+TEST_CASE( "Testing wasm <int_exprs_test_14_wasm>", "[int_exprs_test_14_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( int_exprs_test_14_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.div_s_7", static_cast<uint32_t>(71))) == static_cast<uint32_t>(10));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.div_s_7", static_cast<uint32_t>(1879048192))) == static_cast<uint32_t>(268435456));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.div_u_7", static_cast<uint32_t>(71))) == static_cast<uint32_t>(10));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.div_u_7", static_cast<uint32_t>(3758096384))) == static_cast<uint32_t>(536870912));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.div_s_7", static_cast<uint64_t>(71))) == static_cast<uint64_t>(10));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.div_s_7", static_cast<uint64_t>(8070450532247928832))) == static_cast<uint64_t>(1152921504606846976));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.div_u_7", static_cast<uint64_t>(71))) == static_cast<uint64_t>(10));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.div_u_7", static_cast<uint64_t>(16140901064495857664))) == static_cast<uint64_t>(2305843009213693952));
+}
+
+TEST_CASE( "Testing wasm <int_exprs_test_15_wasm>", "[int_exprs_test_15_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( int_exprs_test_15_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.rem_s_3", static_cast<uint32_t>(71))) == static_cast<uint32_t>(2));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.rem_s_3", static_cast<uint32_t>(1610612736))) == static_cast<uint32_t>(0));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.rem_u_3", static_cast<uint32_t>(71))) == static_cast<uint32_t>(2));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.rem_u_3", static_cast<uint32_t>(3221225472))) == static_cast<uint32_t>(0));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.rem_s_3", static_cast<uint64_t>(71))) == static_cast<uint64_t>(2));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.rem_s_3", static_cast<uint64_t>(3458764513820540928))) == static_cast<uint64_t>(0));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.rem_u_3", static_cast<uint64_t>(71))) == static_cast<uint64_t>(2));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.rem_u_3", static_cast<uint64_t>(13835058055282163712))) == static_cast<uint64_t>(0));
+}
+
+TEST_CASE( "Testing wasm <int_exprs_test_16_wasm>", "[int_exprs_test_16_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( int_exprs_test_16_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.rem_s_5", static_cast<uint32_t>(71))) == static_cast<uint32_t>(1));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.rem_s_5", static_cast<uint32_t>(1342177280))) == static_cast<uint32_t>(0));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.rem_u_5", static_cast<uint32_t>(71))) == static_cast<uint32_t>(1));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.rem_u_5", static_cast<uint32_t>(2684354560))) == static_cast<uint32_t>(0));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.rem_s_5", static_cast<uint64_t>(71))) == static_cast<uint64_t>(1));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.rem_s_5", static_cast<uint64_t>(5764607523034234880))) == static_cast<uint64_t>(0));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.rem_u_5", static_cast<uint64_t>(71))) == static_cast<uint64_t>(1));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.rem_u_5", static_cast<uint64_t>(11529215046068469760))) == static_cast<uint64_t>(0));
+}
+
+TEST_CASE( "Testing wasm <int_exprs_test_17_wasm>", "[int_exprs_test_17_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( int_exprs_test_17_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.rem_s_7", static_cast<uint32_t>(71))) == static_cast<uint32_t>(1));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.rem_s_7", static_cast<uint32_t>(1879048192))) == static_cast<uint32_t>(0));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.rem_u_7", static_cast<uint32_t>(71))) == static_cast<uint32_t>(1));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.rem_u_7", static_cast<uint32_t>(3758096384))) == static_cast<uint32_t>(0));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.rem_s_7", static_cast<uint64_t>(71))) == static_cast<uint64_t>(1));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.rem_s_7", static_cast<uint64_t>(8070450532247928832))) == static_cast<uint64_t>(0));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.rem_u_7", static_cast<uint64_t>(71))) == static_cast<uint64_t>(1));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.rem_u_7", static_cast<uint64_t>(16140901064495857664))) == static_cast<uint64_t>(0));
+}
+
+TEST_CASE( "Testing wasm <int_exprs_test_18_wasm>", "[int_exprs_test_18_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( int_exprs_test_18_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK_THROWS_AS(bkend(nullptr, "env", "i32.no_fold_div_neg1", static_cast<uint32_t>(2147483648)), std::exception);
+   CHECK_THROWS_AS(bkend(nullptr, "env", "i64.no_fold_div_neg1", static_cast<uint64_t>(9223372036854775808)), std::exception);
+}
+
+TEST_CASE( "Testing wasm <int_exprs_test_1_wasm>", "[int_exprs_test_1_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( int_exprs_test_1_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.no_fold_wrap_extend_s", static_cast<uint64_t>(4538991236898928))) == static_cast<uint64_t>(1079009392));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.no_fold_wrap_extend_s", static_cast<uint64_t>(45230338458316960))) == static_cast<uint64_t>(18446744072918986912));
+}
+
+TEST_CASE( "Testing wasm <int_exprs_test_2_wasm>", "[int_exprs_test_2_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( int_exprs_test_2_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.no_fold_wrap_extend_u", static_cast<uint64_t>(4538991236898928))) == static_cast<uint64_t>(1079009392));
+}
+
+TEST_CASE( "Testing wasm <int_exprs_test_3_wasm>", "[int_exprs_test_3_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( int_exprs_test_3_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.no_fold_shl_shr_s", static_cast<uint32_t>(2147483648))) == static_cast<uint32_t>(0));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.no_fold_shl_shr_u", static_cast<uint32_t>(2147483648))) == static_cast<uint32_t>(0));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.no_fold_shl_shr_s", static_cast<uint64_t>(9223372036854775808))) == static_cast<uint64_t>(0));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.no_fold_shl_shr_u", static_cast<uint64_t>(9223372036854775808))) == static_cast<uint64_t>(0));
+}
+
+TEST_CASE( "Testing wasm <int_exprs_test_4_wasm>", "[int_exprs_test_4_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( int_exprs_test_4_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.no_fold_shr_s_shl", static_cast<uint32_t>(1))) == static_cast<uint32_t>(0));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.no_fold_shr_u_shl", static_cast<uint32_t>(1))) == static_cast<uint32_t>(0));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.no_fold_shr_s_shl", static_cast<uint64_t>(1))) == static_cast<uint64_t>(0));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.no_fold_shr_u_shl", static_cast<uint64_t>(1))) == static_cast<uint64_t>(0));
+}
+
+TEST_CASE( "Testing wasm <int_exprs_test_5_wasm>", "[int_exprs_test_5_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( int_exprs_test_5_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.no_fold_div_s_mul", static_cast<uint32_t>(1))) == static_cast<uint32_t>(0));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.no_fold_div_u_mul", static_cast<uint32_t>(1))) == static_cast<uint32_t>(0));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.no_fold_div_s_mul", static_cast<uint64_t>(1))) == static_cast<uint64_t>(0));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.no_fold_div_u_mul", static_cast<uint64_t>(1))) == static_cast<uint64_t>(0));
+}
+
+TEST_CASE( "Testing wasm <int_exprs_test_6_wasm>", "[int_exprs_test_6_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( int_exprs_test_6_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK_THROWS_AS(bkend(nullptr, "env", "i32.no_fold_div_s_self", static_cast<uint32_t>(0)), std::exception);
+   CHECK_THROWS_AS(bkend(nullptr, "env", "i32.no_fold_div_u_self", static_cast<uint32_t>(0)), std::exception);
+   CHECK_THROWS_AS(bkend(nullptr, "env", "i64.no_fold_div_s_self", static_cast<uint64_t>(0)), std::exception);
+   CHECK_THROWS_AS(bkend(nullptr, "env", "i64.no_fold_div_u_self", static_cast<uint64_t>(0)), std::exception);
+}
+
+TEST_CASE( "Testing wasm <int_exprs_test_7_wasm>", "[int_exprs_test_7_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( int_exprs_test_7_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK_THROWS_AS(bkend(nullptr, "env", "i32.no_fold_rem_s_self", static_cast<uint32_t>(0)), std::exception);
+   CHECK_THROWS_AS(bkend(nullptr, "env", "i32.no_fold_rem_u_self", static_cast<uint32_t>(0)), std::exception);
+   CHECK_THROWS_AS(bkend(nullptr, "env", "i64.no_fold_rem_s_self", static_cast<uint64_t>(0)), std::exception);
+   CHECK_THROWS_AS(bkend(nullptr, "env", "i64.no_fold_rem_u_self", static_cast<uint64_t>(0)), std::exception);
+}
+
+TEST_CASE( "Testing wasm <int_exprs_test_8_wasm>", "[int_exprs_test_8_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( int_exprs_test_8_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.no_fold_mul_div_s", static_cast<uint32_t>(2147483648))) == static_cast<uint32_t>(0));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.no_fold_mul_div_u", static_cast<uint32_t>(2147483648))) == static_cast<uint32_t>(0));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.no_fold_mul_div_s", static_cast<uint64_t>(9223372036854775808))) == static_cast<uint64_t>(0));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.no_fold_mul_div_u", static_cast<uint64_t>(9223372036854775808))) == static_cast<uint64_t>(0));
+}
+
+TEST_CASE( "Testing wasm <int_exprs_test_9_wasm>", "[int_exprs_test_9_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( int_exprs_test_9_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "i32.no_fold_div_s_2", static_cast<uint32_t>(4294967285))) == static_cast<uint32_t>(4294967291));
+   CHECK(to_i64(*bkend.call_with_return(nullptr, "env", "i64.no_fold_div_s_2", static_cast<uint64_t>(18446744073709551605))) == static_cast<uint64_t>(18446744073709551611));
+}
+

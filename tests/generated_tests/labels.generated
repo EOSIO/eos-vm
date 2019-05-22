@@ -1,0 +1,32 @@
+TEST_CASE( "Testing wasm <labels_test_0_wasm>", "[labels_test_0_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( labels_test_0_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "block", )) == static_cast<uint32_t>(1));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "loop1", )) == static_cast<uint32_t>(5));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "loop2", )) == static_cast<uint32_t>(8));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "loop3", )) == static_cast<uint32_t>(1));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "loop4", static_cast<uint32_t>(8))) == static_cast<uint32_t>(16));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "loop5", )) == static_cast<uint32_t>(2));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "loop6", )) == static_cast<uint32_t>(3));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "if", )) == static_cast<uint32_t>(5));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "if2", )) == static_cast<uint32_t>(5));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "switch", static_cast<uint32_t>(0))) == static_cast<uint32_t>(50));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "switch", static_cast<uint32_t>(1))) == static_cast<uint32_t>(20));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "switch", static_cast<uint32_t>(2))) == static_cast<uint32_t>(20));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "switch", static_cast<uint32_t>(3))) == static_cast<uint32_t>(3));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "switch", static_cast<uint32_t>(4))) == static_cast<uint32_t>(50));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "switch", static_cast<uint32_t>(5))) == static_cast<uint32_t>(50));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "return", static_cast<uint32_t>(0))) == static_cast<uint32_t>(0));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "return", static_cast<uint32_t>(1))) == static_cast<uint32_t>(2));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "return", static_cast<uint32_t>(2))) == static_cast<uint32_t>(2));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "br_if0", )) == static_cast<uint32_t>(29));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "br_if1", )) == static_cast<uint32_t>(1));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "br_if2", )) == static_cast<uint32_t>(1));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "br_if3", )) == static_cast<uint32_t>(2));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "br", )) == static_cast<uint32_t>(1));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "shadowing", )) == static_cast<uint32_t>(1));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "redefinition", )) == static_cast<uint32_t>(5));
+}
+

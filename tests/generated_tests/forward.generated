@@ -1,0 +1,11 @@
+TEST_CASE( "Testing wasm <forward_test_0_wasm>", "[forward_test_0_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( forward_test_0_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "even", static_cast<uint32_t>(13))) == static_cast<uint32_t>(0));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "even", static_cast<uint32_t>(20))) == static_cast<uint32_t>(1));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "odd", static_cast<uint32_t>(13))) == static_cast<uint32_t>(1));
+   CHECK(to_i32(*bkend.call_with_return(nullptr, "env", "odd", static_cast<uint32_t>(20))) == static_cast<uint32_t>(0));
+}
+

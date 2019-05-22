@@ -1,0 +1,7 @@
+TEST_CASE( "Testing wasm <inline-module_test_0_wasm>", "[inline-module_test_0_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( inline-module_test_0_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+

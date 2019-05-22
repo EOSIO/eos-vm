@@ -1,0 +1,21 @@
+TEST_CASE( "Testing wasm <custom_test_0_wasm>", "[custom_test_0_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( custom_test_0_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <custom_test_1_wasm>", "[custom_test_1_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( custom_test_1_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <custom_test_2_wasm>", "[custom_test_2_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( custom_test_2_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+

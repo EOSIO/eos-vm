@@ -1,0 +1,28 @@
+TEST_CASE( "Testing wasm <comments_test_0_wasm>", "[comments_test_0_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( comments_test_0_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <comments_test_1_wasm>", "[comments_test_1_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( comments_test_1_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <comments_test_2_wasm>", "[comments_test_2_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( comments_test_2_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
+TEST_CASE( "Testing wasm <comments_test_3_wasm>", "[comments_test_3_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( comments_test_3_wasm ) );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+}
+
