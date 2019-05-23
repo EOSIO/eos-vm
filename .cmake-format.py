@@ -1,0 +1,12 @@
+line_width = 100
+tab_size = 3
+max_subargs_per_line = 6
+separate_ctrl_name_with_space = False
+separate_fn_name_with_space = False
+dangle_parens = False
+command_case = 'lower'
+keyword_case = 'upper'
+autosort = True
+ruler_pattern = '^\\s*[^\\w\\s]{3}.*[^\\w\\s]{3}$'
+hashruler_min_length = 6
+canonicalize_hashrulers = True
