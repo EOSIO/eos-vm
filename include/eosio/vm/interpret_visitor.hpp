@@ -11,7 +11,6 @@
 #include <variant>
 
 // TODO add a config header
-static constexpr bool use_softfloat = true;
 
 #include <eosio/vm/config.hpp>
 #include <eosio/vm/softfloat.hpp>
@@ -1084,22 +1083,38 @@ namespace eosio { namespace vm {
       [[gnu::always_inline]] inline void operator()(const i32_trunc_s_f32_t& op) {
          context.inc_pc();
          auto& oper = context.peek_operand();
-         oper       = i32_const_t{ _eosio_f32_trunc_i32s(to_f32(oper)) };
+         if constexpr (use_softfloat) {
+            oper = i32_const_t{ _eosio_f32_trunc_i32s(to_f32(oper)) };
+         } else {
+            oper = i32_const_t{ static_cast<int32_t>(to_f32(oper)) };
+         }
       }
       [[gnu::always_inline]] inline void operator()(const i32_trunc_u_f32_t& op) {
          context.inc_pc();
          auto& oper = context.peek_operand();
-         oper       = i32_const_t{ _eosio_f32_trunc_i32u(to_f32(oper)) };
+         if constexpr (use_softfloat) {
+            oper = i32_const_t{ _eosio_f32_trunc_i32u(to_f32(oper)) };
+         } else {
+            oper = i32_const_t{ static_cast<uint32_t>(to_f32(oper)) };
+         }
       }
       [[gnu::always_inline]] inline void operator()(const i32_trunc_s_f64_t& op) {
          context.inc_pc();
          auto& oper = context.peek_operand();
-         oper       = i32_const_t{ _eosio_f64_trunc_i32s(to_f64(oper)) };
+         if constexpr (use_softfloat) {
+            oper = i32_const_t{ _eosio_f64_trunc_i32s(to_f64(oper)) };
+         } else {
+            oper = i32_const_t{ static_cast<int32_t>(to_f64(oper)) };
+         }
       }
       [[gnu::always_inline]] inline void operator()(const i32_trunc_u_f64_t& op) {
          context.inc_pc();
          auto& oper = context.peek_operand();
-         oper       = i32_const_t{ _eosio_f64_trunc_i32u(to_f64(oper)) };
+         if constexpr (use_softfloat) {
+            oper = i32_const_t{ _eosio_f64_trunc_i32u(to_f64(oper)) };
+         } else {
+            oper = i32_const_t{ static_cast<uint32_t>(to_f64(oper)) };
+         }
       }
       [[gnu::always_inline]] inline void operator()(const i64_extend_s_i32_t& op) {
          context.inc_pc();
@@ -1114,72 +1129,128 @@ namespace eosio { namespace vm {
       [[gnu::always_inline]] inline void operator()(const i64_trunc_s_f32_t& op) {
          context.inc_pc();
          auto& oper = context.peek_operand();
-         oper       = i64_const_t{ _eosio_f32_trunc_i64s(to_f32(oper)) };
+         if constexpr (use_softfloat) {
+            oper = i64_const_t{ _eosio_f32_trunc_i64s(to_f32(oper)) };
+         } else {
+            oper = i64_const_t{ static_cast<int64_t>(to_f32(oper)) };
+         }
       }
       [[gnu::always_inline]] inline void operator()(const i64_trunc_u_f32_t& op) {
          context.inc_pc();
          auto& oper = context.peek_operand();
-         oper       = i64_const_t{ _eosio_f32_trunc_i64u(to_f32(oper)) };
+         if constexpr (use_softfloat) {
+            oper = i64_const_t{ _eosio_f32_trunc_i64u(to_f32(oper)) };
+         } else {
+            oper = i64_const_t{ static_cast<uint64_t>(to_f32(oper)) };
+         }
       }
       [[gnu::always_inline]] inline void operator()(const i64_trunc_s_f64_t& op) {
          context.inc_pc();
          auto& oper = context.peek_operand();
-         oper       = i64_const_t{ _eosio_f64_trunc_i64s(to_f64(oper)) };
+         if constexpr (use_softfloat) {
+            oper = i64_const_t{ _eosio_f64_trunc_i64s(to_f64(oper)) };
+         } else {
+            oper = i64_const_t{ static_cast<int64_t>(to_f64(oper)) };
+         }
       }
       [[gnu::always_inline]] inline void operator()(const i64_trunc_u_f64_t& op) {
          context.inc_pc();
          auto& oper = context.peek_operand();
-         oper       = i64_const_t{ _eosio_f64_trunc_i64u(to_f64(oper)) };
+         if constexpr (use_softfloat) {
+            oper = i64_const_t{ _eosio_f64_trunc_i64u(to_f64(oper)) };
+         } else {
+            oper = i64_const_t{ static_cast<uint64_t>(to_f64(oper)) };
+         }
       }
       [[gnu::always_inline]] inline void operator()(const f32_convert_s_i32_t& op) {
          context.inc_pc();
          auto& oper = context.peek_operand();
-         oper       = f32_const_t{ _eosio_i32_to_f32(to_i32(oper)) };
+         if constexpr (use_softfloat) {
+            oper = f32_const_t{ _eosio_i32_to_f32(to_i32(oper)) };
+         } else {
+            oper = f32_const_t{ static_cast<float>(to_i32(oper)) };
+         }
       }
       [[gnu::always_inline]] inline void operator()(const f32_convert_u_i32_t& op) {
          context.inc_pc();
          auto& oper = context.peek_operand();
-         oper       = f32_const_t{ _eosio_ui32_to_f32(to_ui32(oper)) };
+         if constexpr (use_softfloat) {
+            oper = f32_const_t{ _eosio_ui32_to_f32(to_ui32(oper)) };
+         } else {
+            oper = f32_const_t{ static_cast<float>(to_ui32(oper)) };
+         }
       }
       [[gnu::always_inline]] inline void operator()(const f32_convert_s_i64_t& op) {
          context.inc_pc();
          auto& oper = context.peek_operand();
-         oper       = f32_const_t{ _eosio_i64_to_f32(to_i64(oper)) };
+         if constexpr (use_softfloat) {
+            oper = f32_const_t{ _eosio_i64_to_f32(to_i64(oper)) };
+         } else {
+            oper = f32_const_t{ static_cast<float>(to_i64(oper)) };
+         }
       }
       [[gnu::always_inline]] inline void operator()(const f32_convert_u_i64_t& op) {
          context.inc_pc();
          auto& oper = context.peek_operand();
-         oper       = f32_const_t{ _eosio_ui64_to_f32(to_ui64(oper)) };
+         if constexpr (use_softfloat) {
+            oper = f32_const_t{ _eosio_ui64_to_f32(to_ui64(oper)) };
+         } else {
+            oper = f32_const_t{ static_cast<float>(to_ui64(oper)) };
+         }
       }
       [[gnu::always_inline]] inline void operator()(const f32_demote_f64_t& op) {
          context.inc_pc();
          auto& oper = context.peek_operand();
-         oper       = f32_const_t{ _eosio_f64_demote(to_f64(oper)) };
+         if constexpr (use_softfloat) {
+            oper = f32_const_t{ _eosio_f64_demote(to_f64(oper)) };
+         } else {
+            oper = f32_const_t{ static_cast<float>(to_f64(oper)) };
+         }
       }
       [[gnu::always_inline]] inline void operator()(const f64_convert_s_i32_t& op) {
          context.inc_pc();
          auto& oper = context.peek_operand();
-         oper       = f64_const_t{ _eosio_i32_to_f64(to_i32(oper)) };
+         if constexpr (use_softfloat) {
+            oper = f64_const_t{ _eosio_i32_to_f64(to_i32(oper)) };
+         } else {
+            oper = f64_const_t{ static_cast<double>(to_i32(oper)) };
+         }
       }
       [[gnu::always_inline]] inline void operator()(const f64_convert_u_i32_t& op) {
          context.inc_pc();
          auto& oper = context.peek_operand();
-         oper       = f64_const_t{ _eosio_ui32_to_f64(to_ui32(oper)) };
+         if constexpr (use_softfloat) {
+            oper = f64_const_t{ _eosio_ui32_to_f64(to_ui32(oper)) };
+         } else {
+            oper = f64_const_t{ static_cast<double>(to_ui32(oper)) };
+         }
       }
       [[gnu::always_inline]] inline void operator()(const f64_convert_s_i64_t& op) {
          context.inc_pc();
          auto& oper = context.peek_operand();
-         oper       = f64_const_t{ _eosio_i64_to_f64(to_i64(oper)) };
+         if constexpr (use_softfloat) {
+            oper = f64_const_t{ _eosio_i64_to_f64(to_i64(oper)) };
+         } else {
+            oper = f64_const_t{ static_cast<double>(to_i64(oper)) };
+         }
       }
       [[gnu::always_inline]] inline void operator()(const f64_convert_u_i64_t& op) {
          context.inc_pc();
          auto& oper = context.peek_operand();
-         oper       = f64_const_t{ _eosio_ui64_to_f64(to_ui64(oper)) };
+         if constexpr (use_softfloat) {
+            oper = f64_const_t{ _eosio_ui64_to_f64(to_ui64(oper)) };
+         } else {
+            oper = f64_const_t{ static_cast<double>(to_ui64(oper)) };
+         }
       }
       [[gnu::always_inline]] inline void operator()(const f64_promote_f32_t& op) {
          context.inc_pc();
          auto& oper = context.peek_operand();
-         oper       = f64_const_t{ _eosio_f32_promote(to_f32(oper)) };
+         if constexpr (use_softfloat) {
+            oper = f64_const_t{ _eosio_f32_promote(to_f32(oper)) };
+         } else {
+            oper = f64_const_t{ static_cast<double>(to_f32(oper)) };
+         }
       }
       [[gnu::always_inline]] inline void operator()(const i32_reinterpret_f32_t& op) {
          context.inc_pc();

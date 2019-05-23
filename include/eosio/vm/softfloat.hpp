@@ -1,4 +1,5 @@
 #pragma once
+#ifdef EOS_VM_SOFTFLOAT
 #include <eosio/vm/exceptions.hpp>
 
 #include <cfloat>
@@ -472,3 +473,4 @@ static inline double _eosio_ui64_to_f64( uint64_t a ) {
    return from_softfloat64(ui64_to_f64( a ));
 }
 }} //ns eosio::vm
+#endif
