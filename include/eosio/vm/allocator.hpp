@@ -6,10 +6,12 @@
 #include <cstring>
 #include <iostream>
 #include <memory>
-#include <signal.h>
 #include <string>
-#include <sys/mman.h>
 #include <vector>
+
+#include <signal.h>
+
+#include <sys/mman.h>
 
 namespace eosio { namespace vm {
    class bounded_allocator {

@@ -1,1 +1,1 @@
-# wasm_interpreter
+# eos-vm

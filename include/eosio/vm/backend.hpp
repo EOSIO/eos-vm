@@ -1,18 +1,17 @@
 #pragma once
 
 #include <eosio/vm/allocator.hpp>
+#include <eosio/vm/config.hpp>
 #include <eosio/vm/debug_visitor.hpp>
 #include <eosio/vm/execution_context.hpp>
 #include <eosio/vm/interpret_visitor.hpp>
 #include <eosio/vm/parser.hpp>
 #include <eosio/vm/types.hpp>
 
-#include <vector>
 #include <fstream>
 #include <optional>
 #include <string_view>
-
-#define __EOSIO_DBG__
+#include <vector>
 
 namespace eosio { namespace vm {
    template <typename Host>
@@ -32,45 +31,42 @@ namespace eosio { namespace vm {
 
       template <typename... Args>
       inline bool call_indirect(Host* host, uint32_t func_index, Args... args) {
-#ifdef __EOSIO_DBG__
-         _ctx.execute_func_table(host, debug_visitor(_ctx), func_index, args...);
+         if constexpr (eos_vm_debug) {
+	    _ctx.execute_func_table(host, debug_visitor(_ctx), func_index, args...);
+	 } else {
+            _ctx.execute_func_table(host, interpret_visitor(_ctx), func_index, args...);
+	 }
          return true;
-#else
-         _ctx.execute_func_table(host, interpret_visitor(_ctx), func_index, args...);
-         return true;
-#endif
       }
 
       template <typename... Args>
       inline bool call(Host* host, uint32_t func_index, Args... args) {
-#ifdef __EOSIO_DBG__
-         _ctx.execute(host, debug_visitor(_ctx), func_index, args...);
+         if constexpr (eos_vm_debug) {
+            _ctx.execute(host, debug_visitor(_ctx), func_index, args...);
+	 } else {
+            _ctx.execute(host, interpret_visitor(_ctx), func_index, args...);
+	 }
          return true;
-#else
-         _ctx.execute(host, interpret_visitor(_ctx), func_index, args...);
-         return true;
-#endif
       }
 
       template <typename... Args>
       inline bool call(Host* host, const std::string_view& mod, const std::string_view& func, Args... args) {
-#ifdef __EOSIO_DBG__
-         _ctx.execute(host, debug_visitor(_ctx), func, args...);
+         if constexpr (eos_vm_debug) {
+            _ctx.execute(host, debug_visitor(_ctx), func, args...);
+	 } else {
+            _ctx.execute(host, interpret_visitor(_ctx), func, args...);
+	 }
          return true;
-#else
-         _ctx.execute(host, interpret_visitor(_ctx), func, args...);
-         return true;
-#endif
       }
 
       template <typename... Args>
       inline auto call_with_return(Host* host, const std::string_view& mod, const std::string_view& func,
                                    Args... args) {
-#ifdef __EOSIO_DBG__
-         return _ctx.execute(host, debug_visitor(_ctx), func, args...);
-#else
-         return _ctx.execute(host, interpret_visitor(_ctx), func, args...);
-#endif
+         if constexpr (eos_vm_debug) {
+            return _ctx.execute(host, debug_visitor(_ctx), func, args...);
+	 } else {
+            return _ctx.execute(host, interpret_visitor(_ctx), func, args...);
+	 }
       }
 
       inline void execute_all(Host* host) {

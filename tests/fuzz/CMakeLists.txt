@@ -1,22 +1,23 @@
-cmake_minimum_required( VERSION 3.5 )
-project( FUZZ_TESTS )
+set(CMAKE_CXX_FLAGS "-g -O1 -fsanitize-coverage=trace-pc-guard,indirect-calls,trace-cmp,trace-div,trace-gep -gline-tables-only")
 
-file(GLOB FUZZ_TESTS "*.cpp")
+find_package( LLVM REQUIRED CONFIG )
+message( STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}" )
+message( STATUS "Using LLVMConfig.cmake at: ${LLVM_DIR}" )
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=fuzzer")
-add_executable( fuzz_test ${FUZZ_TESTS} )
-target_link_libraries( fuzz_test 
-    fc
-    wasm_interpreter
-    ${Boost_FILESYSTEM_LIBRARY}
-    ${Boost_SYSTEM_LIBRARY}
-    ${Boost_CHRONO_LIBRARY}
-    ${Boost_IOSTREAMS_LIBRARY}
-    ${Boost_DATE_TIME_LIBRARY}
-    ${PLATFORM_SPECIFIC_LIBS}
-   )
+function(add_libfuzzer_test name)
+ set(multi_arg_options "SOURCES")
+ cmake_parse_arguments(
+     "add_libfuzzer_test" "" "" "${multi_arg_options}" ${ARGN})
+ if ("${add_libfuzzer_test_SOURCES}" STREQUAL "")
+     message(FATAL_ERROR "Source files must be specified")
+ endif()
+ add_executable(LLVMFuzzer-${name}
+    ${add_libfuzzer_test_SOURCES}
+ )
+ target_compile_options(LLVMFuzzer-${name} PUBLIC "-fsanitize=fuzzer,address")
+ target_link_libraries(LLVMFuzzer-${name} PUBLIC eos-vm "-fsanitize=fuzzer,address")
+endfunction()
 
-target_include_directories( fuzz_test PUBLIC
-                            ${Boost_INCLUDE_DIRS}
-                            ${CMAKE_SOURCE_DIR}/include
-                            ${CMAKE_SOURCE_DIR}/fc/include )
+add_libfuzzer_test(wasm_fuzz_test SOURCES fuzz_driver.cpp)
+
+add_test(wasm_libfuzzer COMMAND ${CMAKE_CURRENT_BINARY_DIR}/LLVMFuzzer-wasm_fuzz_test -jobs=40 ${CMAKE_CURRENT_SOURCE_DIR}/corpus)
