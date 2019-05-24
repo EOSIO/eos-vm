@@ -200,7 +200,7 @@ namespace eosio { namespace vm {
 	    inline uint32_t get_code_index()const { return _code_index; }
 	    inline uint32_t get_code_offset()const { return _pc - _current_offset; }
             inline void exit() { _executing = false; }
-            inline bool executing()const { _executing; }
+            inline bool executing()const { return _executing; }
 
             template <typename Visitor, typename... Args>
             inline std::optional<stack_elem> execute_func_table(Host* host, Visitor&& visitor, uint32_t table_index, Args... args) {
@@ -228,7 +228,6 @@ namespace eosio { namespace vm {
                   }
                   memcpy((char*)(addr), data_seg.data.raw(), data_seg.data.size());
                }
-               std::cout << "Execute " << func_index << "\n";
                _current_function = func_index;
                _code_index       = func_index - _mod.import_functions.size();
                _current_offset   = _mod.function_sizes[_current_function];
@@ -343,7 +342,6 @@ namespace eosio { namespace vm {
                   if (_pc == _exit_pc && _as.size() <= 1) {
                      _executing = false;
                   }
-                  std::cout << "OP " << _mod.code.at_no_check(_code_index).code.at_no_check(offset).index() << "\n";
                   std::visit(visitor, _mod.code.at_no_check(_code_index).code.at_no_check(offset));
                } while (_executing);
             }

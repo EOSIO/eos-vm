@@ -83,7 +83,6 @@ inline std::result_of_t<Visitor(typename get_alternative<0, I, Alts...>::type)> 
                                                                                         const Variant<Alts...>& var) {
    if constexpr ( I < sizeof...(Alts) ) {
       if ( I == var.index() ) {
-         std::cout << "VAR " << (uint32_t)var.index() << "\n";
          return vis( var.template get<I>() );
       } else {
          return __visit<I+1>( std::forward<Visitor>(vis), var );
@@ -108,7 +107,6 @@ class variant {
    template <typename T>
    inline constexpr variant(T&& alt) {
       static_assert(detail::is_valid_alternative<T, Alternatives...>::value, "type not a valid alternative");
-      std::cout << "sizeof " << _sizeof << " alignof " << _alignof << "\n";
       new(&_storage) T(std::forward<T>(alt));
       _which = detail::get_alternatives_index<0, T, Alternatives...>::value;
    }

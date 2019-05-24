@@ -846,7 +846,6 @@ namespace eosio { namespace vm {
       [[gnu::always_inline]] inline void operator()(const f32_neg_t& op) {
          context.inc_pc();
          auto& oper = to_f32(context.peek_operand());
-         std::cout << "Oper " << oper << "\n";
          if constexpr (use_softfloat)
             oper = _eosio_f32_neg(oper);
          else
