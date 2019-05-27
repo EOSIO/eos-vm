@@ -32,10 +32,10 @@ namespace eosio { namespace vm {
       template <typename... Args>
       inline bool call_indirect(Host* host, uint32_t func_index, Args... args) {
          if constexpr (eos_vm_debug) {
-	    _ctx.execute_func_table(host, debug_visitor(_ctx), func_index, args...);
-	 } else {
+            _ctx.execute_func_table(host, debug_visitor(_ctx), func_index, args...);
+         } else {
             _ctx.execute_func_table(host, interpret_visitor(_ctx), func_index, args...);
-	 }
+         }
          return true;
       }
 
@@ -43,9 +43,9 @@ namespace eosio { namespace vm {
       inline bool call(Host* host, uint32_t func_index, Args... args) {
          if constexpr (eos_vm_debug) {
             _ctx.execute(host, debug_visitor(_ctx), func_index, args...);
-	 } else {
+         } else {
             _ctx.execute(host, interpret_visitor(_ctx), func_index, args...);
-	 }
+         }
          return true;
       }
 
@@ -53,9 +53,9 @@ namespace eosio { namespace vm {
       inline bool call(Host* host, const std::string_view& mod, const std::string_view& func, Args... args) {
          if constexpr (eos_vm_debug) {
             _ctx.execute(host, debug_visitor(_ctx), func, args...);
-	 } else {
+         } else {
             _ctx.execute(host, interpret_visitor(_ctx), func, args...);
-	 }
+         }
          return true;
       }
 
@@ -64,12 +64,14 @@ namespace eosio { namespace vm {
                                    Args... args) {
          if constexpr (eos_vm_debug) {
             return _ctx.execute(host, debug_visitor(_ctx), func, args...);
-	 } else {
+         } else {
             return _ctx.execute(host, interpret_visitor(_ctx), func, args...);
-	 }
+         }
       }
-
-      inline void execute_all(Host* host) {
+      
+      template <typename Watchdog>
+      inline void execute_all(Watchdog& wd, Host* host) {
+         wd.run();
          for (int i = 0; i < _mod.exports.size(); i++) {
             if (_mod.exports[i].kind == external_kind::Function) {
                std::string s{ (const char*)_mod.exports[i].field_str.raw(), _mod.exports[i].field_str.size() };
@@ -78,7 +80,6 @@ namespace eosio { namespace vm {
          }
       }
 
-      inline void immediate_exit() { _ctx.exit(); }
       inline void set_wasm_allocator(wasm_allocator* walloc) {
          _walloc = walloc;
          _ctx.set_wasm_allocator(walloc);
@@ -86,6 +87,8 @@ namespace eosio { namespace vm {
 
       inline wasm_allocator* get_wasm_allocator() { return _walloc; }
       inline module&         get_module() { return _mod; }
+      inline void            exit(const std::error_code& ec) { _ctx.exit(ec); }
+      inline auto&           get_context() { return _ctx; }
 
       static std::vector<uint8_t> read_wasm(const std::string& fname) {
          std::ifstream wasm_file(fname, std::ios::binary);
