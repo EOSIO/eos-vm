@@ -1,12 +1,8 @@
-#pragma once
-
-#include <eosio/vm/types.hpp>
-
 namespace eosio { namespace vm {
    enum section_id {
-      custom_section = 0,
-      type_section   = 1,
-      import_section = 2,
+      custom_section   = 0,
+      type_section     = 1,
+      import_section   = 2,
       function_section = 3,
       table_section    = 4,
       memory_section   = 5,
@@ -18,4 +14,4 @@ namespace eosio { namespace vm {
       data_section     = 11,
       num_of_elems
    };
-}} // ns eosio::vm
+}} // namespace eosio::vm

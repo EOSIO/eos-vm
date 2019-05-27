@@ -1,4 +1,6 @@
 #include <eosio/vm/backend.hpp>
+#include <eosio/vm/error_codes.hpp>
+#include <eosio/vm/watchdog.hpp>
 
 #include <filesystem>
 #include <iostream>
@@ -20,6 +22,8 @@ int main(int argc, char** argv) {
       return -1;
    }
 
+   watchdog<std::chrono::nanoseconds> wd;
+   wd.set_duration(std::chrono::seconds(3));
    try {
       if (!std::filesystem::is_regular_file( argv[1] )) {
          std::cerr << "Error, " << argv[1] << " is not a file.\n";
@@ -31,12 +35,15 @@ int main(int argc, char** argv) {
 
       // Instaniate a new backend using the wasm provided.
       backend_t bkend( code );
+      wd.set_callback([&](){
+		      bkend.get_context().exit();
+		      });
 
       // Point the backend to the allocator you want it to use.
       bkend.set_wasm_allocator( &wa );
 
       // Execute any exported functions provided by the wasm.
-      bkend.execute_all(nullptr);
+      bkend.execute_all(wd, nullptr);
 
    } catch ( ... ) {
       std::cerr << "eos-vm interpreter error\n";

@@ -3,13 +3,13 @@
 #include <eosio/vm/constants.hpp>
 #include <eosio/vm/exceptions.hpp>
 
+#include <csignal>
+#include <cstdint>
 #include <cstring>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
-
-#include <signal.h>
 
 #include <sys/mman.h>
 
