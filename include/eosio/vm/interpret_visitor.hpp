@@ -1,5 +1,6 @@
 #pragma once
 
+#include <eosio/vm/base_visitor.hpp>
 #include <eosio/vm/execution_context.hpp>
 #include <eosio/vm/opcodes.hpp>
 #include <eosio/vm/stack_elem.hpp>
@@ -18,7 +19,8 @@
 namespace eosio { namespace vm {
 
    template <typename ExecutionContext>
-   struct interpret_visitor {
+   struct interpret_visitor : base_visitor {
+      using base_visitor::operator();
       interpret_visitor(ExecutionContext& ec) : context(ec) {}
       ExecutionContext& context;
 
@@ -161,6 +163,7 @@ namespace eosio { namespace vm {
          const auto& ptr  = context.pop_operand();
          uint32_t*   _ptr = (uint32_t*)align_address((uint32_t*)(context.linear_memory() + op.offset + to_ui32(ptr)),
                                                    op.flags_align);
+         std::cout << "PTR " << _ptr << std::endl;
          context.push_operand(i32_const_t{ *_ptr });
       }
       [[gnu::always_inline]] inline void operator()(const i32_load8_s_t& op) {
