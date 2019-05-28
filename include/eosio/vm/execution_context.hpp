@@ -342,7 +342,7 @@ namespace eosio { namespace vm {
             if (_pc == _exit_pc && _as.size() <= 1) {
                _executing = false;
             }
-            // std::visit(visitor, _mod.code.at_no_check(_code_index).code.at_no_check(offset));
+            visit(visitor, _mod.code.at_no_check(_code_index).code.at_no_check(offset));
          } while (_executing);
       }
 

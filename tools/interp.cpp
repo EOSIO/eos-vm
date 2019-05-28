@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
       bkend.set_wasm_allocator( &wa );
 
       // Execute any exported functions provided by the wasm.
-      bkend.execute_all(wd, nullptr);
+      bkend.execute_all(&wd);
 
    } catch ( ... ) {
       std::cerr << "eos-vm interpreter error\n";

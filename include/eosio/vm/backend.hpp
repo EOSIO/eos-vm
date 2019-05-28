@@ -68,10 +68,11 @@ namespace eosio { namespace vm {
             return _ctx.execute(host, interpret_visitor(_ctx), func, args...);
          }
       }
-      
-      template <typename Watchdog>
-      inline void execute_all(Watchdog& wd, Host* host) {
-         wd.run();
+
+      template <typename Watchdog = nullptr_t>
+      inline void execute_all(Watchdog* wd = nullptr, Host* host = nullptr) {
+         if constexpr (!std::is_same_v<Watchdog, nullptr_t>)
+            wd->run();
          for (int i = 0; i < _mod.exports.size(); i++) {
             if (_mod.exports[i].kind == external_kind::Function) {
                std::string s{ (const char*)_mod.exports[i].field_str.raw(), _mod.exports[i].field_str.size() };

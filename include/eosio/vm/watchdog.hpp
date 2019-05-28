@@ -36,9 +36,7 @@ namespace eosio { namespace vm {
          while (!_should_exit) {
             if (_is_running) {
                auto _now = std::chrono::high_resolution_clock::now();
-               std::cout << "Running..." << std::endl;
                if (std::chrono::duration_cast<TimeUnits>(_now - _start) >= _duration) {
-                  std::cout << "Duration met!\n";
                   _is_running = false;
                   if (_callback)
                      _callback();
