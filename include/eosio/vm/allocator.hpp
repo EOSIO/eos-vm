@@ -1,74 +1,19 @@
-/**
- * @file
- * @copyright defined in eos-vm/LICENSE
- */
 #pragma once
 
-// eos-vm headers
 #include <eosio/vm/constants.hpp>
 #include <eosio/vm/exceptions.hpp>
-#include <eosio/vm/outcome.hpp>
 
-// stl headers
-#include <cstring>
 #include <csignal>
+#include <cstdint>
+#include <cstring>
 #include <iostream>
 #include <memory>
-#include <optional>
 #include <string>
-#include <tuple>
-#include <unordered_set>
 #include <vector>
 
-// libc headers
-#include <setjmp.h>
-
-// aux headers
 #include <sys/mman.h>
 
 namespace eosio { namespace vm {
-
-   /// \group memory_allocators Allocator Utils
-   /// Type to house global registration of allocators for signal handling purposes.
-   struct allocator_registration {
-      using allocator_memory_range = std::tuple<uintptr_t, size_t, jmp_buf>;
-
-      static std::unordered_set<allocator_memory_range> allocators_regions;
-
-      template <typename Allocator>
-      static void register_allocator(Allocator&& allocator) {
-         allocators_regions.emplace(allocator.get_base_address(), allocator.get_max_size(), jmp_buf{});
-      }
-
-      template <typename Allocator>
-      static void unregister_allocator(Allocator&& allocator) {
-         allocators_regions.erase({ allocator.get_base_address(), allocator.get_max_size(), jmp_buf{} });
-      }
-
-      static std::optional<allocator_memory_range&> get(uintptr_t address) {
-         for (auto& amr : allocators_regions)
-            if (std::get<0>(amr) <= address && address < (std::get<0>(amr) + std::get<1>(amr)))
-               return amr;
-         return {};
-      }
-   };
-
-   [[noreturn]] void default_wasm_segfault_handler(int sig, siginfo_t* siginfo, void*) {
-      if (const auto& amr = allocator_registration::get(siginfo.si_address))
-         longjmp(std::get<2>(amr), 1);
-      else
-         raise(sig);
-   }
-
-   outcome::result<result_void> setup_signal_handler() {
-      struct sigaction sa;
-      sa.sa_sigaction = &default_wasm_segfault_handler;
-      sigemptyset(&sa.sa_mask);
-      sa.sa_flags = SA_NODEFER | SA_SIGINFO;
-      sigaction(SIGSEGV, &sa, NULL);
-      sigaction(SIGBUS, &sa, NULL);
-   }
-
    class bounded_allocator {
     public:
       bounded_allocator(size_t size) {
