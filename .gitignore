@@ -31,7 +31,9 @@
 *.out
 *.app
 
+# Editor temporary files
 *.swp
 *.swo
 
 build/
+compile_commands.json

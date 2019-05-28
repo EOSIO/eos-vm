@@ -4,8 +4,6 @@
  */
 #include <cstdlib>
 #include <iostream>
-//#include <boost/test/included/unit_test.hpp>
-//#include <fc/log/logger.hpp>
 #include <eosio/vm/allocator.hpp>
 
 #define CATCH_CONFIG_MAIN
