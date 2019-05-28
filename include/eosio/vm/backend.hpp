@@ -110,6 +110,6 @@ namespace eosio { namespace vm {
     private:
       wasm_allocator*         _walloc = nullptr; // non owning pointer
       module                  _mod;
-      std::unique_ptr<execution_context<Host>> _ctx;
+      execution_context<Host> _ctx;
    };
 }} // namespace eosio::vm
