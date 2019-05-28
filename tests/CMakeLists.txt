@@ -14,7 +14,6 @@ endif()
 
 enable_testing()
 
-#file(GLOB UNIT_TESTS "spec_tests.cpp" "f32_tests.cpp" "i32_tests.cpp" "i64_tests.cpp" ) #"*.cpp")
 #file(GLOB UNIT_TESTS "i32_tests.cpp" "i64_tests.cpp" "f32_tests.cpp" "spec_tests.cpp" "varint_tests.cpp" "variant_tests.cpp" )
 
 # ##############

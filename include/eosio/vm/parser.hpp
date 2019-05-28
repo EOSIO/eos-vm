@@ -5,6 +5,7 @@
 #include <eosio/vm/types.hpp>
 #include <eosio/vm/utils.hpp>
 #include <eosio/vm/vector.hpp>
+#include <eosio/vm/outcome.hpp>
 
 #include <stack>
 #include <vector>
