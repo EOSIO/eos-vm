@@ -384,9 +384,6 @@ namespace eosio { namespace vm {
    #if defined __clang__
    #pragma clang diagnostic push
    #pragma clang diagnostic ignored "-Wgnu-string-literal-operator-template"
-   #elif defined __GNUC__
-   #pragma GCC diagnostic push
-   #pragma GCC diagnostic ignored "-Wgnu-string-literal-operator-template"
    #endif
    template <typename T, T... Str>
    static constexpr host_function_name<Str...> operator ""_hfn() {
@@ -395,8 +392,6 @@ namespace eosio { namespace vm {
    }
    #if defined __clang__
    #pragma clang diagnostic pop
-   #elif defined __GNUC__
-   #pragma GCC diagnostic pop
    #endif
 
    template <typename C, auto C::*MP, typename Name>

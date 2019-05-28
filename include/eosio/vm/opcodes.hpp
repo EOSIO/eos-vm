@@ -4,7 +4,6 @@
 #include <eosio/vm/variant.hpp>
 
 #include <map>
-#include <variant>
 
 namespace eosio { namespace vm {
    enum opcodes {
@@ -23,6 +22,7 @@ namespace eosio { namespace vm {
       NUMERIC_OPS(CREATE_ENUM)
       CONVERSION_OPS(CREATE_ENUM)
       SYNTHETIC_OPS(CREATE_ENUM)
+      EMPTY_OPS(CREATE_ENUM)
       ERROR_OPS(CREATE_ENUM)
    };
    
@@ -43,6 +43,7 @@ namespace eosio { namespace vm {
          NUMERIC_OPS(CREATE_MAP)
          CONVERSION_OPS(CREATE_MAP)
          SYNTHETIC_OPS(CREATE_MAP)
+         EMPTY_OPS(CREATE_MAP)
          ERROR_OPS(CREATE_MAP)
       };
    }; 
@@ -69,9 +70,10 @@ namespace eosio { namespace vm {
    NUMERIC_OPS(CREATE_TYPES)
    CONVERSION_OPS(CREATE_TYPES)
    SYNTHETIC_OPS(CREATE_SYNTHETIC_TYPES)
+   EMPTY_OPS(CREATE_TYPES)
    ERROR_OPS(CREATE_TYPES)
 
-   using opcode = std::variant<
+   using opcode = eosio::vm::variant<
       CONTROL_FLOW_OPS(IDENTITY)
       BR_TABLE_OP(IDENTITY)
       RETURN_OP(IDENTITY)
@@ -87,25 +89,7 @@ namespace eosio { namespace vm {
       NUMERIC_OPS(IDENTITY)
       CONVERSION_OPS(IDENTITY)
       SYNTHETIC_OPS(IDENTITY)
-      ERROR_OPS(IDENTITY_END)
-      >;
-
-   using opcode2 = eosio::vm::variant<
-      CONTROL_FLOW_OPS(IDENTITY)
-      BR_TABLE_OP(IDENTITY)
-      RETURN_OP(IDENTITY)
-      CALL_OPS(IDENTITY)
-      PARAMETRIC_OPS(IDENTITY)
-      VARIABLE_ACCESS_OPS(IDENTITY)
-      MEMORY_OPS(IDENTITY)
-      I32_CONSTANT_OPS(IDENTITY)
-      I64_CONSTANT_OPS(IDENTITY)
-      F32_CONSTANT_OPS(IDENTITY)
-      F64_CONSTANT_OPS(IDENTITY)
-      COMPARISON_OPS(IDENTITY)
-      NUMERIC_OPS(IDENTITY)
-      CONVERSION_OPS(IDENTITY)
-      SYNTHETIC_OPS(IDENTITY)
+      EMPTY_OPS(IDENTITY)
       ERROR_OPS(IDENTITY_END)
       >;
 }} // namespace eosio::vm

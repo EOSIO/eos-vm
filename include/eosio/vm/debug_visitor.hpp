@@ -6,6 +6,7 @@ namespace eosio { namespace vm {
 
 template <typename ExecutionCTX>
 struct debug_visitor : public interpret_visitor<ExecutionCTX> {
+   using interpret_visitor<ExecutionCTX>::operator();
    debug_visitor(ExecutionCTX& ctx) : interpret_visitor<ExecutionCTX>(ctx) {}
    ExecutionCTX& get_context() { return interpret_visitor<ExecutionCTX>::get_context(); }
    CONTROL_FLOW_OPS(DBG_VISIT)
