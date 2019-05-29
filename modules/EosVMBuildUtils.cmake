@@ -1,4 +1,18 @@
 # ##################################################################################################
+# Utility to generate a pseudo target for documentation and compile_commands.json.
+# ##################################################################################################
+macro(add_pseudo_target Target Lib)
+  set(EOS_VM_INCLUDES "")
+  file(GLOB EOS_VM_HEADERS "${CMAKE_SOURCE_DIR}/include/eosio/vm/*.hpp")
+  foreach(File ${EOS_VM_HEADERS})
+    set(EOS_VM_INCLUDES "#include \"${File}\"\n ${EOS_VM_INCLUDES}")
+  endforeach()
+  file(WRITE ${CMAKE_BINARY_DIR}/pseudo-eos-vm.cpp "${EOS_VM_INCLUDES}\n int main(){}")
+  add_executable(${Target} ${CMAKE_BINARY_DIR}/pseudo-eos-vm.cpp)
+  target_link_libraries(${Target} ${Lib})
+endmacro()
+
+# ##################################################################################################
 # Utilities for setting up various builds.
 # ##################################################################################################
 include(CMakeDependentOption)

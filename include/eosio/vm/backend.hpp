@@ -27,15 +27,13 @@ namespace eosio { namespace vm {
          return call(host, mod, func, args...);
       }
 
-      inline void reset() { _walloc->reset(); }
+      inline void reset() {
+        _ctx.reset();
+        _walloc->reset();
+      }
 
       template <typename... Args>
       inline bool call_indirect(Host* host, uint32_t func_index, Args... args) {
-         if constexpr (eos_vm_debug) {
-            _ctx.execute_func_table(host, debug_visitor(_ctx), func_index, args...);
-         } else {
-            _ctx.execute_func_table(host, interpret_visitor(_ctx), func_index, args...);
-         }
          return true;
       }
 

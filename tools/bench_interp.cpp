@@ -3,7 +3,6 @@
 #include <eosio/vm/watchdog.hpp>
 
 #include <chrono>
-#include <filesystem>
 #include <iostream>
 
 using namespace eosio;
@@ -19,13 +18,9 @@ int main(int argc, char** argv) {
    }
 
    //   try {
-      if (!std::filesystem::is_regular_file( argv[1] )) {
-         std::cerr << "Error, " << argv[1] << " is not a file.\n";
-	 return -1;
-      }
 
       auto code = backend_t::read_wasm( argv[1] );
-	
+
       auto t1 = std::chrono::high_resolution_clock::now();
       backend_t bkend( code );
       auto t2 = std::chrono::high_resolution_clock::now();

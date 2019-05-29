@@ -141,8 +141,7 @@ namespace eosio { namespace vm {
    using wasm_code_ptr = guarded_ptr<uint8_t>;
 
    struct module {
-      growable_allocator               allocator = {constants::initial_module_size};
-      uint32_t                         start = 0;
+      growable_allocator               allocator = {constants::initial_module_size}; uint32_t                         start = 0;
       guarded_vector<func_type>        types     = {allocator, 0};
       guarded_vector<import_entry>     imports   = {allocator, 0};
       guarded_vector<uint32_t>         functions = {allocator, 0};

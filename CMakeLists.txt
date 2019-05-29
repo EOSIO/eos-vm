@@ -4,10 +4,10 @@
 # ##################################################################################################
 cmake_minimum_required(VERSION 3.8)
 project(eos-vm)
-set(VERSION_MAJOR 1)
+set(VERSION_MAJOR 0)
 set(VERSION_MINOR 0)
 set(VERSION_PATCH 0)
-set(VERSION_SUFFIX rc1)
+set(VERSION_SUFFIX alpha)
 
 if (VERSION_SUFFIX)
    set(VERSION_FULL "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-${VERSION_SUFFIX}")
