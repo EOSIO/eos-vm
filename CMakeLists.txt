@@ -34,6 +34,7 @@ option(ENABLE_SOFTFLOAT "enable the backend to use deterministic software floati
 option(ENABLE_MEMORY_OPS_ALIGNMENT "enable the backend to obey alignment hints" OFF)
 option(ENABLE_TESTS "enable building of unit tests, spec tests." ON)
 cmake_dependent_option(ENABLE_FUZZ_TESTS "enable fuzz testing" OFF "ENABLE_TESTS" ON)
+option(ENABLE_DOCS "enable generating documentation." ON)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/modules")
 include(EosVMBuildUtils)
@@ -46,6 +47,7 @@ target_include_directories(eos-vm
                            INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include
                                      ${CMAKE_CURRENT_SOURCE_DIR}/external/softfloat/source/include
                                      ${CMAKE_CURRENT_SOURCE_DIR}/external/outcome/single-header)
+add_pseudo_target(eos-vm-all eos-vm)
 
 # ##################################################################################################
 # Option specific build configurations.
@@ -84,4 +86,17 @@ if(ENABLE_TESTS)
    add_subdirectory(${CMAKE_SOURCE_DIR}/external/Catch2)
    include(external/Catch2/contrib/Catch.cmake)
    add_subdirectory(tests)
+endif()
+
+# #######################
+# Build documentation.
+# ######################
+if(ENABLE_DOCS)
+  find_package(Doxygen REQUIRED)
+  file(GLOB EOS_VM_HEADERS "${CMAKE_SOURCE_DIR}/include/eosio/vm/*.hpp")
+  configure_file(${CMAKE_SOURCE_DIR}/doc/.Doxyfile.in
+    ${CMAKE_BINARY_DIR}/Doxyfile @ONLY)
+  add_custom_target( docs ALL COMMAND ${DOXYGEN_EXECUTABLE}
+    ${CMAKE_BINARY_DIR}/Doxyfile WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Generating documentation..." VERBATIM)
 endif()

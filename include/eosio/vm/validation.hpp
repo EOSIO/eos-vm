@@ -1,11 +1,8 @@
 #pragma once
 
-#include <eosio/wasm_backend/exceptions.hpp>
-#include <eosio/wasm_backend/utils.hpp>
-
-#include <array>
-#include <iostream>
-
+#include <eosio/vm/exceptions.hpp>
+#include <eosio/vm/utils.hpp>
+/*
 namespace eosio { namespace vm {
    class validator {
       public:
@@ -40,3 +37,4 @@ namespace eosio { namespace vm {
 
    };
 }} // ns eosio::vm
+*/
