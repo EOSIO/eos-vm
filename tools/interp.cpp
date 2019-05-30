@@ -1,7 +1,7 @@
 #include <eosio/vm/backend.hpp>
 #include <eosio/vm/error_codes.hpp>
 #include <eosio/vm/watchdog.hpp>
-#include <eosio/vm/detail/bound_tuple.hpp>
+#include <eosio/vm/bound_tuple.hpp>
 
 #include <iostream>
 
@@ -23,8 +23,15 @@ struct test_s {
 struct test_s2 : test_s {
    INHERIT_FIELDS(test_s,
                   "foo"_c, std::string("ass"),
-                  "bar"_c, double{})
+                  "bar"_c, double{},
+                  "dwarf"_c, vector<int>)
 };
+
+struct test_s3 : test_s2 {
+  INHERIT_FIELDS(test_s2,
+                 "baz"_c, "hello")
+};
+
 /* clang-format on */
 
 /**
@@ -61,9 +68,15 @@ int main(int argc, char** argv) {
       bkend.execute_all(&wd);
      */
       test_s2 ts;
-      auto& ii = ts.get("this"_c);
+      auto& ii = ts.get("that"_c);
       ii = 24.33423f;
-      std::cout << "I " << ts.get("this"_c);
+      std::cout << "I " << ts.get("that"_c);
+      test_s3 ts2;
+      auto& cc = ts2.get("baz"_c);
+      cc = "Hoops\n";
+      auto& dd = ts2.get("foo"_c);
+      dd = "something";
+      std::cout << cc << " " << ts2.get("baz"_c) << " " << ts2.get("foo"_c) << "\n";
    } catch (...) { std::cerr << "eos-vm interpreter error\n"; }
    return 0;
 }

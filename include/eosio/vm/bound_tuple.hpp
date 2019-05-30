@@ -50,13 +50,13 @@ namespace eosio { namespace vm {
 
       template <typename Arg0, typename Arg1, typename... Args>
       struct get_even_args<Arg0, Arg1, Args...> {
-         using type = decltype(
-               std::tuple_cat(std::declval<std::tuple<Arg0>>(), std::declval<typename get_even_args<Args...>::type>()));
+         using type = decltype(std::tuple_cat(std::declval<std::tuple<std::decay_t<Arg0>>>(),
+                                              std::declval<typename get_even_args<Args...>::type>()));
       };
 
       template <typename Arg0, typename Arg1>
       struct get_even_args<Arg0, Arg1> {
-         using type = std::tuple<Arg0>;
+         using type = std::tuple<std::decay_t<Arg0>>;
       };
 
       template <typename Arg0, typename Arg1, typename... Args>
@@ -75,6 +75,45 @@ namespace eosio { namespace vm {
 
       template <typename... Args>
       using get_even_args_t = typename get_even_args<Args...>::type;
+
+      template <typename Arg0, typename Arg1, typename... Args>
+      inline constexpr auto _forward_odd_args(Arg0&& arg0, Arg1&& arg1, Args&&... args) {
+         if constexpr (sizeof...(Args) == 0)
+            return std::make_tuple(arg1);
+         return std::tuple_cat(std::make_tuple(arg1), _forward_odd_args(std::forward<Args>(args)...));
+      }
+
+      template <typename Arg0, typename Arg1, typename... Args>
+      inline constexpr auto _forward_even_args(Arg0 arg0, Arg1 arg1, Args... args) {
+         if constexpr (sizeof...(Args) == 0)
+            return std::tuple<std::decay_t<Arg0>>(arg0);
+         return std::tuple_cat(std::tuple<std::decay_t<Arg0>>(arg0), _forward_even_args(args...));
+      }
+
+      template <typename... Args>
+      inline constexpr auto forward_odd_args(Args&&... args) {
+         return _forward_odd_args(std::forward<Args>(args)...);
+      }
+
+      template <typename... Args>
+      inline constexpr auto forward_even_args(Args... args) {
+         return _forward_even_args(args...);
+      }
+
+#if 0
+     /**
+      * Helper to determine if none of the fields are already taken.
+      */
+     template <size_t I, size_t N, typename Tst, typename BaseTup>
+     struct _check_fields {
+       static constexpr bool value = std::is_same_v<Tst, std::tuple_element_t<I, BaseTup>> ? false : _check_fields<I+1, M, N, Tst, BaseTup>::value;
+     };
+     template <size_t I, size_t N, typename Tst, typename BaseTup>
+     struct _check_fields<I, I, N, Tst, BaseTup>
+     template <typename Base, typename BndTup>
+     struct check_fields {
+     };
+#endif
    } // namespace detail
 
    template <typename... Args>
@@ -82,7 +121,9 @@ namespace eosio { namespace vm {
       detail::get_even_args_t<Args...>  bindings;
       detail::get_odd_args_t<Args...> body;
 
-      inline constexpr bound_tuple(Args...) {}
+      inline constexpr bound_tuple(Args&&... args)
+          : bindings(detail::forward_even_args(std::forward<Args>(args)...)),
+            body(detail::forward_odd_args(std::forward<Args>(args)...)) {}
 
       template <typename Str>
       inline constexpr auto&& get(const Str& str) && {
@@ -118,24 +159,28 @@ namespace eosio { namespace vm {
 
 #define INHERIT_FIELDS(BASE, ...)                                                                                      \
    decltype(eosio::vm::bound_tuple(__VA_ARGS__)) fields = eosio::vm::bound_tuple(__VA_ARGS__);                         \
+   static_assert(eosio::vm::detail::check_fields<BASE, fields>::value, "field already defined");                       \
    template <typename Str>                                                                                             \
    inline constexpr auto& get(const Str& str) {                                                                        \
       constexpr uint64_t index = detail::get_index<Str, decltype(fields.bindings)>::value;                             \
-      if constexpr (index >= (uint64_t)std::tuple_size_v<decltype(fields.body)>)                                       \
+      if constexpr (index < (uint64_t)std::tuple_size_v<decltype(fields.body)>)                                        \
+         return std::get<index>(fields.body);                                                                          \
+      else                                                                                                             \
          return BASE::get(str);                                                                                        \
-      return std::get<index>(fields.body);                                                                             \
    }                                                                                                                   \
    template <typename Str>                                                                                             \
    inline constexpr auto&& get(const Str& str)&& {                                                                     \
       constexpr uint64_t index = detail::get_index<Str, decltype(fields.bindings)>::value;                             \
-      if constexpr (index >= (uint64_t)std::tuple_size_v<decltype(fields.body)>)                                       \
+      if constexpr (index < (uint64_t)std::tuple_size_v<decltype(fields.body)>)                                        \
+         return std::get<index>(fields.body);                                                                          \
+      else                                                                                                             \
          return BASE::get(str);                                                                                        \
-      return std::get<index>(fields.body);                                                                             \
    }                                                                                                                   \
    template <typename Str>                                                                                             \
    inline constexpr const auto& get(const Str& str) const {                                                            \
       constexpr uint64_t index = detail::get_index<Str, decltype(fields.bindings)>::value;                             \
-      if constexpr (index >= (uint64_t)std::tuple_size_v<decltype(fields.body)>)                                       \
+      if constexpr (index < (uint64_t)std::tuple_size_v<decltype(fields.body)>)                                        \
+         return std::get<index>(fields.body);                                                                          \
+      else                                                                                                             \
          return BASE::get(str);                                                                                        \
-      return std::get<index>(fields.body);                                                                             \
    }

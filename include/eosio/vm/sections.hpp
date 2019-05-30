@@ -1,19 +1,20 @@
 #pragma once
 
 namespace eosio { namespace vm {
-   enum section_id {
-      custom_section   = 0,
-      type_section     = 1,
-      import_section   = 2,
-      function_section = 3,
-      table_section    = 4,
-      memory_section   = 5,
-      global_section   = 6,
-      export_section   = 7,
-      start_section    = 8,
-      element_section  = 9,
-      code_section     = 10,
-      data_section     = 11,
-      num_of_elems
-   };
+    namespace section_id {
+      inline static constexpr auto custom_section = "custom"_c; 
+      inline static constexpr auto type_section = "type"_c; 
+      inline static constexpr auto import_section = "import"_c; 
+      inline static constexpr auto function_section = "function"_c; 
+      inline static constexpr auto table_section = "table"_c; 
+      inline static constexpr auto memory_section = "memory"_c; 
+      inline static constexpr auto global_section = "global"_c; 
+      inline static constexpr auto start_section = "start"_c; 
+      inline static constexpr auto element_section = "element"_c; 
+      inline static constexpr auto code_section = "code"_c; 
+      inline static constexpr auto data_section = "data"_c; 
+    }
+
+    struct empty_section{};
+
 }} // namespace eosio::vm
