@@ -88,9 +88,9 @@ if(ENABLE_TESTS)
    add_subdirectory(tests)
 endif()
 
-# #######################
+# ##################################################################################################
 # Build documentation.
-# ######################
+# ##################################################################################################
 if(ENABLE_DOCS)
   find_package(Doxygen REQUIRED)
   file(GLOB EOS_VM_HEADERS "${CMAKE_SOURCE_DIR}/include/eosio/vm/*.hpp")

@@ -1,7 +1,7 @@
 #include <eosio/vm/backend.hpp>
 #include <eosio/vm/error_codes.hpp>
 #include <eosio/vm/watchdog.hpp>
-#include <eosio/vm/detail/module_macros.hpp>
+#include <eosio/vm/detail/bound_tuple.hpp>
 
 #include <iostream>
 
@@ -12,6 +12,20 @@ template <auto S>
 struct SS {
   using type = decltype(S);
 };
+
+using namespace eosio::vm::detail;
+/* clang-format off */
+struct test_s {
+   GENERATE_FIELDS("this"_c, float{},
+                   "that"_c, int{})
+};
+
+struct test_s2 : test_s {
+   INHERIT_FIELDS(test_s,
+                  "foo"_c, std::string("ass"),
+                  "bar"_c, double{})
+};
+/* clang-format on */
 
 /**
  * Simple implementation of an interpreter using eos-vm.
@@ -46,10 +60,10 @@ int main(int argc, char** argv) {
       // Execute any exported functions provided by the wasm.
       bkend.execute_all(&wd);
      */
-      auto bt = detail::bound_tuple(detail::bound_pair("this"_c, (int)44));
-      auto& ii = bt.get<("this"_c)::t>();
-      ii = 24;
-      std::cout << "I " << bt.get<("this"_c)::t>();
+      test_s2 ts;
+      auto& ii = ts.get("this"_c);
+      ii = 24.33423f;
+      std::cout << "I " << ts.get("this"_c);
    } catch (...) { std::cerr << "eos-vm interpreter error\n"; }
    return 0;
 }
