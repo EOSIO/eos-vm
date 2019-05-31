@@ -24,11 +24,13 @@ namespace eosio { namespace vm {
    using section_id::element_section;
    using section_id::function_section;
    using section_id::global_section;
+   using section_id::export_section;
    using section_id::import_section;
    using section_id::memory_section;
    using section_id::start_section;
    using section_id::table_section;
    using section_id::type_section;
+
    enum types { i32 = 0x7f, i64 = 0x7e, f32 = 0x7d, f64 = 0x7c, anyfunc = 0x70, func = 0x60, pseudo = 0x40, ret_void };
 
    enum external_kind { Function = 0, Table = 1, Memory = 2, Global = 3 };
@@ -150,6 +152,7 @@ namespace eosio { namespace vm {
                       table_section,    guarded_vector<table_type>{allocator, 0},
                       memory_section,   guarded_vector<memory_type>{allocator, 0},
                       global_section,   guarded_vector<global_variable>{allocator, 0},
+                      export_section,   guarded_vector<export_entry>{allocator, 0},
                       start_section,    uint32_t{0},
                       element_section,  guarded_vector<elem_segment>{allocator, 0},
                       code_section,     guarded_vector<function_body>{allocator, 0},
@@ -176,6 +179,7 @@ namespace eosio { namespace vm {
       auto& get_function_type(uint32_t index) const {
          auto& imports = get(import_section);
          auto& functions = get(function_section);
+         auto& types = get(type_section);
          if (index < get_imported_functions_size())
             return types[imports[index].type.func_t];
          return types[functions[index - get_imported_functions_size()]];

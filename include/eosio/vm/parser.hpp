@@ -10,7 +10,33 @@
 #include <stack>
 #include <vector>
 
+#define CREATE_SECTION_PARSER_OVERLOAD(SECTION_ID, MODULE_T, ITEM_PARSE)                                               \
+   inline auto parse_section(decltype(SECTION_ID), wasm_code_ptr& code,                                                \
+                             MODULE_T::get_field_t<decltype(SECTION_ID)>& elems) {                                     \
+      parse_section_impl(code, elems,                                                                                  \
+                         [&](wasm_code_ptr& code, second_arg_t<ITEM_PARSE>& item) { ITEM_PARSE(code, item); });        \
+   }
+
+#define CREATE_SECTION_PARSER_OVERLOAD_SINGLE(SECTION_ID, MODULE_T, ITEM_PARSE)                                        \
+   inline auto parse_section(decltype(SECTION_ID), wasm_code_ptr& code,                                                \
+                             MODULE_T::get_field_t<decltype(SECTION_ID)>& elems) {                                     \
+      ITEM_PARSE(code, item);                                                                                          \
+   }
+
 namespace eosio { namespace vm {
+   namespace detail {
+      template <typename R, typename Arg0, typename Arg1>
+      auto _get_second_arg(R(Arg0, Arg1)) {
+         return Arg1{};
+      }
+      template <typename R, typename Cls, typename Arg0, typename Arg1>
+      auto _get_second_arg(R (Cls::*)(Arg0, Arg1)) {
+         return Arg1{};
+      }
+   }
+   template <auto Fn>
+   using second_arg_t = decltype(detail::_get_second_arg(Fn));
+
    class binary_parser {
     public:
       binary_parser(growable_allocator& alloc) : _allocator(alloc) {}
@@ -36,46 +62,37 @@ namespace eosio { namespace vm {
          return mod;
       }
 
-      inline module& parse_module2(wasm_code_ptr& code_ptr, size_t sz, module& mod) {
-         parse_module(code_ptr, sz, mod);
-         return mod;
+      template <uint64_t I, typename Module>
+      inline void _parse_section(wasm_code_ptr& code_ptr, size_t sz, Module& mod, uint64_t id) {
+         if constexpr (I < Module::get_num_of_fields) {
+            if (id == I) {
+               parse_section<Module::get_id<I>>(code_ptr, mod.template get<I>());
+               if (code_ptr.offset() == sz)
+                  return;
+               code_ptr.add_bounds(constants::id_size);
+               auto id = parse_section_id(code_ptr);
+               code_ptr.add_bounds(constants::varuint32_size);
+               auto len = parse_section_payload_len(code_ptr);
+               code_ptr.fit_bounds(len);
+               _parse_section<I + 1>(code_ptr, mod);
+            } else {
+               _parse_section<I + 1>(code_ptr, mod);
+            }
+         } else {
+            return;
+         }
       }
 
       void parse_module(wasm_code_ptr& code_ptr, size_t sz, module& mod) {
          EOS_WB_ASSERT(parse_magic(code_ptr) == constants::magic, wasm_parse_exception, "magic number did not match");
          EOS_WB_ASSERT(parse_version(code_ptr) == constants::version, wasm_parse_exception,
                        "version number did not match");
-         for (int i = 0; i < section_id::num_of_elems; i++) {
-            if (code_ptr.offset() == sz)
-               return;
-            code_ptr.add_bounds(constants::id_size);
-            auto id = parse_section_id(code_ptr);
-            code_ptr.add_bounds(constants::varuint32_size);
-            auto len = parse_section_payload_len(code_ptr);
-            code_ptr.fit_bounds(len);
-
-            switch (id) {
-               case section_id::custom_section: code_ptr += len; break;
-               case section_id::type_section: parse_section<section_id::type_section>(code_ptr, mod.types); break;
-               case section_id::import_section: parse_section<section_id::import_section>(code_ptr, mod.imports); break;
-               case section_id::function_section:
-                  parse_section<section_id::function_section>(code_ptr, mod.functions);
-                  break;
-               case section_id::table_section: parse_section<section_id::table_section>(code_ptr, mod.tables); break;
-               case section_id::memory_section:
-                  parse_section<section_id::memory_section>(code_ptr, mod.memories);
-                  break;
-               case section_id::global_section: parse_section<section_id::global_section>(code_ptr, mod.globals); break;
-               case section_id::export_section: parse_section<section_id::export_section>(code_ptr, mod.exports); break;
-               case section_id::start_section: parse_section<section_id::start_section>(code_ptr, mod.start); break;
-               case section_id::element_section:
-                  parse_section<section_id::element_section>(code_ptr, mod.elements);
-                  break;
-               case section_id::code_section: parse_section<section_id::code_section>(code_ptr, mod.code); break;
-               case section_id::data_section: parse_section<section_id::data_section>(code_ptr, mod.data); break;
-               default: EOS_WB_ASSERT(false, wasm_parse_exception, "error invalid section id");
-            }
-         }
+         code_ptr.add_bounds(constants::id_size);
+         auto id = parse_section_id(code_ptr);
+         code_ptr.add_bounds(constants::varuint32_size);
+         auto len = parse_section_payload_len(code_ptr);
+         code_ptr.fit_bounds(len);
+         _parse_section<0>(code_ptr, sz, mod, id);
       }
 
       inline uint32_t parse_magic(wasm_code_ptr& code) {
@@ -109,6 +126,8 @@ namespace eosio { namespace vm {
             default: EOS_WB_ASSERT(false, wasm_unsupported_import_exception, "only function imports are supported");
          }
       }
+
+      inline void parse_function_elem(wasm_code_ptr& code, uint32_t& elem) { elem = parse_varuint32(code); }
 
       void parse_table_type(wasm_code_ptr& code, table_type& tt) {
          tt.element_type   = *code++;
@@ -543,65 +562,20 @@ namespace eosio { namespace vm {
          code.fit_bounds(parse_section_payload_len(code));
       }
 
-      template <uint8_t id>
-      inline void parse_section(wasm_code_ptr&                                                             code,
-                                vec<typename std::enable_if_t<id == section_id::type_section, func_type>>& elems) {
-         parse_section_impl(code, elems, [&](wasm_code_ptr& code, func_type& ft) { parse_func_type(code, ft); });
-      }
-      template <uint8_t id>
-      inline void parse_section(wasm_code_ptr&                                                                  code,
-                                vec<typename std::enable_if_t<id == section_id::import_section, import_entry>>& elems) {
-         parse_section_impl(code, elems, [&](wasm_code_ptr& code, import_entry& ie) { parse_import_entry(code, ie); });
-      }
-      template <uint8_t id>
-      inline void parse_section(wasm_code_ptr&                                                                code,
-                                vec<typename std::enable_if_t<id == section_id::function_section, uint32_t>>& elems) {
-         parse_section_impl(code, elems, [&](wasm_code_ptr& code, uint32_t& elem) { elem = parse_varuint32(code); });
-      }
-      template <uint8_t id>
-      inline void parse_section(wasm_code_ptr&                                                               code,
-                                vec<typename std::enable_if_t<id == section_id::table_section, table_type>>& elems) {
-         parse_section_impl(code, elems, [&](wasm_code_ptr& code, table_type& tt) { parse_table_type(code, tt); });
-      }
-      template <uint8_t id>
-      inline void parse_section(wasm_code_ptr&                                                                 code,
-                                vec<typename std::enable_if_t<id == section_id::memory_section, memory_type>>& elems) {
-         parse_section_impl(code, elems, [&](wasm_code_ptr& code, memory_type& mt) { parse_memory_type(code, mt); });
-      }
-      template <uint8_t id>
-      inline void
-      parse_section(wasm_code_ptr&                                                                     code,
-                    vec<typename std::enable_if_t<id == section_id::global_section, global_variable>>& elems) {
-         parse_section_impl(code, elems,
-                            [&](wasm_code_ptr& code, global_variable& gv) { parse_global_variable(code, gv); });
-      }
-      template <uint8_t id>
-      inline void parse_section(wasm_code_ptr&                                                                  code,
-                                vec<typename std::enable_if_t<id == section_id::export_section, export_entry>>& elems) {
-         parse_section_impl(code, elems, [&](wasm_code_ptr& code, export_entry& ee) { parse_export_entry(code, ee); });
-      }
-      template <uint8_t id>
-      inline void parse_section(wasm_code_ptr&                                                        code,
-                                typename std::enable_if_t<id == section_id::start_section, uint32_t>& start) {
-         start = parse_varuint32(code);
-      }
-      template <uint8_t id>
-      inline void
-      parse_section(wasm_code_ptr&                                                                   code,
-                    vec<typename std::enable_if_t<id == section_id::element_section, elem_segment>>& elems) {
-         parse_section_impl(code, elems, [&](wasm_code_ptr& code, elem_segment& es) { parse_elem_segment(code, es); });
-      }
-      template <uint8_t id>
-      inline void parse_section(wasm_code_ptr&                                                                 code,
-                                vec<typename std::enable_if_t<id == section_id::code_section, function_body>>& elems) {
-         parse_section_impl(code, elems,
-                            [&](wasm_code_ptr& code, function_body& fb) { parse_function_body(code, fb); });
-      }
-      template <uint8_t id>
-      inline void parse_section(wasm_code_ptr&                                                                code,
-                                vec<typename std::enable_if_t<id == section_id::data_section, data_segment>>& elems) {
-         parse_section_impl(code, elems, [&](wasm_code_ptr& code, data_segment& ds) { parse_data_segment(code, ds); });
-      }
+      CREATE_SECTION_PARSER_OVERLOAD_SINGLE(section_id::start_section, module,
+                                            [](module::get_field_t<section_id::start_section>& item) {
+                                               item = parse_varuint32(code);
+                                            });
+      CREATE_SECTION_PARSER_OVERLOAD(section_id::type_section, module, parse_func_type);
+      CREATE_SECTION_PARSER_OVERLOAD(section_id::import_section, module, parse_import_entry);
+      CREATE_SECTION_PARSER_OVERLOAD(section_id::function_section, module, parse_func_elem);
+      CREATE_SECTION_PARSER_OVERLOAD(section_id::table_section, module, parse_table_type);
+      CREATE_SECTION_PARSER_OVERLOAD(section_id::memory_section, module, parse_memory_type);
+      CREATE_SECTION_PARSER_OVERLOAD(section_id::global_section, module, parse_global_variable);
+      CREATE_SECTION_PARSER_OVERLOAD(section_id::export_section, module, parse_export_entry);
+      CREATE_SECTION_PARSER_OVERLOAD(section_id::element_section, module, parse_elem_segment);
+      CREATE_SECTION_PARSER_OVERLOAD(section_id::code_section, module, parse_function_body);
+      CREATE_SECTION_PARSER_OVERLOAD(section_id::data_section, module, parse_data_segment);
 
       template <size_t N>
       varint<N> parse_varint(const wasm_code& code, size_t index) {

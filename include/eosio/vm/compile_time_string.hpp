@@ -3,7 +3,6 @@
 namespace eosio { namespace vm {
    template <char... Str>
    struct compile_time_string {
-      inline constexpr compile_time_string() = default;
       static constexpr const char value[] = { Str... };
       using t = compile_time_string<Str...>;
    };

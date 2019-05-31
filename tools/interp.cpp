@@ -22,9 +22,8 @@ struct test_s {
 
 struct test_s2 : test_s {
    INHERIT_FIELDS(test_s,
-                  "foo"_c, std::string("ass"),
-                  "bar"_c, double{},
-                  "dwarf"_c, vector<int>)
+                  "foo"_c, std::string("foo"),
+                  "bar"_c, double{})
 };
 
 struct test_s3 : test_s2 {
@@ -67,6 +66,7 @@ int main(int argc, char** argv) {
       // Execute any exported functions provided by the wasm.
       bkend.execute_all(&wd);
      */
+      /*
       test_s2 ts;
       auto& ii = ts.get("that"_c);
       ii = 24.33423f;
@@ -77,6 +77,7 @@ int main(int argc, char** argv) {
       auto& dd = ts2.get("foo"_c);
       dd = "something";
       std::cout << cc << " " << ts2.get("baz"_c) << " " << ts2.get("foo"_c) << "\n";
+      */
    } catch (...) { std::cerr << "eos-vm interpreter error\n"; }
    return 0;
 }
