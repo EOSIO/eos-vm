@@ -1,4 +1,8 @@
-# EOS-VM - A Low-Latency, High Performance and Extensible WebAssembly Backend Library
+# EOS-VM
+
+## A Low-Latency, High Performance and Extensible WebAssembly Backend Library
+
+![EOSIO Labs](https://img.shields.io/badge/EOSIO-Labs-5cb3ff.svg)
 
 With WebAssembly (WASM) becoming ever more ubiquitous, there is a greater need for a succinct implementation of a WASM backend.  We implemented __EOS-VM__ because all existing backends we evaluated fell short in meeting all of our needs for a WASM backend best suited for use in a public blockchain environment. __EOS-VM__ was designed to satisfy five focal tenets.  
    1) Satisfying the needs of a blockchain.
@@ -6,6 +10,10 @@ With WebAssembly (WASM) becoming ever more ubiquitous, there is a greater need f
    3) Performance centric design.
    4) Light weight and easy to integrate solution.
    5) Effortless extendability.
+
+# About EOSIO Labs
+
+EOSIO Labs repositories are experimental.  Developers in the community are encouraged to use EOSIO Labs repositories as the basis for code and concepts to incorporate into their applications. Community members are also welcome to contribute and further develop these repositories. Since these repositories are not supported by Block.one, we may not provide responses to issue reports, pull requests, updates to functionality, or other requests from the community, and we encourage the community to take responsibility for these.
 
 ## EOS-VM A VM for Blockchain
 - Given that all executions on the blockchain have to be deterministic, floating point operations are of particular interest to us.  Because of the non-deterministic nature of rounding modes, NaNs and denormals, special care has to be made to ensure a deterministic environment on all supported platforms.  This comes in the form of "softfloat", a software implementation of IEEE-754 float point arithmetic, which is constrained further to ensure determinism.  If this determinism is not required, hardware based floating point operations are still available through a compile time define.
