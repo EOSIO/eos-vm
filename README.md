@@ -13,9 +13,9 @@
 
 # About EOSIO Labs
 
-## Motivation
 EOSIO Labs repositories are experimental.  Developers in the community are encouraged to use EOSIO Labs repositories as the basis for code and concepts to incorporate into their applications. Community members are also welcome to contribute and further develop these repositories. Since these repositories are not supported by Block.one, we may not provide responses to issue reports, pull requests, updates to functionality, or other requests from the community, and we encourage the community to take responsibility for these.
 
+## Motivation
 EOS VM is designed from the ground up for the high demands of blockchain applications which require far more from a Web Assembly engine than those designed for web browsers or standards development. In the world of blockchain, any non-deterministic behavior, unbounded computation, or unbounded use of RAM can take down the blockchain for everyone, not just a single user's web browser. Single threaded performance, fast compilation/validation of WASM, and low-overhead calls to native code are critical to blockchains.
 
 While EOS VM was designed for blockchain, we believe it is ideally suited for any application looking to embed a High Performance Web Assembly engine.
