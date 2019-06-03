@@ -237,7 +237,7 @@ namespace eosio { namespace vm {
                case opcodes::end: {
                   if (pc_stack.size()) {
                      auto& el = fb[pc_stack.top()];
-                     eosio::vm::visit(overloaded{ [=](block_t& bt) { bt.pc = op_index; },
+                     std::visit(overloaded{ [=](block_t& bt) { bt.pc = op_index; },
                                             [=](loop_t& lt) { lt.pc = pc_stack.top(); },
                                             [=](if__t& it) { it.pc = op_index; },
                                             [=](else__t& et) { et.pc = op_index; },
@@ -271,7 +271,7 @@ namespace eosio { namespace vm {
                   auto old_index = pc_stack.top();
                   pc_stack.pop();
                   pc_stack.push(op_index);
-                  auto& _if      = fb[old_index].get<if__t>();
+                  auto& _if      = std::get<if__t>(fb[old_index]);
                   _if.pc         = op_index;
                   fb[op_index++] = else__t{};
                   break;
