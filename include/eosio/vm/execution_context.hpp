@@ -2,24 +2,38 @@
 
 #include <eosio/vm/host_function.hpp>
 #include <eosio/vm/types.hpp>
+#include <eosio/vm/sections.hpp>
 #include <eosio/vm/wasm_stack.hpp>
 #include <eosio/vm/watchdog.hpp>
 
 #include <optional>
 #include <string>
 
+using eosio::vm::section_id::custom_section;
+using eosio::vm::section_id::type_section;
+using eosio::vm::section_id::import_section;
+using eosio::vm::section_id::function_section;
+using eosio::vm::section_id::table_section;
+using eosio::vm::section_id::memory_section;
+using eosio::vm::section_id::global_section;
+using eosio::vm::section_id::export_section;
+using eosio::vm::section_id::start_section;
+using eosio::vm::section_id::element_section;
+using eosio::vm::section_id::code_section;
+using eosio::vm::section_id::data_section;
+
 namespace eosio { namespace vm {
    template <typename Host>
    class execution_context {
     public:
       execution_context(module& m) : _linear_memory(nullptr), _mod(m) {
-         for (int i = 0; i < _mod.exports.size(); i++) _mod.import_functions.resize(_mod.get_imported_functions_size());
+         for (int i = 0; i < _mod.get(export_section).size(); i++) _mod.import_functions.resize(_mod.get_imported_functions_size());
          _mod.function_sizes.resize(_mod.get_functions_total());
          const size_t import_size  = _mod.get_imported_functions_size();
          uint32_t     total_so_far = 0;
          for (int i = _mod.get_imported_functions_size(); i < _mod.function_sizes.size(); i++) {
             _mod.function_sizes[i] = total_so_far;
-            total_so_far += _mod.code[i - import_size].code.size();
+            total_so_far += _mod.get(code_section)[i - import_size].code.size();
          }
       }
 
@@ -35,7 +49,7 @@ namespace eosio { namespace vm {
          // TODO validate index is valid
          if (index < _mod.get_imported_functions_size()) {
             // TODO validate only importing functions
-            const auto& ft = _mod.types[_mod.imports[index].type.func_t];
+            const auto& ft = _mod.get(type_section)[_mod.get(import_section)[index].type.func_t];
             type_check(ft);
             _rhf(_host, *this, _mod.import_functions[index]);
             inc_pc();
@@ -74,7 +88,7 @@ namespace eosio { namespace vm {
       inline void           set_wasm_allocator(wasm_allocator* alloc) { _wasm_alloc = alloc; }
       inline auto           get_wasm_allocator() { return _wasm_alloc; }
       inline char*          linear_memory() { return _linear_memory; }
-      inline uint32_t   table_elem(uint32_t i) { return _mod.elements[0].elems[i - _mod.elements[0].offset.value.i64]; }
+      inline uint32_t   table_elem(uint32_t i) { return _mod.get(element_section)[0].elems[i - _mod.get(element_section)[0].offset.value.i64]; }
       inline void       push_label(const stack_elem& el) { _cs.push(el); }
       inline uint16_t   current_label_index() const { return _cs.current_index(); }
       inline void       eat_labels(uint16_t index) { _cs.eat(index); }
@@ -122,8 +136,8 @@ namespace eosio { namespace vm {
       inline stack_elem  pop_operand() { return _os.pop(); }
       inline stack_elem& peek_operand(size_t i = 0) { return _os.peek(i); }
       inline stack_elem  get_global(uint32_t index) {
-         EOS_WB_ASSERT(index < _mod.globals.size(), wasm_interpreter_exception, "global index out of range");
-         const auto& gl = _mod.globals[index];
+         EOS_WB_ASSERT(index < _mod.get(global_section).size(), wasm_interpreter_exception, "global index out of range");
+         const auto& gl = _mod.get(global_section)[index];
          // computed g
          switch (gl.type.content_type) {
             case types::i32: return i32_const_t{ *(uint32_t*)&gl.init.value.i32 };
@@ -134,8 +148,8 @@ namespace eosio { namespace vm {
          }
       }
       inline void set_global(uint32_t index, const stack_elem& el) {
-         EOS_WB_ASSERT(index < _mod.globals.size(), wasm_interpreter_exception, "global index out of range");
-         auto& gl = _mod.globals[index];
+         EOS_WB_ASSERT(index < _mod.get(global_section).size(), wasm_interpreter_exception, "global index out of range");
+         auto& gl = _mod.get(global_section)[index];
          EOS_WB_ASSERT(gl.type.mutability, wasm_interpreter_exception, "global is not mutable");
          std::visit(overloaded{ [&](const i32_const_t& i) {
                                   EOS_WB_ASSERT(gl.type.content_type == types::i32, wasm_interpreter_exception,
@@ -226,8 +240,8 @@ namespace eosio { namespace vm {
                        "cannot execute function, function not found");
          _host          = host;
          _linear_memory = _wasm_alloc->get_base_ptr<char>();
-         for (int i = 0; i < _mod.data.size(); i++) {
-            const auto& data_seg = _mod.data[i];
+         for (int i = 0; i < _mod.get(data_section).size(); i++) {
+            const auto& data_seg = _mod.get(data_section)[i];
             // TODO validate only use memory idx 0 in parse
             auto addr = _linear_memory + data_seg.offset.value.i32;
             if (data_seg.offset.value.i32 + data_seg.data.size() >=
@@ -242,7 +256,7 @@ namespace eosio { namespace vm {
          _current_function = func_index;
          _code_index       = func_index - _mod.import_functions.size();
          _current_offset   = _mod.function_sizes[_current_function];
-         _exit_pc          = _current_offset + _mod.code[_code_index].code.size() - 1;
+         _exit_pc          = _current_offset + _mod.get(code_section)[_code_index].code.size() - 1;
          _pc               = _exit_pc - 1; // set to exit for return
 
          _executing = true;
@@ -321,7 +335,7 @@ namespace eosio { namespace vm {
       }
 
       inline void setup_locals(uint32_t index) {
-         const auto& fn = _mod.code[index - _mod.get_imported_functions_size()];
+         const auto& fn = _mod.get(code_section)[index - _mod.get_imported_functions_size()];
          for (int i = 0; i < fn.locals.size(); i++) {
             for (int j = 0; j < fn.locals[i].count; j++)
                // computed g
@@ -342,7 +356,7 @@ namespace eosio { namespace vm {
             if (_pc == _exit_pc && _as.size() <= 1) {
                _executing = false;
             }
-            visit(visitor, _mod.code.at_no_check(_code_index).code.at_no_check(offset));
+            visit(visitor, _mod.get(code_section).at_no_check(_code_index).code.at_no_check(offset));
          } while (_executing);
       }
 

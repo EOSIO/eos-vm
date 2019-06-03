@@ -127,6 +127,19 @@ namespace eosio { namespace vm {
          return std::get<detail::get_index<Str, bindings>::value>(body);
       }
    };
+
+   template <uint64_t I, typename Tup>
+   struct get_id {
+      using type = std::tuple_element_t<I, typename Tup::bindings>;
+   };
+
+   template <uint64_t I, typename Tup>
+   using get_id_t = typename get_id<I, Tup>::type;
+
+   template <typename Index, typename Tup>
+   inline constexpr uint64_t get_index() {
+      return detail::get_index<Index, typename Tup::bindings>::value;
+   }
 }} // namespace eosio::vm
 
 #define GENERATE_FIELDS(...)                                                                                           \
@@ -161,8 +174,13 @@ namespace eosio { namespace vm {
    template <uint64_t I>                                                                                               \
    inline constexpr const auto& get() const {                                                                          \
       return std::get<I>(fields.body);                                                                                 \
+   }                                                                                                                   \
+   template <typename Index>                                                                                           \
+   static inline constexpr uint64_t get_index(const Index&) {                                                          \
+      return detail::get_index<Index, fields_t::bindings>::value;                                                      \
    }
 
+   //static_assert(eosio::vm::detail::check_fields<BASE, fields>::value, "field already defined");
 #define INHERIT_FIELDS(BASE, ...)                                                                                      \
    using fields_t  = decltype(eosio::vm::bound_tuple(__VA_ARGS__));                                                    \
    fields_t fields = eosio::vm::bound_tuple(__VA_ARGS__);                                                              \
@@ -172,7 +190,6 @@ namespace eosio { namespace vm {
    template <typename Str>                                                                                             \
    using get_field_t = std::tuple_element_t<detail::get_index<Str, fields_t::bindings>::value,                         \
                                             decltype(std::declval<fields_t>().body)>;                                  \
-   static_assert(eosio::vm::detail::check_fields<BASE, fields>::value, "field already defined");                       \
    template <typename Str>                                                                                             \
    inline constexpr auto& get(const Str& str) {                                                                        \
       constexpr uint64_t index = detail::get_index<Str, decltype(fields)::bindings>::value;                            \

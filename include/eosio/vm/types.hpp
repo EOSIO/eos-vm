@@ -159,6 +159,12 @@ namespace eosio { namespace vm {
                       data_section,     guarded_vector<data_segment>{allocator, 0})
 
       /* clang-format on */
+      
+      template <typename Index>
+      auto create_section(const Index& index, uint32_t cnt) { 
+         get_field_t<Index> vec{allocator, cnt}; 
+         return std::move(vec);
+      }
 
       // not part of the spec for WASM
       guarded_vector<uint32_t> import_functions = { allocator, 0 };

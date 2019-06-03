@@ -20,7 +20,7 @@ namespace eosio { namespace vm {
       using host_t = Host;
 
       backend(wasm_code& code) : _ctx(binary_parser{ _mod.allocator }.parse_module(code, _mod)) {}
-      backend(wasm_code_ptr& ptr, size_t sz) : _ctx(binary_parser{ _mod.allocator }.parse_module2(ptr, sz, _mod)) {}
+      //backend(wasm_code_ptr& ptr, size_t sz) : _ctx(binary_parser{ _mod.allocator }.parse_module2(ptr, sz, _mod)) {}
 
       template <typename... Args>
       inline bool operator()(Host* host, const std::string_view& mod, const std::string_view& func, Args... args) {
@@ -71,9 +71,10 @@ namespace eosio { namespace vm {
       inline void execute_all(Watchdog* wd = nullptr, Host* host = nullptr) {
          if constexpr (!std::is_same_v<Watchdog, nullptr_t>)
             wd->run();
-         for (int i = 0; i < _mod.exports.size(); i++) {
-            if (_mod.exports[i].kind == external_kind::Function) {
-               std::string s{ (const char*)_mod.exports[i].field_str.raw(), _mod.exports[i].field_str.size() };
+         const auto& exports = _mod.get(section_id::export_section);
+         for (int i = 0; i < exports.size(); i++) {
+            if (exports[i].kind == external_kind::Function) {
+               std::string s{ (const char*)exports[i].field_str.raw(), exports[i].field_str.size() };
                _ctx.execute(host, interpret_visitor(_ctx), s);
             }
          }

@@ -1,42 +1,59 @@
 #pragma once
 
 #include <eosio/vm/constants.hpp>
+#include <eosio/vm/error_codes.hpp>
 #include <eosio/vm/sections.hpp>
 #include <eosio/vm/types.hpp>
 #include <eosio/vm/utils.hpp>
 #include <eosio/vm/vector.hpp>
-#include <eosio/vm/outcome.hpp>
 
 #include <stack>
 #include <vector>
 
-#define CREATE_SECTION_PARSER_OVERLOAD(SECTION_ID, MODULE_T, ITEM_PARSE)                                               \
-   inline auto parse_section(decltype(SECTION_ID), wasm_code_ptr& code,                                                \
-                             MODULE_T::get_field_t<decltype(SECTION_ID)>& elems) {                                     \
-      parse_section_impl(code, elems,                                                                                  \
-                         [&](wasm_code_ptr& code, second_arg_t<ITEM_PARSE>& item) { ITEM_PARSE(code, item); });        \
+#define _CREATE_SECTION_PARSER_OVERLOAD(SECTION_ID, ITEM_PARSE, SINGLE_OVERLOAD)                                       \
+   template <typename SectionID, typename Module>                                                                      \
+   inline auto parse_section(const SectionID&, wasm_code_ptr& code, Module& mod, uint64_t id, uint64_t len)            \
+         ->std::enable_if_t<std::is_same_v<std::decay_t<decltype(SECTION_ID)>, std::decay_t<SectionID>>,               \
+                            result_void> {                                                                             \
+      constexpr auto section_index = Module::get_index(SECTION_ID);                                                    \
+      if constexpr (section_index >= Module::get_num_of_fields() - 1) {                                                \
+         return result_void_t{};                                                                                       \
+      }                                                                                                                \
+      if (id == 0) {                                                                                                   \
+         code += len;                                                                                                  \
+         code.add_bounds(constants::id_size);                                                                          \
+         id = parse_section_id(code);                                                                                  \
+         code.add_bounds(constants::varuint32_size);                                                                   \
+         len = parse_section_payload_len(code);                                                                        \
+         code.fit_bounds(len);                                                                                         \
+      }                                                                                                                \
+      if (id == section_index) {                                                                                       \
+         auto& sec = mod.get(SectionID{});                                                                             \
+         if constexpr (SINGLE_OVERLOAD) {                                                                              \
+            ITEM_PARSE(code, sec);                                                                                     \
+         } else {                                                                                                      \
+            auto count = parse_varuint32(code);                                                                        \
+            sec        = mod.create_section(SectionID{}, count);                                                       \
+            for (size_t i = 0; i < count; i++) { ITEM_PARSE(code, sec[i]); }                                           \
+         }                                                                                                             \
+         code.add_bounds(constants::id_size);                                                                          \
+         id = parse_section_id(code);                                                                                  \
+         code.add_bounds(constants::varuint32_size);                                                                   \
+         len = parse_section_payload_len(code);                                                                        \
+         code.fit_bounds(len);                                                                                         \
+      } else if (id >= Module::get_num_of_fields()) {                                                                  \
+         return parser_errors::invalid_section_id;                                                                     \
+      }                                                                                                                \
+      return parse_section(get_id_t<Module::get_index(SECTION_ID) + 1, typename Module::fields_t>{}, code,  \
+                           mod, id, len);                                                                              \
    }
 
-#define CREATE_SECTION_PARSER_OVERLOAD_SINGLE(SECTION_ID, MODULE_T, ITEM_PARSE)                                        \
-   inline auto parse_section(decltype(SECTION_ID), wasm_code_ptr& code,                                                \
-                             MODULE_T::get_field_t<decltype(SECTION_ID)>& elems) {                                     \
-      ITEM_PARSE(code, item);                                                                                          \
-   }
+#define CREATE_SECTION_PARSER_OVERLOAD(SECTION_ID, ITEM_PARSE)                                                         \
+   _CREATE_SECTION_PARSER_OVERLOAD(SECTION_ID, ITEM_PARSE, false)
+#define CREATE_SECTION_PARSER_OVERLOAD_SINGLE(SECTION_ID, ITEM_PARSE)                                                  \
+   _CREATE_SECTION_PARSER_OVERLOAD(SECTION_ID, ITEM_PARSE, true)
 
 namespace eosio { namespace vm {
-   namespace detail {
-      template <typename R, typename Arg0, typename Arg1>
-      auto _get_second_arg(R(Arg0, Arg1)) {
-         return Arg1{};
-      }
-      template <typename R, typename Cls, typename Arg0, typename Arg1>
-      auto _get_second_arg(R (Cls::*)(Arg0, Arg1)) {
-         return Arg1{};
-      }
-   }
-   template <auto Fn>
-   using second_arg_t = decltype(detail::_get_second_arg(Fn));
-
    class binary_parser {
     public:
       binary_parser(growable_allocator& alloc) : _allocator(alloc) {}
@@ -44,43 +61,17 @@ namespace eosio { namespace vm {
       template <typename T>
       using vec = guarded_vector<T>;
 
-      static inline uint8_t parse_varuint1(wasm_code_ptr& code) { return varuint<1>(code).to(); }
-
-      static inline uint8_t parse_varuint7(wasm_code_ptr& code) { return varuint<7>(code).to(); }
-
+      static inline uint8_t  parse_varuint1(wasm_code_ptr& code) { return varuint<1>(code).to(); }
+      static inline uint8_t  parse_varuint7(wasm_code_ptr& code) { return varuint<7>(code).to(); }
       static inline uint32_t parse_varuint32(wasm_code_ptr& code) { return varuint<32>(code).to(); }
-
-      static inline int8_t parse_varint7(wasm_code_ptr& code) { return varint<7>(code).to(); }
-
-      static inline int32_t parse_varint32(wasm_code_ptr& code) { return varint<32>(code).to(); }
-
-      static inline int64_t parse_varint64(wasm_code_ptr& code) { return varint<64>(code).to(); }
+      static inline int8_t   parse_varint7(wasm_code_ptr& code) { return varint<7>(code).to(); }
+      static inline int32_t  parse_varint32(wasm_code_ptr& code) { return varint<32>(code).to(); }
+      static inline int64_t  parse_varint64(wasm_code_ptr& code) { return varint<64>(code).to(); }
 
       inline module& parse_module(wasm_code& code, module& mod) {
          wasm_code_ptr cp(code.data(), 0);
          parse_module(cp, code.size(), mod);
          return mod;
-      }
-
-      template <uint64_t I, typename Module>
-      inline void _parse_section(wasm_code_ptr& code_ptr, size_t sz, Module& mod, uint64_t id) {
-         if constexpr (I < Module::get_num_of_fields) {
-            if (id == I) {
-               parse_section<Module::get_id<I>>(code_ptr, mod.template get<I>());
-               if (code_ptr.offset() == sz)
-                  return;
-               code_ptr.add_bounds(constants::id_size);
-               auto id = parse_section_id(code_ptr);
-               code_ptr.add_bounds(constants::varuint32_size);
-               auto len = parse_section_payload_len(code_ptr);
-               code_ptr.fit_bounds(len);
-               _parse_section<I + 1>(code_ptr, mod);
-            } else {
-               _parse_section<I + 1>(code_ptr, mod);
-            }
-         } else {
-            return;
-         }
       }
 
       void parse_module(wasm_code_ptr& code_ptr, size_t sz, module& mod) {
@@ -92,7 +83,7 @@ namespace eosio { namespace vm {
          code_ptr.add_bounds(constants::varuint32_size);
          auto len = parse_section_payload_len(code_ptr);
          code_ptr.fit_bounds(len);
-         _parse_section<0>(code_ptr, sz, mod, id);
+         parse_section(get_id_t<1, std::decay_t<decltype(mod)>::fields_t>{}, code_ptr, mod, id, len);
       }
 
       inline uint32_t parse_magic(wasm_code_ptr& code) {
@@ -256,14 +247,14 @@ namespace eosio { namespace vm {
                case opcodes::end: {
                   if (pc_stack.size()) {
                      auto& el = fb[pc_stack.top()];
-                     eosio::vm::visit(overloaded{ [=](block_t& bt) { bt.pc = op_index; },
-                                            [=](loop_t& lt) { lt.pc = pc_stack.top(); },
-                                            [=](if__t& it) { it.pc = op_index; },
-                                            [=](else__t& et) { et.pc = op_index; },
-                                            [=](auto&&) {
-                                               throw wasm_invalid_element{ "invalid element when popping pc stack" };
-                                            } },
-                                el);
+                     eosio::vm::visit(
+                           overloaded{ [=](block_t& bt) { bt.pc = op_index; },
+                                       [=](loop_t& lt) { lt.pc = pc_stack.top(); },
+                                       [=](if__t& it) { it.pc = op_index; }, [=](else__t& et) { et.pc = op_index; },
+                                       [=](auto&&) {
+                                          throw wasm_invalid_element{ "invalid element when popping pc stack" };
+                                       } },
+                           el);
                      pc_stack.pop();
                   }
                   fb[op_index++] = end_t{};
@@ -539,44 +530,21 @@ namespace eosio { namespace vm {
          code += ds.data.size();
       }
 
-      template <typename Elem, typename ParseFunc>
-      inline void parse_section_impl(wasm_code_ptr& code, vec<Elem>& elems, ParseFunc&& elem_parse) {
-         auto count = parse_varuint32(code);
-         elems      = vec<Elem>{ _allocator, count };
-         for (size_t i = 0; i < count; i++) { elem_parse(code, elems.at(i)); }
-      }
+      CREATE_SECTION_PARSER_OVERLOAD_SINGLE(section_id::start_section,
+                                            [&](auto& code, uint64_t& item) { item = parse_varuint32(code); });
 
-      template <uint8_t id>
-      inline void parse_section_header(wasm_code_ptr& code) {
-         code.add_bounds(constants::id_size);
-         auto _id = parse_section_id(code);
-         // ignore custom sections
-         if (_id == section_id::custom_section) {
-            code.add_bounds(constants::varuint32_size);
-            code += parse_section_payload_len(code);
-            code.fit_bounds(constants::id_size);
-            _id = parse_section_id(code);
-         }
-         EOS_WB_ASSERT(_id == id, wasm_parse_exception, "Section id does not match");
-         code.add_bounds(constants::varuint32_size);
-         code.fit_bounds(parse_section_payload_len(code));
-      }
+      CREATE_SECTION_PARSER_OVERLOAD(section_id::type_section, parse_func_type);
+      CREATE_SECTION_PARSER_OVERLOAD(section_id::import_section, parse_import_entry);
+      CREATE_SECTION_PARSER_OVERLOAD(section_id::function_section, [&](auto& code, uint32_t& elem) {elem = parse_varuint32(code);});
+      CREATE_SECTION_PARSER_OVERLOAD(section_id::table_section, parse_table_type);
+      CREATE_SECTION_PARSER_OVERLOAD(section_id::memory_section, parse_memory_type);
+      CREATE_SECTION_PARSER_OVERLOAD(section_id::global_section, parse_global_variable);
+      CREATE_SECTION_PARSER_OVERLOAD(section_id::export_section, parse_export_entry);
+      CREATE_SECTION_PARSER_OVERLOAD(section_id::element_section, parse_elem_segment);
+      CREATE_SECTION_PARSER_OVERLOAD(section_id::code_section, parse_function_body);
+      CREATE_SECTION_PARSER_OVERLOAD(section_id::data_section, parse_data_segment);
 
-      CREATE_SECTION_PARSER_OVERLOAD_SINGLE(section_id::start_section, module,
-                                            [](module::get_field_t<section_id::start_section>& item) {
-                                               item = parse_varuint32(code);
-                                            });
-      CREATE_SECTION_PARSER_OVERLOAD(section_id::type_section, module, parse_func_type);
-      CREATE_SECTION_PARSER_OVERLOAD(section_id::import_section, module, parse_import_entry);
-      CREATE_SECTION_PARSER_OVERLOAD(section_id::function_section, module, parse_func_elem);
-      CREATE_SECTION_PARSER_OVERLOAD(section_id::table_section, module, parse_table_type);
-      CREATE_SECTION_PARSER_OVERLOAD(section_id::memory_section, module, parse_memory_type);
-      CREATE_SECTION_PARSER_OVERLOAD(section_id::global_section, module, parse_global_variable);
-      CREATE_SECTION_PARSER_OVERLOAD(section_id::export_section, module, parse_export_entry);
-      CREATE_SECTION_PARSER_OVERLOAD(section_id::element_section, module, parse_elem_segment);
-      CREATE_SECTION_PARSER_OVERLOAD(section_id::code_section, module, parse_function_body);
-      CREATE_SECTION_PARSER_OVERLOAD(section_id::data_section, module, parse_data_segment);
-
+      /*
       template <size_t N>
       varint<N> parse_varint(const wasm_code& code, size_t index) {
          varint<N> result(0);
@@ -590,6 +558,7 @@ namespace eosio { namespace vm {
          result.set(code, index);
          return result;
       }
+      */
 
     private:
       growable_allocator& _allocator;

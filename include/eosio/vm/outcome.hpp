@@ -12,4 +12,6 @@ namespace outcome = BOOST_OUTCOME_V2_NAMESPACE;
 #endif
 
 // tag struct to represent a void function for outcome::result
-struct result_void {};
+struct result_void_t {};
+
+using result_void = outcome::result<result_void_t>;
