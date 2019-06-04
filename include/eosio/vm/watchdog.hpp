@@ -8,6 +8,7 @@
 #include <thread>
 
 namespace eosio { namespace vm {
+   //TODO use Spoons accurate timer
    template <typename TimeUnits>
    class watchdog {
     public:

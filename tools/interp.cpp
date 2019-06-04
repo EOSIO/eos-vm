@@ -25,11 +25,6 @@ int main(int argc, char** argv) {
    watchdog<std::chrono::nanoseconds> wd;
    wd.set_duration(std::chrono::seconds(3));
    try {
-      if (!std::filesystem::is_regular_file( argv[1] )) {
-         std::cerr << "Error, " << argv[1] << " is not a file.\n";
-	 return -1;
-      }
-
       // Read the wasm into memory.
       auto code = backend_t::read_wasm( argv[1] );
 

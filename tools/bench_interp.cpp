@@ -18,11 +18,7 @@ int main(int argc, char** argv) {
       return -1;
    }
 
-   //   try {
-      if (!std::filesystem::is_regular_file( argv[1] )) {
-         std::cerr << "Error, " << argv[1] << " is not a file.\n";
-	 return -1;
-      }
+   try {
 
       auto code = backend_t::read_wasm( argv[1] );
 	
@@ -38,8 +34,8 @@ int main(int argc, char** argv) {
       auto t4 = std::chrono::high_resolution_clock::now();
       std::cout << "Execution " << std::chrono::duration_cast<std::chrono::nanoseconds>(t4-t3).count() << "\n";
 
-      //} catch ( ... ) {
-      //   std::cerr << "eos-vm interpreter error\n";
-      //}
+   } catch ( ... ) {
+      std::cerr << "eos-vm interpreter error\n";
+   }
    return 0;
 }
