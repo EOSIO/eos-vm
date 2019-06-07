@@ -25,9 +25,6 @@ All of the existing libraries incorporate a large code base designed and impleme
 
 With WebAssembly (Wasm) becoming ever more ubiquitous, there is a greater need for a succinct implementation of a Wasm backend.  We implemented __EOS VM__ because all existing backends we evaluated fell short in meeting our needs for a Wasm backend best suited for use in a public blockchain environment. 
 
-## Secure by Design
-WebAssembly was designed to run untrusted code in a browser environment where the worst that can happen is a hung browser. Existing libraries such as WABT, WAVM, and Binaryen were designed with assumptions which can lead to unbounded memory allocation, extremely long load times, and stack overflows from recursive descent parsing or execution.
-
 ## Deterministic Execution
 Given that all programs on the blockchain must be deterministic, floating point operations are of particular interest to us.  Because of the non-deterministic nature of rounding modes, NaNs and denormals, special care has to be made to ensure a deterministic environment on all supported platforms.  This comes in the form of "softfloat", a software implementation of IEEE-754 float point arithmetic, which is constrained further to ensure determinism.  If this determinism is not required, hardware based floating point operations are still available through a compile time define.
 
@@ -41,6 +38,8 @@ Two mechanisms are available to the user to bound the execution of Wasm:
   2) A watchdog timer solution that incurs no noticeable overhead during Wasm execution.
 
 ## Secure by Design
+WebAssembly was designed to run untrusted code in a browser environment where the worst that can happen is a hung browser. Existing libraries such as WABT, WAVM, and Binaryen were designed with assumptions which can lead to unbounded memory allocation, extremely long load times, and stack overflows from recursive descent parsing or execution.  
+
 The fundamental data types that make up __EOS VM__ are built with certain invariants from the onset.  This means that explicit checks and validations, which can be error-prone because of programmer forgetfulness, are not needed as the data types themselves maintain these invariants and kill the execution if violated.  
 
 In addition to these core data types, some of the special purpose allocators utilize the security of the CPU and core OS to satisfy that memory is properly sandboxed (a guard paging mechanism).  
