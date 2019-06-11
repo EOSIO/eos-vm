@@ -273,6 +273,7 @@
    struct name##_t {                                                                                                   \
       name##_t() {}                                                                                                    \
       name##_t(uint32_t data) : data(data) {}                                                                          \
+      name##_t(uint32_t d, uint32_t pc, uint16_t i, uint16_t oi) : data(d), pc(pc), index(i), op_index(oi) {}          \
       uint32_t data     = 0;                                                                                           \
       uint32_t pc       = 0;                                                                                           \
       uint16_t index    = 0;                                                                                           \

@@ -24,11 +24,14 @@ add_definitions(-DCATCH_CONFIG_NO_POSIX_SIGNALS)
 # ##############
 # define spec tests
 # ##############
-file(GLOB SPEC_TESTS "spec_tests/*.cpp" )
+#file(GLOB SPEC_TESTS "spec_tests/*.cpp" )
+file(GLOB SPEC_TESTS "spec/*.cpp" )
 add_executable( eos_vm_spec_tests main.cpp ${SPEC_TESTS} )
 target_link_libraries( eos_vm_spec_tests eos-vm Catch2::Catch2 )
 
+target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_SOURCE_DIR}/tests )
 target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_SOURCE_DIR}/include )
+target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_BINARY_DIR}/tests/spec )
 
 add_executable( spec_test_generator ${CMAKE_CURRENT_SOURCE_DIR}/spec_tests/spec_test_generator/spec_test_generator.cpp )
 

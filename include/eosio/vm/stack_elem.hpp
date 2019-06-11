@@ -8,7 +8,7 @@
 
 namespace eosio { namespace vm {
    using stack_elem = std::variant<activation_frame, i32_const_t, i64_const_t, f32_const_t, f64_const_t, block_t,
-                                   loop_t, if__t, else__t>;
+                                   loop_t, if__t, else__t, end_t>;
 
    template <typename T>
    inline constexpr bool is_a(const stack_elem& el) {

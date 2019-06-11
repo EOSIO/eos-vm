@@ -11,8 +11,6 @@
 #include <sstream>
 #include <variant>
 
-// TODO add a config header
-
 #include <eosio/vm/config.hpp>
 #include <eosio/vm/softfloat.hpp>
 
@@ -163,7 +161,6 @@ namespace eosio { namespace vm {
          const auto& ptr  = context.pop_operand();
          uint32_t*   _ptr = (uint32_t*)align_address((uint32_t*)(context.linear_memory() + op.offset + to_ui32(ptr)),
                                                    op.flags_align);
-         std::cout << "PTR " << _ptr << std::endl;
          context.push_operand(i32_const_t{ *_ptr });
       }
       [[gnu::always_inline]] inline void operator()(const i32_load8_s_t& op) {

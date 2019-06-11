@@ -90,6 +90,7 @@ namespace eosio { namespace vm {
          _last_op_index    = _os.size() - ftype.param_types.size();
          _as.push(activation_frame{ _pc + 1, _current_offset, _code_index, static_cast<uint16_t>(_last_op_index),
                                     ftype.return_type });
+         _cs.push(end_t{0, static_cast<uint32_t>(_current_offset + _mod.code[_code_index].code.size() - 1), 0, static_cast<uint16_t>(_last_op_index)});
       }
 
       inline void apply_pop_call() {
@@ -117,6 +118,8 @@ namespace eosio { namespace vm {
                _last_op_index = std::get<activation_frame>(_as.peek()).op_index;
             }
          }
+         if (_cs.size())
+            _cs.pop();
       }
       inline stack_elem  pop_label() { return _cs.pop(); }
       inline stack_elem  pop_operand() { return _os.pop(); }
@@ -271,7 +274,12 @@ namespace eosio { namespace vm {
          uint16_t op_index = 0;
          uint32_t ret      = 0;
          std::visit(
-               overloaded{ [&](const block_t& bt) {
+               overloaded{ 
+                          [&](const end_t& e) {
+                             _pc = e.pc;
+                             op_index = e.op_index;
+                          },
+                          [&](const block_t& bt) {
                              _pc      = _current_offset + bt.pc + 1;
                              ret      = bt.data;
                              op_index = bt.op_index;
@@ -355,7 +363,7 @@ namespace eosio { namespace vm {
       uint32_t                        _code_index       = 0;
       uint32_t                        _current_offset   = 0;
       uint16_t                        _last_op_index    = 0;
-      bool               _executing        = false;
+      bool                            _executing        = false;
       char*                           _linear_memory    = nullptr;
       module&                         _mod;
       wasm_allocator*                 _wasm_alloc;

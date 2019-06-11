@@ -1177,7 +1177,9 @@ inline std::ostream &operator<<(std::ostream &os, const picojson::value &x) {
 
 using namespace std;
 
-//string generate_tests( string name, 
+const string test_includes = "#include <algorithm>\n#include <vector>\n#include <iostream>\n#include <iterator>\n#include <cmath>\n#include <cstdlib>\n#include <catch2/catch.hpp>\n"
+                             "#include <utils.hpp>\n#include <wasm_config.hpp>\n#include <eosio/vm/backend.hpp>\n\nusing namespace eosio;\nusing namespace eosio::vm;\n"
+                             "extern wasm_allocator wa;\nusing backend_t = backend<std::nullptr_t>;\n\n";
 const string test_preamble_0 = "auto code = backend_t::read_wasm( ";
 const string test_preamble_1 = "backend_t bkend( code );\n   bkend.set_wasm_allocator( &wa );";
 
@@ -1262,6 +1264,7 @@ string generate_trap_call( picojson::object obj ) {
 void generate_tests( const map<string, vector<picojson::object>>& mappings ) {
    stringstream unit_tests;
    string exp_t, exp_v;
+   unit_tests << test_includes;
    auto grab_expected = [&]( auto obj ) {
       exp_t = obj["type"].to_str();
       exp_v = obj["value"].to_str(); 
@@ -1269,7 +1272,7 @@ void generate_tests( const map<string, vector<picojson::object>>& mappings ) {
 
    for ( const auto& [tsn, cmds] : mappings ) {
       unit_tests << "TEST_CASE( \"Testing wasm <" << tsn << ">\", \"[" << tsn << "_tests]\" ) {\n";
-      unit_tests << "   " << test_preamble_0 << tsn << " ) );\n";
+      unit_tests << "   " << test_preamble_0 << tsn << " );\n";
       unit_tests << "   " << test_preamble_1 << "\n\n";
 
       for ( picojson::object cmd : cmds ) {
