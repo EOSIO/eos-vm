@@ -25,9 +25,6 @@ All of the existing libraries incorporate a large code base designed and impleme
 
 With WebAssembly (Wasm) becoming ever more ubiquitous, there is a greater need for a succinct implementation of a Wasm backend.  We implemented __EOS VM__ because all existing backends we evaluated fell short in meeting our needs for a Wasm backend best suited for use in a public blockchain environment. 
 
-## Secure by Design
-WebAssembly was designed to run untrusted code in a browser environment where the worst that can happen is a hung browser. Existing libraries such as WABT, WAVM, and Binaryen were designed with assumptions which can lead to unbounded memory allocation, extremely long load times, and stack overflows from recursive descent parsing or execution.
-
 ## Deterministic Execution
 Given that all programs on the blockchain must be deterministic, floating point operations are of particular interest to us.  Because of the non-deterministic nature of rounding modes, NaNs and denormals, special care has to be made to ensure a deterministic environment on all supported platforms.  This comes in the form of "softfloat", a software implementation of IEEE-754 float point arithmetic, which is constrained further to ensure determinism.  If this determinism is not required, hardware based floating point operations are still available through a compile time define.
 
@@ -41,6 +38,8 @@ Two mechanisms are available to the user to bound the execution of Wasm:
   2) A watchdog timer solution that incurs no noticeable overhead during Wasm execution.
 
 ## Secure by Design
+WebAssembly was designed to run untrusted code in a browser environment where the worst that can happen is a hung browser. Existing libraries such as WABT, WAVM, and Binaryen were designed with assumptions which can lead to unbounded memory allocation, extremely long load times, and stack overflows from recursive descent parsing or execution.  
+
 The fundamental data types that make up __EOS VM__ are built with certain invariants from the onset.  This means that explicit checks and validations, which can be error-prone because of programmer forgetfulness, are not needed as the data types themselves maintain these invariants and kill the execution if violated.  
 
 In addition to these core data types, some of the special purpose allocators utilize the security of the CPU and core OS to satisfy that memory is properly sandboxed (a guard paging mechanism).  
@@ -58,7 +57,7 @@ Because of the utilization of native paging mechanisms, almost all memory operat
 
 Because of the high compaction and linear nature of the builtin allocators, this allows for a very cache friendly environment and further allows for high performance execution.
 
-Certain design decisions were made to maximize the performance of interpreter implementation.  As mentioned above, __EOS VM__ has custom allocators and memory management that fits the needs and use cases for different access patterns and allocation requirements.  These allocators are used to back the core data types (fast vector, Wasm stack, fast variant, Wasm module), and as such do not "own" the memory that they use for their operations.  These non-owning data structures allow for the ability to use the memory cleanly and not have to concern the data type with destructing when going out of scope, which can increase the performance for certain areas EOS VM without loss of generality for the developer.  Since the data is held by these allocators and have lifetimes that match that of a Wasm module, no copies of these heavyweight data types are ever needed.  Once an element in an EOS VM is constructed, that is its home and final resting place for the lifetime of the Wasm module.  
+Certain design decisions were made to maximize the performance of interpreter implementation.  As mentioned above, __EOS VM__ has custom allocators and memory management that fits the needs and use cases for different access patterns and allocation requirements.  These allocators are used to back the core data types (fast vector, Wasm stack, fast variant, Wasm module), and as such do not "own" the memory that they use for their operations.  These non-owning data structures allow for the ability to use the memory cleanly and not have to concern the data type with destructing when going out of scope, which can increase the performance for certain areas of EOS VM without loss of generality for the developer.  Since the data is held by these allocators and have lifetimes that match that of a Wasm module, no copies of these heavyweight data types are ever needed.  Once an element in an EOS VM is constructed, that is its home and final resting place for the lifetime of the Wasm module.  
 
 A fast `variant` or discriminating union type is the fundamental data type that represents a Wasm opcode or a Wasm stack element.  This allows for a clean interface to "visit" each Wasm opcode without any loss of performance.  This visiting is statically derivable and not dynamically dispatched like more classical approaches that use the object-oriented visitor pattern.  In addition to a `visit` function that acts similar to `std::visit`, a custom dispatcher is defined that allows for a similar interface but with __EOS VM__ specific optimizations and assumptions.
 
