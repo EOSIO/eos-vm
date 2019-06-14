@@ -1,11 +1,11 @@
 #pragma once
 
 #include <eosio/vm/constants.hpp>
+#include <eosio/vm/outcome.hpp>
 #include <eosio/vm/sections.hpp>
 #include <eosio/vm/types.hpp>
 #include <eosio/vm/utils.hpp>
 #include <eosio/vm/vector.hpp>
-#include <eosio/vm/outcome.hpp>
 
 #include <stack>
 #include <vector>
@@ -377,6 +377,8 @@ namespace eosio { namespace vm {
                case opcodes::i64_const: fb[op_index++] = i64_const_t{ parse_varint64(code) }; break;
                case opcodes::f32_const:
                   fb[op_index++] = f32_const_t{ *(float*)code.raw() };
+                  std::cerr << "F320 " << *(float*)code.raw() << "\n";
+                  std::cerr << "F32 " << std::get<f32_const_t>(fb[op_index - 1]).data.f << "\n";
                   code += 4;
                   break;
                case opcodes::f64_const:

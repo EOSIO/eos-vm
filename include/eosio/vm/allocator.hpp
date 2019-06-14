@@ -146,7 +146,7 @@ namespace eosio { namespace vm {
       }
       void reset() {
          uint64_t size = page_size * page;
-         _previous     = raw;
+         _previous     = raw + page_size;
          memset(raw, 0, size);
          page = 1;
          mprotect(raw, size, PROT_NONE);
@@ -156,6 +156,6 @@ namespace eosio { namespace vm {
       inline T* get_base_ptr() const {
          return reinterpret_cast<T*>(raw);
       }
-      inline int32_t get_current_page() const { return page; }
+      inline int32_t get_current_page() const { return (_previous - raw) / page_size; }
    };
 }} // namespace eosio::vm
