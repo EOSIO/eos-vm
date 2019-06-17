@@ -156,6 +156,6 @@ namespace eosio { namespace vm {
       inline T* get_base_ptr() const {
          return reinterpret_cast<T*>(raw);
       }
-      inline int32_t get_current_page() const { return (_previous - raw) / page_size; }
+      inline int32_t get_current_page() const { return page; }
    };
 }} // namespace eosio::vm

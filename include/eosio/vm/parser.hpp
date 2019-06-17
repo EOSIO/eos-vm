@@ -42,6 +42,7 @@ namespace eosio { namespace vm {
       }
 
       void parse_module(wasm_code_ptr& code_ptr, size_t sz, module& mod) {
+         _mod = &mod;
          EOS_WB_ASSERT(parse_magic(code_ptr) == constants::magic, wasm_parse_exception, "magic number did not match");
          EOS_WB_ASSERT(parse_version(code_ptr) == constants::version, wasm_parse_exception,
                        "version number did not match");
@@ -116,6 +117,11 @@ namespace eosio { namespace vm {
          tt.limits.initial = parse_varuint32(code);
          if (tt.limits.flags) {
             tt.limits.maximum = parse_varuint32(code);
+            tt.table          = decltype(tt.table){ _allocator, tt.limits.maximum };
+            for (int i = 0; i < tt.limits.maximum; i++) tt.table[i] = std::numeric_limits<uint32_t>::max();
+         } else {
+            tt.table = decltype(tt.table){ _allocator, tt.limits.initial };
+            for (int i = 0; i < tt.limits.initial; i++) tt.table[i] = std::numeric_limits<uint32_t>::max();
          }
       }
 
@@ -163,12 +169,22 @@ namespace eosio { namespace vm {
       }
 
       void parse_elem_segment(wasm_code_ptr& code, elem_segment& es) {
+         table_type* tt = nullptr;
+         for (int i = 0; i < _mod->tables.size(); i++) {
+            if (_mod->tables[i].element_type == types::anyfunc)
+               tt = &(_mod->tables[i]);
+         }
+         EOS_WB_ASSERT(tt != nullptr, wasm_parse_exception, "table not declared");
          es.index = parse_varuint32(code);
          EOS_WB_ASSERT(es.index == 0, wasm_parse_exception, "only table index of 0 is supported");
          parse_init_expr(code, es.offset);
          uint32_t           size  = parse_varuint32(code);
          decltype(es.elems) elems = { _allocator, size };
-         for (uint32_t i = 0; i < size; i++) elems.at(i) = parse_varuint32(code);
+         for (uint32_t i = 0; i < size; i++) {
+            uint32_t index                     = parse_varuint32(code);
+            tt->table[es.offset.value.i32 + i] = index;
+            elems.at(i)                        = index;
+         }
          es.elems = std::move(elems);
       }
 
@@ -377,8 +393,6 @@ namespace eosio { namespace vm {
                case opcodes::i64_const: fb[op_index++] = i64_const_t{ parse_varint64(code) }; break;
                case opcodes::f32_const:
                   fb[op_index++] = f32_const_t{ *(float*)code.raw() };
-                  std::cerr << "F320 " << *(float*)code.raw() << "\n";
-                  std::cerr << "F32 " << std::get<f32_const_t>(fb[op_index - 1]).data.f << "\n";
                   code += 4;
                   break;
                case opcodes::f64_const:
@@ -621,5 +635,6 @@ namespace eosio { namespace vm {
 
     private:
       growable_allocator& _allocator;
+      module*             _mod; // non-owning weak pointer
    };
 }} // namespace eosio::vm

@@ -346,7 +346,6 @@ namespace eosio { namespace vm {
       [[gnu::always_inline]] inline void operator()(const f32_const_t& op) {
          context.inc_pc();
          context.push_operand(op);
-         std::cerr << "F32 op " << op.data.f << " " << op.data.ui << "\n";
       }
       [[gnu::always_inline]] inline void operator()(const f64_const_t& op) {
          context.inc_pc();
