@@ -24,6 +24,7 @@ namespace eosio { namespace vm {
       }
 
       inline int32_t grow_linear_memory(int32_t pages) {
+	 EOS_WB_ASSERT(!(_mod.memories[0].limits.flags && (_mod.memories[0].limits.maximum < pages)), wasm_interpreter_exception, "memory limit reached");
          const int32_t sz = _wasm_alloc->get_current_page();
          _wasm_alloc->alloc<char>(pages);
          return sz;
@@ -230,17 +231,18 @@ namespace eosio { namespace vm {
                        "cannot execute function, function not found");
          _host          = host;
          _linear_memory = _wasm_alloc->get_base_ptr<char>();
+	 grow_linear_memory(_mod.memories[0].limits.initial);
          for (int i = 0; i < _mod.data.size(); i++) {
             const auto& data_seg = _mod.data[i];
             // TODO validate only use memory idx 0 in parse
             auto addr = _linear_memory + data_seg.offset.value.i32;
-            if (data_seg.offset.value.i32 + data_seg.data.size() >=
-                _wasm_alloc->get_current_page() * constants::page_size) {
-               uint32_t pages_needed = (((data_seg.offset.value.i32 + data_seg.data.size()) - constants::page_size) /
-                                        constants::page_size) +
-                                       1;
-               grow_linear_memory(pages_needed);
-            }
+            //if (data_seg.offset.value.i32 + data_seg.data.size() >=
+            //    _wasm_alloc->get_current_page() * constants::page_size) {
+            //   uint32_t pages_needed = (((data_seg.offset.value.i32 + data_seg.data.size()) - constants::page_size) /
+            //                            constants::page_size) +
+            //                           1;
+            //   grow_linear_memory(pages_needed);
+            //}
             memcpy((char*)(addr), data_seg.data.raw(), data_seg.data.size());
          }
          _current_function = func_index;

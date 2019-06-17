@@ -21,12 +21,10 @@ struct type_converter64 {
       double   f;
    } _data;
    type_converter64(uint64_t n) {
-      std::cout << "F2 " << n << "\n";
       _data.ui = n;
    }
    uint64_t to_ui() const { return _data.ui; }
    double   to_f() const {
-      std::cout << "F " << _data.f << "\n";
       return _data.f;
    }
 };
