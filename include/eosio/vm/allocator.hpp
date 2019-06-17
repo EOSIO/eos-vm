@@ -146,7 +146,7 @@ namespace eosio { namespace vm {
       }
       void reset() {
          uint64_t size = page_size * page;
-         _previous     = raw;
+         _previous     = raw + page_size;
          memset(raw, 0, size);
          page = 1;
          mprotect(raw, size, PROT_NONE);

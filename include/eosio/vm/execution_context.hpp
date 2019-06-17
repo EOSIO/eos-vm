@@ -24,6 +24,7 @@ namespace eosio { namespace vm {
       }
 
       inline int32_t grow_linear_memory(int32_t pages) {
+	 EOS_WB_ASSERT(!(_mod.memories[0].limits.flags && (_mod.memories[0].limits.maximum < pages)), wasm_interpreter_exception, "memory limit reached");
          const int32_t sz = _wasm_alloc->get_current_page();
          _wasm_alloc->alloc<char>(pages);
          return sz;
@@ -74,22 +75,24 @@ namespace eosio { namespace vm {
       inline void           set_wasm_allocator(wasm_allocator* alloc) { _wasm_alloc = alloc; }
       inline auto           get_wasm_allocator() { return _wasm_alloc; }
       inline char*          linear_memory() { return _linear_memory; }
-      inline uint32_t   table_elem(uint32_t i) { return _mod.elements[0].elems[i - _mod.elements[0].offset.value.i64]; }
-      inline void       push_label(const stack_elem& el) { _cs.push(el); }
-      inline uint16_t   current_label_index() const { return _cs.current_index(); }
-      inline void       eat_labels(uint16_t index) { _cs.eat(index); }
-      inline void       push_operand(const stack_elem& el) { _os.push(el); }
-      inline stack_elem get_operand(uint16_t index) const { return _os.get(_last_op_index + index); }
-      inline void       eat_operands(uint16_t index) { _os.eat(index); }
-      inline void       set_operand(uint16_t index, const stack_elem& el) { _os.set(_last_op_index + index, el); }
-      inline uint16_t   current_operands_index() const { return _os.current_index(); }
-      inline void       push_call(const stack_elem& el) { _as.push(el); }
-      inline stack_elem pop_call() { return _as.pop(); }
-      inline void       push_call(uint32_t index) {
+      inline uint32_t       table_elem(uint32_t i) { return _mod.tables[0].table[i]; }
+      inline void           push_label(const stack_elem& el) { _cs.push(el); }
+      inline uint16_t       current_label_index() const { return _cs.current_index(); }
+      inline void           eat_labels(uint16_t index) { _cs.eat(index); }
+      inline void           push_operand(const stack_elem& el) { _os.push(el); }
+      inline stack_elem     get_operand(uint16_t index) const { return _os.get(_last_op_index + index); }
+      inline void           eat_operands(uint16_t index) { _os.eat(index); }
+      inline void           set_operand(uint16_t index, const stack_elem& el) { _os.set(_last_op_index + index, el); }
+      inline uint16_t       current_operands_index() const { return _os.current_index(); }
+      inline void           push_call(const stack_elem& el) { _as.push(el); }
+      inline stack_elem     pop_call() { return _as.pop(); }
+      inline void           push_call(uint32_t index) {
          const auto& ftype = _mod.get_function_type(index);
          _last_op_index    = _os.size() - ftype.param_types.size();
          _as.push(activation_frame{ _pc + 1, _current_offset, _code_index, static_cast<uint16_t>(_last_op_index),
                                     ftype.return_type });
+         _cs.push(end_t{ 0, static_cast<uint32_t>(_current_offset + _mod.code[_code_index].code.size() - 1), 0,
+                         static_cast<uint16_t>(_last_op_index) });
       }
 
       inline void apply_pop_call() {
@@ -117,6 +120,8 @@ namespace eosio { namespace vm {
                _last_op_index = std::get<activation_frame>(_as.peek()).op_index;
             }
          }
+         if (_cs.size())
+            _cs.pop();
       }
       inline stack_elem  pop_label() { return _cs.pop(); }
       inline stack_elem  pop_operand() { return _os.pop(); }
@@ -202,7 +207,7 @@ namespace eosio { namespace vm {
       inline void     exit(std::error_code err = std::error_code()) {
          std::cout << "Exiting...\n";
          _error_code = err;
-         _executing = false;
+         _executing  = false;
       }
       inline std::error_code get_error_code() const { return _error_code; }
       inline bool            executing() const { return _executing; }
@@ -226,17 +231,11 @@ namespace eosio { namespace vm {
                        "cannot execute function, function not found");
          _host          = host;
          _linear_memory = _wasm_alloc->get_base_ptr<char>();
+	 grow_linear_memory(_mod.memories[0].limits.initial);
          for (int i = 0; i < _mod.data.size(); i++) {
             const auto& data_seg = _mod.data[i];
             // TODO validate only use memory idx 0 in parse
             auto addr = _linear_memory + data_seg.offset.value.i32;
-            if (data_seg.offset.value.i32 + data_seg.data.size() >=
-                _wasm_alloc->get_current_page() * constants::page_size) {
-               uint32_t pages_needed = (((data_seg.offset.value.i32 + data_seg.data.size()) - constants::page_size) /
-                                        constants::page_size) +
-                                       1;
-               grow_linear_memory(pages_needed);
-            }
             memcpy((char*)(addr), data_seg.data.raw(), data_seg.data.size());
          }
          _current_function = func_index;
@@ -271,11 +270,15 @@ namespace eosio { namespace vm {
          uint16_t op_index = 0;
          uint32_t ret      = 0;
          std::visit(
-               overloaded{ [&](const block_t& bt) {
-                             _pc      = _current_offset + bt.pc + 1;
-                             ret      = bt.data;
-                             op_index = bt.op_index;
+               overloaded{ [&](const end_t& e) {
+                             _pc      = e.pc;
+                             op_index = e.op_index;
                           },
+                           [&](const block_t& bt) {
+                              _pc      = _current_offset + bt.pc + 1;
+                              ret      = bt.data;
+                              op_index = bt.op_index;
+                           },
                            [&](const loop_t& lt) {
                               _pc      = _current_offset + lt.pc + 1;
                               ret      = lt.data;
@@ -355,7 +358,7 @@ namespace eosio { namespace vm {
       uint32_t                        _code_index       = 0;
       uint32_t                        _current_offset   = 0;
       uint16_t                        _last_op_index    = 0;
-      bool               _executing        = false;
+      bool                            _executing        = false;
       char*                           _linear_memory    = nullptr;
       module&                         _mod;
       wasm_allocator*                 _wasm_alloc;
