@@ -2,7 +2,6 @@
 #include <eosio/vm/error_codes.hpp>
 #include <eosio/vm/watchdog.hpp>
 
-#include <filesystem>
 #include <iostream>
 
 using namespace eosio;
