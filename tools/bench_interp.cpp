@@ -3,7 +3,6 @@
 #include <eosio/vm/watchdog.hpp>
 
 #include <chrono>
-#include <filesystem>
 #include <iostream>
 
 using namespace eosio;
