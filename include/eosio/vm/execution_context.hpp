@@ -236,13 +236,6 @@ namespace eosio { namespace vm {
             const auto& data_seg = _mod.data[i];
             // TODO validate only use memory idx 0 in parse
             auto addr = _linear_memory + data_seg.offset.value.i32;
-            //if (data_seg.offset.value.i32 + data_seg.data.size() >=
-            //    _wasm_alloc->get_current_page() * constants::page_size) {
-            //   uint32_t pages_needed = (((data_seg.offset.value.i32 + data_seg.data.size()) - constants::page_size) /
-            //                            constants::page_size) +
-            //                           1;
-            //   grow_linear_memory(pages_needed);
-            //}
             memcpy((char*)(addr), data_seg.data.raw(), data_seg.data.size());
          }
          _current_function = func_index;
