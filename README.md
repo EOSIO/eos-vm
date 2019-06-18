@@ -1,7 +1,7 @@
 # EOS VM - A Low-Latency, High Performance and Extensible WebAssembly Engine
 
 ## ** Developer Preview **
-*Not yet licensed as OSS and not ready for PRs.*
+*Not yet licensed as OSS.*
 
 - Extremely Fast Execution (6x faster than WABT)
 - Extremely Fast Parsing/Loading (20x faster than WABT)
@@ -79,6 +79,11 @@ Given the __EOS-VM__ variant type and visitor system, new backends with custom l
 Since the design of __EOS-VM__ is component based, with each component being very self-contained, new backends or tools for Wasm can be crafted from previously defined components while only needing to define the logic for the extended functionality that is needed, with very little, to no, boilerplate needed.
 
 Extensions to Wasm itself can be made by simply defining the new section (aka C++ class field) for the module and the function needed to parse an element of that section.  This will allow for tooling to be constructed at a rapid pace for custom Wasms for a multitude of needs (debugging, profiling, etc.).
+
+## Building With EOS-VM
+As this is a header only library (with the exception of softfloat, which will be remedied before the proper release of __EOS-VM__), you don't have to build __EOS-VM__ to use it.  There are two simple "example" interpreters to show how to use the library to create a tool, and some unit tests and spec tests that can built if needed.
+### Integrating With Your CMake Project
+
 
 ## Contributing
 

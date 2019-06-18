@@ -3,11 +3,11 @@
 # build eos-vm or integrate with another system with CMake.
 # ##################################################################################################
 cmake_minimum_required(VERSION 3.8)
-project(eos-vm)
 set(VERSION_MAJOR 1)
 set(VERSION_MINOR 0)
 set(VERSION_PATCH 0)
 set(VERSION_SUFFIX rc1)
+project(eos-vm VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 
 if (VERSION_SUFFIX)
    set(VERSION_FULL "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-${VERSION_SUFFIX}")
@@ -30,9 +30,11 @@ link_libraries(Threads::Threads)
 # ##################################################################################################
 include(CMakeDependentOption)
 option(ENABLE_SOFTFLOAT "enable the backend to use deterministic software floating point operations"
-       ON)
+	OFF)
+option(ENABLE_INSTALL "enable this library to be installed" ON)
 option(ENABLE_MEMORY_OPS_ALIGNMENT "enable the backend to obey alignment hints" OFF)
-option(ENABLE_TESTS "enable building of unit tests, spec tests." ON)
+option(ENABLE_TOOLS "enable building of tools" ON)
+option(ENABLE_TESTS "enable building of unit tests, spec tests" OFF)
 cmake_dependent_option(ENABLE_FUZZ_TESTS "enable fuzz testing" OFF "ENABLE_TESTS" ON)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/modules")
@@ -61,7 +63,6 @@ endif()
 if(NOT USE_EXISTING_BOOST)
    add_definitions(-DEOS_VM_USE_EXTERNAL_OUTCOME)
    add_subdirectory(external/outcome)
-   # else()
 endif()
 
 if(ENABLE_MEMORY_OPS_ALIGNMENT)
@@ -71,7 +72,9 @@ endif()
 # ##################################################################################################
 # Build eos-vm tools.
 # ##################################################################################################
+if(ENABLE_TOOLS)
 add_subdirectory(tools)
+endif()
 
 # ##################################################################################################
 # Build eos-vm tests.
@@ -85,3 +88,23 @@ if(ENABLE_TESTS)
    include(external/Catch2/contrib/Catch.cmake)
    add_subdirectory(tests)
 endif()
+
+# ##################################################################################################
+# Installation.
+# ##################################################################################################
+if(ENABLE_INSTALL)
+   include(GNUInstallDirs)
+   message(STATUS "Installing...")
+   install(TARGETS eos-vm
+            LIBRARY
+               DESTINATION ${CMAKE_INSTALL_LIBDIR}
+               COMPONENT Libraries
+               NAMELINK_COMPONENT EOS-VM_Dev
+            PUBLIC_HEADER
+               DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+               COMPONENT Headers)
+
+   install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/eosio
+      DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+endif()
+
