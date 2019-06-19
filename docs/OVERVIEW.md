@@ -20,9 +20,11 @@ is all that is required to integrate into your project.  A list of CMake options
  1) Start by creating a type alias of `eosio::vm::backend` with the host function class type.
  2) Next you can create a `watchdog` timer with a specific duration type, and setting the duration to the time interval you need.  
  3) You can set the callback for this timer to quickly exit the running WASM context (in a future release this will be more tightly integrated).  
- 4) Finally, you can execute a specific export via the `()` operator of `eosio::vm::backend`, this takes the host function instance reference, the module name, the export name and typesafe export arguments. (see **/tools/interp.cpp** and **/tools/hello_driver.cpp** for more details)
+ 4) You should now read the wasm, the `eosio::vm::backend` class has a method to read from a file or you can use a `std::vector<uint8_t>` that already contains the WASM.  This gets passed to the constructor of `eosio::vm::backend`.
+ 5) You should register and resolve any host functions, please the **Adding Host Functions** section.
+ 5) Finally, you can execute a specific export via the `()` operator of `eosio::vm::backend`, this takes the host function instance reference, the module name, the export name and typesafe export arguments. (see **/tools/interp.cpp** and **/tools/hello_driver.cpp** for more details)
 
-### Adding Host Function
+### Adding Host Functions
 Without any host functions, your WASM execution is going to be very limited (you will not be able to observe side effects or get intermediate values).  
 
 There are three options currently for creating "host functions":
