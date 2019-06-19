@@ -1,4 +1,7 @@
 ## Building EOS-VM
+To build __EOS-VM__ you will need a fully C++17 compliant toolchain, since **CMake** is not perfect some toolchains will appear to **CMake** as 17 compliant but are not, we will do
+our best to special case these as they arise.
+
 Since __EOS-VM__ is designed to be a header only library (with the exception of softfloat, until the new header only softfloat library is finished), building __EOS-VM__ is not necessary
 to use __EOS-VM__ in a C++ project. But, if you would like to use the softfloat capabilities, build the example tools or the tests, then all that is needed is to create a build directory
 and execute the command `cmake ..` and then `make` after this all tools and tests will be built.
