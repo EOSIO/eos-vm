@@ -99,7 +99,6 @@ if(ENABLE_INSTALL)
             LIBRARY
                DESTINATION ${CMAKE_INSTALL_LIBDIR}
                COMPONENT Libraries
-               NAMELINK_COMPONENT EOS-VM_Dev
             PUBLIC_HEADER
                DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
                COMPONENT Headers)
