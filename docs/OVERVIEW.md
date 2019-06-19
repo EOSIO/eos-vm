@@ -12,12 +12,15 @@ it should assert, this tool is an example of how to setup a fully integrated sol
 Both of these are designed to be modified by the end-user and are simply there to show how to easily integrate __EOS-VM__ into your own project.
 
 ## Integrating Into Existing CMake Project
-By adding __EOS-VM__ as a submodule to your project and adding the subdirectory that contains __EOS-VM__ and adding `eos-vm` to the list of link libraries of your executables/libraries
-is all that is required to integrate into your project.  A list of CMake options that can be passed into via command line or with CMake `set` can be found in **CMakeLists.txt** and
+By adding __EOS-VM__ as a submodule to your project and adding the subdirectory that contains __EOS-VM__ and adding **eos-vm** to the list of link libraries of your executables/libraries
+is all that is required to integrate into your project.  A list of CMake options that can be passed into via command line or with CMake **set** can be found in **CMakeLists.txt** and
 **modules/EosVMBuildUtils.cmake** or by running `ccmake ..` instead of `cmake ..`.
 
-Start by creating a type alias of `eosio::vm::backend` with the host function class type.
-Next you can create a `watchdog` timer with a specific duration type, and setting the duration to the time interval you need.  You can set the callback for this timer to quickly exit the running WASM context (in a future release this will be more tightly integrated).  Finally, you can execute a specific export via the `()` operator of `eosio::vm::backend`, this takes the host function instance reference, the module name, the export name and typesafe export arguments. (see **/tools/interp.cpp** and **/tools/hello_driver.cpp** for more details)
+### Getting Started
+ 1) Start by creating a type alias of `eosio::vm::backend` with the host function class type.
+ 2) Next you can create a `watchdog` timer with a specific duration type, and setting the duration to the time interval you need.  
+ 3) You can set the callback for this timer to quickly exit the running WASM context (in a future release this will be more tightly integrated).  
+ 4) Finally, you can execute a specific export via the `()` operator of `eosio::vm::backend`, this takes the host function instance reference, the module name, the export name and typesafe export arguments. (see **/tools/interp.cpp** and **/tools/hello_driver.cpp** for more details)
 
 ### Adding Host Function
 Without any host functions, your WASM execution is going to be very limited (you will not be able to observe side effects or get intermediate values).  
