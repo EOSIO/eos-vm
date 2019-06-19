@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
    }
    // Thread specific `allocator` used for wasm linear memory.
    wasm_allocator wa;
-   // Specific the backend with no "host" for host functions.
+   // Specific the backend with example_host_methods for host functions.
    using backend_t = eosio::vm::backend<example_host_methods>;
    using rhf_t     = eosio::vm::registered_host_functions<example_host_methods>;
 
