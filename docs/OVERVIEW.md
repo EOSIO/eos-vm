@@ -4,9 +4,10 @@ to use __EOS-VM__ in a C++ project. But, if you would like to use the softfloat 
 and execute the command `cmake ..` and then `make` after this all tools and tests will be built.
 
 ## Using The Example Tools
-Once you have built __EOS-VM__ you will notice 2 tools in the directory **build/tools**, you can run your test WASMs by executing the command `eos-vm-interp <path>/<wasm name>.wasm` this
+Once you have built __EOS-VM__ you will notice 3 tools in the directory **build/tools**, you can run your test WASMs by executing the command `eos-vm-interp <path>/<wasm name>.wasm` this
 will then run all exported functions within that WASM.  You can also run `bench-interp <path>/<wasm name>.wasm` and get two times in nanoseconds; the time to parse and instaniate your WASM
-and the time to execute your WASM.
+and the time to execute your WASM.  The last tool is `hello-driver`, this has a prebaked in helloworld WASM and uses user input to bound the number of loops the printing occurs and whether
+it should assert, this tool is an example of how to setup a fully integrated solution with host functions.
 
 Both of these are designed to be modified by the end-user and are simply there to show how to easily integrate __EOS-VM__ into your own project.
 
