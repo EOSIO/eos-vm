@@ -120,8 +120,9 @@ namespace eosio { namespace vm {
                _last_op_index = std::get<activation_frame>(_as.peek()).op_index;
             }
          }
-         if (_cs.size())
-            _cs.pop();
+         while (_cs.size())
+            if (std::holds_alternative<end_t>(_cs.pop()))
+               break;
       }
       inline stack_elem  pop_label() { return _cs.pop(); }
       inline stack_elem  pop_operand() { return _os.pop(); }
