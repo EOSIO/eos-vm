@@ -17,8 +17,35 @@ endif()
 
 message(STATUS "Building eos-vm v${VERSION_FULL}...")
 
+# ##################################################################################################
+# Check if compiler and compiler version are supported (Currently only tested with Clang).
+# ##################################################################################################
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+   if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "8.0.0")
+      message(FATAL_ERROR "Insufficient Clang version")
+   endif()
+else()
+   message(FATAL_ERROR "Insufficient compiler; use Clang")
+ endif()
+
+# ##################################################################################################
+# Check if the right implementation of C++ is installed (Currently only tested with libc++).
+# ##################################################################################################
+execute_process(
+   COMMAND printf "#include <__config>\nint main () {}"
+   COMMAND ${CMAKE_CXX_COMPILER} -E -stdlib=libc++ -x c++ -dM -
+   COMMAND grep _LIBCPP_VERSION
+   COMMAND awk "{print $(NF)}"
+   OUTPUT_VARIABLE CXX_IMPLEMENTATION
+   ERROR_QUIET
+   OUTPUT_STRIP_TRAILING_WHITESPACE)
+if(CXX_IMPLEMENTATION LESS 8000)
+   message(FATAL_ERROR "Insufficient C++ implementation; use `_LIBCPP_VERSION` >= 8000")
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS ON)
+set(CMAKE_CXX_FLAGS "-stdlib=libc++")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
