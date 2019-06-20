@@ -227,7 +227,7 @@ namespace eosio { namespace vm {
 
       inline void initialize() {
          _linear_memory = _wasm_alloc->get_base_ptr<char>();
-	      grow_linear_memory(_mod.memories[0].limits.initial);
+         grow_linear_memory(_mod.memories[0].limits.initial);
          for (int i = 0; i < _mod.data.size(); i++) {
             const auto& data_seg = _mod.data[i];
             // TODO validate only use memory idx 0 in parse
