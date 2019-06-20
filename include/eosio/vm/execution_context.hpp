@@ -225,42 +225,64 @@ namespace eosio { namespace vm {
          return execute(host, std::forward<Visitor>(visitor), func_index, std::forward<Args>(args)...);
       }
 
-      template <typename Visitor, typename... Args>
-      inline std::optional<stack_elem> execute(Host* host, Visitor&& visitor, uint32_t func_index, Args... args) {
-         EOS_WB_ASSERT(func_index < std::numeric_limits<uint32_t>::max(), wasm_interpreter_exception,
-                       "cannot execute function, function not found");
-         _host          = host;
+      inline void initialize() {
          _linear_memory = _wasm_alloc->get_base_ptr<char>();
-	 grow_linear_memory(_mod.memories[0].limits.initial);
+	      grow_linear_memory(_mod.memories[0].limits.initial);
          for (int i = 0; i < _mod.data.size(); i++) {
             const auto& data_seg = _mod.data[i];
             // TODO validate only use memory idx 0 in parse
             auto addr = _linear_memory + data_seg.offset.value.i32;
             memcpy((char*)(addr), data_seg.data.raw(), data_seg.data.size());
          }
-         _current_function = func_index;
-         _code_index       = func_index - _mod.import_functions.size();
-         _current_offset   = _mod.function_sizes[_current_function];
-         _exit_pc          = _current_offset + _mod.code[_code_index].code.size() - 1;
-         _pc               = _exit_pc - 1; // set to exit for return
-
-         _executing = true;
+         _executing   = false;
+         _initialized = true;
          _os.eat(0);
          _as.eat(0);
          _cs.eat(0);
+      }
+
+      template <typename Visitor, typename... Args>
+      inline std::optional<stack_elem> execute(Host* host, Visitor&& visitor, uint32_t func_index, Args... args) {
+         EOS_WB_ASSERT(func_index < std::numeric_limits<uint32_t>::max(), wasm_interpreter_exception,
+                       "cannot execute function, function not found");
+         if (!_initialized)
+            initialize();
+
+         auto saved_host             = _host;
+         auto saved_current_function = _current_function;
+         auto saved_code_index       = _code_index;
+         auto saved_current_offset   = _current_offset;
+         auto saved_pc               = _pc;
+         auto saved_executing        = _executing;
+         _pc                         = _exit_pc - 1; // set to exit for return
 
          push_args(args...);
          push_call(func_index);
          // type_check(_mod.types[_mod.functions[func_index - _mod.import_functions.size()]]);
          setup_locals(func_index);
-         _pc = _current_offset; // set to actual start of function
+
+         _host             = host;
+         _current_function = func_index;
+         _code_index       = func_index - _mod.import_functions.size();
+         _current_offset   = _mod.function_sizes[_current_function];
+         _pc               = _current_offset; // set to actual start of function
+         _executing        = true;
 
          execute(visitor);
          stack_elem ret;
-         try {
-            ret = pop_operand();
-         } catch (...) { return {}; }
-         _os.eat(0);
+         if (_mod.types[_mod.functions[func_index - _mod.import_functions.size()]].return_count) {
+            try {
+               ret = pop_operand();
+            } catch (...) { return {}; }
+         }
+
+         _host             = saved_host;
+         _current_function = saved_current_function;
+         _code_index       = saved_code_index;
+         _current_offset   = saved_current_offset;
+         _pc               = saved_pc;
+         _executing        = saved_executing;
+
          return ret;
       }
 
@@ -342,8 +364,9 @@ namespace eosio { namespace vm {
       void execute(Visitor&& visitor) {
          do {
             uint32_t offset = _pc - _current_offset;
-            if (_pc == _exit_pc && _as.size() <= 1) {
+            if (_pc == _exit_pc) {
                _executing = false;
+               break;
             }
             std::visit(visitor, _mod.code.at_no_check(_code_index).code.at_no_check(offset));
          } while (_executing);
@@ -353,12 +376,13 @@ namespace eosio { namespace vm {
          (constants::max_stack_size + constants::max_call_depth + constants::max_nested_structures) * sizeof(stack_elem)
       };
       uint32_t                        _pc               = 0;
-      uint32_t                        _exit_pc          = 0;
+      static constexpr uint32_t       _exit_pc          = -1;
       uint32_t                        _current_function = 0;
       uint32_t                        _code_index       = 0;
       uint32_t                        _current_offset   = 0;
       uint16_t                        _last_op_index    = 0;
       bool                            _executing        = false;
+      bool                            _initialized      = false;
       char*                           _linear_memory    = nullptr;
       module&                         _mod;
       wasm_allocator*                 _wasm_alloc;
