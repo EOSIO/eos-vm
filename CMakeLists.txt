@@ -26,7 +26,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
    endif()
 else()
    message(FATAL_ERROR "Insufficient compiler; use Clang")
- endif()
+endif()
 
 # ##################################################################################################
 # Check if the right implementation of C++ is installed (Currently only tested with libc++).
