@@ -70,6 +70,24 @@ namespace eosio { namespace vm {
          std::cout << " }\n";
       }
 
+      void print_cs_stack() {
+         std::cout << "CS { ";
+         for (int i = 0; i < _cs.size(); i++) {
+            std::cout << "(" << i << ")";
+            if (std::holds_alternative<block_t>(_cs.get(i)))
+               std::cout << "block, ";
+            else if (std::holds_alternative<loop_t>(_cs.get(i)))
+               std::cout << "loop, ";
+            else if (std::holds_alternative<if__t>(_cs.get(i)))
+               std::cout << "if, ";
+            else if (std::holds_alternative<end_t>(_cs.get(i)))
+               std::cout << "end, ";
+            else
+               std::cout << "(INDEX " << _cs.get(i).index() << "), ";
+         }
+         std::cout << " }\n";
+      }
+
       inline operand_stack& get_operand_stack() { return _os; }
       inline module&        get_module() { return _mod; }
       inline void           set_wasm_allocator(wasm_allocator* alloc) { _wasm_alloc = alloc; }
