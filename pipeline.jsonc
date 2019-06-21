@@ -1,6 +1,9 @@
 {
     "eos-vm":
     {
-        
+        "environment":
+        {
+            "DEBUG": "true"
+        }
     }
 }
