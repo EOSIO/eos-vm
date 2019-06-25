@@ -258,9 +258,8 @@ namespace eosio { namespace vm {
 
          execute(visitor);
          stack_elem ret;
-         try {
+         if (_mod.types[_mod.functions[func_index - _mod.import_functions.size()]].return_count)
             ret = pop_operand();
-         } catch (...) { return {}; }
          _os.eat(0);
          return ret;
       }
