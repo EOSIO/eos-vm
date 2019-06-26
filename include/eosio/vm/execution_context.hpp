@@ -132,10 +132,10 @@ namespace eosio { namespace vm {
          const auto& gl = _mod.globals[index];
          // computed g
          switch (gl.type.content_type) {
-            case types::i32: return i32_const_t{ *(uint32_t*)&gl.init.value.i32 };
-            case types::i64: return i64_const_t{ *(uint64_t*)&gl.init.value.i64 };
-            case types::f32: return f32_const_t{ gl.init.value.f32 };
-            case types::f64: return f64_const_t{ gl.init.value.f64 };
+            case types::i32: return i32_const_t{ *(uint32_t*)&gl.current.value.i32 };
+            case types::i64: return i64_const_t{ *(uint64_t*)&gl.current.value.i64 };
+            case types::f32: return f32_const_t{ gl.current.value.f32 };
+            case types::f64: return f64_const_t{ gl.current.value.f64 };
             default: throw wasm_interpreter_exception{ "invalid global type" };
          }
       }
@@ -146,22 +146,22 @@ namespace eosio { namespace vm {
          std::visit(overloaded{ [&](const i32_const_t& i) {
                                   EOS_WB_ASSERT(gl.type.content_type == types::i32, wasm_interpreter_exception,
                                                 "expected i32 global type");
-                                  gl.init.value.i32 = i.data.ui;
+                                  gl.current.value.i32 = i.data.ui;
                                },
                                 [&](const i64_const_t& i) {
                                    EOS_WB_ASSERT(gl.type.content_type == types::i64, wasm_interpreter_exception,
                                                  "expected i64 global type");
-                                   gl.init.value.i64 = i.data.ui;
+                                   gl.current.value.i64 = i.data.ui;
                                 },
                                 [&](const f32_const_t& f) {
                                    EOS_WB_ASSERT(gl.type.content_type == types::f32, wasm_interpreter_exception,
                                                  "expected f32 global type");
-                                   gl.init.value.f32 = f.data.ui;
+                                   gl.current.value.f32 = f.data.ui;
                                 },
                                 [&](const f64_const_t& f) {
                                    EOS_WB_ASSERT(gl.type.content_type == types::f64, wasm_interpreter_exception,
                                                  "expected f64 global type");
-                                   gl.init.value.f64 = f.data.ui;
+                                   gl.current.value.f64 = f.data.ui;
                                 },
                                 [](auto) { throw wasm_interpreter_exception{ "invalid global type" }; } },
                     el);
@@ -239,6 +239,8 @@ namespace eosio { namespace vm {
             auto addr = _linear_memory + data_seg.offset.value.i32;
             memcpy((char*)(addr), data_seg.data.raw(), data_seg.data.size());
          }
+         for (size_t i = 0; i < _mod.globals.size(); ++i)
+            _mod.globals[i].current = _mod.globals[i].init;
          _current_function = func_index;
          _code_index       = func_index - _mod.import_functions.size();
          _current_offset   = _mod.function_sizes[_current_function];
