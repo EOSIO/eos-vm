@@ -14,7 +14,7 @@ namespace eosio { namespace vm {
       else if constexpr (N == 32)
          return 5;
       else
-         return 9;
+         return 10;
    }
 
    template <size_t N>
@@ -174,7 +174,7 @@ namespace eosio { namespace vm {
                ret <<= 7;
                ret |= storage[i] & 0x7f;
             }
-            if (bytes_used >= 1) {
+            if (bytes_used >= 1 && bytes_used < bytes_needed<N>()) {
                size_t shift = ((bytes_used) * 7);
                if (storage[bytes_used-1] & 0x40)
                   ret |= (-1ull) << shift;
