@@ -69,10 +69,9 @@ namespace eosio { namespace vm {
          }
       }
 
-      template <typename Watchdog = nullptr_t>
-      inline void execute_all(Watchdog* wd = nullptr, Host* host = nullptr) {
-         if constexpr (!std::is_same_v<Watchdog, nullptr_t>)
-            wd->run();
+      template <typename Watchdog>
+      inline void execute_all(Watchdog&& wd, Host* host = nullptr) {
+         auto wd_guard = wd();
          for (int i = 0; i < _mod.exports.size(); i++) {
             if (_mod.exports[i].kind == external_kind::Function) {
                std::string s{ (const char*)_mod.exports[i].field_str.raw(), _mod.exports[i].field_str.size() };
