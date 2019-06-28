@@ -25,7 +25,7 @@ namespace eosio { namespace vm {
 
       inline int32_t grow_linear_memory(int32_t pages) {
          const int32_t sz = _wasm_alloc->get_current_page();
-         if (pages < 0 || (_mod.memories[0].limits.flags && (_mod.memories[0].limits.maximum < sz + pages)))
+         if (pages < 0 || !_mod.memories.size() || (_mod.memories[0].limits.flags && (_mod.memories[0].limits.maximum < sz + pages)))
             return -1;
          _wasm_alloc->alloc<char>(pages);
          return sz;
@@ -233,7 +233,8 @@ namespace eosio { namespace vm {
                        "cannot execute function, function not found");
          _host          = host;
          _linear_memory = _wasm_alloc->get_base_ptr<char>();
-         grow_linear_memory(_mod.memories[0].limits.initial - _wasm_alloc->get_current_page());
+         if (_mod.memories.size())
+            grow_linear_memory(_mod.memories[0].limits.initial - _wasm_alloc->get_current_page());
          for (int i = 0; i < _mod.data.size(); i++) {
             const auto& data_seg = _mod.data[i];
             // TODO validate only use memory idx 0 in parse
