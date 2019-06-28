@@ -27,7 +27,7 @@ namespace eosio { namespace vm {
          return call(host, mod, func, args...);
       }
 
-      inline void reset() { _walloc->reset(); }
+      inline void reset() { _ctx.reset(); }
 
       template <typename... Args>
       inline bool call_indirect(Host* host, uint32_t func_index, Args... args) {

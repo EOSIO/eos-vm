@@ -245,7 +245,8 @@ namespace eosio { namespace vm {
          return execute(host, std::forward<Visitor>(visitor), func_index, std::forward<Args>(args)...);
       }
 
-      inline void initialize() {
+      inline void reset() {
+         _wasm_alloc->reset();
          _linear_memory = _wasm_alloc->get_base_ptr<char>();
          if (_mod.memories.size())
             grow_linear_memory(_mod.memories[0].limits.initial - _wasm_alloc->get_current_page());
@@ -266,10 +267,9 @@ namespace eosio { namespace vm {
 
       template <typename Visitor, typename... Args>
       inline std::optional<stack_elem> execute(Host* host, Visitor&& visitor, uint32_t func_index, Args... args) {
+         EOS_WB_ASSERT(_initialized, wasm_interpreter_exception, "interpreter was not reset");
          EOS_WB_ASSERT(func_index < std::numeric_limits<uint32_t>::max(), wasm_interpreter_exception,
                        "cannot execute function, function not found");
-         if (!_initialized)
-            initialize();
 
          auto saved_host             = _host;
          auto saved_current_function = _current_function;
