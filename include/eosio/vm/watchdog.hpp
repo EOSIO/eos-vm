@@ -77,6 +77,6 @@ namespace eosio { namespace vm {
       std::function<void()> _callback;
    };
 
-   auto null_watchdog() { return [](){ return 0; }; }
+   inline auto null_watchdog() { return [](){ return 0; }; }
 
 }} // namespace eosio::vm

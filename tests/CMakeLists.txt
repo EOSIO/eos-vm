@@ -42,6 +42,6 @@ catch_discover_tests( eos_vm_spec_tests )
 
 add_executable( watchdog_tests watchdog_tests.cpp )
 target_include_directories( watchdog_tests PUBLIC ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIR})
-target_link_libraries( watchdog_tests ${Boost_LIBRARIES} )
+target_link_libraries( watchdog_tests Boost::unit_test_framework )
 
 add_test(NAME watchdog_tests COMMAND watchdog_tests)
