@@ -21,15 +21,14 @@ int main(int argc, char** argv) {
       return -1;
    }
 
+   watchdog wd{std::chrono::seconds(3)};
+
    try {
       // Read the wasm into memory.
       auto code = backend_t::read_wasm( argv[1] );
 
       // Instaniate a new backend using the wasm provided.
       backend_t bkend( code );
-      watchdog wd(std::chrono::seconds(3), [&](){
-		      bkend.get_context().exit();
-		      });
 
       // Point the backend to the allocator you want it to use.
       bkend.set_wasm_allocator( &wa );

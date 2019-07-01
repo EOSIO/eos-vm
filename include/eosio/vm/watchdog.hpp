@@ -15,14 +15,19 @@ namespace eosio { namespace vm {
    class watchdog {
       class guard;
     public:
-      template <typename TimeUnits, typename F>
-      watchdog(const TimeUnits& duration, F&& callback) : _duration(duration), _callback(callback) {}
+     /// \tparam TimeUnits must be a chrono duration type
+     /// \pre duration must be a non-negative value.
+      template <typename TimeUnits>
+      explicit watchdog(const TimeUnits& duration) : _duration(duration) {}
       /// Starts the timer.  If the timer
       /// expires during the lifetime of the returned object, the callback
       /// will be executed.  The callback is executed asynchronously.
       /// If invoking the callback throws an exception, terminate will
       /// be called.
-      guard operator()() { return guard(_duration, _callback); }
+      template<typename F>
+      [[nodiscard]] guard scoped_run(F&& callback) {
+         return guard(_duration, static_cast<F&&>(callback));
+      }
 
     private:
       class guard {
@@ -74,9 +79,12 @@ namespace eosio { namespace vm {
          time_point_type       _start;
       };
       std::chrono::steady_clock::duration _duration;
-      std::function<void()> _callback;
    };
 
-   inline auto null_watchdog() { return [](){ return 0; }; }
+   class null_watchdog {
+    public:
+      template<typename F>
+      null_watchdog scoped_run(F&&) { return *this; }
+   };
 
 }} // namespace eosio::vm
