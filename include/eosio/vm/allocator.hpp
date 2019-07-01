@@ -102,7 +102,7 @@ namespace eosio { namespace vm {
          munmap(raw, max_memory);
       }
       fixed_stack_allocator(size_t max_size) : max_size(max_size) {
-         set_up_signals();
+         // set_up_signals();
          raw = (T*)mmap(NULL, max_memory, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
          mprotect(raw, max_size * sizeof(T), PROT_READ | PROT_WRITE);
       }
@@ -138,7 +138,7 @@ namespace eosio { namespace vm {
       }
       void free() { munmap(raw, max_memory); }
       wasm_allocator() {
-         set_up_signals();
+         // set_up_signals();
          raw       = (char*)mmap(NULL, max_memory, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
          _previous = raw;
          mprotect(raw, 1 * page_size, PROT_READ | PROT_WRITE);
@@ -157,5 +157,6 @@ namespace eosio { namespace vm {
          return reinterpret_cast<T*>(raw);
       }
       inline int32_t get_current_page() const { return page; }
+      bool is_in_region(char* p) { return p >= raw && p < raw + max_memory; }
    };
 }} // namespace eosio::vm
