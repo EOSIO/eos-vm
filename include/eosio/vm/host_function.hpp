@@ -214,24 +214,32 @@ namespace eosio { namespace vm {
    template <typename T, typename WAlloc>
    constexpr auto resolve_result(T&& res, WAlloc*) -> std::enable_if_t<
          !(std::is_pointer_v<T> || std::is_reference_v<T>)&&std::is_same_v<to_wasm_t<T>, i32_const_t>, i32_const_t> {
-      return i32_const_t{ *(uint32_t*)&res };
+      if constexpr (std::is_same_v<std::decay_t<T>, bool>) {
+         return i32_const_t{ res };
+      } else {
+         static_assert(sizeof(T) == sizeof(uint32_t));
+         return i32_const_t{ *(uint32_t*)&res };
+      }
    }
 
    template <typename T, typename WAlloc>
    constexpr auto resolve_result(T&& res, WAlloc*) -> std::enable_if_t<
          !(std::is_pointer_v<T> || std::is_reference_v<T>)&&std::is_same_v<to_wasm_t<T>, i64_const_t>, i64_const_t> {
+      static_assert(sizeof(T) == sizeof(uint64_t));
       return i64_const_t{ *(uint64_t*)&res };
    }
 
    template <typename T, typename WAlloc>
    constexpr auto resolve_result(T&& res, WAlloc*) -> std::enable_if_t<
          !(std::is_pointer_v<T> || std::is_reference_v<T>)&&std::is_same_v<to_wasm_t<T>, f32_const_t>, f32_const_t> {
+      static_assert(sizeof(T) == sizeof(uint32_t));
       return f32_const_t{ *(uint32_t*)&res };
    }
 
    template <typename T, typename WAlloc>
    constexpr auto resolve_result(T&& res, WAlloc*) -> std::enable_if_t<
          !(std::is_pointer_v<T> || std::is_reference_v<T>)&&std::is_same_v<to_wasm_t<T>, f64_const_t>, f64_const_t> {
+      static_assert(sizeof(T) == sizeof(uint64_t));
       return f64_const_t{ *(uint64_t*)&res };
    }
 
