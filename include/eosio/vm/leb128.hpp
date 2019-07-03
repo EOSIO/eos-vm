@@ -159,7 +159,7 @@ namespace eosio { namespace vm {
             for (; bytes_used < bytes_needed<N>(); bytes_used++) {
 	       storage[bytes_used] = v & 0x7f;
 	       v >>= 7;
-	       if ((v == -1 && (v & 0x40)) || (v == 0 && !(v & 0x40)))
+	       if ((v == -1 && (storage[bytes_used] & 0x40)) || (v == 0 && !(storage[bytes_used] & 0x40)))
                   break;
 	       storage[bytes_used] |= 0x80;
 	    }
