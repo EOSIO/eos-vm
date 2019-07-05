@@ -264,41 +264,14 @@ namespace eosio { namespace vm {
          return ret;
       }
 
-      inline void jump(uint32_t label) {
-         stack_elem el = pop_label();
-         for (int i = 0; i < label; i++) el = pop_label();
-         uint16_t op_index = 0;
-         uint32_t ret      = 0;
-         std::visit(
-               overloaded{ [&](const end_t& e) {
-                             _pc      = e.pc;
-                             op_index = e.op_index;
-                          },
-                           [&](const block_t& bt) {
-                              _pc      = _current_offset + bt.pc + 1;
-                              ret      = bt.data;
-                              op_index = bt.op_index;
-                           },
-                           [&](const loop_t& lt) {
-                              _pc      = _current_offset + lt.pc + 1;
-                              ret      = lt.data;
-                              op_index = lt.op_index;
-                              _cs.push(el);
-                           },
-                           [&](const if__t& it) {
-                              _pc      = _current_offset + it.pc + 1;
-                              ret      = it.data;
-                              op_index = it.op_index;
-                           },
-                           [&](auto) { throw wasm_invalid_element{ "invalid element when popping control stack" }; } },
-               el);
-
-         if (ret != types::pseudo) {
+      inline void jump(uint32_t pop_info, uint32_t new_pc) {
+         _pc = _current_offset + new_pc;
+         if ((pop_info & 0x80000000u)) {
             const auto& op = pop_operand();
-            eat_operands(op_index);
+            eat_operands(_os.size() - ((pop_info & 0x7FFFFFFFu) - 1));
             push_operand(op);
          } else {
-            eat_operands(op_index);
+            eat_operands(_os.size() - pop_info);
          }
       }
 

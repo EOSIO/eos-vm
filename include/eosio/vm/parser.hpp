@@ -208,7 +208,9 @@ namespace eosio { namespace vm {
          EOS_WB_ASSERT((*code++) == opcodes::end, wasm_parse_exception, "no end op found");
       }
 
-      void parse_function_body(wasm_code_ptr& code, function_body& fb) {
+      void parse_function_body(wasm_code_ptr& code, function_body& fb, std::size_t idx) {
+         const auto&         fn_type   = _mod->types.at(_mod->functions.at(idx));
+
          const auto&         body_size = parse_varuint32(code);
          const auto&         before    = code.offset();
          const auto&         local_cnt = parse_varuint32(code);
@@ -223,25 +225,75 @@ namespace eosio { namespace vm {
          size_t            bytes = body_size - (code.offset() - before); // -1 is 'end' 0xb byte
          decltype(fb.code) _code = { _allocator, bytes };
          wasm_code_ptr     fb_code(code.raw(), bytes);
-         parse_function_body_code(fb_code, bytes, _code);
+         parse_function_body_code(fb_code, bytes, _code, fn_type);
          code += bytes - 1;
          EOS_WB_ASSERT(*code++ == 0x0B, wasm_parse_exception, "failed parsing function body, expected 'end'");
          _code[_code.size() - 1] = fend_t{};
          fb.code                 = std::move(_code);
       }
 
-      void parse_function_body_code(wasm_code_ptr& code, size_t bounds, guarded_vector<opcode>& fb) {
+      void parse_function_body_code(wasm_code_ptr& code, size_t bounds, guarded_vector<opcode>& fb, const func_type& ft) {
          size_t op_index       = 0;
-         auto   parse_br_table = [&](wasm_code_ptr& code, br_table_t& bt) {
-            size_t                   table_size = parse_varuint32(code);
-            guarded_vector<uint32_t> br_tab{ _allocator, table_size };
-            for (size_t i = 0; i < table_size; i++) br_tab[i] = parse_varuint32(code);
-            bt.table          = br_tab.raw();
-            bt.size           = table_size;
-            bt.default_target = parse_varuint32(code);
+
+         // The control stack holds either address of the target of the
+         // label (for backward jumps) or a list of instructions to be
+         // updated (for forward jumps).
+         //
+         // Inside an if: The first element refers to the `if` and should
+         // jump to `else`.  The remaining elements should branch to `end`
+         struct pc_element_t {
+            uint32_t operand_depth;
+            uint32_t expected_result;
+            std::variant<uint32_t, std::vector<uint32_t*>> relocations;
          };
 
-         std::stack<uint32_t> pc_stack;
+         // Initialize the control stack with the current function as the sole element
+         uint32_t operand_depth = 0;
+         std::vector<pc_element_t> pc_stack{{ operand_depth, ft.return_type, std::vector<uint32_t*>{}}};
+
+         // writes the continuation of a label to address.  If the continuation
+         // is not yet available, address will be recorded in the relocations
+         // list for label.
+         //
+         // Also writes the number of operands that need to be popped to
+         // operand_depth_change.  If the label has a return value it will
+         // be counted in this, and the high bit will be set to signal
+         // its presence.
+         auto handle_branch_target = [&](uint32_t label, uint32_t* address, uint32_t* operand_depth_change) {
+            EOS_WB_ASSERT(label < pc_stack.size(), wasm_parse_exception, "invalid label");
+            pc_element_t& branch_target = pc_stack[pc_stack.size() - label - 1];
+            uint32_t original_operand_depth = branch_target.operand_depth;
+            uint32_t target = 0xDEADBEEF;
+            uint32_t current_operand_depth = operand_depth;
+            if(branch_target.expected_result != types::pseudo) {
+               // FIXME: Reusing the high bit imposes an additional constraint
+               // on the maximum depth of the operand stack.  This isn't an
+               // actual problem right now, because the stack is hard-coded
+               // to 8192 elements, but it would be better to avoid spreading
+               // this assumption around the code.
+               original_operand_depth |= 0x80000000;
+            }
+            std::visit(overloaded{ [&](uint32_t target) { *address = target; },
+                                   [&](std::vector<uint32_t*>& relocations) { relocations.push_back(address); } },
+               branch_target.relocations);
+            *operand_depth_change = operand_depth - original_operand_depth;
+         };
+         
+         auto   parse_br_table = [&](wasm_code_ptr& code, br_table_t& bt) {
+            size_t                   table_size = parse_varuint32(code);
+            guarded_vector<br_table_t::elem_t> br_tab{ _allocator, table_size + 1 };
+            for (size_t i = 0; i < table_size + 1; i++) {
+               auto& elem = br_tab.at(i);
+               handle_branch_target(parse_varuint32(code), &elem.pc, &elem.stack_pop);
+            }
+            bt.table          = br_tab.raw();
+            bt.size           = table_size;
+         };
+
+         // appends an instruction to fb and returns a reference to it.
+         auto append_instr = [&](auto&& instr) -> decltype(auto) {
+            return std::get<std::decay_t<decltype(instr)>>((fb[op_index++] = instr));
+         };
 
          while (code.offset() < bounds) {
             EOS_WB_ASSERT(pc_stack.size() <= constants::max_nested_structures, wasm_parse_exception,
@@ -251,50 +303,59 @@ namespace eosio { namespace vm {
                case opcodes::unreachable: fb[op_index++] = unreachable_t{}; break;
                case opcodes::nop: fb[op_index++] = nop_t{}; break;
                case opcodes::end: {
-                  if (pc_stack.size()) {
-                     auto& el = fb[pc_stack.top()];
-                     std::visit(overloaded{ [=](block_t& bt) { bt.pc = op_index; },
-                                            [=](loop_t& lt) { lt.pc = pc_stack.top(); },
-                                            [=](if__t& it) { it.pc = op_index; },
-                                            [=](else__t& et) { et.pc = op_index; },
-                                            [=](auto&&) {
-                                               throw wasm_invalid_element{ "invalid element when popping pc stack" };
-                                            } },
-                                el);
-                     pc_stack.pop();
+                  if (pc_stack.size()) { // There must be at least one element
+                     if(auto* relocations = std::get_if<std::vector<uint32_t*>>(&pc_stack.back().relocations)) {
+                        for(uint32_t* branch_op : *relocations) {
+                           *branch_op = op_index;
+                        }
+                     }
+                     pc_stack.pop_back();
+                  } else {
+                    throw wasm_invalid_element{ "unexpected end instruction" };
                   }
-                  fb[op_index++] = end_t{};
-                  break;
                   break;
                }
                case opcodes::return_: fb[op_index++] = return__t{}; break;
-               case opcodes::block:
-                  pc_stack.push(op_index);
-                  fb[op_index++] = block_t{ *code++ };
-                  break;
-                  break;
-               case opcodes::loop:
-                  pc_stack.push(op_index);
-                  fb[op_index++] = loop_t{ *code++ };
-                  break;
-                  break;
-               case opcodes::if_:
-                  pc_stack.push(op_index);
-                  fb[op_index++] = if__t{ *code++ };
-                  break;
-                  break;
+               case opcodes::block: {
+                  uint32_t expected_result = *code++;
+                  pc_stack.push_back({operand_depth, expected_result, std::vector<uint32_t*>{}});
+               } break;
+               case opcodes::loop: {
+                  uint32_t expected_result = *code++;
+                  pc_stack.push_back({operand_depth, expected_result, op_index});
+               } break;
+               case opcodes::if_: {
+                  uint32_t expected_result = *code++;
+                  if__t& instr = append_instr(if__t{});
+                  pc_stack.push_back({operand_depth, expected_result, std::vector{&instr.pc}});
+               } break;
                case opcodes::else_: {
-                  auto old_index = pc_stack.top();
-                  pc_stack.pop();
-                  pc_stack.push(op_index);
-                  auto& _if      = std::get<if__t>(fb[old_index]);
-                  _if.pc         = op_index;
-                  fb[op_index++] = else__t{};
-                  break;
+                  auto& old_index = pc_stack.back();
+                  auto& relocations = std::get<std::vector<uint32_t*>>(old_index.relocations);
+                  uint32_t* _if_pc      = relocations[0];
+                  // reset the operand stack to the same state as the if
+                  EOS_WB_ASSERT((old_index.expected_result != types::pseudo) + old_index.operand_depth == operand_depth,
+                                wasm_parse_exception, "Malformed if body");
+                  operand_depth = old_index.operand_depth;
+                  // Overwrite the branch from the `if` with the `else`.
+                  // We're left with a normal relocation list where everything
+                  // branches to the corresponding `end`
+                  auto& else_ = append_instr(else__t{});
+                  relocations[0] = &else_.pc;
+                  // The branch from the if skips just past the else
+                  *_if_pc = op_index;
                   break;
                }
-               case opcodes::br: fb[op_index++] = br_t{ parse_varuint32(code) }; break;
-               case opcodes::br_if: fb[op_index++] = br_if_t{ parse_varuint32(code) }; break;
+               case opcodes::br: {
+                  uint32_t label = parse_varuint32(code);
+                  br_t& instr = append_instr(br_t{});
+                  handle_branch_target(label, &instr.pc, &instr.data);
+               } break;
+               case opcodes::br_if: {
+                  uint32_t label = parse_varuint32(code);
+                  br_if_t& instr = append_instr(br_if_t{});
+                  handle_branch_target(label, &instr.pc, &instr.data);
+               } break;
                case opcodes::br_table: {
                   br_table_t bt;
                   parse_br_table(code, bt);
@@ -540,7 +601,7 @@ namespace eosio { namespace vm {
       inline void parse_section_impl(wasm_code_ptr& code, vec<Elem>& elems, ParseFunc&& elem_parse) {
          auto count = parse_varuint32(code);
          elems      = vec<Elem>{ _allocator, count };
-         for (size_t i = 0; i < count; i++) { elem_parse(code, elems.at(i)); }
+         for (size_t i = 0; i < count; i++) { elem_parse(code, elems.at(i), i); }
       }
 
       template <uint8_t id>
@@ -562,39 +623,39 @@ namespace eosio { namespace vm {
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                             code,
                                 vec<typename std::enable_if_t<id == section_id::type_section, func_type>>& elems) {
-         parse_section_impl(code, elems, [&](wasm_code_ptr& code, func_type& ft) { parse_func_type(code, ft); });
+         parse_section_impl(code, elems, [&](wasm_code_ptr& code, func_type& ft, std::size_t /*idx*/) { parse_func_type(code, ft); });
       }
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                                  code,
                                 vec<typename std::enable_if_t<id == section_id::import_section, import_entry>>& elems) {
-         parse_section_impl(code, elems, [&](wasm_code_ptr& code, import_entry& ie) { parse_import_entry(code, ie); });
+         parse_section_impl(code, elems, [&](wasm_code_ptr& code, import_entry& ie, std::size_t /*idx*/) { parse_import_entry(code, ie); });
       }
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                                code,
                                 vec<typename std::enable_if_t<id == section_id::function_section, uint32_t>>& elems) {
-         parse_section_impl(code, elems, [&](wasm_code_ptr& code, uint32_t& elem) { elem = parse_varuint32(code); });
+         parse_section_impl(code, elems, [&](wasm_code_ptr& code, uint32_t& elem, std::size_t /*idx*/) { elem = parse_varuint32(code); });
       }
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                               code,
                                 vec<typename std::enable_if_t<id == section_id::table_section, table_type>>& elems) {
-         parse_section_impl(code, elems, [&](wasm_code_ptr& code, table_type& tt) { parse_table_type(code, tt); });
+         parse_section_impl(code, elems, [&](wasm_code_ptr& code, table_type& tt, std::size_t /*idx*/) { parse_table_type(code, tt); });
       }
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                                 code,
                                 vec<typename std::enable_if_t<id == section_id::memory_section, memory_type>>& elems) {
-         parse_section_impl(code, elems, [&](wasm_code_ptr& code, memory_type& mt) { parse_memory_type(code, mt); });
+         parse_section_impl(code, elems, [&](wasm_code_ptr& code, memory_type& mt, std::size_t /*idx*/) { parse_memory_type(code, mt); });
       }
       template <uint8_t id>
       inline void
       parse_section(wasm_code_ptr&                                                                     code,
                     vec<typename std::enable_if_t<id == section_id::global_section, global_variable>>& elems) {
          parse_section_impl(code, elems,
-                            [&](wasm_code_ptr& code, global_variable& gv) { parse_global_variable(code, gv); });
+                            [&](wasm_code_ptr& code, global_variable& gv, std::size_t /*idx*/) { parse_global_variable(code, gv); });
       }
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                                  code,
                                 vec<typename std::enable_if_t<id == section_id::export_section, export_entry>>& elems) {
-         parse_section_impl(code, elems, [&](wasm_code_ptr& code, export_entry& ee) { parse_export_entry(code, ee); });
+         parse_section_impl(code, elems, [&](wasm_code_ptr& code, export_entry& ee, std::size_t /*idx*/) { parse_export_entry(code, ee); });
       }
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                        code,
@@ -605,18 +666,18 @@ namespace eosio { namespace vm {
       inline void
       parse_section(wasm_code_ptr&                                                                   code,
                     vec<typename std::enable_if_t<id == section_id::element_section, elem_segment>>& elems) {
-         parse_section_impl(code, elems, [&](wasm_code_ptr& code, elem_segment& es) { parse_elem_segment(code, es); });
+         parse_section_impl(code, elems, [&](wasm_code_ptr& code, elem_segment& es, std::size_t /*idx*/) { parse_elem_segment(code, es); });
       }
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                                 code,
                                 vec<typename std::enable_if_t<id == section_id::code_section, function_body>>& elems) {
          parse_section_impl(code, elems,
-                            [&](wasm_code_ptr& code, function_body& fb) { parse_function_body(code, fb); });
+                            [&](wasm_code_ptr& code, function_body& fb, std::size_t idx) { parse_function_body(code, fb, idx); });
       }
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                                code,
                                 vec<typename std::enable_if_t<id == section_id::data_section, data_segment>>& elems) {
-         parse_section_impl(code, elems, [&](wasm_code_ptr& code, data_segment& ds) { parse_data_segment(code, ds); });
+         parse_section_impl(code, elems, [&](wasm_code_ptr& code, data_segment& ds, std::size_t /*idx*/) { parse_data_segment(code, ds); });
       }
 
       template <size_t N>

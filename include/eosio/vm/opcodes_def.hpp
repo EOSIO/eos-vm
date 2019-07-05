@@ -283,9 +283,9 @@
 #define CREATE_BR_TABLE_TYPE(name, code)                                                                               \
    struct name##_t {                                                                                                   \
       name##_t() = default;                                                                                            \
-      uint32_t* table;                                                                                                 \
+      struct elem_t { uint32_t pc; uint32_t stack_pop; };                                                              \
+      elem_t* table;                                                                                                   \
       uint32_t  size;                                                                                                  \
-      uint32_t  default_target;                                                                                        \
    };
 
 #define CREATE_TYPES(name, code)                                                                                       \

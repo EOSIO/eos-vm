@@ -95,21 +95,19 @@ namespace eosio { namespace vm {
          context.push_label(op);
       }
       [[gnu::always_inline]] inline void operator()(const else__t& op) { context.set_relative_pc(op.pc); }
-      [[gnu::always_inline]] inline void operator()(const br_t& op) { context.jump(op.data); }
+      [[gnu::always_inline]] inline void operator()(const br_t& op) { context.jump(op.data, op.pc); }
       [[gnu::always_inline]] inline void operator()(const br_if_t& op) {
          const auto& val = context.pop_operand();
          if (context.is_true(val)) {
-            context.jump(op.data);
+            context.jump(op.data, op.pc);
          } else {
             context.inc_pc();
          }
       }
       [[gnu::always_inline]] inline void operator()(const br_table_t& op) {
          const auto& in = to_ui32(context.pop_operand());
-         if (in < op.size)
-            context.jump(op.table[in]);
-         else
-            context.jump(op.default_target);
+         const auto& entry = op.table[std::min(in, op.size)]; 
+         context.jump(op.table[in].stack_pop, entry.pc);
       }
       [[gnu::always_inline]] inline void operator()(const call_t& op) {
          context.call(op.index);
