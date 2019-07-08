@@ -241,6 +241,7 @@ namespace eosio { namespace vm {
       struct pc_element_t {
          uint32_t operand_depth;
          uint32_t expected_result;
+         bool is_unreachable;
          std::variant<uint32_t, std::vector<uint32_t*>> relocations;
       };
 
@@ -252,6 +253,7 @@ namespace eosio { namespace vm {
          std::vector<pc_element_t> pc_stack{{
                operand_depth,
                ft.return_count?ft.return_type:static_cast<uint32_t>(types::pseudo),
+               false,
                std::vector<uint32_t*>{}}};
 
          // writes the continuation of a label to address.  If the continuation
@@ -302,7 +304,9 @@ namespace eosio { namespace vm {
          // Unconditional branches effectively make the state of the
          // stack unconstrained.  FIXME: Note that the unreachable instructions
          // still need to be validated, for consistency, which this impementation
-         // fails to do.
+         // fails to do.  Also, note that this variable is strictly for validation
+         // purposes, and nested unreachable control structures have this reset
+         // to "reachable," since their bodies get validated normally.
          bool is_in_unreachable = false;
          auto start_unreachable = [&]() {
             // We need enough room to push/pop any number of operands.
@@ -328,9 +332,9 @@ namespace eosio { namespace vm {
                }
                if (!is_unreachable())
                   EOS_WB_ASSERT(operand_depth == expected_operand_depth, wasm_parse_exception, "incorrect stack depth at end");
-               pc_stack.pop_back();
                operand_depth = expected_operand_depth;
-               start_reachable();
+               is_in_unreachable = pc_stack.back().is_unreachable;
+               pc_stack.pop_back();
             } else {
                throw wasm_invalid_element{ "unexpected end instruction" };
             }
@@ -364,17 +368,20 @@ namespace eosio { namespace vm {
                case opcodes::return_: fb[op_index++] = return__t{}; start_unreachable(); break;
                case opcodes::block: {
                   uint32_t expected_result = *code++;
-                  pc_stack.push_back({operand_depth, expected_result, std::vector<uint32_t*>{}});
+                  pc_stack.push_back({operand_depth, expected_result, is_in_unreachable, std::vector<uint32_t*>{}});
+                  start_reachable();
                } break;
                case opcodes::loop: {
                   uint32_t expected_result = *code++;
-                  pc_stack.push_back({operand_depth, expected_result, op_index});
+                  pc_stack.push_back({operand_depth, expected_result, is_in_unreachable, op_index});
+                  start_reachable();
                } break;
                case opcodes::if_: {
                   uint32_t expected_result = *code++;
                   if__t& instr = append_instr(if__t{});
                   pop_operand();
-                  pc_stack.push_back({operand_depth, expected_result, std::vector{&instr.pc}});
+                  pc_stack.push_back({operand_depth, expected_result, is_in_unreachable, std::vector{&instr.pc}});
+                  start_reachable();
                } break;
                case opcodes::else_: {
                   auto& old_index = pc_stack.back();
@@ -424,6 +431,7 @@ namespace eosio { namespace vm {
                case opcodes::call_indirect: {
                   uint32_t functypeidx = parse_varuint32(code);
                   const func_type& ft = _mod->types.at(functypeidx);
+                  pop_operand();
                   pop_operands(ft.param_types.size());
                   EOS_WB_ASSERT(ft.return_count <= 1, wasm_parse_exception, "unsupported");
                   if(ft.return_count == 1)
