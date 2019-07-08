@@ -232,24 +232,27 @@ namespace eosio { namespace vm {
          fb.code                 = std::move(_code);
       }
 
+      // The control stack holds either address of the target of the
+      // label (for backward jumps) or a list of instructions to be
+      // updated (for forward jumps).
+      //
+      // Inside an if: The first element refers to the `if` and should
+      // jump to `else`.  The remaining elements should branch to `end`
+      struct pc_element_t {
+         uint32_t operand_depth;
+         uint32_t expected_result;
+         std::variant<uint32_t, std::vector<uint32_t*>> relocations;
+      };
+
       void parse_function_body_code(wasm_code_ptr& code, size_t bounds, guarded_vector<opcode>& fb, const func_type& ft) {
          size_t op_index       = 0;
 
-         // The control stack holds either address of the target of the
-         // label (for backward jumps) or a list of instructions to be
-         // updated (for forward jumps).
-         //
-         // Inside an if: The first element refers to the `if` and should
-         // jump to `else`.  The remaining elements should branch to `end`
-         struct pc_element_t {
-            uint32_t operand_depth;
-            uint32_t expected_result;
-            std::variant<uint32_t, std::vector<uint32_t*>> relocations;
-         };
-
          // Initialize the control stack with the current function as the sole element
          uint32_t operand_depth = 0;
-         std::vector<pc_element_t> pc_stack{{ operand_depth, ft.return_type, std::vector<uint32_t*>{}}};
+         std::vector<pc_element_t> pc_stack{{
+               operand_depth,
+               ft.return_count?ft.return_type:static_cast<uint32_t>(types::pseudo),
+               std::vector<uint32_t*>{}}};
 
          // writes the continuation of a label to address.  If the continuation
          // is not yet available, address will be recorded in the relocations
@@ -295,6 +298,22 @@ namespace eosio { namespace vm {
             return std::get<std::decay_t<decltype(instr)>>((fb[op_index++] = instr));
          };
 
+
+         // Unconditional branches effectively make the state of the
+         // stack unconstrained.  FIXME: Note that the unreachable instructions
+         // still need to be validated, for consistency, which this impementation
+         // fails to do.
+         bool is_in_unreachable = false;
+         auto start_unreachable = [&]() {
+            // We need enough room to push/pop any number of operands.
+            operand_depth = 0x80000000;
+            is_in_unreachable = true;
+         };
+         auto is_unreachable = [&]() -> bool {
+            return is_in_unreachable;
+         };
+         auto start_reachable = [&]() { is_in_unreachable = false; };
+
          // Handles branches to the end of the scope and pops the pc_stack
          auto exit_scope = [&]() {
             if (pc_stack.size()) { // There must be at least one element
@@ -303,13 +322,15 @@ namespace eosio { namespace vm {
                      *branch_op = op_index;
                   }
                }
-               unsigned expected_operand_depth = pc_stack.operand_depth;
+               unsigned expected_operand_depth = pc_stack.back().operand_depth;
                if (pc_stack.back().expected_result != types::pseudo) {
                   ++expected_operand_depth;
                }
-               EOS_WB_ASSERT(operand_depth == expected_operand_depth, wasm_parse_exception, "incorrect stack depth at end");
-               if (operand_depth != expect_operand_depth) 
+               if (!is_unreachable())
+                  EOS_WB_ASSERT(operand_depth == expected_operand_depth, wasm_parse_exception, "incorrect stack depth at end");
                pc_stack.pop_back();
+               operand_depth = expected_operand_depth;
+               start_reachable();
             } else {
                throw wasm_invalid_element{ "unexpected end instruction" };
             }
@@ -317,6 +338,7 @@ namespace eosio { namespace vm {
 
          // Tracks the operand stack
          auto push_operand = [&](/* uint8_t type */) {
+             EOS_WB_ASSERT(operand_depth < 0xFFFFFFFF, wasm_parse_exception, "Wasm stack overflow.");
              ++operand_depth;
          };
          auto pop_operand = [&]() {
@@ -339,7 +361,7 @@ namespace eosio { namespace vm {
                   exit_scope();
                   break;
                }
-               case opcodes::return_: fb[op_index++] = return__t{}; break;
+               case opcodes::return_: fb[op_index++] = return__t{}; start_unreachable(); break;
                case opcodes::block: {
                   uint32_t expected_result = *code++;
                   pc_stack.push_back({operand_depth, expected_result, std::vector<uint32_t*>{}});
@@ -362,6 +384,7 @@ namespace eosio { namespace vm {
                   EOS_WB_ASSERT((old_index.expected_result != types::pseudo) + old_index.operand_depth == operand_depth,
                                 wasm_parse_exception, "Malformed if body");
                   operand_depth = old_index.operand_depth;
+                  start_reachable();
                   // Overwrite the branch from the `if` with the `else`.
                   // We're left with a normal relocation list where everything
                   // branches to the corresponding `end`
@@ -375,6 +398,7 @@ namespace eosio { namespace vm {
                   uint32_t label = parse_varuint32(code);
                   br_t& instr = append_instr(br_t{});
                   handle_branch_target(label, &instr.pc, &instr.data);
+                  start_unreachable();
                } break;
                case opcodes::br_if: {
                   uint32_t label = parse_varuint32(code);
@@ -392,7 +416,7 @@ namespace eosio { namespace vm {
                   uint32_t funcnum = parse_varuint32(code);
                   const func_type& ft = _mod->get_function_type(funcnum);
                   pop_operands(ft.param_types.size());
-                  EOS_VM_ASSERT(ft.return_count <= 1, wasm_parse_error, "unsupported");
+                  EOS_WB_ASSERT(ft.return_count <= 1, wasm_parse_exception, "unsupported");
                   if(ft.return_count == 1)
                      push_operand();
                   fb[op_index++] = call_t{ funcnum };
@@ -401,7 +425,7 @@ namespace eosio { namespace vm {
                   uint32_t functypeidx = parse_varuint32(code);
                   const func_type& ft = _mod->types.at(functypeidx);
                   pop_operands(ft.param_types.size());
-                  EOS_VM_ASSERT(ft.return_count <= 1, wasm_parse_error, "unsupported");
+                  EOS_WB_ASSERT(ft.return_count <= 1, wasm_parse_exception, "unsupported");
                   if(ft.return_count == 1)
                      push_operand();
                   fb[op_index++] = call_indirect_t{ functypeidx };
@@ -495,11 +519,11 @@ namespace eosio { namespace vm {
                   break;
                case opcodes::f32_store:
                   fb[op_index++] = f32_store_t{ parse_varuint32(code), parse_varuint32(code) };
-                  pop_operands(2)
+                  pop_operands(2);
                   break;
                case opcodes::f64_store:
                   fb[op_index++] = f64_store_t{ parse_varuint32(code), parse_varuint32(code) };
-                  pop_operands(2)
+                  pop_operands(2);
                   break;
                case opcodes::i32_store8:
                   fb[op_index++] = i32_store8_t{ parse_varuint32(code), parse_varuint32(code) };
@@ -670,8 +694,7 @@ namespace eosio { namespace vm {
                case opcodes::error: fb[op_index++] = error_t{}; break;
             }
          }
-         exit_scope();
-         fb.resize(op_index);
+         fb.resize(op_index + 1);
       }
 
       void parse_data_segment(wasm_code_ptr& code, data_segment& ds) {
