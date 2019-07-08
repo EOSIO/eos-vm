@@ -279,7 +279,7 @@ namespace eosio { namespace vm {
             *operand_depth_change = operand_depth - original_operand_depth;
          };
          
-         auto   parse_br_table = [&](wasm_code_ptr& code, br_table_t& bt) {
+         auto parse_br_table = [&](wasm_code_ptr& code, br_table_t& bt) {
             size_t                   table_size = parse_varuint32(code);
             guarded_vector<br_table_t::elem_t> br_tab{ _allocator, table_size + 1 };
             for (size_t i = 0; i < table_size + 1; i++) {
@@ -303,10 +303,29 @@ namespace eosio { namespace vm {
                      *branch_op = op_index;
                   }
                }
+               unsigned expected_operand_depth = pc_stack.operand_depth;
+               if (pc_stack.back().expected_result != types::pseudo) {
+                  ++expected_operand_depth;
+               }
+               EOS_WB_ASSERT(operand_depth == expected_operand_depth, wasm_parse_exception, "incorrect stack depth at end");
+               if (operand_depth != expect_operand_depth) 
                pc_stack.pop_back();
             } else {
                throw wasm_invalid_element{ "unexpected end instruction" };
             }
+         };
+
+         // Tracks the operand stack
+         auto push_operand = [&](/* uint8_t type */) {
+             ++operand_depth;
+         };
+         auto pop_operand = [&]() {
+            EOS_WB_ASSERT(operand_depth > 0, wasm_parse_exception, "Not enough items on the stack.");
+            --operand_depth;
+         };
+         auto pop_operands = [&](uint32_t num_to_pop) {
+            EOS_WB_ASSERT(operand_depth >= num_to_pop, wasm_parse_exception, "Not enough items on the stack.");
+            operand_depth -= num_to_pop;
          };
 
          while (code.offset() < bounds) {
@@ -332,6 +351,7 @@ namespace eosio { namespace vm {
                case opcodes::if_: {
                   uint32_t expected_result = *code++;
                   if__t& instr = append_instr(if__t{});
+                  pop_operand();
                   pc_stack.push_back({operand_depth, expected_result, std::vector{&instr.pc}});
                } break;
                case opcodes::else_: {
@@ -359,235 +379,294 @@ namespace eosio { namespace vm {
                case opcodes::br_if: {
                   uint32_t label = parse_varuint32(code);
                   br_if_t& instr = append_instr(br_if_t{});
+                  pop_operand();
                   handle_branch_target(label, &instr.pc, &instr.data);
                } break;
                case opcodes::br_table: {
                   br_table_t bt;
+                  pop_operand();
                   parse_br_table(code, bt);
                   fb[op_index++] = bt;
                } break;
-               case opcodes::call: fb[op_index++] = call_t{ parse_varuint32(code) }; break;
-               case opcodes::call_indirect:
-                  fb[op_index++] = call_indirect_t{ parse_varuint32(code) };
-                  code++;
+               case opcodes::call: {
+                  uint32_t funcnum = parse_varuint32(code);
+                  const func_type& ft = _mod->get_function_type(funcnum);
+                  pop_operands(ft.param_types.size());
+                  EOS_VM_ASSERT(ft.return_count <= 1, wasm_parse_error, "unsupported");
+                  if(ft.return_count == 1)
+                     push_operand();
+                  fb[op_index++] = call_t{ funcnum };
+               } break;
+               case opcodes::call_indirect: {
+                  uint32_t functypeidx = parse_varuint32(code);
+                  const func_type& ft = _mod->types.at(functypeidx);
+                  pop_operands(ft.param_types.size());
+                  EOS_VM_ASSERT(ft.return_count <= 1, wasm_parse_error, "unsupported");
+                  if(ft.return_count == 1)
+                     push_operand();
+                  fb[op_index++] = call_indirect_t{ functypeidx };
+                  code++; // 0x00
                   break;
-               case opcodes::drop: fb[op_index++] = drop_t{}; break;
-               case opcodes::select: fb[op_index++] = select_t{}; break;
-               case opcodes::get_local: fb[op_index++] = get_local_t{ parse_varuint32(code) }; break;
-               case opcodes::set_local: fb[op_index++] = set_local_t{ parse_varuint32(code) }; break;
+               }
+               case opcodes::drop: fb[op_index++] = drop_t{}; pop_operand(); break;
+               case opcodes::select: fb[op_index++] = select_t{}; pop_operands(3); push_operand(); break;
+               case opcodes::get_local: fb[op_index++] = get_local_t{ parse_varuint32(code) }; push_operand(); break;
+               case opcodes::set_local: fb[op_index++] = set_local_t{ parse_varuint32(code) }; pop_operand(); break;
                case opcodes::tee_local: fb[op_index++] = tee_local_t{ parse_varuint32(code) }; break;
-               case opcodes::get_global: fb[op_index++] = get_global_t{ parse_varuint32(code) }; break;
-               case opcodes::set_global: fb[op_index++] = set_global_t{ parse_varuint32(code) }; break;
+               case opcodes::get_global: fb[op_index++] = get_global_t{ parse_varuint32(code) }; push_operand(); break;
+               case opcodes::set_global: fb[op_index++] = set_global_t{ parse_varuint32(code) }; pop_operand(); break;
                case opcodes::i32_load:
                   fb[op_index++] = i32_load_t{ parse_varuint32(code), parse_varuint32(code) };
+                  pop_operand();
+                  push_operand();
                   break;
                case opcodes::i64_load:
                   fb[op_index++] = i64_load_t{ parse_varuint32(code), parse_varuint32(code) };
+                  pop_operand();
+                  push_operand();
                   break;
                case opcodes::f32_load:
                   fb[op_index++] = f32_load_t{ parse_varuint32(code), parse_varuint32(code) };
+                  pop_operand();
+                  push_operand();
                   break;
                case opcodes::f64_load:
                   fb[op_index++] = f64_load_t{ parse_varuint32(code), parse_varuint32(code) };
+                  pop_operand();
+                  push_operand();
                   break;
                case opcodes::i32_load8_s:
                   fb[op_index++] = i32_load8_s_t{ parse_varuint32(code), parse_varuint32(code) };
+                  pop_operand();
+                  push_operand();
                   break;
                case opcodes::i32_load16_s:
                   fb[op_index++] = i32_load16_s_t{ parse_varuint32(code), parse_varuint32(code) };
+                  pop_operand();
+                  push_operand();
                   break;
                case opcodes::i32_load8_u:
                   fb[op_index++] = i32_load8_u_t{ parse_varuint32(code), parse_varuint32(code) };
+                  pop_operand();
+                  push_operand();
                   break;
                case opcodes::i32_load16_u:
                   fb[op_index++] = i32_load16_u_t{ parse_varuint32(code), parse_varuint32(code) };
+                  pop_operand();
+                  push_operand();
                   break;
                case opcodes::i64_load8_s:
                   fb[op_index++] = i64_load8_s_t{ parse_varuint32(code), parse_varuint32(code) };
+                  pop_operand();
+                  push_operand();
                   break;
                case opcodes::i64_load16_s:
                   fb[op_index++] = i64_load16_s_t{ parse_varuint32(code), parse_varuint32(code) };
+                  pop_operand();
+                  push_operand();
                   break;
                case opcodes::i64_load32_s:
                   fb[op_index++] = i64_load32_s_t{ parse_varuint32(code), parse_varuint32(code) };
+                  pop_operand();
+                  push_operand();
                   break;
                case opcodes::i64_load8_u:
                   fb[op_index++] = i64_load8_u_t{ parse_varuint32(code), parse_varuint32(code) };
+                  pop_operand();
+                  push_operand();
                   break;
                case opcodes::i64_load16_u:
                   fb[op_index++] = i64_load16_u_t{ parse_varuint32(code), parse_varuint32(code) };
+                  pop_operand();
+                  push_operand();
                   break;
                case opcodes::i64_load32_u:
                   fb[op_index++] = i64_load32_u_t{ parse_varuint32(code), parse_varuint32(code) };
+                  pop_operand();
+                  push_operand();
                   break;
                case opcodes::i32_store:
                   fb[op_index++] = i32_store_t{ parse_varuint32(code), parse_varuint32(code) };
+                  pop_operands(2);
                   break;
                case opcodes::i64_store:
                   fb[op_index++] = i64_store_t{ parse_varuint32(code), parse_varuint32(code) };
+                  pop_operands(2);
                   break;
                case opcodes::f32_store:
                   fb[op_index++] = f32_store_t{ parse_varuint32(code), parse_varuint32(code) };
+                  pop_operands(2)
                   break;
                case opcodes::f64_store:
                   fb[op_index++] = f64_store_t{ parse_varuint32(code), parse_varuint32(code) };
+                  pop_operands(2)
                   break;
                case opcodes::i32_store8:
                   fb[op_index++] = i32_store8_t{ parse_varuint32(code), parse_varuint32(code) };
+                  pop_operands(2);
                   break;
                case opcodes::i32_store16:
                   fb[op_index++] = i32_store16_t{ parse_varuint32(code), parse_varuint32(code) };
+                  pop_operands(2);
                   break;
                case opcodes::i64_store8:
                   fb[op_index++] = i64_store8_t{ parse_varuint32(code), parse_varuint32(code) };
+                  pop_operands(2);
                   break;
                case opcodes::i64_store16:
                   fb[op_index++] = i64_store16_t{ parse_varuint32(code), parse_varuint32(code) };
+                  pop_operands(2);
                   break;
                case opcodes::i64_store32:
                   fb[op_index++] = i64_store32_t{ parse_varuint32(code), parse_varuint32(code) };
+                  pop_operands(2);
                   break;
                case opcodes::current_memory:
                   fb[op_index++] = current_memory_t{};
+                  push_operand();
                   code++;
                   break;
                case opcodes::grow_memory:
                   fb[op_index++] = grow_memory_t{};
+                  pop_operand();
+                  push_operand();
                   code++;
                   break;
-               case opcodes::i32_const: fb[op_index++] = i32_const_t{ parse_varint32(code) }; break;
-               case opcodes::i64_const: fb[op_index++] = i64_const_t{ parse_varint64(code) }; break;
+               case opcodes::i32_const: fb[op_index++] = i32_const_t{ parse_varint32(code) }; push_operand(); break;
+               case opcodes::i64_const: fb[op_index++] = i64_const_t{ parse_varint64(code) }; push_operand(); break;
                case opcodes::f32_const:
                   fb[op_index++] = f32_const_t{ *(float*)code.raw() };
                   code += 4;
+                  push_operand();
                   break;
                case opcodes::f64_const:
                   fb[op_index++] = f64_const_t{ *(double*)code.raw() };
                   code += 8;
+                  push_operand();
                   break;
-               case opcodes::i32_eqz: fb[op_index++] = i32_eqz_t{}; break;
-               case opcodes::i32_eq: fb[op_index++] = i32_eq_t{}; break;
-               case opcodes::i32_ne: fb[op_index++] = i32_ne_t{}; break;
-               case opcodes::i32_lt_s: fb[op_index++] = i32_lt_s_t{}; break;
-               case opcodes::i32_lt_u: fb[op_index++] = i32_lt_u_t{}; break;
-               case opcodes::i32_gt_s: fb[op_index++] = i32_gt_s_t{}; break;
-               case opcodes::i32_gt_u: fb[op_index++] = i32_gt_u_t{}; break;
-               case opcodes::i32_le_s: fb[op_index++] = i32_le_s_t{}; break;
-               case opcodes::i32_le_u: fb[op_index++] = i32_le_u_t{}; break;
-               case opcodes::i32_ge_s: fb[op_index++] = i32_ge_s_t{}; break;
-               case opcodes::i32_ge_u: fb[op_index++] = i32_ge_u_t{}; break;
-               case opcodes::i64_eqz: fb[op_index++] = i64_eqz_t{}; break;
-               case opcodes::i64_eq: fb[op_index++] = i64_eq_t{}; break;
-               case opcodes::i64_ne: fb[op_index++] = i64_ne_t{}; break;
-               case opcodes::i64_lt_s: fb[op_index++] = i64_lt_s_t{}; break;
-               case opcodes::i64_lt_u: fb[op_index++] = i64_lt_u_t{}; break;
-               case opcodes::i64_gt_s: fb[op_index++] = i64_gt_s_t{}; break;
-               case opcodes::i64_gt_u: fb[op_index++] = i64_gt_u_t{}; break;
-               case opcodes::i64_le_s: fb[op_index++] = i64_le_s_t{}; break;
-               case opcodes::i64_le_u: fb[op_index++] = i64_le_u_t{}; break;
-               case opcodes::i64_ge_s: fb[op_index++] = i64_ge_s_t{}; break;
-               case opcodes::i64_ge_u: fb[op_index++] = i64_ge_u_t{}; break;
-               case opcodes::f32_eq: fb[op_index++] = f32_eq_t{}; break;
-               case opcodes::f32_ne: fb[op_index++] = f32_ne_t{}; break;
-               case opcodes::f32_lt: fb[op_index++] = f32_lt_t{}; break;
-               case opcodes::f32_gt: fb[op_index++] = f32_gt_t{}; break;
-               case opcodes::f32_le: fb[op_index++] = f32_le_t{}; break;
-               case opcodes::f32_ge: fb[op_index++] = f32_ge_t{}; break;
-               case opcodes::f64_eq: fb[op_index++] = f64_eq_t{}; break;
-               case opcodes::f64_ne: fb[op_index++] = f64_ne_t{}; break;
-               case opcodes::f64_lt: fb[op_index++] = f64_lt_t{}; break;
-               case opcodes::f64_gt: fb[op_index++] = f64_gt_t{}; break;
-               case opcodes::f64_le: fb[op_index++] = f64_le_t{}; break;
-               case opcodes::f64_ge: fb[op_index++] = f64_ge_t{}; break;
-               case opcodes::i32_clz: fb[op_index++] = i32_clz_t{}; break;
-               case opcodes::i32_ctz: fb[op_index++] = i32_ctz_t{}; break;
-               case opcodes::i32_popcnt: fb[op_index++] = i32_popcnt_t{}; break;
-               case opcodes::i32_add: fb[op_index++] = i32_add_t{}; break;
-               case opcodes::i32_sub: fb[op_index++] = i32_sub_t{}; break;
-               case opcodes::i32_mul: fb[op_index++] = i32_mul_t{}; break;
-               case opcodes::i32_div_s: fb[op_index++] = i32_div_s_t{}; break;
-               case opcodes::i32_div_u: fb[op_index++] = i32_div_u_t{}; break;
-               case opcodes::i32_rem_s: fb[op_index++] = i32_rem_s_t{}; break;
-               case opcodes::i32_rem_u: fb[op_index++] = i32_rem_u_t{}; break;
-               case opcodes::i32_and: fb[op_index++] = i32_and_t{}; break;
-               case opcodes::i32_or: fb[op_index++] = i32_or_t{}; break;
-               case opcodes::i32_xor: fb[op_index++] = i32_xor_t{}; break;
-               case opcodes::i32_shl: fb[op_index++] = i32_shl_t{}; break;
-               case opcodes::i32_shr_s: fb[op_index++] = i32_shr_s_t{}; break;
-               case opcodes::i32_shr_u: fb[op_index++] = i32_shr_u_t{}; break;
-               case opcodes::i32_rotl: fb[op_index++] = i32_rotl_t{}; break;
-               case opcodes::i32_rotr: fb[op_index++] = i32_rotr_t{}; break;
-               case opcodes::i64_clz: fb[op_index++] = i64_clz_t{}; break;
-               case opcodes::i64_ctz: fb[op_index++] = i64_ctz_t{}; break;
-               case opcodes::i64_popcnt: fb[op_index++] = i64_popcnt_t{}; break;
-               case opcodes::i64_add: fb[op_index++] = i64_add_t{}; break;
-               case opcodes::i64_sub: fb[op_index++] = i64_sub_t{}; break;
-               case opcodes::i64_mul: fb[op_index++] = i64_mul_t{}; break;
-               case opcodes::i64_div_s: fb[op_index++] = i64_div_s_t{}; break;
-               case opcodes::i64_div_u: fb[op_index++] = i64_div_u_t{}; break;
-               case opcodes::i64_rem_s: fb[op_index++] = i64_rem_s_t{}; break;
-               case opcodes::i64_rem_u: fb[op_index++] = i64_rem_u_t{}; break;
-               case opcodes::i64_and: fb[op_index++] = i64_and_t{}; break;
-               case opcodes::i64_or: fb[op_index++] = i64_or_t{}; break;
-               case opcodes::i64_xor: fb[op_index++] = i64_xor_t{}; break;
-               case opcodes::i64_shl: fb[op_index++] = i64_shl_t{}; break;
-               case opcodes::i64_shr_s: fb[op_index++] = i64_shr_s_t{}; break;
-               case opcodes::i64_shr_u: fb[op_index++] = i64_shr_u_t{}; break;
-               case opcodes::i64_rotl: fb[op_index++] = i64_rotl_t{}; break;
-               case opcodes::i64_rotr: fb[op_index++] = i64_rotr_t{}; break;
-               case opcodes::f32_abs: fb[op_index++] = f32_abs_t{}; break;
-               case opcodes::f32_neg: fb[op_index++] = f32_neg_t{}; break;
-               case opcodes::f32_ceil: fb[op_index++] = f32_ceil_t{}; break;
-               case opcodes::f32_floor: fb[op_index++] = f32_floor_t{}; break;
-               case opcodes::f32_trunc: fb[op_index++] = f32_trunc_t{}; break;
-               case opcodes::f32_nearest: fb[op_index++] = f32_nearest_t{}; break;
-               case opcodes::f32_sqrt: fb[op_index++] = f32_sqrt_t{}; break;
-               case opcodes::f32_add: fb[op_index++] = f32_add_t{}; break;
-               case opcodes::f32_sub: fb[op_index++] = f32_sub_t{}; break;
-               case opcodes::f32_mul: fb[op_index++] = f32_mul_t{}; break;
-               case opcodes::f32_div: fb[op_index++] = f32_div_t{}; break;
-               case opcodes::f32_min: fb[op_index++] = f32_min_t{}; break;
-               case opcodes::f32_max: fb[op_index++] = f32_max_t{}; break;
-               case opcodes::f32_copysign: fb[op_index++] = f32_copysign_t{}; break;
-               case opcodes::f64_abs: fb[op_index++] = f64_abs_t{}; break;
-               case opcodes::f64_neg: fb[op_index++] = f64_neg_t{}; break;
-               case opcodes::f64_ceil: fb[op_index++] = f64_ceil_t{}; break;
-               case opcodes::f64_floor: fb[op_index++] = f64_floor_t{}; break;
-               case opcodes::f64_trunc: fb[op_index++] = f64_trunc_t{}; break;
-               case opcodes::f64_nearest: fb[op_index++] = f64_nearest_t{}; break;
-               case opcodes::f64_sqrt: fb[op_index++] = f64_sqrt_t{}; break;
-               case opcodes::f64_add: fb[op_index++] = f64_add_t{}; break;
-               case opcodes::f64_sub: fb[op_index++] = f64_sub_t{}; break;
-               case opcodes::f64_mul: fb[op_index++] = f64_mul_t{}; break;
-               case opcodes::f64_div: fb[op_index++] = f64_div_t{}; break;
-               case opcodes::f64_min: fb[op_index++] = f64_min_t{}; break;
-               case opcodes::f64_max: fb[op_index++] = f64_max_t{}; break;
-               case opcodes::f64_copysign: fb[op_index++] = f64_copysign_t{}; break;
-               case opcodes::i32_wrap_i64: fb[op_index++] = i32_wrap_i64_t{}; break;
-               case opcodes::i32_trunc_s_f32: fb[op_index++] = i32_trunc_s_f32_t{}; break;
-               case opcodes::i32_trunc_u_f32: fb[op_index++] = i32_trunc_u_f32_t{}; break;
-               case opcodes::i32_trunc_s_f64: fb[op_index++] = i32_trunc_s_f64_t{}; break;
-               case opcodes::i32_trunc_u_f64: fb[op_index++] = i32_trunc_u_f64_t{}; break;
-               case opcodes::i64_extend_s_i32: fb[op_index++] = i64_extend_s_i32_t{}; break;
-               case opcodes::i64_extend_u_i32: fb[op_index++] = i64_extend_u_i32_t{}; break;
-               case opcodes::i64_trunc_s_f32: fb[op_index++] = i64_trunc_s_f32_t{}; break;
-               case opcodes::i64_trunc_u_f32: fb[op_index++] = i64_trunc_u_f32_t{}; break;
-               case opcodes::i64_trunc_s_f64: fb[op_index++] = i64_trunc_s_f64_t{}; break;
-               case opcodes::i64_trunc_u_f64: fb[op_index++] = i64_trunc_u_f64_t{}; break;
-               case opcodes::f32_convert_s_i32: fb[op_index++] = f32_convert_s_i32_t{}; break;
-               case opcodes::f32_convert_u_i32: fb[op_index++] = f32_convert_u_i32_t{}; break;
-               case opcodes::f32_convert_s_i64: fb[op_index++] = f32_convert_s_i64_t{}; break;
-               case opcodes::f32_convert_u_i64: fb[op_index++] = f32_convert_u_i64_t{}; break;
-               case opcodes::f32_demote_f64: fb[op_index++] = f32_demote_f64_t{}; break;
-               case opcodes::f64_convert_s_i32: fb[op_index++] = f64_convert_s_i32_t{}; break;
-               case opcodes::f64_convert_u_i32: fb[op_index++] = f64_convert_u_i32_t{}; break;
-               case opcodes::f64_convert_s_i64: fb[op_index++] = f64_convert_s_i64_t{}; break;
-               case opcodes::f64_convert_u_i64: fb[op_index++] = f64_convert_u_i64_t{}; break;
-               case opcodes::f64_promote_f32: fb[op_index++] = f64_promote_f32_t{}; break;
-               case opcodes::i32_reinterpret_f32: fb[op_index++] = i32_reinterpret_f32_t{}; break;
-               case opcodes::i64_reinterpret_f64: fb[op_index++] = i64_reinterpret_f64_t{}; break;
-               case opcodes::f32_reinterpret_i32: fb[op_index++] = f32_reinterpret_i32_t{}; break;
-               case opcodes::f64_reinterpret_i64: fb[op_index++] = f64_reinterpret_i64_t{}; break;
+               case opcodes::i32_eqz: fb[op_index++] = i32_eqz_t{}; pop_operand(); push_operand(); break;
+               case opcodes::i32_eq: fb[op_index++] = i32_eq_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i32_ne: fb[op_index++] = i32_ne_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i32_lt_s: fb[op_index++] = i32_lt_s_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i32_lt_u: fb[op_index++] = i32_lt_u_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i32_gt_s: fb[op_index++] = i32_gt_s_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i32_gt_u: fb[op_index++] = i32_gt_u_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i32_le_s: fb[op_index++] = i32_le_s_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i32_le_u: fb[op_index++] = i32_le_u_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i32_ge_s: fb[op_index++] = i32_ge_s_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i32_ge_u: fb[op_index++] = i32_ge_u_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i64_eqz: fb[op_index++] = i64_eqz_t{}; pop_operand(); push_operand(); break;
+               case opcodes::i64_eq: fb[op_index++] = i64_eq_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i64_ne: fb[op_index++] = i64_ne_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i64_lt_s: fb[op_index++] = i64_lt_s_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i64_lt_u: fb[op_index++] = i64_lt_u_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i64_gt_s: fb[op_index++] = i64_gt_s_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i64_gt_u: fb[op_index++] = i64_gt_u_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i64_le_s: fb[op_index++] = i64_le_s_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i64_le_u: fb[op_index++] = i64_le_u_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i64_ge_s: fb[op_index++] = i64_ge_s_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i64_ge_u: fb[op_index++] = i64_ge_u_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f32_eq: fb[op_index++] = f32_eq_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f32_ne: fb[op_index++] = f32_ne_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f32_lt: fb[op_index++] = f32_lt_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f32_gt: fb[op_index++] = f32_gt_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f32_le: fb[op_index++] = f32_le_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f32_ge: fb[op_index++] = f32_ge_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f64_eq: fb[op_index++] = f64_eq_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f64_ne: fb[op_index++] = f64_ne_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f64_lt: fb[op_index++] = f64_lt_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f64_gt: fb[op_index++] = f64_gt_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f64_le: fb[op_index++] = f64_le_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f64_ge: fb[op_index++] = f64_ge_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i32_clz: fb[op_index++] = i32_clz_t{}; pop_operand(); push_operand(); break;
+               case opcodes::i32_ctz: fb[op_index++] = i32_ctz_t{}; pop_operand(); push_operand(); break;
+               case opcodes::i32_popcnt: fb[op_index++] = i32_popcnt_t{}; pop_operand(); push_operand(); break;
+               case opcodes::i32_add: fb[op_index++] = i32_add_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i32_sub: fb[op_index++] = i32_sub_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i32_mul: fb[op_index++] = i32_mul_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i32_div_s: fb[op_index++] = i32_div_s_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i32_div_u: fb[op_index++] = i32_div_u_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i32_rem_s: fb[op_index++] = i32_rem_s_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i32_rem_u: fb[op_index++] = i32_rem_u_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i32_and: fb[op_index++] = i32_and_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i32_or: fb[op_index++] = i32_or_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i32_xor: fb[op_index++] = i32_xor_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i32_shl: fb[op_index++] = i32_shl_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i32_shr_s: fb[op_index++] = i32_shr_s_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i32_shr_u: fb[op_index++] = i32_shr_u_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i32_rotl: fb[op_index++] = i32_rotl_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i32_rotr: fb[op_index++] = i32_rotr_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i64_clz: fb[op_index++] = i64_clz_t{}; pop_operand(); push_operand(); break;
+               case opcodes::i64_ctz: fb[op_index++] = i64_ctz_t{}; pop_operand(); push_operand(); break;
+               case opcodes::i64_popcnt: fb[op_index++] = i64_popcnt_t{}; pop_operand(); push_operand(); break;
+               case opcodes::i64_add: fb[op_index++] = i64_add_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i64_sub: fb[op_index++] = i64_sub_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i64_mul: fb[op_index++] = i64_mul_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i64_div_s: fb[op_index++] = i64_div_s_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i64_div_u: fb[op_index++] = i64_div_u_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i64_rem_s: fb[op_index++] = i64_rem_s_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i64_rem_u: fb[op_index++] = i64_rem_u_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i64_and: fb[op_index++] = i64_and_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i64_or: fb[op_index++] = i64_or_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i64_xor: fb[op_index++] = i64_xor_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i64_shl: fb[op_index++] = i64_shl_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i64_shr_s: fb[op_index++] = i64_shr_s_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i64_shr_u: fb[op_index++] = i64_shr_u_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i64_rotl: fb[op_index++] = i64_rotl_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i64_rotr: fb[op_index++] = i64_rotr_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f32_abs: fb[op_index++] = f32_abs_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f32_neg: fb[op_index++] = f32_neg_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f32_ceil: fb[op_index++] = f32_ceil_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f32_floor: fb[op_index++] = f32_floor_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f32_trunc: fb[op_index++] = f32_trunc_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f32_nearest: fb[op_index++] = f32_nearest_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f32_sqrt: fb[op_index++] = f32_sqrt_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f32_add: fb[op_index++] = f32_add_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f32_sub: fb[op_index++] = f32_sub_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f32_mul: fb[op_index++] = f32_mul_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f32_div: fb[op_index++] = f32_div_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f32_min: fb[op_index++] = f32_min_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f32_max: fb[op_index++] = f32_max_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f32_copysign: fb[op_index++] = f32_copysign_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f64_abs: fb[op_index++] = f64_abs_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f64_neg: fb[op_index++] = f64_neg_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f64_ceil: fb[op_index++] = f64_ceil_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f64_floor: fb[op_index++] = f64_floor_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f64_trunc: fb[op_index++] = f64_trunc_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f64_nearest: fb[op_index++] = f64_nearest_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f64_sqrt: fb[op_index++] = f64_sqrt_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f64_add: fb[op_index++] = f64_add_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f64_sub: fb[op_index++] = f64_sub_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f64_mul: fb[op_index++] = f64_mul_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f64_div: fb[op_index++] = f64_div_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f64_min: fb[op_index++] = f64_min_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f64_max: fb[op_index++] = f64_max_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::f64_copysign: fb[op_index++] = f64_copysign_t{}; pop_operands(2); push_operand(); break;
+               case opcodes::i32_wrap_i64: fb[op_index++] = i32_wrap_i64_t{}; pop_operand(); push_operand(); break;
+               case opcodes::i32_trunc_s_f32: fb[op_index++] = i32_trunc_s_f32_t{}; pop_operand(); push_operand(); break;
+               case opcodes::i32_trunc_u_f32: fb[op_index++] = i32_trunc_u_f32_t{}; pop_operand(); push_operand(); break;
+               case opcodes::i32_trunc_s_f64: fb[op_index++] = i32_trunc_s_f64_t{}; pop_operand(); push_operand(); break;
+               case opcodes::i32_trunc_u_f64: fb[op_index++] = i32_trunc_u_f64_t{}; pop_operand(); push_operand(); break;
+               case opcodes::i64_extend_s_i32: fb[op_index++] = i64_extend_s_i32_t{}; pop_operand(); push_operand(); break;
+               case opcodes::i64_extend_u_i32: fb[op_index++] = i64_extend_u_i32_t{}; pop_operand(); push_operand(); break;
+               case opcodes::i64_trunc_s_f32: fb[op_index++] = i64_trunc_s_f32_t{}; pop_operand(); push_operand(); break;
+               case opcodes::i64_trunc_u_f32: fb[op_index++] = i64_trunc_u_f32_t{}; pop_operand(); push_operand(); break;
+               case opcodes::i64_trunc_s_f64: fb[op_index++] = i64_trunc_s_f64_t{}; pop_operand(); push_operand(); break;
+               case opcodes::i64_trunc_u_f64: fb[op_index++] = i64_trunc_u_f64_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f32_convert_s_i32: fb[op_index++] = f32_convert_s_i32_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f32_convert_u_i32: fb[op_index++] = f32_convert_u_i32_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f32_convert_s_i64: fb[op_index++] = f32_convert_s_i64_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f32_convert_u_i64: fb[op_index++] = f32_convert_u_i64_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f32_demote_f64: fb[op_index++] = f32_demote_f64_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f64_convert_s_i32: fb[op_index++] = f64_convert_s_i32_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f64_convert_u_i32: fb[op_index++] = f64_convert_u_i32_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f64_convert_s_i64: fb[op_index++] = f64_convert_s_i64_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f64_convert_u_i64: fb[op_index++] = f64_convert_u_i64_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f64_promote_f32: fb[op_index++] = f64_promote_f32_t{}; pop_operand(); push_operand(); break;
+               case opcodes::i32_reinterpret_f32: fb[op_index++] = i32_reinterpret_f32_t{}; pop_operand(); push_operand(); break;
+               case opcodes::i64_reinterpret_f64: fb[op_index++] = i64_reinterpret_f64_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f32_reinterpret_i32: fb[op_index++] = f32_reinterpret_i32_t{}; pop_operand(); push_operand(); break;
+               case opcodes::f64_reinterpret_i64: fb[op_index++] = f64_reinterpret_i64_t{}; pop_operand(); push_operand(); break;
                case opcodes::error: fb[op_index++] = error_t{}; break;
             }
          }
