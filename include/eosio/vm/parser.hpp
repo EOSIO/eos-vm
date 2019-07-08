@@ -295,6 +295,20 @@ namespace eosio { namespace vm {
             return std::get<std::decay_t<decltype(instr)>>((fb[op_index++] = instr));
          };
 
+         // Handles branches to the end of the scope and pops the pc_stack
+         auto exit_scope = [&]() {
+            if (pc_stack.size()) { // There must be at least one element
+               if(auto* relocations = std::get_if<std::vector<uint32_t*>>(&pc_stack.back().relocations)) {
+                  for(uint32_t* branch_op : *relocations) {
+                     *branch_op = op_index;
+                  }
+               }
+               pc_stack.pop_back();
+            } else {
+               throw wasm_invalid_element{ "unexpected end instruction" };
+            }
+         };
+
          while (code.offset() < bounds) {
             EOS_WB_ASSERT(pc_stack.size() <= constants::max_nested_structures, wasm_parse_exception,
                           "nested structures validation failure");
@@ -303,16 +317,7 @@ namespace eosio { namespace vm {
                case opcodes::unreachable: fb[op_index++] = unreachable_t{}; break;
                case opcodes::nop: fb[op_index++] = nop_t{}; break;
                case opcodes::end: {
-                  if (pc_stack.size()) { // There must be at least one element
-                     if(auto* relocations = std::get_if<std::vector<uint32_t*>>(&pc_stack.back().relocations)) {
-                        for(uint32_t* branch_op : *relocations) {
-                           *branch_op = op_index;
-                        }
-                     }
-                     pc_stack.pop_back();
-                  } else {
-                    throw wasm_invalid_element{ "unexpected end instruction" };
-                  }
+                  exit_scope();
                   break;
                }
                case opcodes::return_: fb[op_index++] = return__t{}; break;
@@ -586,6 +591,7 @@ namespace eosio { namespace vm {
                case opcodes::error: fb[op_index++] = error_t{}; break;
             }
          }
+         exit_scope();
          fb.resize(op_index);
       }
 
