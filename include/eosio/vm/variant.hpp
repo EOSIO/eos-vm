@@ -152,12 +152,34 @@ namespace eosio { namespace vm {
                     "eosio::vm::variant can only accept 255 alternatives");
 
     public:
+      variant(){}
       template <typename T>
-      inline constexpr variant(T&& alt) {
+      variant(const T& alt) {
+         new (&_storage) std::decay_t<T>(alt);
+         _which = detail::get_alternatives_index<0, T, Alternatives...>::value;
+      }
+      template <typename T>
+      variant(T&& alt) {
          static_assert(detail::is_valid_alternative<std::decay_t<T>, Alternatives...>::value,
                        "type not a valid alternative");
          new (&_storage) std::decay_t<T>(std::forward<T>(alt));
          _which = detail::get_alternatives_index<0, T, Alternatives...>::value;
+      }
+
+      template <typename T>
+      variant& operator=(const T& alt) {
+         new (&_storage) std::decay_t<T>(alt);
+         _which = detail::get_alternatives_index<0, T, Alternatives...>::value;
+         return *this;
+      }
+
+      template <typename T>
+      variant& operator=(T&& alt) {
+         static_assert(detail::is_valid_alternative<std::decay_t<T>, Alternatives...>::value,
+                       "type not a valid alternative");
+         new (&_storage) std::decay_t<T>(std::forward<T>(alt));
+         _which = detail::get_alternatives_index<0, T, Alternatives...>::value;
+         return *this;
       }
 
       static inline constexpr size_t variant_size() { return sizeof...(Alternatives); }
@@ -167,6 +189,14 @@ namespace eosio { namespace vm {
       inline constexpr auto&& get_check() {
          // TODO add outcome stuff
          return 3;
+      }
+
+      inline constexpr char* get_raw() const {
+         return _storage;
+      }
+
+      inline constexpr char* get_raw() {
+         return _storage;
       }
 
       template <size_t Index>
@@ -212,8 +242,7 @@ namespace eosio { namespace vm {
       static constexpr size_t _sizeof  = detail::max_layout_size<Alternatives...>::value;
       static constexpr size_t _alignof = detail::max_alignof<Alternatives...>::value;
       uint16_t _which                  = 0;
-      char     _storage[_sizeof];
-      // std::aligned_storage<_sizeof, _alignof> _storage;
+      std::aligned_storage<_sizeof, _alignof> _storage;
    };
 
 }} // namespace eosio::vm

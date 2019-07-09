@@ -297,7 +297,8 @@ namespace eosio { namespace vm {
 
          // appends an instruction to fb and returns a reference to it.
          auto append_instr = [&](auto&& instr) -> decltype(auto) {
-            return std::get<std::decay_t<decltype(instr)>>((fb[op_index++] = instr));
+            fb[op_index] = instr;
+            return fb[op_index++].get<std::decay_t<decltype(instr)>>();
          };
 
 
@@ -359,7 +360,7 @@ namespace eosio { namespace vm {
                           "nested structures validation failure");
 
             switch (*code++) {
-               case opcodes::unreachable: fb[op_index++] = unreachable_t{}; break;
+               case opcodes::unreachable: new(&(fb[op_index++]))(unreachable_t{}); break;
                case opcodes::nop: fb[op_index++] = nop_t{}; break;
                case opcodes::end: {
                   exit_scope();

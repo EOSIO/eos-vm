@@ -106,10 +106,10 @@ namespace eosio { namespace vm {
             stack_elem el;
             if (ret_type) {
                el = pop_operand();
-               EOS_WB_ASSERT(is_a<i32_const_t>(el) && ret_type == types::i32 ||
-                                   is_a<i64_const_t>(el) && ret_type == types::i64 ||
-                                   is_a<f32_const_t>(el) && ret_type == types::f32 ||
-                                   is_a<f64_const_t>(el) && ret_type == types::f64,
+               EOS_WB_ASSERT(el.is_a<i32_const_t>() && ret_type == types::i32 ||
+                                   el.is_a<i64_const_t>() && ret_type == types::i64 ||
+                                   el.is_a<f32_const_t>() && ret_type == types::f32 ||
+                                   el.is_a<f64_const_t>() && ret_type == types::f64,
                              wasm_interpreter_exception, "wrong return type");
             }
 
@@ -311,15 +311,108 @@ namespace eosio { namespace vm {
          }
       }
 
+#define CREATE_TABLE_ENTRY(NAME, CODE) &&ev_label_##NAME,
+#define CREATE_EXITING_TABLE_ENTRY(NAME, CODE) &&ev_label_exiting_##NAME,
+#define CREATE_LABEL(NAME, CODE)                                                                 \
+      ev_label_##NAME : visitor(ev_variant.template get<eosio::vm::NAME##_t>());                 \
+      ev_variant = _mod.code.at_no_check(_code_index).code.at_no_check(_pc++ - _current_offset); \
+      goto* dispatch_table[ev_variant.index()];
+#define CREATE_EXITING_LABEL(NAME, CODE)                                                 \
+      ev_label_exiting_##NAME : visitor(ev_variant.template get<eosio::vm::NAME##_t>()); \
+      return;
+#define CREATE_EMPTY_LABEL(NAME, CODE) ev_label_##NAME : throw wasm_interpreter_exception{"empty operand"};
+#define CREATE_EXITING_EMPTY_LABEL(NAME, CODE) ev_label_exiting_##NAME : throw wasm_interpreter_exception{"empty operand"};
+
       template <typename Visitor>
       void execute(Visitor&& visitor) {
+	 static void* dispatch_table[] = {
+		 CONTROL_FLOW_OPS(CREATE_TABLE_ENTRY)
+		 BR_TABLE_OP(CREATE_TABLE_ENTRY)
+		 RETURN_OP(CREATE_TABLE_ENTRY)
+		 CALL_OPS(CREATE_TABLE_ENTRY)
+		 PARAMETRIC_OPS(CREATE_TABLE_ENTRY)
+		 VARIABLE_ACCESS_OPS(CREATE_TABLE_ENTRY)
+		 MEMORY_OPS(CREATE_TABLE_ENTRY)
+		 I32_CONSTANT_OPS(CREATE_TABLE_ENTRY)
+		 I64_CONSTANT_OPS(CREATE_TABLE_ENTRY)
+		 F32_CONSTANT_OPS(CREATE_TABLE_ENTRY)
+		 F64_CONSTANT_OPS(CREATE_TABLE_ENTRY)
+		 COMPARISON_OPS(CREATE_TABLE_ENTRY)
+		 NUMERIC_OPS(CREATE_TABLE_ENTRY)
+		 CONVERSION_OPS(CREATE_TABLE_ENTRY)
+		 SYNTHETIC_OPS(CREATE_TABLE_ENTRY)
+		 ERROR_OPS(CREATE_TABLE_ENTRY)
+		 EMPTY_OPS(CREATE_TABLE_ENTRY)
+		 CONTROL_FLOW_OPS(CREATE_EXITING_TABLE_ENTRY)
+		 BR_TABLE_OP(CREATE_EXITING_TABLE_ENTRY)
+		 RETURN_OP(CREATE_EXITING_TABLE_ENTRY)
+		 CALL_OPS(CREATE_EXITING_TABLE_ENTRY)
+		 PARAMETRIC_OPS(CREATE_EXITING_TABLE_ENTRY)
+		 VARIABLE_ACCESS_OPS(CREATE_EXITING_TABLE_ENTRY)
+		 MEMORY_OPS(CREATE_EXITING_TABLE_ENTRY)
+		 I32_CONSTANT_OPS(CREATE_EXITING_TABLE_ENTRY)
+		 I64_CONSTANT_OPS(CREATE_EXITING_TABLE_ENTRY)
+		 F32_CONSTANT_OPS(CREATE_EXITING_TABLE_ENTRY)
+		 F64_CONSTANT_OPS(CREATE_EXITING_TABLE_ENTRY)
+		 COMPARISON_OPS(CREATE_EXITING_TABLE_ENTRY)
+		 NUMERIC_OPS(CREATE_EXITING_TABLE_ENTRY)
+		 CONVERSION_OPS(CREATE_EXITING_TABLE_ENTRY)
+		 SYNTHETIC_OPS(CREATE_EXITING_TABLE_ENTRY)
+		 EMPTY_OPS(CREATE_EXITING_TABLE_ENTRY)
+		 ERROR_OPS(CREATE_EXITING_TABLE_ENTRY)
+		 &&__ev_last
+	      };
+              auto& ev_variant = _mod.code.at_no_check(_code_index).code.at_no_check(_pc - _current_offset);
+	      goto *dispatch_table[ev_variant.index()];
+	      while (1) {
+		 CONTROL_FLOW_OPS(CREATE_LABEL);
+		 BR_TABLE_OP(CREATE_LABEL);
+		 RETURN_OP(CREATE_LABEL);
+		 CALL_OPS(CREATE_LABEL);
+		 PARAMETRIC_OPS(CREATE_LABEL);
+		 VARIABLE_ACCESS_OPS(CREATE_LABEL);
+		 MEMORY_OPS(CREATE_LABEL);
+		 I32_CONSTANT_OPS(CREATE_LABEL);
+		 I64_CONSTANT_OPS(CREATE_LABEL);
+		 F32_CONSTANT_OPS(CREATE_LABEL);
+		 F64_CONSTANT_OPS(CREATE_LABEL);
+		 COMPARISON_OPS(CREATE_LABEL);
+		 NUMERIC_OPS(CREATE_LABEL);
+		 CONVERSION_OPS(CREATE_LABEL);
+		 SYNTHETIC_OPS(CREATE_LABEL);
+		 ERROR_OPS(CREATE_LABEL);
+		 EMPTY_OPS(CREATE_EMPTY_LABEL);
+		 CONTROL_FLOW_OPS(CREATE_EXITING_LABEL);
+		 BR_TABLE_OP(CREATE_EXITING_LABEL);
+		 RETURN_OP(CREATE_EXITING_LABEL);
+		 CALL_OPS(CREATE_EXITING_LABEL);
+		 PARAMETRIC_OPS(CREATE_EXITING_LABEL);
+		 VARIABLE_ACCESS_OPS(CREATE_EXITING_LABEL);
+		 MEMORY_OPS(CREATE_EXITING_LABEL);
+		 I32_CONSTANT_OPS(CREATE_EXITING_LABEL);
+		 I64_CONSTANT_OPS(CREATE_EXITING_LABEL);
+		 F32_CONSTANT_OPS(CREATE_EXITING_LABEL);
+		 F64_CONSTANT_OPS(CREATE_EXITING_LABEL);
+		 COMPARISON_OPS(CREATE_EXITING_LABEL);
+		 NUMERIC_OPS(CREATE_EXITING_LABEL);
+		 CONVERSION_OPS(CREATE_EXITING_LABEL);
+		 SYNTHETIC_OPS(CREATE_EXITING_LABEL);
+		 EMPTY_OPS(CREATE_EXITING_EMPTY_LABEL);
+		 ERROR_OPS(CREATE_EXITING_LABEL);
+	      __ev_last:
+		 throw wasm_interpreter_exception{"should never reach here"};
+	      }
+
+	 //DISPATCH( visitor, _mod );
+	 /*
          do {
             uint32_t offset = _pc - _current_offset;
             if (_pc == _exit_pc && _as.size() <= 1) {
                _executing = false;
             }
-            std::visit(visitor, _mod.code.at_no_check(_code_index).code.at_no_check(offset));
+	    visit( visitor, _mod.code.at_no_check(_code_index).code.at_no_check(offset) );
          } while (_executing);
+	 */
       }
 
       bounded_allocator _base_allocator = {
