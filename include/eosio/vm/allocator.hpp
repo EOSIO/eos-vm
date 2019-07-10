@@ -109,6 +109,20 @@ namespace eosio { namespace vm {
       inline T* get_base_ptr() const { return raw; }
    };
 
+    // FIXME: This is a quick hack.
+    class jit_allocator {
+    private:
+      uint8_t* raw;
+    public:
+      uint8_t* alloc(size_t size = 1) {
+        raw = (uint8_t*)mmap(NULL, 1024 * 2014, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+        return raw;
+      }
+      void make_executable() {
+        mprotect(raw, 1024 * 1024, PROT_EXEC);
+      }
+    };
+
    class wasm_allocator {
     private:
       char*   raw       = nullptr;
