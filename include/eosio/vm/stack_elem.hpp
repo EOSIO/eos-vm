@@ -8,27 +8,37 @@
 #include <variant>
 
 namespace eosio { namespace vm {
-   using stack_elem = variant<activation_frame, i32_const_t, i64_const_t, f32_const_t, f64_const_t, block_t,
-                                   loop_t, if__t, else__t, end_t>;
-   
-   inline int32_t&  to_i32(stack_elem& elem) { return reinterpret_cast<i32_const_t*>(elem.get_raw())->data.i; }
-   inline uint32_t& to_ui32(stack_elem& elem) { return reinterpret_cast<i32_const_t*>(elem.get_raw())->data.ui; }
-   inline float&    to_f32(stack_elem& elem) { return reinterpret_cast<f32_const_t*>(elem.get_raw())->data.f; }
-   inline uint32_t& to_fui32(stack_elem& elem) { return reinterpret_cast<f32_const_t*>(elem.get_raw())->data.ui; }
-/*
-   inline int32_t&  to_i32(stack_elem& elem) { return reinterpret_cast<i32_const_t*>(elem.get_raw())->data.i; }
-   inline uint32_t& to_ui32(stack_elem& elem) { return reinterpret_cast<i32_const_t*>(elem.get_raw())->data.ui; }
-   inline float&    to_f32(stack_elem& elem) { return reinterpret_cast<f32_const_t*>(elem.get_raw())->data.f; }
-   inline uint32_t& to_fui32(stack_elem& elem) { return reinterpret_cast<f32_const_t*>(elem.get_raw())->data.ui; }
-*/
-   inline int64_t&  to_i64(stack_elem& elem) { return reinterpret_cast<i64_const_t*>(elem.get_raw())->data.i; }
-   inline uint64_t& to_ui64(stack_elem& elem) { return reinterpret_cast<i64_const_t*>(elem.get_raw())->data.ui; }
-   inline double&   to_f64(stack_elem& elem) { return reinterpret_cast<f64_const_t*>(elem.get_raw())->data.f; }
-   inline uint64_t& to_fui64(stack_elem& elem) { return reinterpret_cast<f64_const_t*>(elem.get_raw())->data.ui; }
-/*
-   inline int64_t&  to_i64(stack_elem& elem) { return reinterpret_cast<i64_const_t*>(elem.get_raw())->data.i; }
-   inline uint64_t& to_ui64(stack_elem& elem) { return reinterpret_cast<i64_const_t*>(elem.get_raw())->data.ui; }
-   inline double&   to_f64(stack_elem& elem) { return reinterpret_cast<f64_const_t*>(elem.get_raw())->data.f; }
-   inline uint64_t& to_fui64(stack_elem& elem) { return reinterpret_cast<f64_const_t*>(elem.get_raw())->data.ui; }
-   */
+   class control_stack_elem : public std::variant<block_t, loop_t, if__t, else__t, end_t> {
+      public:
+         using std::variant<block_t, loop_t, if__t, else__t, end_t>::variant;
+         template <typename T>
+         constexpr auto& get() { return std::get<T>(*this); }
+         template <typename T>
+         constexpr auto get()const { return std::get<T>(*this); }
+   };
+
+   class operand_stack_elem : public variant<i32_const_t, i64_const_t, f32_const_t, f64_const_t> {
+      public:
+         using variant<i32_const_t, i64_const_t, f32_const_t, f64_const_t>::variant;
+         inline int32_t&  to_i32() { return get<i32_const_t>().data.i; }
+         inline uint32_t& to_ui32() { return get<i32_const_t>().data.ui; }
+         inline float&    to_f32() { return get<f32_const_t>().data.f; }
+         inline uint32_t& to_fui32() { return get<f32_const_t>().data.ui; }
+
+         inline int64_t&  to_i64() { return get<i64_const_t>().data.i; }
+         inline uint64_t& to_ui64() { return get<i64_const_t>().data.ui; }
+         inline double&   to_f64() { return get<f64_const_t>().data.f; }
+         inline uint64_t& to_fui64() { return get<f64_const_t>().data.ui; }
+
+         inline int32_t  to_i32() const { return get<i32_const_t>().data.i; }
+         inline uint32_t to_ui32() const { return get<i32_const_t>().data.ui; }
+         inline float    to_f32() const { return get<f32_const_t>().data.f; }
+         inline uint32_t to_fui32() const { return get<f32_const_t>().data.ui; }
+
+         inline int64_t  to_i64() const { return get<i64_const_t>().data.i; }
+         inline uint64_t to_ui64() const { return get<i64_const_t>().data.ui; }
+         inline double   to_f64() const { return get<f64_const_t>().data.f; }
+         inline uint64_t to_fui64() const { return get<f64_const_t>().data.ui; }
+
+   };
 }} // nameo::vm

@@ -56,16 +56,11 @@ namespace eosio { namespace vm {
          std::cout << "STACK { ";
          for (int i = 0; i < _os.size(); i++) {
             std::cout << "(" << i << ")";
-            if (std::holds_alternative<i32_const_t>(_os.get(i)))
-               std::cout << "i32:" << std::get<i32_const_t>(_os.get(i)).data.ui << ", ";
-            else if (std::holds_alternative<i64_const_t>(_os.get(i)))
-               std::cout << "i64:" << std::get<i64_const_t>(_os.get(i)).data.ui << ", ";
-            else if (std::holds_alternative<f32_const_t>(_os.get(i)))
-               std::cout << "f32:" << std::get<f32_const_t>(_os.get(i)).data.f << ", ";
-            else if (std::holds_alternative<f64_const_t>(_os.get(i)))
-               std::cout << "f64:" << std::get<f64_const_t>(_os.get(i)).data.f << ", ";
-            else
-               std::cout << "(INDEX " << _os.get(i).index() << "), ";
+            visit(overloaded { [&](i32_const_t el) { std::cout << "i32:" << el.data.ui << ", "; },
+                               [&](i64_const_t el) { std::cout << "i64:" << el.data.ui << ", "; },
+                               [&](f32_const_t el) { std::cout << "f32:" << el.data.f << ", "; },
+                               [&](f64_const_t el) { std::cout << "f64:" << el.data.f << ", "; },
+                               [&](auto el) { std::cout << "(INDEX " << el.index() << "), "; } }, _os.get(i));
          }
          std::cout << " }\n";
       }
@@ -76,16 +71,16 @@ namespace eosio { namespace vm {
       inline auto           get_wasm_allocator() { return _wasm_alloc; }
       inline char*          linear_memory() { return _linear_memory; }
       inline uint32_t       table_elem(uint32_t i) { return _mod.tables[0].table[i]; }
-      inline void           push_label(const stack_elem& el) { _cs.push(el); }
+      inline void           push_label(const control_stack_elem& el) { _cs.push(el); }
       inline uint16_t       current_label_index() const { return _cs.current_index(); }
       inline void           eat_labels(uint16_t index) { _cs.eat(index); }
-      inline void           push_operand(const stack_elem& el) { _os.push(el); }
-      inline stack_elem     get_operand(uint16_t index) const { return _os.get(_last_op_index + index); }
+      inline void           push_operand(const operand_stack_elem& el) { _os.push(el); }
+      inline operand_stack_elem     get_operand(uint16_t index) const { return _os.get(_last_op_index + index); }
       inline void           eat_operands(uint16_t index) { _os.eat(index); }
-      inline void           set_operand(uint16_t index, const stack_elem& el) { _os.set(_last_op_index + index, el); }
+      inline void           set_operand(uint16_t index, const operand_stack_elem& el) { _os.set(_last_op_index + index, el); }
       inline uint16_t       current_operands_index() const { return _os.current_index(); }
-      inline void           push_call(const stack_elem& el) { _as.push(el); }
-      inline stack_elem     pop_call() { return _as.pop(); }
+      inline void           push_call(const activation_frame& el) { _as.push(el); }
+      inline activation_frame     pop_call() { return _as.pop(); }
       inline void           push_call(uint32_t index) {
          const auto& ftype = _mod.get_function_type(index);
          _last_op_index    = _os.size() - ftype.param_types.size();
@@ -97,13 +92,13 @@ namespace eosio { namespace vm {
 
       inline void apply_pop_call() {
          if (_as.size()) {
-            const auto& af      = std::get<activation_frame>(_as.pop());
+            const auto& af      = _as.pop();
             _current_offset     = af.offset;
             _pc                 = af.pc;
             _code_index         = af.index;
             uint8_t    ret_type = af.ret_type;
             uint16_t   op_index = af.op_index;
-            stack_elem el;
+            operand_stack_elem el;
             if (ret_type) {
                el = pop_operand();
                EOS_WB_ASSERT(el.is_a<i32_const_t>() && ret_type == types::i32 ||
@@ -117,16 +112,16 @@ namespace eosio { namespace vm {
             if (ret_type)
                push_operand(el);
             if (_as.size()) {
-               _last_op_index = std::get<activation_frame>(_as.peek()).op_index;
+               _last_op_index = _as.peek().op_index;
             }
          }
          if (_cs.size())
             _cs.pop();
       }
-      inline stack_elem  pop_label() { return _cs.pop(); }
-      inline stack_elem  pop_operand() { return _os.pop(); }
-      inline stack_elem& peek_operand(size_t i = 0) { return _os.peek(i); }
-      inline stack_elem  get_global(uint32_t index) {
+      inline control_stack_elem  pop_label() { return _cs.pop(); }
+      inline operand_stack_elem  pop_operand() { return _os.pop(); }
+      inline operand_stack_elem& peek_operand(size_t i = 0) { return _os.peek(i); }
+      inline operand_stack_elem  get_global(uint32_t index) {
          EOS_WB_ASSERT(index < _mod.globals.size(), wasm_interpreter_exception, "global index out of range");
          const auto& gl = _mod.globals[index];
          // computed g
@@ -138,11 +133,12 @@ namespace eosio { namespace vm {
             default: throw wasm_interpreter_exception{ "invalid global type" };
          }
       }
-      inline void set_global(uint32_t index, const stack_elem& el) {
+
+      inline void set_global(uint32_t index, const operand_stack_elem& el) {
          EOS_WB_ASSERT(index < _mod.globals.size(), wasm_interpreter_exception, "global index out of range");
          auto& gl = _mod.globals[index];
          EOS_WB_ASSERT(gl.type.mutability, wasm_interpreter_exception, "global is not mutable");
-         std::visit(overloaded{ [&](const i32_const_t& i) {
+         visit(overloaded{ [&](const i32_const_t& i) {
                                   EOS_WB_ASSERT(gl.type.content_type == types::i32, wasm_interpreter_exception,
                                                 "expected i32 global type");
                                   gl.init.value.i32 = i.data.ui;
@@ -166,10 +162,10 @@ namespace eosio { namespace vm {
                     el);
       }
 
-      inline bool is_true(const stack_elem& el) {
+      inline bool is_true(const operand_stack_elem& el) {
          bool ret_val = false;
-         std::visit(overloaded{ [&](const i32_const_t& i32) { ret_val = i32.data.ui; },
-                                [&](auto) { throw wasm_invalid_element{ "should be an i32 type" }; } },
+         visit(overloaded{ [&](const i32_const_t& i32) { ret_val = i32.data.ui; },
+                           [&](auto) { throw wasm_invalid_element{ "should be an i32 type" }; } },
                     el);
          return ret_val;
       }
@@ -177,7 +173,7 @@ namespace eosio { namespace vm {
       inline void type_check(const func_type& ft) {
          for (int i = 0; i < ft.param_types.size(); i++) {
             const auto& op = peek_operand((ft.param_types.size() - 1) - i);
-            std::visit(overloaded{ [&](const i32_const_t&) {
+            visit(overloaded{ [&](const i32_const_t&) {
                                      EOS_WB_ASSERT(ft.param_types[i] == types::i32, wasm_interpreter_exception,
                                                    "function param type mismatch");
                                   },
@@ -205,7 +201,6 @@ namespace eosio { namespace vm {
       inline uint32_t get_code_index() const { return _code_index; }
       inline uint32_t get_code_offset() const { return _pc - _current_offset; }
       inline void     exit(std::error_code err = std::error_code()) {
-         std::cout << "Exiting...\n";
          _error_code = err;
          _executing  = false;
       }
@@ -213,20 +208,20 @@ namespace eosio { namespace vm {
       inline bool            executing() const { return _executing; }
 
       template <typename Visitor, typename... Args>
-      inline std::optional<stack_elem> execute_func_table(Host* host, Visitor&& visitor, uint32_t table_index,
+      inline std::optional<operand_stack_elem> execute_func_table(Host* host, Visitor&& visitor, uint32_t table_index,
                                                           Args... args) {
          return execute(host, std::forward<Visitor>(visitor), table_elem(table_index), std::forward<Args>(args)...);
       }
 
       template <typename Visitor, typename... Args>
-      inline std::optional<stack_elem> execute(Host* host, Visitor&& visitor, const std::string_view func,
+      inline std::optional<operand_stack_elem> execute(Host* host, Visitor&& visitor, const std::string_view func,
                                                Args... args) {
          uint32_t func_index = _mod.get_exported_function(func);
          return execute(host, std::forward<Visitor>(visitor), func_index, std::forward<Args>(args)...);
       }
 
       template <typename Visitor, typename... Args>
-      inline std::optional<stack_elem> execute(Host* host, Visitor&& visitor, uint32_t func_index, Args... args) {
+      inline std::optional<operand_stack_elem> execute(Host* host, Visitor&& visitor, uint32_t func_index, Args... args) {
          EOS_WB_ASSERT(func_index < std::numeric_limits<uint32_t>::max(), wasm_interpreter_exception,
                        "cannot execute function, function not found");
          _host          = host;
@@ -243,7 +238,8 @@ namespace eosio { namespace vm {
          _current_offset   = _mod.function_sizes[_current_function];
          _exit_pc          = _current_offset + _mod.code[_code_index].code.size() - 1;
          _pc               = _exit_pc - 1; // set to exit for return
-
+	 _mod.code[_code_index].code[_mod.code[_code_index].code.size()-1].toggle_exiting_which();
+	 std::cout << "After setting\n";
          _executing = true;
          _os.eat(0);
          _as.eat(0);
@@ -256,7 +252,7 @@ namespace eosio { namespace vm {
          _pc = _current_offset; // set to actual start of function
 
          execute(visitor);
-         stack_elem ret;
+         operand_stack_elem ret;
          try {
             ret = pop_operand();
          } catch (...) { return {}; }
@@ -315,108 +311,100 @@ namespace eosio { namespace vm {
 #define CREATE_EXITING_TABLE_ENTRY(NAME, CODE) &&ev_label_exiting_##NAME,
 #define CREATE_LABEL(NAME, CODE)                                                                 \
       ev_label_##NAME : visitor(ev_variant.template get<eosio::vm::NAME##_t>());                 \
-      ev_variant = _mod.code.at_no_check(_code_index).code.at_no_check(_pc++ - _current_offset); \
+      ev_variant = _mod.code.at_no_check(_code_index).code.at_no_check(_pc - _current_offset); \
       goto* dispatch_table[ev_variant.index()];
 #define CREATE_EXITING_LABEL(NAME, CODE)                                                 \
+      std::cout << "Exiting Prog!" << std::endl; \
       ev_label_exiting_##NAME : visitor(ev_variant.template get<eosio::vm::NAME##_t>()); \
       return;
+      /*_mod.code[_code_index].code[_exit_pc - _current_offset].toggle_exiting_which();    \*/
+      /*return;*/
 #define CREATE_EMPTY_LABEL(NAME, CODE) ev_label_##NAME : throw wasm_interpreter_exception{"empty operand"};
 #define CREATE_EXITING_EMPTY_LABEL(NAME, CODE) ev_label_exiting_##NAME : throw wasm_interpreter_exception{"empty operand"};
 
       template <typename Visitor>
       void execute(Visitor&& visitor) {
-	 static void* dispatch_table[] = {
-		 CONTROL_FLOW_OPS(CREATE_TABLE_ENTRY)
-		 BR_TABLE_OP(CREATE_TABLE_ENTRY)
-		 RETURN_OP(CREATE_TABLE_ENTRY)
-		 CALL_OPS(CREATE_TABLE_ENTRY)
-		 PARAMETRIC_OPS(CREATE_TABLE_ENTRY)
-		 VARIABLE_ACCESS_OPS(CREATE_TABLE_ENTRY)
-		 MEMORY_OPS(CREATE_TABLE_ENTRY)
-		 I32_CONSTANT_OPS(CREATE_TABLE_ENTRY)
-		 I64_CONSTANT_OPS(CREATE_TABLE_ENTRY)
-		 F32_CONSTANT_OPS(CREATE_TABLE_ENTRY)
-		 F64_CONSTANT_OPS(CREATE_TABLE_ENTRY)
-		 COMPARISON_OPS(CREATE_TABLE_ENTRY)
-		 NUMERIC_OPS(CREATE_TABLE_ENTRY)
-		 CONVERSION_OPS(CREATE_TABLE_ENTRY)
-		 SYNTHETIC_OPS(CREATE_TABLE_ENTRY)
-		 ERROR_OPS(CREATE_TABLE_ENTRY)
-		 EMPTY_OPS(CREATE_TABLE_ENTRY)
-		 CONTROL_FLOW_OPS(CREATE_EXITING_TABLE_ENTRY)
-		 BR_TABLE_OP(CREATE_EXITING_TABLE_ENTRY)
-		 RETURN_OP(CREATE_EXITING_TABLE_ENTRY)
-		 CALL_OPS(CREATE_EXITING_TABLE_ENTRY)
-		 PARAMETRIC_OPS(CREATE_EXITING_TABLE_ENTRY)
-		 VARIABLE_ACCESS_OPS(CREATE_EXITING_TABLE_ENTRY)
-		 MEMORY_OPS(CREATE_EXITING_TABLE_ENTRY)
-		 I32_CONSTANT_OPS(CREATE_EXITING_TABLE_ENTRY)
-		 I64_CONSTANT_OPS(CREATE_EXITING_TABLE_ENTRY)
-		 F32_CONSTANT_OPS(CREATE_EXITING_TABLE_ENTRY)
-		 F64_CONSTANT_OPS(CREATE_EXITING_TABLE_ENTRY)
-		 COMPARISON_OPS(CREATE_EXITING_TABLE_ENTRY)
-		 NUMERIC_OPS(CREATE_EXITING_TABLE_ENTRY)
-		 CONVERSION_OPS(CREATE_EXITING_TABLE_ENTRY)
-		 SYNTHETIC_OPS(CREATE_EXITING_TABLE_ENTRY)
-		 EMPTY_OPS(CREATE_EXITING_TABLE_ENTRY)
-		 ERROR_OPS(CREATE_EXITING_TABLE_ENTRY)
-		 &&__ev_last
-	      };
-              auto& ev_variant = _mod.code.at_no_check(_code_index).code.at_no_check(_pc - _current_offset);
-	      goto *dispatch_table[ev_variant.index()];
-	      while (1) {
-		 CONTROL_FLOW_OPS(CREATE_LABEL);
-		 BR_TABLE_OP(CREATE_LABEL);
-		 RETURN_OP(CREATE_LABEL);
-		 CALL_OPS(CREATE_LABEL);
-		 PARAMETRIC_OPS(CREATE_LABEL);
-		 VARIABLE_ACCESS_OPS(CREATE_LABEL);
-		 MEMORY_OPS(CREATE_LABEL);
-		 I32_CONSTANT_OPS(CREATE_LABEL);
-		 I64_CONSTANT_OPS(CREATE_LABEL);
-		 F32_CONSTANT_OPS(CREATE_LABEL);
-		 F64_CONSTANT_OPS(CREATE_LABEL);
-		 COMPARISON_OPS(CREATE_LABEL);
-		 NUMERIC_OPS(CREATE_LABEL);
-		 CONVERSION_OPS(CREATE_LABEL);
-		 SYNTHETIC_OPS(CREATE_LABEL);
-		 ERROR_OPS(CREATE_LABEL);
-		 EMPTY_OPS(CREATE_EMPTY_LABEL);
-		 CONTROL_FLOW_OPS(CREATE_EXITING_LABEL);
-		 BR_TABLE_OP(CREATE_EXITING_LABEL);
-		 RETURN_OP(CREATE_EXITING_LABEL);
-		 CALL_OPS(CREATE_EXITING_LABEL);
-		 PARAMETRIC_OPS(CREATE_EXITING_LABEL);
-		 VARIABLE_ACCESS_OPS(CREATE_EXITING_LABEL);
-		 MEMORY_OPS(CREATE_EXITING_LABEL);
-		 I32_CONSTANT_OPS(CREATE_EXITING_LABEL);
-		 I64_CONSTANT_OPS(CREATE_EXITING_LABEL);
-		 F32_CONSTANT_OPS(CREATE_EXITING_LABEL);
-		 F64_CONSTANT_OPS(CREATE_EXITING_LABEL);
-		 COMPARISON_OPS(CREATE_EXITING_LABEL);
-		 NUMERIC_OPS(CREATE_EXITING_LABEL);
-		 CONVERSION_OPS(CREATE_EXITING_LABEL);
-		 SYNTHETIC_OPS(CREATE_EXITING_LABEL);
-		 EMPTY_OPS(CREATE_EXITING_EMPTY_LABEL);
-		 ERROR_OPS(CREATE_EXITING_LABEL);
-	      __ev_last:
-		 throw wasm_interpreter_exception{"should never reach here"};
-	      }
-
-	 //DISPATCH( visitor, _mod );
-	 /*
-         do {
-            uint32_t offset = _pc - _current_offset;
-            if (_pc == _exit_pc && _as.size() <= 1) {
-               _executing = false;
-            }
-	    visit( visitor, _mod.code.at_no_check(_code_index).code.at_no_check(offset) );
-         } while (_executing);
-	 */
+         static void* dispatch_table[] = {
+            CONTROL_FLOW_OPS(CREATE_TABLE_ENTRY)
+            BR_TABLE_OP(CREATE_TABLE_ENTRY)
+            RETURN_OP(CREATE_TABLE_ENTRY)
+            CALL_OPS(CREATE_TABLE_ENTRY)
+            PARAMETRIC_OPS(CREATE_TABLE_ENTRY)
+            VARIABLE_ACCESS_OPS(CREATE_TABLE_ENTRY)
+            MEMORY_OPS(CREATE_TABLE_ENTRY)
+            I32_CONSTANT_OPS(CREATE_TABLE_ENTRY)
+            I64_CONSTANT_OPS(CREATE_TABLE_ENTRY)
+            F32_CONSTANT_OPS(CREATE_TABLE_ENTRY)
+            F64_CONSTANT_OPS(CREATE_TABLE_ENTRY)
+            COMPARISON_OPS(CREATE_TABLE_ENTRY)
+            NUMERIC_OPS(CREATE_TABLE_ENTRY)
+            CONVERSION_OPS(CREATE_TABLE_ENTRY)
+            SYNTHETIC_OPS(CREATE_TABLE_ENTRY)
+            ERROR_OPS(CREATE_TABLE_ENTRY)
+            EMPTY_OPS(CREATE_TABLE_ENTRY)
+            CONTROL_FLOW_OPS(CREATE_EXITING_TABLE_ENTRY)
+            BR_TABLE_OP(CREATE_EXITING_TABLE_ENTRY)
+            RETURN_OP(CREATE_EXITING_TABLE_ENTRY)
+            CALL_OPS(CREATE_EXITING_TABLE_ENTRY)
+            PARAMETRIC_OPS(CREATE_EXITING_TABLE_ENTRY)
+            VARIABLE_ACCESS_OPS(CREATE_EXITING_TABLE_ENTRY)
+            MEMORY_OPS(CREATE_EXITING_TABLE_ENTRY)
+            I32_CONSTANT_OPS(CREATE_EXITING_TABLE_ENTRY)
+            I64_CONSTANT_OPS(CREATE_EXITING_TABLE_ENTRY)
+            F32_CONSTANT_OPS(CREATE_EXITING_TABLE_ENTRY)
+            F64_CONSTANT_OPS(CREATE_EXITING_TABLE_ENTRY)
+            COMPARISON_OPS(CREATE_EXITING_TABLE_ENTRY)
+            NUMERIC_OPS(CREATE_EXITING_TABLE_ENTRY)
+            CONVERSION_OPS(CREATE_EXITING_TABLE_ENTRY)
+            SYNTHETIC_OPS(CREATE_EXITING_TABLE_ENTRY)
+            EMPTY_OPS(CREATE_EXITING_TABLE_ENTRY)
+            ERROR_OPS(CREATE_EXITING_TABLE_ENTRY)
+            &&__ev_last
+         };
+         auto& ev_variant = _mod.code.at_no_check(_code_index).code.at_no_check(_pc - _current_offset);
+	 goto *dispatch_table[ev_variant.index()];
+	 while (1) {
+            CONTROL_FLOW_OPS(CREATE_LABEL);
+            BR_TABLE_OP(CREATE_LABEL);
+            RETURN_OP(CREATE_LABEL);
+            CALL_OPS(CREATE_LABEL);
+            PARAMETRIC_OPS(CREATE_LABEL);
+            VARIABLE_ACCESS_OPS(CREATE_LABEL);
+            MEMORY_OPS(CREATE_LABEL);
+            I32_CONSTANT_OPS(CREATE_LABEL);
+            I64_CONSTANT_OPS(CREATE_LABEL);
+            F32_CONSTANT_OPS(CREATE_LABEL);
+            F64_CONSTANT_OPS(CREATE_LABEL);
+            COMPARISON_OPS(CREATE_LABEL);
+            NUMERIC_OPS(CREATE_LABEL);
+            CONVERSION_OPS(CREATE_LABEL);
+            SYNTHETIC_OPS(CREATE_LABEL);
+            EMPTY_OPS(CREATE_EMPTY_LABEL);
+            ERROR_OPS(CREATE_LABEL);
+            CONTROL_FLOW_OPS(CREATE_EXITING_LABEL);
+            BR_TABLE_OP(CREATE_EXITING_LABEL);
+            RETURN_OP(CREATE_EXITING_LABEL);
+            CALL_OPS(CREATE_EXITING_LABEL);
+            PARAMETRIC_OPS(CREATE_EXITING_LABEL);
+            VARIABLE_ACCESS_OPS(CREATE_EXITING_LABEL);
+            MEMORY_OPS(CREATE_EXITING_LABEL);
+            I32_CONSTANT_OPS(CREATE_EXITING_LABEL);
+            I64_CONSTANT_OPS(CREATE_EXITING_LABEL);
+            F32_CONSTANT_OPS(CREATE_EXITING_LABEL);
+            F64_CONSTANT_OPS(CREATE_EXITING_LABEL);
+            COMPARISON_OPS(CREATE_EXITING_LABEL);
+            NUMERIC_OPS(CREATE_EXITING_LABEL);
+            CONVERSION_OPS(CREATE_EXITING_LABEL);
+            SYNTHETIC_OPS(CREATE_EXITING_LABEL);
+            EMPTY_OPS(CREATE_EXITING_EMPTY_LABEL);
+            ERROR_OPS(CREATE_EXITING_LABEL);
+            __ev_last:
+               throw wasm_interpreter_exception{"should never reach here"};
+         }
       }
 
       bounded_allocator _base_allocator = {
-         (constants::max_stack_size + constants::max_call_depth + constants::max_nested_structures) * sizeof(stack_elem)
+         (constants::max_stack_size + constants::max_call_depth + constants::max_nested_structures) * (std::max(std::max(sizeof(operand_stack_elem), sizeof(control_stack_elem)), sizeof(activation_frame)))
       };
       uint32_t                        _pc               = 0;
       uint32_t                        _exit_pc          = 0;

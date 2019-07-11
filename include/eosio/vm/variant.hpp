@@ -152,33 +152,52 @@ namespace eosio { namespace vm {
                     "eosio::vm::variant can only accept 255 alternatives");
 
     public:
-      variant(){}
+      variant() = default;
+      variant(const variant& other) = default;
+      variant(variant<Alternatives...>&& other) = default;
+
+      variant& operator=(const variant& other) {
+         memcpy(&_storage, &other._storage, sizeof(_storage));
+         _which = other._which;
+         return *this;
+      }
+
+      variant& operator=(variant&& other) {
+         memcpy(&_storage, &other._storage, sizeof(_storage));
+         _which = other._which;
+         return *this;
+      }
+
       template <typename T>
       variant(const T& alt) {
+         static_assert(detail::is_valid_alternative<std::decay_t<T>, Alternatives...>::value,
+                       "type not a valid alternative (const T&)");
          new (&_storage) std::decay_t<T>(alt);
          _which = detail::get_alternatives_index<0, T, Alternatives...>::value;
       }
-      template <typename T>
-      variant(T&& alt) {
+      template <typename T, typename = std::enable_if_t<!std::is_base_of_v<variant, std::decay_t<T>>, int>>
+      explicit variant(T&& alt) {
          static_assert(detail::is_valid_alternative<std::decay_t<T>, Alternatives...>::value,
-                       "type not a valid alternative");
+                       "type not a valid alternative (T&&)");
          new (&_storage) std::decay_t<T>(std::forward<T>(alt));
-         _which = detail::get_alternatives_index<0, T, Alternatives...>::value;
+         _which = detail::get_alternatives_index<0, std::decay_t<T>, Alternatives...>::value;
       }
 
       template <typename T>
       variant& operator=(const T& alt) {
+         static_assert(detail::is_valid_alternative<std::decay_t<T>, Alternatives...>::value,
+                       "type not a valid alternative (= const T&)");
          new (&_storage) std::decay_t<T>(alt);
          _which = detail::get_alternatives_index<0, T, Alternatives...>::value;
          return *this;
       }
 
-      template <typename T>
+      template <typename T, typename = std::enable_if_t<!std::is_base_of_v<variant, std::decay_t<T>>, int>>
       variant& operator=(T&& alt) {
          static_assert(detail::is_valid_alternative<std::decay_t<T>, Alternatives...>::value,
-                       "type not a valid alternative");
+                       "type not a valid alternative (= T&&)");
          new (&_storage) std::decay_t<T>(std::forward<T>(alt));
-         _which = detail::get_alternatives_index<0, T, Alternatives...>::value;
+         _which = detail::get_alternatives_index<0, std::decay_t<T>, Alternatives...>::value;
          return *this;
       }
 
@@ -205,27 +224,27 @@ namespace eosio { namespace vm {
       }
 
       template <typename Alt>
-      inline constexpr const auto& get() const {
+      inline constexpr const Alt& get() const &{
          return reinterpret_cast<const Alt&>(_storage);
       }
 
       template <size_t Index>
-      inline constexpr auto&& get() && {
+      inline constexpr auto& get() && {
          return reinterpret_cast<typename std::tuple_element<Index, alternatives_tuple>::type&>(_storage);
       }
 
       template <typename Alt>
-      inline constexpr auto&& get() && {
+      inline constexpr Alt& get() && {
          return reinterpret_cast<Alt&>(_storage);
       }
 
       template <size_t Index>
-      inline constexpr auto& get() {
+      inline constexpr auto get() {
          return reinterpret_cast<typename std::tuple_element<Index, alternatives_tuple>::type&>(_storage);
       }
 
       template <typename Alt>
-      inline constexpr auto& get() {
+      inline constexpr Alt& get()& {
          return reinterpret_cast<Alt&>(_storage);
       }
 
@@ -233,7 +252,7 @@ namespace eosio { namespace vm {
       inline constexpr bool is_a() {
          return _which == detail::get_alternatives_index<0, Alt, Alternatives...>::value;
       }
-      inline constexpr void set_which(uint8_t which) { _which = which; }
+      inline constexpr void toggle_exiting_which() { _which ^= 0x100; }
 
       static constexpr size_t size() { return std::tuple_size_v<alternatives_tuple>; }
 
@@ -242,7 +261,7 @@ namespace eosio { namespace vm {
       static constexpr size_t _sizeof  = detail::max_layout_size<Alternatives...>::value;
       static constexpr size_t _alignof = detail::max_alignof<Alternatives...>::value;
       uint16_t _which                  = 0;
-      std::aligned_storage<_sizeof, _alignof> _storage;
+      alignas(_alignof) std::array<char, _sizeof> _storage;
    };
 
 }} // namespace eosio::vm
