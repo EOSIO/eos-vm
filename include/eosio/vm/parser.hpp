@@ -232,7 +232,7 @@ namespace eosio { namespace vm {
          code_writer.emit_epilogue(fn_type, locals);
          code += bytes - 1;
          EOS_WB_ASSERT(*code++ == 0x0B, wasm_parse_exception, "failed parsing function body, expected 'end'");
-         fb.code                 = code_writer.release();
+         code_writer.finalize(fb);
       }
 
       // The control stack holds either address of the target of the
@@ -241,11 +241,13 @@ namespace eosio { namespace vm {
       //
       // Inside an if: The first element refers to the `if` and should
       // jump to `else`.  The remaining elements should branch to `end`
+      using label_t = decltype(std::declval<Writer>().emit_end());
+      using branch_t = decltype(std::declval<Writer>().emit_if());
       struct pc_element_t {
          uint32_t operand_depth;
          uint32_t expected_result;
          bool is_unreachable;
-         std::variant<uint32_t, std::vector<uint32_t*>> relocations;
+         std::variant<label_t, std::vector<branch_t>> relocations;
       };
 
       void parse_function_body_code(wasm_code_ptr& code, size_t bounds, Writer& code_writer, const func_type& ft) {
@@ -255,16 +257,16 @@ namespace eosio { namespace vm {
                operand_depth,
                ft.return_count?ft.return_type:static_cast<uint32_t>(types::pseudo),
                false,
-               std::vector<uint32_t*>{}}};
+               std::vector<branch_t>{}}};
 
          // writes the continuation of a label to address.  If the continuation
          // is not yet available, address will be recorded in the relocations
          // list for label.
-         auto handle_branch_target = [&](uint32_t label, auto address) {
+         auto handle_branch_target = [&](uint32_t label, branch_t address) {
             EOS_WB_ASSERT(label < pc_stack.size(), wasm_parse_exception, "invalid label");
             pc_element_t& branch_target = pc_stack[pc_stack.size() - label - 1];
-            std::visit(overloaded{ [&](uint32_t target) { code_writer.fix_branch(address, target); },
-                                   [&](std::vector<uint32_t*>& relocations) { relocations.push_back(address); } },
+            std::visit(overloaded{ [&](label_t target) { code_writer.fix_branch(address, target); },
+                                   [&](std::vector<branch_t>& relocations) { relocations.push_back(address); } },
                branch_target.relocations);
          };
 
@@ -308,7 +310,7 @@ namespace eosio { namespace vm {
          auto exit_scope = [&]() {
             if (pc_stack.size()) { // There must be at least one element
                auto end_pos = code_writer.emit_end();
-               if(auto* relocations = std::get_if<std::vector<uint32_t*>>(&pc_stack.back().relocations)) {
+               if(auto* relocations = std::get_if<std::vector<branch_t>>(&pc_stack.back().relocations)) {
                   for(auto branch_op : *relocations) {
                      code_writer.fix_branch(branch_op, end_pos);
                   }
@@ -355,7 +357,7 @@ namespace eosio { namespace vm {
                case opcodes::return_: code_writer.emit_return(operand_depth); start_unreachable(); break;
                case opcodes::block: {
                   uint32_t expected_result = *code++;
-                  pc_stack.push_back({operand_depth, expected_result, is_in_unreachable, std::vector<uint32_t*>{}});
+                  pc_stack.push_back({operand_depth, expected_result, is_in_unreachable, std::vector<branch_t>{}});
                   code_writer.emit_block();
                   start_reachable();
                } break;
@@ -374,8 +376,7 @@ namespace eosio { namespace vm {
                } break;
                case opcodes::else_: {
                   auto& old_index = pc_stack.back();
-                  auto& relocations = std::get<std::vector<uint32_t*>>(old_index.relocations);
-                  uint32_t* _if_pc      = relocations[0];
+                  auto& relocations = std::get<std::vector<branch_t>>(old_index.relocations);
                   // reset the operand stack to the same state as the if
                   EOS_WB_ASSERT((old_index.expected_result != types::pseudo) + old_index.operand_depth == operand_depth,
                                 wasm_parse_exception, "Malformed if body");
@@ -441,9 +442,9 @@ namespace eosio { namespace vm {
                case opcodes::set_global: code_writer.emit_set_global( parse_varuint32(code) ); pop_operand(); break;
 #define LOAD_OP(op_name)                                             \
                case opcodes::op_name: {                              \
-                  uint32_t offset = parse_varuint32(code);           \
                   uint32_t alignment = parse_varuint32(code);        \
-                  code_writer.emit_ ## op_name( offset, alignment ); \
+                  uint32_t offset = parse_varuint32(code);           \
+                  code_writer.emit_ ## op_name( alignment, offset ); \
                   pop_operand();                                     \
                   push_operand();                                    \
                } break;
@@ -467,9 +468,9 @@ namespace eosio { namespace vm {
                      
 #define STORE_OP(op_name)                                            \
                case opcodes::op_name: {                              \
-                  uint32_t offset = parse_varuint32(code);           \
                   uint32_t alignment = parse_varuint32(code);        \
-                  code_writer.emit_ ## op_name( offset, alignment ); \
+                  uint32_t offset = parse_varuint32(code);           \
+                  code_writer.emit_ ## op_name( alignment, offset ); \
                   pop_operands(2);                                   \
                } break;
 

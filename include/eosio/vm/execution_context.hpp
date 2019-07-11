@@ -249,6 +249,11 @@ namespace eosio { namespace vm {
          _as.eat(0);
          _cs.eat(0);
 
+         if(auto fn = _mod.code[_code_index].jit_code) {
+           fn(this, _linear_memory);
+           return {};
+         }
+
          push_args(args...);
          push_call(func_index);
          // type_check(_mod.types[_mod.functions[func_index - _mod.import_functions.size()]]);

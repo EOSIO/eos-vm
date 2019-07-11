@@ -272,7 +272,9 @@ namespace eosio { namespace vm {
          fb[fb.size() - 1] = fend_t{};
       }
 
-      auto release() { return std::move(fb); }
+      void finalize(function_body& body) {
+         body.code = std::move(fb);
+      }
     private:
 
       growable_allocator& _allocator;
