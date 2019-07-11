@@ -974,6 +974,31 @@ namespace eosio { namespace vm {
          // unpack args
          // call
       }
+
+      union stack_elem {
+         uint32_t i32;
+         uint64_t i64;
+         float f32;
+         double f64;
+      };
+      void start(stack_elem* data, int count, void(*fun)(), void* context) {
+         asm {
+            movq data, %rax;
+            movq count, %rcx;
+            testq %rcx, %rcx;
+            jz done;
+           loop:
+            movq (%rax), %rdx;
+            lea 8(%rax), %rax;
+            pushq %rdx;
+            decq %rcx;
+            jnz loop;
+           done:
+            movq context, %rsi;
+            movq fun, %rax
+            callq %rax;
+         }
+      }
    };
    
 }}

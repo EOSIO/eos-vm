@@ -11,6 +11,8 @@
 #include <vector>
 
 namespace eosio { namespace vm {
+
+   template <typename Writer>
    class binary_parser {
     public:
       binary_parser(growable_allocator& alloc) : _allocator(alloc) {}
@@ -223,13 +225,12 @@ namespace eosio { namespace vm {
          fb.locals = std::move(locals);
 
          size_t            bytes = body_size - (code.offset() - before); // -1 is 'end' 0xb byte
-         decltype(fb.code) _code = { _allocator, bytes };
+         Writer            code_writer(_allocator, bytes);
          wasm_code_ptr     fb_code(code.raw(), bytes);
-         parse_function_body_code(fb_code, bytes, _code, fn_type);
+         parse_function_body_code(fb_code, bytes, code_writer, fn_type);
          code += bytes - 1;
          EOS_WB_ASSERT(*code++ == 0x0B, wasm_parse_exception, "failed parsing function body, expected 'end'");
-         _code[_code.size() - 1] = fend_t{};
-         fb.code                 = std::move(_code);
+         fb.code                 = code_writer.release();
       }
 
       // The control stack holds either address of the target of the
@@ -245,9 +246,7 @@ namespace eosio { namespace vm {
          std::variant<uint32_t, std::vector<uint32_t*>> relocations;
       };
 
-      void parse_function_body_code(wasm_code_ptr& code, size_t bounds, guarded_vector<opcode>& fb, const func_type& ft) {
-         size_t op_index       = 0;
-
+      void parse_function_body_code(wasm_code_ptr& code, size_t bounds, Writer& code_writer, const func_type& ft) {
          // Initialize the control stack with the current function as the sole element
          uint32_t operand_depth = 0;
          std::vector<pc_element_t> pc_stack{{
@@ -259,47 +258,32 @@ namespace eosio { namespace vm {
          // writes the continuation of a label to address.  If the continuation
          // is not yet available, address will be recorded in the relocations
          // list for label.
-         //
-         // Also writes the number of operands that need to be popped to
-         // operand_depth_change.  If the label has a return value it will
-         // be counted in this, and the high bit will be set to signal
-         // its presence.
-         auto handle_branch_target = [&](uint32_t label, uint32_t* address, uint32_t* operand_depth_change) {
+         auto handle_branch_target = [&](uint32_t label, auto address) {
             EOS_WB_ASSERT(label < pc_stack.size(), wasm_parse_exception, "invalid label");
             pc_element_t& branch_target = pc_stack[pc_stack.size() - label - 1];
-            uint32_t original_operand_depth = branch_target.operand_depth;
-            uint32_t target = 0xDEADBEEF;
-            uint32_t current_operand_depth = operand_depth;
+            std::visit(overloaded{ [&](uint32_t target) { code_writer.fix_branch(address, target); },
+                                   [&](std::vector<uint32_t*>& relocations) { relocations.push_back(address); } },
+               branch_target.relocations);
+         };
+
+         // Returns the number of operands that need to be popped when
+         // branching to label.  If the label has a return value it will
+         // be counted in this, and the high bit will be set to signal
+         // its presence.
+         auto compute_depth_change = [&](uint32_t label) -> uint32_t {
+            EOS_WB_ASSERT(label < pc_stack.size(), wasm_parse_exception, "invalid label");
+            pc_element_t& branch_target = pc_stack[pc_stack.size() - label - 1];
+            uint32_t result = operand_depth - branch_target.operand_depth;
             if(branch_target.expected_result != types::pseudo) {
                // FIXME: Reusing the high bit imposes an additional constraint
                // on the maximum depth of the operand stack.  This isn't an
                // actual problem right now, because the stack is hard-coded
                // to 8192 elements, but it would be better to avoid spreading
                // this assumption around the code.
-               original_operand_depth |= 0x80000000;
+               result |= 0x80000000;
             }
-            std::visit(overloaded{ [&](uint32_t target) { *address = target; },
-                                   [&](std::vector<uint32_t*>& relocations) { relocations.push_back(address); } },
-               branch_target.relocations);
-            *operand_depth_change = operand_depth - original_operand_depth;
+            return result;
          };
-         
-         auto parse_br_table = [&](wasm_code_ptr& code, br_table_t& bt) {
-            size_t                   table_size = parse_varuint32(code);
-            guarded_vector<br_table_t::elem_t> br_tab{ _allocator, table_size + 1 };
-            for (size_t i = 0; i < table_size + 1; i++) {
-               auto& elem = br_tab.at(i);
-               handle_branch_target(parse_varuint32(code), &elem.pc, &elem.stack_pop);
-            }
-            bt.table          = br_tab.raw();
-            bt.size           = table_size;
-         };
-
-         // appends an instruction to fb and returns a reference to it.
-         auto append_instr = [&](auto&& instr) -> decltype(auto) {
-            return std::get<std::decay_t<decltype(instr)>>((fb[op_index++] = instr));
-         };
-
 
          // Unconditional branches effectively make the state of the
          // stack unconstrained.  FIXME: Note that the unreachable instructions
@@ -321,9 +305,10 @@ namespace eosio { namespace vm {
          // Handles branches to the end of the scope and pops the pc_stack
          auto exit_scope = [&]() {
             if (pc_stack.size()) { // There must be at least one element
+               auto end_pos = code_writer.emit_end();
                if(auto* relocations = std::get_if<std::vector<uint32_t*>>(&pc_stack.back().relocations)) {
-                  for(uint32_t* branch_op : *relocations) {
-                     *branch_op = op_index;
+                  for(auto branch_op : *relocations) {
+                     code_writer.fix_branch(branch_op, end_pos);
                   }
                }
                unsigned expected_operand_depth = pc_stack.back().operand_depth;
@@ -359,28 +344,30 @@ namespace eosio { namespace vm {
                           "nested structures validation failure");
 
             switch (*code++) {
-               case opcodes::unreachable: fb[op_index++] = unreachable_t{}; break;
-               case opcodes::nop: fb[op_index++] = nop_t{}; break;
+               case opcodes::unreachable: code_writer.emit_unreachable(); break;
+               case opcodes::nop: code_writer.emit_nop(); break;
                case opcodes::end: {
                   exit_scope();
                   break;
                }
-               case opcodes::return_: fb[op_index++] = return__t{}; start_unreachable(); break;
+               case opcodes::return_: code_writer.emit_return(operand_depth); start_unreachable(); break;
                case opcodes::block: {
                   uint32_t expected_result = *code++;
                   pc_stack.push_back({operand_depth, expected_result, is_in_unreachable, std::vector<uint32_t*>{}});
+                  code_writer.emit_block();
                   start_reachable();
                } break;
                case opcodes::loop: {
                   uint32_t expected_result = *code++;
-                  pc_stack.push_back({operand_depth, expected_result, is_in_unreachable, op_index});
+                  auto pos = code_writer.emit_loop();
+                  pc_stack.push_back({operand_depth, expected_result, is_in_unreachable, pos});
                   start_reachable();
                } break;
                case opcodes::if_: {
                   uint32_t expected_result = *code++;
-                  if__t& instr = append_instr(if__t{});
+                  auto branch = code_writer.emit_if();
                   pop_operand();
-                  pc_stack.push_back({operand_depth, expected_result, is_in_unreachable, std::vector{&instr.pc}});
+                  pc_stack.push_back({operand_depth, expected_result, is_in_unreachable, std::vector{branch}});
                   start_reachable();
                } break;
                case opcodes::else_: {
@@ -395,29 +382,32 @@ namespace eosio { namespace vm {
                   // Overwrite the branch from the `if` with the `else`.
                   // We're left with a normal relocation list where everything
                   // branches to the corresponding `end`
-                  auto& else_ = append_instr(else__t{});
-                  relocations[0] = &else_.pc;
-                  // The branch from the if skips just past the else
-                  *_if_pc = op_index;
+                  relocations[0] = code_writer.emit_else(relocations[0]);
                   break;
                }
                case opcodes::br: {
                   uint32_t label = parse_varuint32(code);
-                  br_t& instr = append_instr(br_t{});
-                  handle_branch_target(label, &instr.pc, &instr.data);
+                  auto branch = code_writer.emit_br(compute_depth_change(label));
+                  handle_branch_target(label, branch);
                   start_unreachable();
                } break;
                case opcodes::br_if: {
                   uint32_t label = parse_varuint32(code);
-                  br_if_t& instr = append_instr(br_if_t{});
                   pop_operand();
-                  handle_branch_target(label, &instr.pc, &instr.data);
+                  auto branch = code_writer.emit_br_if(compute_depth_change(label));
+                  handle_branch_target(label, branch);
                } break;
                case opcodes::br_table: {
-                  br_table_t bt;
-                  pop_operand();
-                  parse_br_table(code, bt);
-                  fb[op_index++] = bt;
+                  size_t table_size = parse_varuint32(code);
+                  auto handler = code_writer.emit_br_table(table_size);
+                  for (size_t i = 0; i < table_size; i++) {
+                     uint32_t label = parse_varuint32(code);
+                     auto branch = handler.emit_case(compute_depth_change(label));
+                     handle_branch_target(label, branch);
+                  }
+                  uint32_t label = parse_varuint32(code);
+                  auto branch = handler.emit_default(compute_depth_change(label));
+                  handle_branch_target(label, branch);
                } break;
                case opcodes::call: {
                   uint32_t funcnum = parse_varuint32(code);
@@ -426,7 +416,7 @@ namespace eosio { namespace vm {
                   EOS_WB_ASSERT(ft.return_count <= 1, wasm_parse_exception, "unsupported");
                   if(ft.return_count == 1)
                      push_operand();
-                  fb[op_index++] = call_t{ funcnum };
+                  code_writer.emit_call(ft, funcnum);
                } break;
                case opcodes::call_indirect: {
                   uint32_t functypeidx = parse_varuint32(code);
@@ -436,273 +426,229 @@ namespace eosio { namespace vm {
                   EOS_WB_ASSERT(ft.return_count <= 1, wasm_parse_exception, "unsupported");
                   if(ft.return_count == 1)
                      push_operand();
-                  fb[op_index++] = call_indirect_t{ functypeidx };
+                  code_writer.emit_call_indirect(ft, functypeidx);
                   code++; // 0x00
                   break;
                }
-               case opcodes::drop: fb[op_index++] = drop_t{}; pop_operand(); break;
-               case opcodes::select: fb[op_index++] = select_t{}; pop_operands(3); push_operand(); break;
-               case opcodes::get_local: fb[op_index++] = get_local_t{ parse_varuint32(code) }; push_operand(); break;
-               case opcodes::set_local: fb[op_index++] = set_local_t{ parse_varuint32(code) }; pop_operand(); break;
-               case opcodes::tee_local: fb[op_index++] = tee_local_t{ parse_varuint32(code) }; break;
-               case opcodes::get_global: fb[op_index++] = get_global_t{ parse_varuint32(code) }; push_operand(); break;
-               case opcodes::set_global: fb[op_index++] = set_global_t{ parse_varuint32(code) }; pop_operand(); break;
-               case opcodes::i32_load:
-                  fb[op_index++] = i32_load_t{ parse_varuint32(code), parse_varuint32(code) };
-                  pop_operand();
-                  push_operand();
-                  break;
-               case opcodes::i64_load:
-                  fb[op_index++] = i64_load_t{ parse_varuint32(code), parse_varuint32(code) };
-                  pop_operand();
-                  push_operand();
-                  break;
-               case opcodes::f32_load:
-                  fb[op_index++] = f32_load_t{ parse_varuint32(code), parse_varuint32(code) };
-                  pop_operand();
-                  push_operand();
-                  break;
-               case opcodes::f64_load:
-                  fb[op_index++] = f64_load_t{ parse_varuint32(code), parse_varuint32(code) };
-                  pop_operand();
-                  push_operand();
-                  break;
-               case opcodes::i32_load8_s:
-                  fb[op_index++] = i32_load8_s_t{ parse_varuint32(code), parse_varuint32(code) };
-                  pop_operand();
-                  push_operand();
-                  break;
-               case opcodes::i32_load16_s:
-                  fb[op_index++] = i32_load16_s_t{ parse_varuint32(code), parse_varuint32(code) };
-                  pop_operand();
-                  push_operand();
-                  break;
-               case opcodes::i32_load8_u:
-                  fb[op_index++] = i32_load8_u_t{ parse_varuint32(code), parse_varuint32(code) };
-                  pop_operand();
-                  push_operand();
-                  break;
-               case opcodes::i32_load16_u:
-                  fb[op_index++] = i32_load16_u_t{ parse_varuint32(code), parse_varuint32(code) };
-                  pop_operand();
-                  push_operand();
-                  break;
-               case opcodes::i64_load8_s:
-                  fb[op_index++] = i64_load8_s_t{ parse_varuint32(code), parse_varuint32(code) };
-                  pop_operand();
-                  push_operand();
-                  break;
-               case opcodes::i64_load16_s:
-                  fb[op_index++] = i64_load16_s_t{ parse_varuint32(code), parse_varuint32(code) };
-                  pop_operand();
-                  push_operand();
-                  break;
-               case opcodes::i64_load32_s:
-                  fb[op_index++] = i64_load32_s_t{ parse_varuint32(code), parse_varuint32(code) };
-                  pop_operand();
-                  push_operand();
-                  break;
-               case opcodes::i64_load8_u:
-                  fb[op_index++] = i64_load8_u_t{ parse_varuint32(code), parse_varuint32(code) };
-                  pop_operand();
-                  push_operand();
-                  break;
-               case opcodes::i64_load16_u:
-                  fb[op_index++] = i64_load16_u_t{ parse_varuint32(code), parse_varuint32(code) };
-                  pop_operand();
-                  push_operand();
-                  break;
-               case opcodes::i64_load32_u:
-                  fb[op_index++] = i64_load32_u_t{ parse_varuint32(code), parse_varuint32(code) };
-                  pop_operand();
-                  push_operand();
-                  break;
-               case opcodes::i32_store:
-                  fb[op_index++] = i32_store_t{ parse_varuint32(code), parse_varuint32(code) };
-                  pop_operands(2);
-                  break;
-               case opcodes::i64_store:
-                  fb[op_index++] = i64_store_t{ parse_varuint32(code), parse_varuint32(code) };
-                  pop_operands(2);
-                  break;
-               case opcodes::f32_store:
-                  fb[op_index++] = f32_store_t{ parse_varuint32(code), parse_varuint32(code) };
-                  pop_operands(2);
-                  break;
-               case opcodes::f64_store:
-                  fb[op_index++] = f64_store_t{ parse_varuint32(code), parse_varuint32(code) };
-                  pop_operands(2);
-                  break;
-               case opcodes::i32_store8:
-                  fb[op_index++] = i32_store8_t{ parse_varuint32(code), parse_varuint32(code) };
-                  pop_operands(2);
-                  break;
-               case opcodes::i32_store16:
-                  fb[op_index++] = i32_store16_t{ parse_varuint32(code), parse_varuint32(code) };
-                  pop_operands(2);
-                  break;
-               case opcodes::i64_store8:
-                  fb[op_index++] = i64_store8_t{ parse_varuint32(code), parse_varuint32(code) };
-                  pop_operands(2);
-                  break;
-               case opcodes::i64_store16:
-                  fb[op_index++] = i64_store16_t{ parse_varuint32(code), parse_varuint32(code) };
-                  pop_operands(2);
-                  break;
-               case opcodes::i64_store32:
-                  fb[op_index++] = i64_store32_t{ parse_varuint32(code), parse_varuint32(code) };
-                  pop_operands(2);
-                  break;
+               case opcodes::drop: code_writer.emit_drop(); pop_operand(); break;
+               case opcodes::select: code_writer.emit_select(); pop_operands(3); push_operand(); break;
+               case opcodes::get_local: code_writer.emit_get_local( parse_varuint32(code) ); push_operand(); break;
+               case opcodes::set_local: code_writer.emit_set_local( parse_varuint32(code) ); pop_operand(); break;
+               case opcodes::tee_local: code_writer.emit_tee_local( parse_varuint32(code) ); break;
+               case opcodes::get_global: code_writer.emit_get_global( parse_varuint32(code) ); push_operand(); break;
+               case opcodes::set_global: code_writer.emit_set_global( parse_varuint32(code) ); pop_operand(); break;
+#define LOAD_OP(op_name)                                             \
+               case opcodes::op_name: {                              \
+                  uint32_t offset = parse_varuint32(code);           \
+                  uint32_t alignment = parse_varuint32(code);        \
+                  code_writer.emit_ ## op_name( offset, alignment ); \
+                  pop_operand();                                     \
+                  push_operand();                                    \
+               } break;
+
+               LOAD_OP(i32_load)
+               LOAD_OP(i64_load)
+               LOAD_OP(f32_load)
+               LOAD_OP(f64_load)
+               LOAD_OP(i32_load8_s)
+               LOAD_OP(i32_load16_s)
+               LOAD_OP(i32_load8_u)
+               LOAD_OP(i32_load16_u)
+               LOAD_OP(i64_load8_s)
+               LOAD_OP(i64_load16_s)
+               LOAD_OP(i64_load32_s)
+               LOAD_OP(i64_load8_u)
+               LOAD_OP(i64_load16_u)
+               LOAD_OP(i64_load32_u)
+
+#undef LOAD_OP
+                     
+#define STORE_OP(op_name)                                            \
+               case opcodes::op_name: {                              \
+                  uint32_t offset = parse_varuint32(code);           \
+                  uint32_t alignment = parse_varuint32(code);        \
+                  code_writer.emit_ ## op_name( offset, alignment ); \
+                  pop_operands(2);                                   \
+               } break;
+
+               STORE_OP(i32_store)
+               STORE_OP(i64_store)
+               STORE_OP(f32_store)
+               STORE_OP(f64_store)
+               STORE_OP(i32_store8)
+               STORE_OP(i32_store16)
+               STORE_OP(i64_store8)
+               STORE_OP(i64_store16)
+               STORE_OP(i64_store32)
+
+#undef STORE_OP
+
                case opcodes::current_memory:
-                  fb[op_index++] = current_memory_t{};
+                  code_writer.emit_current_memory();
                   push_operand();
                   code++;
                   break;
                case opcodes::grow_memory:
-                  fb[op_index++] = grow_memory_t{};
+                  code_writer.emit_grow_memory();
                   pop_operand();
                   push_operand();
                   code++;
                   break;
-               case opcodes::i32_const: fb[op_index++] = i32_const_t{ parse_varint32(code) }; push_operand(); break;
-               case opcodes::i64_const: fb[op_index++] = i64_const_t{ parse_varint64(code) }; push_operand(); break;
-               case opcodes::f32_const:
-                  fb[op_index++] = f32_const_t{ *(float*)code.raw() };
+               case opcodes::i32_const: code_writer.emit_i32_const( parse_varint32(code) ); push_operand(); break;
+               case opcodes::i64_const: code_writer.emit_i64_const( parse_varint64(code) ); push_operand(); break;
+               case opcodes::f32_const: {
+                  float value;
+                  memcpy(&value, code.raw(), 4);
+                  code_writer.emit_f32_const( value );
                   code += 4;
                   push_operand();
-                  break;
-               case opcodes::f64_const:
-                  fb[op_index++] = f64_const_t{ *(double*)code.raw() };
+               } break;
+               case opcodes::f64_const: {
+                  double value;
+                  memcpy(&value, code.raw(), 7);
+                  code_writer.emit_f64_const( value );
                   code += 8;
                   push_operand();
-                  break;
-               case opcodes::i32_eqz: fb[op_index++] = i32_eqz_t{}; pop_operand(); push_operand(); break;
-               case opcodes::i32_eq: fb[op_index++] = i32_eq_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i32_ne: fb[op_index++] = i32_ne_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i32_lt_s: fb[op_index++] = i32_lt_s_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i32_lt_u: fb[op_index++] = i32_lt_u_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i32_gt_s: fb[op_index++] = i32_gt_s_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i32_gt_u: fb[op_index++] = i32_gt_u_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i32_le_s: fb[op_index++] = i32_le_s_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i32_le_u: fb[op_index++] = i32_le_u_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i32_ge_s: fb[op_index++] = i32_ge_s_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i32_ge_u: fb[op_index++] = i32_ge_u_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i64_eqz: fb[op_index++] = i64_eqz_t{}; pop_operand(); push_operand(); break;
-               case opcodes::i64_eq: fb[op_index++] = i64_eq_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i64_ne: fb[op_index++] = i64_ne_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i64_lt_s: fb[op_index++] = i64_lt_s_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i64_lt_u: fb[op_index++] = i64_lt_u_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i64_gt_s: fb[op_index++] = i64_gt_s_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i64_gt_u: fb[op_index++] = i64_gt_u_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i64_le_s: fb[op_index++] = i64_le_s_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i64_le_u: fb[op_index++] = i64_le_u_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i64_ge_s: fb[op_index++] = i64_ge_s_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i64_ge_u: fb[op_index++] = i64_ge_u_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f32_eq: fb[op_index++] = f32_eq_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f32_ne: fb[op_index++] = f32_ne_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f32_lt: fb[op_index++] = f32_lt_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f32_gt: fb[op_index++] = f32_gt_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f32_le: fb[op_index++] = f32_le_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f32_ge: fb[op_index++] = f32_ge_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f64_eq: fb[op_index++] = f64_eq_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f64_ne: fb[op_index++] = f64_ne_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f64_lt: fb[op_index++] = f64_lt_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f64_gt: fb[op_index++] = f64_gt_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f64_le: fb[op_index++] = f64_le_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f64_ge: fb[op_index++] = f64_ge_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i32_clz: fb[op_index++] = i32_clz_t{}; pop_operand(); push_operand(); break;
-               case opcodes::i32_ctz: fb[op_index++] = i32_ctz_t{}; pop_operand(); push_operand(); break;
-               case opcodes::i32_popcnt: fb[op_index++] = i32_popcnt_t{}; pop_operand(); push_operand(); break;
-               case opcodes::i32_add: fb[op_index++] = i32_add_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i32_sub: fb[op_index++] = i32_sub_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i32_mul: fb[op_index++] = i32_mul_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i32_div_s: fb[op_index++] = i32_div_s_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i32_div_u: fb[op_index++] = i32_div_u_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i32_rem_s: fb[op_index++] = i32_rem_s_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i32_rem_u: fb[op_index++] = i32_rem_u_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i32_and: fb[op_index++] = i32_and_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i32_or: fb[op_index++] = i32_or_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i32_xor: fb[op_index++] = i32_xor_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i32_shl: fb[op_index++] = i32_shl_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i32_shr_s: fb[op_index++] = i32_shr_s_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i32_shr_u: fb[op_index++] = i32_shr_u_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i32_rotl: fb[op_index++] = i32_rotl_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i32_rotr: fb[op_index++] = i32_rotr_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i64_clz: fb[op_index++] = i64_clz_t{}; pop_operand(); push_operand(); break;
-               case opcodes::i64_ctz: fb[op_index++] = i64_ctz_t{}; pop_operand(); push_operand(); break;
-               case opcodes::i64_popcnt: fb[op_index++] = i64_popcnt_t{}; pop_operand(); push_operand(); break;
-               case opcodes::i64_add: fb[op_index++] = i64_add_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i64_sub: fb[op_index++] = i64_sub_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i64_mul: fb[op_index++] = i64_mul_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i64_div_s: fb[op_index++] = i64_div_s_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i64_div_u: fb[op_index++] = i64_div_u_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i64_rem_s: fb[op_index++] = i64_rem_s_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i64_rem_u: fb[op_index++] = i64_rem_u_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i64_and: fb[op_index++] = i64_and_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i64_or: fb[op_index++] = i64_or_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i64_xor: fb[op_index++] = i64_xor_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i64_shl: fb[op_index++] = i64_shl_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i64_shr_s: fb[op_index++] = i64_shr_s_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i64_shr_u: fb[op_index++] = i64_shr_u_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i64_rotl: fb[op_index++] = i64_rotl_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i64_rotr: fb[op_index++] = i64_rotr_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f32_abs: fb[op_index++] = f32_abs_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f32_neg: fb[op_index++] = f32_neg_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f32_ceil: fb[op_index++] = f32_ceil_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f32_floor: fb[op_index++] = f32_floor_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f32_trunc: fb[op_index++] = f32_trunc_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f32_nearest: fb[op_index++] = f32_nearest_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f32_sqrt: fb[op_index++] = f32_sqrt_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f32_add: fb[op_index++] = f32_add_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f32_sub: fb[op_index++] = f32_sub_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f32_mul: fb[op_index++] = f32_mul_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f32_div: fb[op_index++] = f32_div_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f32_min: fb[op_index++] = f32_min_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f32_max: fb[op_index++] = f32_max_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f32_copysign: fb[op_index++] = f32_copysign_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f64_abs: fb[op_index++] = f64_abs_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f64_neg: fb[op_index++] = f64_neg_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f64_ceil: fb[op_index++] = f64_ceil_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f64_floor: fb[op_index++] = f64_floor_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f64_trunc: fb[op_index++] = f64_trunc_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f64_nearest: fb[op_index++] = f64_nearest_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f64_sqrt: fb[op_index++] = f64_sqrt_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f64_add: fb[op_index++] = f64_add_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f64_sub: fb[op_index++] = f64_sub_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f64_mul: fb[op_index++] = f64_mul_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f64_div: fb[op_index++] = f64_div_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f64_min: fb[op_index++] = f64_min_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f64_max: fb[op_index++] = f64_max_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::f64_copysign: fb[op_index++] = f64_copysign_t{}; pop_operands(2); push_operand(); break;
-               case opcodes::i32_wrap_i64: fb[op_index++] = i32_wrap_i64_t{}; pop_operand(); push_operand(); break;
-               case opcodes::i32_trunc_s_f32: fb[op_index++] = i32_trunc_s_f32_t{}; pop_operand(); push_operand(); break;
-               case opcodes::i32_trunc_u_f32: fb[op_index++] = i32_trunc_u_f32_t{}; pop_operand(); push_operand(); break;
-               case opcodes::i32_trunc_s_f64: fb[op_index++] = i32_trunc_s_f64_t{}; pop_operand(); push_operand(); break;
-               case opcodes::i32_trunc_u_f64: fb[op_index++] = i32_trunc_u_f64_t{}; pop_operand(); push_operand(); break;
-               case opcodes::i64_extend_s_i32: fb[op_index++] = i64_extend_s_i32_t{}; pop_operand(); push_operand(); break;
-               case opcodes::i64_extend_u_i32: fb[op_index++] = i64_extend_u_i32_t{}; pop_operand(); push_operand(); break;
-               case opcodes::i64_trunc_s_f32: fb[op_index++] = i64_trunc_s_f32_t{}; pop_operand(); push_operand(); break;
-               case opcodes::i64_trunc_u_f32: fb[op_index++] = i64_trunc_u_f32_t{}; pop_operand(); push_operand(); break;
-               case opcodes::i64_trunc_s_f64: fb[op_index++] = i64_trunc_s_f64_t{}; pop_operand(); push_operand(); break;
-               case opcodes::i64_trunc_u_f64: fb[op_index++] = i64_trunc_u_f64_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f32_convert_s_i32: fb[op_index++] = f32_convert_s_i32_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f32_convert_u_i32: fb[op_index++] = f32_convert_u_i32_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f32_convert_s_i64: fb[op_index++] = f32_convert_s_i64_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f32_convert_u_i64: fb[op_index++] = f32_convert_u_i64_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f32_demote_f64: fb[op_index++] = f32_demote_f64_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f64_convert_s_i32: fb[op_index++] = f64_convert_s_i32_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f64_convert_u_i32: fb[op_index++] = f64_convert_u_i32_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f64_convert_s_i64: fb[op_index++] = f64_convert_s_i64_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f64_convert_u_i64: fb[op_index++] = f64_convert_u_i64_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f64_promote_f32: fb[op_index++] = f64_promote_f32_t{}; pop_operand(); push_operand(); break;
-               case opcodes::i32_reinterpret_f32: fb[op_index++] = i32_reinterpret_f32_t{}; pop_operand(); push_operand(); break;
-               case opcodes::i64_reinterpret_f64: fb[op_index++] = i64_reinterpret_f64_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f32_reinterpret_i32: fb[op_index++] = f32_reinterpret_i32_t{}; pop_operand(); push_operand(); break;
-               case opcodes::f64_reinterpret_i64: fb[op_index++] = f64_reinterpret_i64_t{}; pop_operand(); push_operand(); break;
-               case opcodes::error: fb[op_index++] = error_t{}; break;
+               } break;
+
+#define UNOP(opname) \
+               case opcodes::opname: code_writer.emit_ ## opname(); pop_operand(); push_operand(); break;
+#define BINOP(opname) \
+               case opcodes::opname: code_writer.emit_ ## opname(); pop_operands(2); push_operand(); break;
+
+               UNOP(i32_eqz)
+               BINOP(i32_eq)
+               BINOP(i32_ne)
+               BINOP(i32_lt_s)
+               BINOP(i32_lt_u)
+               BINOP(i32_gt_s)
+               BINOP(i32_gt_u)
+               BINOP(i32_le_s)
+               BINOP(i32_le_u)
+               BINOP(i32_ge_s)
+               BINOP(i32_ge_u)
+               UNOP(i64_eqz)
+               BINOP(i64_eq)
+               BINOP(i64_ne)
+               BINOP(i64_lt_s)
+               BINOP(i64_lt_u)
+               BINOP(i64_gt_s)
+               BINOP(i64_gt_u)
+               BINOP(i64_le_s)
+               BINOP(i64_le_u)
+               BINOP(i64_ge_s)
+               BINOP(i64_ge_u)
+               BINOP(f32_eq)
+               BINOP(f32_ne)
+               BINOP(f32_lt)
+               BINOP(f32_gt)
+               BINOP(f32_le)
+               BINOP(f32_ge)
+               BINOP(f64_eq)
+               BINOP(f64_ne)
+               BINOP(f64_lt)
+               BINOP(f64_gt)
+               BINOP(f64_le)
+               BINOP(f64_ge)
+
+               UNOP(i32_clz)
+               UNOP(i32_ctz)
+               UNOP(i32_popcnt)
+               BINOP(i32_add)
+               BINOP(i32_sub)
+               BINOP(i32_mul)
+               BINOP(i32_div_s)
+               BINOP(i32_div_u)
+               BINOP(i32_rem_s)
+               BINOP(i32_rem_u)
+               BINOP(i32_and)
+               BINOP(i32_or)
+               BINOP(i32_xor)
+               BINOP(i32_shl)
+               BINOP(i32_shr_s)
+               BINOP(i32_shr_u)
+               BINOP(i32_rotl)
+               BINOP(i32_rotr)
+               UNOP(i64_clz)
+               UNOP(i64_ctz)
+               UNOP(i64_popcnt)
+               BINOP(i64_add)
+               BINOP(i64_sub)
+               BINOP(i64_mul)
+               BINOP(i64_div_s)
+               BINOP(i64_div_u)
+               BINOP(i64_rem_s)
+               BINOP(i64_rem_u)
+               BINOP(i64_and)
+               BINOP(i64_or)
+               BINOP(i64_xor)
+               BINOP(i64_shl)
+               BINOP(i64_shr_s)
+               BINOP(i64_shr_u)
+               BINOP(i64_rotl)
+               BINOP(i64_rotr)
+
+               UNOP(f32_abs)
+               UNOP(f32_neg)
+               UNOP(f32_ceil)
+               UNOP(f32_floor)
+               UNOP(f32_trunc)
+               UNOP(f32_nearest)
+               UNOP(f32_sqrt)
+               BINOP(f32_add)
+               BINOP(f32_sub)
+               BINOP(f32_mul)
+               BINOP(f32_div)
+               BINOP(f32_min)
+               BINOP(f32_max)
+               BINOP(f32_copysign)
+               UNOP(f64_abs)
+               UNOP(f64_neg)
+               UNOP(f64_ceil)
+               UNOP(f64_floor)
+               UNOP(f64_trunc)
+               UNOP(f64_nearest)
+               UNOP(f64_sqrt)
+               BINOP(f64_add)
+               BINOP(f64_sub)
+               BINOP(f64_mul)
+               BINOP(f64_div)
+               BINOP(f64_min)
+               BINOP(f64_max)
+               BINOP(f64_copysign)
+
+               UNOP(i32_wrap_i64)
+               UNOP(i32_trunc_s_f32)
+               UNOP(i32_trunc_u_f32)
+               UNOP(i32_trunc_s_f64)
+               UNOP(i32_trunc_u_f64)
+               UNOP(i64_extend_s_i32)
+               UNOP(i64_extend_u_i32)
+               UNOP(i64_trunc_s_f32)
+               UNOP(i64_trunc_u_f32)
+               UNOP(i64_trunc_s_f64)
+               UNOP(i64_trunc_u_f64)
+               UNOP(f32_convert_s_i32)
+               UNOP(f32_convert_u_i32)
+               UNOP(f32_convert_s_i64)
+               UNOP(f32_convert_u_i64)
+               UNOP(f32_demote_f64)
+               UNOP(f64_convert_s_i32)
+               UNOP(f64_convert_u_i32)
+               UNOP(f64_convert_s_i64)
+               UNOP(f64_convert_u_i64)
+               UNOP(f64_promote_f32)
+               UNOP(i32_reinterpret_f32)
+               UNOP(i64_reinterpret_f64)
+               UNOP(f32_reinterpret_i32)
+               UNOP(f64_reinterpret_i64)
+
+#undef UNOP
+#undef BINOP
+               case opcodes::error: code_writer.emit_error(); break;
             }
          }
-         fb.resize(op_index + 1);
+         code_writer.finish_function();
       }
 
       void parse_data_segment(wasm_code_ptr& code, data_segment& ds) {

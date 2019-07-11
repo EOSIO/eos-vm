@@ -1,6 +1,7 @@
 #pragma once
 
 #include <eosio/vm/allocator.hpp>
+#include <eosio/vm/bitcode_writer.hpp>
 #include <eosio/vm/config.hpp>
 #include <eosio/vm/debug_visitor.hpp>
 #include <eosio/vm/execution_context.hpp>
@@ -19,8 +20,8 @@ namespace eosio { namespace vm {
     public:
       using host_t = Host;
 
-      backend(wasm_code& code) : _ctx(binary_parser{ _mod.allocator }.parse_module(code, _mod)) {}
-      backend(wasm_code_ptr& ptr, size_t sz) : _ctx(binary_parser{ _mod.allocator }.parse_module2(ptr, sz, _mod)) {}
+      backend(wasm_code& code) : _ctx(binary_parser<bitcode_writer>{ _mod.allocator }.parse_module(code, _mod)) {}
+      backend(wasm_code_ptr& ptr, size_t sz) : _ctx(binary_parser<bitcode_writer>{ _mod.allocator }.parse_module2(ptr, sz, _mod)) {}
 
       template <typename... Args>
       inline bool operator()(Host* host, const std::string_view& mod, const std::string_view& func, Args... args) {
