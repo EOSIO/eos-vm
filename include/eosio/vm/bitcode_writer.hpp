@@ -266,7 +266,8 @@ namespace eosio { namespace vm {
       void emit_error() { fb[op_index++] = error_t{}; }
       
       void fix_branch(uint32_t* branch, uint32_t target) { *branch = target; }
-      void finish_function() {
+      void emit_prologue(const func_type&, const guarded_vector<local_entry>&) {}
+      void emit_epilogue(const func_type&, const guarded_vector<local_entry>&) {
          fb.resize(op_index + 1);
          fb[fb.size() - 1] = fend_t{};
       }

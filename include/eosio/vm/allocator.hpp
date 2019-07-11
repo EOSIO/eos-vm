@@ -118,8 +118,9 @@ namespace eosio { namespace vm {
         raw = (uint8_t*)mmap(NULL, 1024 * 2014, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
         return raw;
       }
-      void make_executable() {
+      void* make_executable() {
         mprotect(raw, 1024 * 1024, PROT_EXEC);
+        return raw;
       }
     };
 

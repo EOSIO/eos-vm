@@ -11,10 +11,14 @@ namespace eosio { namespace vm {
    // - It would make everything more efficient to make RAX always represent the top of
    //   the stack.
    //
-   // - The base of memory is stored in rsi - FIXME BAD IDEA.  Use a callee-save regisister
+   // - The base of memory is stored in rsi
+   //
+   // - FIXME: Factor the machine instructions into a separate assembler class.
    class machine_code_writer {
     public:
-      using label_address = void*;
+      machine_code_writer(growable_allocator&, std::size_t source_bytes) {
+         code = allocator.alloc(source_bytes * 32 + 128); // FIXME: Guess at upper bound on function size
+      }
 
       // FIXME: initialize locals
       void emit_prologue(const func_type& ft, const guarded_vector<local_entry>& locals) {
@@ -23,8 +27,9 @@ namespace eosio { namespace vm {
          // movq RSP, RBP
          emit_bytes(0x48, 0x89, 0xe5);
          // xor RAX, RAX
-         for(std::size_t i = 0; i < locals.size(); ++i)
+         for(std::size_t i = 0; i < locals.size(); ++i) {
             // pushq RAX
+         }
       }
       void emit_epilogue(const func_type& ft, const guarded_vector<local_entry>& locals) {
          if(ft.result_count != 0) {
@@ -781,8 +786,26 @@ namespace eosio { namespace vm {
          auto relative = static_cast<uint32_t>(target_ - (branch_ + 4));
          memcpy(branch, 4, &relative);
       }
+
+      void finish_function() {
+         emit_epilogue();
+      }
+
+      using fn_type = void(*)(void* context, void* memory);
+      fn_type release() {
+         return reinterpret_cast<fn_type>(_allocator.make_executable());
+      }
     private:
+
+      jit_allocator _allocator;
+      unsigned char * code;
       void emit_byte(uint8_t val) { *code++ = val; }
+      void emit_bytes() {}
+      template<class T>
+      void emit_bytes(uint8_t val0, T... vals) {
+         emit_byte(val0);
+         emit_bytes(vals...);
+      }
       void emit_operand32(uint32_t val) { memcpy(code, &val, sizeof(val)); code += sizeof(val); }
       void emit_operand64(uint64_t val) { memcpy(code, &val, sizeof(val)); code += sizeof(val); }
 
@@ -969,18 +992,20 @@ namespace eosio { namespace vm {
          emit_bytes(0xf2, 0x0f, 0x11, 0x04, 0x24);
       }
 
-      template<auto F>
-      static uint64_t host_function_wrapper(void* stack, void* context) {
+      template<auto F, typename Context>
+      static uint64_t host_function_wrapper(void* stack, Context* context) {
          // unpack args
          // call
       }
 
+#if 0
       union stack_elem {
          uint32_t i32;
          uint64_t i64;
          float f32;
          double f64;
       };
+      template <typename T>
       void start(stack_elem* data, int count, void(*fun)(), void* context) {
          asm {
             movq data, %rax;
@@ -999,6 +1024,7 @@ namespace eosio { namespace vm {
             callq %rax;
          }
       }
+#endif
    };
    
 }}

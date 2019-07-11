@@ -227,7 +227,9 @@ namespace eosio { namespace vm {
          size_t            bytes = body_size - (code.offset() - before); // -1 is 'end' 0xb byte
          Writer            code_writer(_allocator, bytes);
          wasm_code_ptr     fb_code(code.raw(), bytes);
+         code_writer.emit_prologue(fn_type, locals);
          parse_function_body_code(fb_code, bytes, code_writer, fn_type);
+         code_writer.emit_epilogue(fn_type, locals);
          code += bytes - 1;
          EOS_WB_ASSERT(*code++ == 0x0B, wasm_parse_exception, "failed parsing function body, expected 'end'");
          fb.code                 = code_writer.release();
@@ -648,7 +650,6 @@ namespace eosio { namespace vm {
                case opcodes::error: code_writer.emit_error(); break;
             }
          }
-         code_writer.finish_function();
       }
 
       void parse_data_segment(wasm_code_ptr& code, data_segment& ds) {
