@@ -109,19 +109,26 @@ namespace eosio { namespace vm {
       inline T* get_base_ptr() const { return raw; }
    };
 
-    // FIXME: This is a quick hack.
     class jit_allocator {
-    private:
-      uint8_t* raw;
-    public:
-      uint8_t* alloc(size_t size = 1) {
-        raw = (uint8_t*)mmap(NULL, 1024 * 2014, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
-        return raw;
-      }
-      void* make_executable() {
-        mprotect(raw, 1024 * 1024, PROT_EXEC);
-        return raw;
-      }
+     private:
+       uint8_t* raw;
+       uint8_t* pos;
+     public:
+       jit_allocator() : raw((uint8_t*)mmap(NULL, 1024 * 2014, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0)) {
+          pos = raw;
+       }
+       uint8_t* alloc(std::size_t size) {
+          // FIXME: allocate more pages on demand
+          return pos;
+       }
+       uint8_t* setpos(uint8_t* newpos) {
+          uint8_t* oldpos = pos;
+          pos = newpos;
+          return oldpos;
+       }
+       void make_executable() {
+          mprotect(raw, 1024 * 1024, PROT_EXEC);
+       }
     };
 
    class wasm_allocator {

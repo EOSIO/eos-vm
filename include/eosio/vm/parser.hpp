@@ -50,7 +50,7 @@ namespace eosio { namespace vm {
                        "version number did not match");
          for (int i = 0; i < section_id::num_of_elems; i++) {
             if (code_ptr.offset() == sz)
-               return;
+               break;
             code_ptr.add_bounds(constants::id_size);
             auto id = parse_section_id(code_ptr);
             code_ptr.add_bounds(constants::varuint32_size);
@@ -79,6 +79,7 @@ namespace eosio { namespace vm {
                default: EOS_WB_ASSERT(false, wasm_parse_exception, "error invalid section id");
             }
          }
+         _code_alloc.make_executable();
       }
 
       inline uint32_t parse_magic(wasm_code_ptr& code) {
@@ -225,7 +226,7 @@ namespace eosio { namespace vm {
          fb.locals = std::move(locals);
 
          size_t            bytes = body_size - (code.offset() - before); // -1 is 'end' 0xb byte
-         Writer            code_writer(_allocator, bytes, idx);
+         Writer            code_writer(_code_alloc, bytes, idx, *_mod);
          wasm_code_ptr     fb_code(code.raw(), bytes);
          code_writer.emit_prologue(fn_type, locals);
          parse_function_body_code(fb_code, bytes, code_writer, fn_type);
@@ -354,7 +355,12 @@ namespace eosio { namespace vm {
                   exit_scope();
                   break;
                }
-               case opcodes::return_: code_writer.emit_return(operand_depth); start_unreachable(); break;
+               case opcodes::return_: {
+                  uint32_t label = pc_stack.size() - 1;
+                  auto branch = code_writer.emit_return(compute_depth_change(label));
+                  handle_branch_target(label, branch);
+                  start_unreachable();
+               } break;
                case opcodes::block: {
                   uint32_t expected_result = *code++;
                   pc_stack.push_back({operand_depth, expected_result, is_in_unreachable, std::vector<branch_t>{}});
@@ -402,6 +408,7 @@ namespace eosio { namespace vm {
                } break;
                case opcodes::br_table: {
                   size_t table_size = parse_varuint32(code);
+                  pop_operand();
                   auto handler = code_writer.emit_br_table(table_size);
                   for (size_t i = 0; i < table_size; i++) {
                      uint32_t label = parse_varuint32(code);
@@ -760,6 +767,7 @@ namespace eosio { namespace vm {
 
     private:
       growable_allocator& _allocator;
+      jit_allocator       _code_alloc;
       module*             _mod; // non-owning weak pointer
    };
 }} // namespace eosio::vm

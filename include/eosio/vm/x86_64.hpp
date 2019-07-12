@@ -21,7 +21,10 @@ namespace eosio { namespace vm {
    // - FIXME: Factor the machine instructions into a separate assembler class.
    class machine_code_writer {
     public:
-      machine_code_writer(growable_allocator&, std::size_t source_bytes, uint32_t funcnum) {
+      machine_code_writer(jit_allocator& alloc, std::size_t source_bytes, uint32_t funcnum, module& mod) :
+         _mod(mod),
+         _allocator(alloc),
+         _ft(mod.get_function_type(funcnum)) {
          code = _allocator.alloc(source_bytes * 32 + 128); // FIXME: Guess at upper bound on function size
          start_function(code, funcnum);
       }
@@ -59,9 +62,9 @@ namespace eosio { namespace vm {
       void emit_unreachable() { /* FIXME: emit a trap */ }
       void emit_nop() {}
       void* emit_end() { return code; }
-      void emit_return(uint32_t depth_change) {
+      void* emit_return(uint32_t depth_change) {
          // Return is defined as equivalent to branching to the outermost label
-         emit_br(depth_change);
+         return emit_br(depth_change);
       }
       void emit_block() {}
       void* emit_loop() { return code; }
@@ -72,9 +75,7 @@ namespace eosio { namespace vm {
          emit_bytes(0x85, 0xC0);
          // jnz DEST
          emit_bytes(0x0F, 0x85);
-         void* branch_addr = code;
-         emit_operand32(0xEFBEADDE);
-         return branch_addr;
+         return emit_branch_target32();
       }
       void* emit_else(void* if_loc) {
          void* result = emit_br(0);
@@ -86,31 +87,48 @@ namespace eosio { namespace vm {
          emit_multipop(depth_change);
          // jmp DEST
          emit_bytes(0xe9);
-         void* branch_addr = code;
-         emit_operand32(0xEFBEADDE);
-         return branch_addr;
+         return emit_branch_target32();
       }
       void* emit_br_if(uint32_t depth_change) {
          // pop RAX
          emit_bytes(0x58);
          // add RSP, depth_change*8
-         emit_multipop(depth_change);
+         if(depth_change != 0) unimplemented();
+         emit_multipop(depth_change); // doesn't work
          // test EAX, EAX
          emit_bytes(0x85, 0xC0);
          // jnz DEST
          emit_bytes(0x0F, 0x85);
-         void* branch_addr = code;
-         emit_operand32(0xEFBEADDE);
-         return branch_addr;
+         return emit_branch_target32();
       }
 
+      // FIXME This just does a linear search.
       struct br_table_generator {
-         void* emit_case(uint32_t depth_change) { return nullptr; }
-         void* emit_default(uint32_t depth_change) { return nullptr; }
+         void* emit_case(uint32_t depth_change) {
+            // cmp i, %eax
+            _this->emit_bytes(0x3d);
+            _this->emit_operand32(_i++);
+            // jne NEXT
+            _this->emit_bytes(0x0f, 0x85);
+            void* internal_branch = _this->code;
+            _this->emit_operand32(0);
+            _this->emit_multipop(depth_change);
+            // jmp TARGET
+            _this->emit_bytes(0xe9);
+            void* branch = _this->emit_branch_target32();
+            _this->fix_branch(internal_branch, _this->code);
+            return branch;
+         }
+         void* emit_default(uint32_t depth_change) {
+            return _this->emit_br(depth_change);
+         }
+         machine_code_writer * _this;
+         int _i = 0;
       };
       br_table_generator emit_br_table(uint32_t table_size) {
-         unimplemented();
-         return {};
+         // pop %rax
+         emit_bytes(0x58);
+         return { this };
       }
 
       // HACK: Don't use global variables
@@ -142,8 +160,16 @@ namespace eosio { namespace vm {
          } else {
             // callq TARGET
             emit_bytes(0xe8);
+            void * branch = emit_branch_target32();
+#if 0
+            // movabsq TARGET, %rax
+            emit_bytes(0x48, 0xa1);
             void * branch = code;
-            emit_operand32(3735928555u - static_cast<uint32_t>(reinterpret_cast<uintptr_t>(code)));
+            emit_operand64(3735928559u);
+            // callq %rax
+            emit_bytes(0xff, 0xd0);
+#endif
+            emit_multipop(ft.param_types.size());
             register_call(branch, funcnum);
             if(ft.return_count != 0)
                // pushq %rax
@@ -175,35 +201,107 @@ namespace eosio { namespace vm {
          emit_bytes(0x48, 0x89, 0x0c, 0x24);
       }
 
-      // FIXME: handle parameters
       void emit_get_local(uint32_t local_idx) {
-         // mov -8*local_idx(EBP), RAX
-         emit_bytes(0x48, 0x8b, 0x85);
-         emit_operand32(-8 * (local_idx + 1));
-         // push RAX
-         emit_bytes(0x50);
+         // stack layout:
+         //   param0    <----- %rbp + 8*(nparams + 1)
+         //   param1
+         //   param2
+         //   ...
+         //   paramN
+         //   return address
+         //   old %rbp    <------ %rbp
+         //   local0    <------ %rbp - 8
+         //   local1
+         //   ...
+         //   localN
+         if (local_idx < _ft.param_types.size()) {
+            // mov 8*(local_idx)(%RBP), RAX
+            emit_bytes(0x48, 0x8b, 0x85);
+            emit_operand32(8 * (_ft.param_types.size() - local_idx + 1));
+            // push RAX
+            emit_bytes(0x50);
+         } else {
+            // mov -8*(local_idx+1)(%RBP), RAX
+            emit_bytes(0x48, 0x8b, 0x85);
+            emit_operand32(-8 * (local_idx - _ft.param_types.size() + 1));
+            // push RAX
+            emit_bytes(0x50);
+         }
       }
 
       void emit_set_local(uint32_t local_idx) {
-         // pop RAX
-         emit_bytes(0x58);
-         // mov RAX, -8*local_idx(EBP)
-         emit_bytes(0x48, 0x89, 0x85);
-         emit_operand32(-8 * (local_idx + 1));
+         if (local_idx < _ft.param_types.size()) {
+            // pop RAX
+            emit_bytes(0x58);
+            // mov RAX, -8*local_idx(EBP)
+            emit_bytes(0x48, 0x89, 0x85);
+            emit_operand32(8 * (_ft.param_types.size() - local_idx + 1));
+         } else {
+            // pop RAX
+            emit_bytes(0x58);
+            // mov RAX, -8*local_idx(EBP)
+            emit_bytes(0x48, 0x89, 0x85);
+            emit_operand32(-8 * (local_idx - _ft.param_types.size() + 1));
+         }
       }
 
       void emit_tee_local(uint32_t local_idx) {
-         // pop RAX
-         emit_bytes(0x58);
-         // push RAX
-         emit_bytes(0x50);
-         // mov RAX, -8*local_idx(EBP)
-         emit_bytes(0x48, 0x89, 0x85);
-         emit_operand32(-8 * (local_idx + 1));
+         if (local_idx < _ft.param_types.size()) {
+            // pop RAX
+            emit_bytes(0x58);
+            // push RAX
+            emit_bytes(0x50);
+            // mov RAX, -8*local_idx(EBP)
+            emit_bytes(0x48, 0x89, 0x85);
+            emit_operand32(8 * (_ft.param_types.size() - local_idx + 1));
+         } else {
+            // pop RAX
+            emit_bytes(0x58);
+            // push RAX
+            emit_bytes(0x50);
+            // mov RAX, -8*local_idx(EBP)
+            emit_bytes(0x48, 0x89, 0x85);
+            emit_operand32(-8 * (local_idx - _ft.param_types.size() + 1));
+         }
       }
 
-      void emit_get_global(uint32_t globalidx) { unimplemented(); } // gol
-      void emit_set_global(uint32_t gloablidx) { unimplemented(); }
+      void emit_get_global(uint32_t globalidx) {
+         auto& gl = _mod.globals[globalidx];
+         void *ptr = &gl.init.value;
+         switch(gl.type.content_type) {
+          case types::i32:
+          case types::f32:
+            // movabsq $ptr, %rax
+            emit_bytes(0x48, 0xb8);
+            emit_operand_ptr(ptr);
+            // movl (%rax), eax
+            emit_bytes(0x8b, 0x00);
+            // push %rax
+            emit_bytes(0x50);
+            break;
+          case types::i64:
+          case types::f64:
+            // movabsq $ptr, %rax
+            emit_bytes(0x48, 0xb8);
+            emit_operand_ptr(ptr);
+            // movl (%rax), %rax
+            emit_bytes(0x48, 0x8b, 0x00);
+            // push %rax
+            emit_bytes(0x50);
+            break;
+         }
+      }
+      void emit_set_global(uint32_t globalidx) {
+         auto& gl = _mod.globals[globalidx];
+         void *ptr = &gl.init.value;
+         // popq %rcx
+         emit_bytes(0x59);
+         // movabsq $ptr, %rax
+         emit_bytes(0x48, 0xb8);
+         emit_operand_ptr(ptr);
+         // movq %rcx, (%rax)
+         emit_bytes(0x48, 0x89, 0x08);
+      }
 
       void emit_i32_load(uint32_t alignment, uint32_t offset) {
          // movl (RAX), EAX
@@ -884,13 +982,21 @@ namespace eosio { namespace vm {
          memcpy(branch, &relative, 4);
       }
 
+      // A 64-bit absolute address is used for function calls whose
+      // address is too far away for a 32-bit relative call.
+      static void fix_branch64(void* branch, void* target) {
+         memcpy(branch, &target, 8);
+      }
+
       using fn_type = uint64_t(*)(void* context, void* memory);
       void finalize(function_body& body) {
-         body.jit_code = reinterpret_cast<fn_type>(_allocator.make_executable());
+         body.jit_code = reinterpret_cast<fn_type>(_allocator.setpos(code));
       }
     private:
 
-      jit_allocator _allocator;
+      module& _mod;
+      jit_allocator& _allocator;
+      const func_type& _ft;
       unsigned char * code;
       void emit_byte(uint8_t val) { *code++ = val; }
       void emit_bytes() {}
@@ -903,11 +1009,19 @@ namespace eosio { namespace vm {
       void emit_operand64(uint64_t val) { memcpy(code, &val, sizeof(val)); code += sizeof(val); }
       void emit_operandf32(float val) { memcpy(code, &val, sizeof(val)); code += sizeof(val); }
       void emit_operandf64(double val) { memcpy(code, &val, sizeof(val)); code += sizeof(val); }
+      template<class T>
+      void emit_operand_ptr(T* val) { memcpy(code, &val, sizeof(val)); code += sizeof(val); }
+
+     void* emit_branch_target32() {
+        void * result = code;
+        emit_operand32(3735928555u - static_cast<uint32_t>(reinterpret_cast<uintptr_t>(code)));
+        return result;
+     }
 
       static void unimplemented() { EOS_WB_ASSERT(false, wasm_parse_exception, "Sorry, not implemented."); }
 
       void emit_multipop(uint32_t count) {
-         if(count > 0) {
+         if(count > 0 && count != 0x80000001) {
             // add depth_change*8, %rsp
             if(count & 0xF0000000) unimplemented();
             emit_bytes(0x48, 0x81, 0xc4); // TODO: Prefer imm8 where appropriate
