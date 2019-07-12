@@ -250,8 +250,8 @@ namespace eosio { namespace vm {
          _cs.eat(0);
 
          if(auto fn = _mod.code[_code_index].jit_code) {
-           fn(this, _linear_memory);
-           return {};
+           uint64_t result = fn(this, _linear_memory);
+           return {i64_const_t{result}};
          }
 
          push_args(args...);

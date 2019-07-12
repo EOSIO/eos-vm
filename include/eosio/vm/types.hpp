@@ -116,7 +116,7 @@ namespace eosio { namespace vm {
       uint32_t                    body_size;
       guarded_vector<local_entry> locals;
       guarded_vector<opcode>      code;
-      void                      (*jit_code)(void*, void*);
+      uint64_t                  (*jit_code)(void*, void*);
    };
 
    struct data_segment {

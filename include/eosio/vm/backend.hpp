@@ -71,6 +71,21 @@ namespace eosio { namespace vm {
          }
       }
 
+      void print_result(const std::optional<stack_elem>& result) {
+         if(result) {
+            std::cout << "result: ";
+            if (std::holds_alternative<i32_const_t>(*result))
+               std::cout << "i32:" << std::get<i32_const_t>(*result).data.ui;
+            else if (std::holds_alternative<i64_const_t>(*result))
+               std::cout << "i64:" << std::get<i64_const_t>(*result).data.ui;
+            else if (std::holds_alternative<f32_const_t>(*result))
+               std::cout << "f32:" << std::get<f32_const_t>(*result).data.f;
+            else if (std::holds_alternative<f64_const_t>(*result))
+               std::cout << "f64:" << std::get<f64_const_t>(*result).data.f;
+            std::cout << std::endl;
+        }
+      }
+
       template <typename Watchdog = nullptr_t>
       inline void execute_all(Watchdog* wd = nullptr, Host* host = nullptr) {
          if constexpr (!std::is_same_v<Watchdog, nullptr_t>)
@@ -79,7 +94,7 @@ namespace eosio { namespace vm {
             if (_mod.exports[i].kind == external_kind::Function) {
                std::string s{ (const char*)_mod.exports[i].field_str.raw(), _mod.exports[i].field_str.size() };
 	       if constexpr (eos_vm_debug) {
-	          _ctx.execute(host, debug_visitor(_ctx), s);
+                   print_result(_ctx.execute(host, debug_visitor(_ctx), s));
 	       } else {
 	          _ctx.execute(host, interpret_visitor(_ctx), s);
 	       }

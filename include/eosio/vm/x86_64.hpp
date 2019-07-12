@@ -21,8 +21,9 @@ namespace eosio { namespace vm {
    // - FIXME: Factor the machine instructions into a separate assembler class.
    class machine_code_writer {
     public:
-      machine_code_writer(growable_allocator&, std::size_t source_bytes) {
+      machine_code_writer(growable_allocator&, std::size_t source_bytes, uint32_t funcnum) {
          code = _allocator.alloc(source_bytes * 32 + 128); // FIXME: Guess at upper bound on function size
+         start_function(code, funcnum);
       }
 
       // FIXME: initialize locals
@@ -112,14 +113,41 @@ namespace eosio { namespace vm {
          return {};
       }
 
+      // HACK: Don't use global variables
+      static auto& call_singleton() {
+         static std::vector<std::variant<std::vector<void*>, void*>> functions;
+         return functions;
+      }
+      static void register_call(void* ptr, uint32_t funcnum) {
+         auto& vec = call_singleton();
+         if(funcnum >= vec.size()) vec.resize(funcnum + 1);
+         if(void** addr = std::get_if<void*>(&vec[funcnum])) {
+            fix_branch(ptr, *addr);
+         } else {
+            std::get<std::vector<void*>>(vec[funcnum]).push_back(ptr);
+         }
+      }
+      static void start_function(void* func_start, uint32_t funcnum) {
+         auto& vec = call_singleton();
+         if(funcnum >= vec.size()) vec.resize(funcnum + 1);
+         for(void* branch : std::get<std::vector<void*>>(vec[funcnum])) {
+            fix_branch(branch, func_start);
+         }
+         vec[funcnum] = func_start;
+      }
+
       void emit_call(const func_type& ft, uint32_t funcnum) {
          if(is_host_function(funcnum)) {
             call_host_function(ft, funcnum);
          } else {
             // callq TARGET
             emit_bytes(0xe8);
-            // register_call(code, funcnum);
-            emit_operand32(0xEFBEADDE);
+            void * branch = code;
+            emit_operand32(3735928555u - static_cast<uint32_t>(reinterpret_cast<uintptr_t>(code)));
+            register_call(branch, funcnum);
+            if(ft.return_count != 0)
+               // pushq %rax
+               emit_bytes(0x50);
          }
       }
 
@@ -847,14 +875,16 @@ namespace eosio { namespace vm {
       void emit_error() { unimplemented(); }
 
       // --------------- random  ------------------------
-      void fix_branch(void* branch, void* target) {
+      static void fix_branch(void* branch, void* target) {
          auto branch_ = static_cast<uint8_t*>(branch);
          auto target_ = static_cast<uint8_t*>(target);
          auto relative = static_cast<uint32_t>(target_ - (branch_ + 4));
+         if((target_ - (branch_ + 4)) > 0x7FFFFFFFll ||
+            (target_ - (branch_ + 4)) < -0x80000000ll) unimplemented();
          memcpy(branch, &relative, 4);
       }
 
-      using fn_type = void(*)(void* context, void* memory);
+      using fn_type = uint64_t(*)(void* context, void* memory);
       void finalize(function_body& body) {
          body.jit_code = reinterpret_cast<fn_type>(_allocator.make_executable());
       }
@@ -874,7 +904,7 @@ namespace eosio { namespace vm {
       void emit_operandf32(float val) { memcpy(code, &val, sizeof(val)); code += sizeof(val); }
       void emit_operandf64(double val) { memcpy(code, &val, sizeof(val)); code += sizeof(val); }
 
-      void unimplemented() { EOS_WB_ASSERT(false, wasm_parse_exception, "Sorry, not implemented."); }
+      static void unimplemented() { EOS_WB_ASSERT(false, wasm_parse_exception, "Sorry, not implemented."); }
 
       void emit_multipop(uint32_t count) {
          if(count > 0) {
@@ -918,10 +948,10 @@ namespace eosio { namespace vm {
       }
 
       void emit_i32_relop(uint8_t opcode) {
-         // popq %rcx
-         emit_bytes(0x59);
          // popq %rax
          emit_bytes(0x58);
+         // popq %rcx
+         emit_bytes(0x59);
          // xorq %rdx, %rdx
          emit_bytes(0x48, 0x31, 0xd2);
          // cmpl %eax, %ecx
@@ -934,10 +964,10 @@ namespace eosio { namespace vm {
 
       template<class... T>
       void emit_i64_relop(uint8_t opcode) {
-         // popq %rcx
-         emit_bytes(0x59);
          // popq %rax
          emit_bytes(0x58);
+         // popq %rcx
+         emit_bytes(0x59);
          // xorq %rdx, %rdx
          emit_bytes(0x48, 0x31, 0xd2);
          // cmpq %rax, %rcx
