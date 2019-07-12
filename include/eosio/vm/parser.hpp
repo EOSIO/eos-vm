@@ -7,6 +7,7 @@
 #include <eosio/vm/utils.hpp>
 #include <eosio/vm/vector.hpp>
 
+#include <set>
 #include <stack>
 #include <vector>
 
@@ -150,6 +151,9 @@ namespace eosio { namespace vm {
          code += len;
          entry.kind  = (external_kind)(*code++);
          entry.index = parse_varuint32(code);
+	 if (entry.kind == external_kind::Function) {
+             _export_indices.insert(entry.index);
+	 }
       }
 
       void parse_func_type(wasm_code_ptr& code, func_type& ft) {
@@ -214,6 +218,7 @@ namespace eosio { namespace vm {
          const auto&         body_size = parse_varuint32(code);
          const auto&         before    = code.offset();
          const auto&         local_cnt = parse_varuint32(code);
+	 _current_function_index++;
          decltype(fb.locals) locals    = { _allocator, local_cnt };
          // parse the local entries
          for (size_t i = 0; i < local_cnt; i++) {
@@ -336,6 +341,12 @@ namespace eosio { namespace vm {
                operand_depth = expected_operand_depth;
                is_in_unreachable = pc_stack.back().is_unreachable;
                pc_stack.pop_back();
+	       /*
+	       if (!pc_stack.size() && _export_indices.count(_current_function_index)) {
+                  fb[op_index -1 ].toggle_exiting_which();
+		  std::cout << "Exiting! with end at index " << _current_function_index << " " << op_index << " " << fb[op_index-1].index() << "\n";
+	       }
+	       */
             } else {
                throw wasm_invalid_element{ "unexpected end instruction" };
             }
@@ -366,7 +377,15 @@ namespace eosio { namespace vm {
                   exit_scope();
                   break;
                }
-               case opcodes::return_: fb[op_index++] = return__t{}; start_unreachable(); break;
+               case opcodes::return_: {
+                  fb[op_index] = return__t{}; 
+		  start_unreachable(); 
+		  if (_export_indices.count(_current_function_index)) {
+                     fb[op_index].toggle_exiting_which();
+		     std::cout << "Exiting return\n";
+		  }
+		  op_index++;
+	       } break;
                case opcodes::block: {
                   uint32_t expected_result = *code++;
                   pc_stack.push_back({operand_depth, expected_result, is_in_unreachable, std::vector<uint32_t*>{}});
@@ -814,5 +833,7 @@ namespace eosio { namespace vm {
     private:
       growable_allocator& _allocator;
       module*             _mod; // non-owning weak pointer
+      int64_t             _current_function_index = -1;
+      std::set<uint32_t>  _export_indices;
    };
 }} // namespace eosio::vm

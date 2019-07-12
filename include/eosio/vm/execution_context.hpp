@@ -237,9 +237,9 @@ namespace eosio { namespace vm {
          _code_index       = func_index - _mod.import_functions.size();
          _current_offset   = _mod.function_sizes[_current_function];
          _exit_pc          = _current_offset + _mod.code[_code_index].code.size() - 1;
-         _pc               = _exit_pc - 1; // set to exit for return
-	 _mod.code[_code_index].code[_mod.code[_code_index].code.size()-1].toggle_exiting_which();
-	 std::cout << "After setting\n";
+         //_exit_pc          = _mod.code[_code_index].code.size() - 1;
+	 _mod.code.at(_code_index).code.at((_exit_pc)-_current_offset).toggle_exiting_which();
+
          _executing = true;
          _os.eat(0);
          _as.eat(0);
@@ -316,11 +316,13 @@ namespace eosio { namespace vm {
 #define CREATE_EXITING_LABEL(NAME, CODE)                                                 \
       std::cout << "Exiting Prog!" << std::endl; \
       ev_label_exiting_##NAME : visitor(ev_variant.template get<eosio::vm::NAME##_t>()); \
+      _mod.code[_code_index].code[_exit_pc - _current_offset].toggle_exiting_which();     \
       return;
-      /*_mod.code[_code_index].code[_exit_pc - _current_offset].toggle_exiting_which();    \*/
-      /*return;*/
 #define CREATE_EMPTY_LABEL(NAME, CODE) ev_label_##NAME : throw wasm_interpreter_exception{"empty operand"};
-#define CREATE_EXITING_EMPTY_LABEL(NAME, CODE) ev_label_exiting_##NAME : throw wasm_interpreter_exception{"empty operand"};
+#define CREATE_EXITING_EMPTY_LABEL(NAME, CODE) ev_label_exiting_##NAME :  \
+      _mod.code[_code_index].code[_exit_pc - _current_offset].toggle_exiting_which();     \
+      return;
+      /*throw wasm_interpreter_exception{"empty operand"};*/
 
       template <typename Visitor>
       void execute(Visitor&& visitor) {
@@ -340,8 +342,8 @@ namespace eosio { namespace vm {
             NUMERIC_OPS(CREATE_TABLE_ENTRY)
             CONVERSION_OPS(CREATE_TABLE_ENTRY)
             SYNTHETIC_OPS(CREATE_TABLE_ENTRY)
-            ERROR_OPS(CREATE_TABLE_ENTRY)
             EMPTY_OPS(CREATE_TABLE_ENTRY)
+            ERROR_OPS(CREATE_TABLE_ENTRY)
             CONTROL_FLOW_OPS(CREATE_EXITING_TABLE_ENTRY)
             BR_TABLE_OP(CREATE_EXITING_TABLE_ENTRY)
             RETURN_OP(CREATE_EXITING_TABLE_ENTRY)

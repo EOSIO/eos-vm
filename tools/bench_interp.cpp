@@ -16,8 +16,8 @@ int main(int argc, char** argv) {
       std::cerr << "Error, no wasm file provided\n";
       return -1;
    }
-
-//   try {
+   auto t3 = std::chrono::high_resolution_clock::now();
+   try {
 
       auto code = backend_t::read_wasm( argv[1] );
 	
@@ -33,8 +33,11 @@ int main(int argc, char** argv) {
       auto t4 = std::chrono::high_resolution_clock::now();
       std::cout << "Execution " << std::chrono::duration_cast<std::chrono::nanoseconds>(t4-t3).count() << "\n";
 
- //  } catch ( ... ) {
- //     std::cerr << "eos-vm interpreter error\n";
- //  }
+   } catch ( const eosio::vm::exception& ex ) {
+      auto t4 = std::chrono::high_resolution_clock::now();
+      std::cout << "Execution " << std::chrono::duration_cast<std::chrono::nanoseconds>(t4-t3).count() << "\n";
+      std::cerr << "eos-vm interpreter error\n";
+      std::cerr << ex.what() << " : " << ex.detail() <<  "\n";
+   }
    return 0;
 }

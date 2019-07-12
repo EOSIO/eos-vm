@@ -22,7 +22,6 @@ namespace eosio { namespace vm {
       }
       template <typename T>
       T* alloc(size_t size = 1) {
-         std::cout << "MEM SIZE : " << (sizeof(T)*size) << " " << sizeof(T) << "; " << size << " INDEX " << index << " TOTAL MEM SIZE : " << mem_size << "\n";
          EOS_WB_ASSERT((sizeof(T) * size) + index <= mem_size, wasm_bad_alloc, "wasm failed to allocate native");
          T* ret = (T*)(raw.get() + index);
          index += sizeof(T) * size;
