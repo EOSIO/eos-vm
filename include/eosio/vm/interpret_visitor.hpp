@@ -89,7 +89,7 @@ namespace eosio { namespace vm {
          op.index         = context.current_label_index();
          const auto& oper = context.pop_operand();
          if (!oper.to_ui32()) {
-            context.set_relative_pc(op.pc + 1);
+            context.set_relative_pc(op.pc);
          }
          op.op_index = context.current_operands_index();
          context.push_label(op);
