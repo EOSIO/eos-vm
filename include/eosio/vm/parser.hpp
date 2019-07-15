@@ -371,7 +371,7 @@ namespace eosio { namespace vm {
                           "nested structures validation failure");
 
             switch (*code++) {
-               case opcodes::unreachable: fb[op_index++] = unreachable_t{}; break;
+               case opcodes::unreachable: fb[op_index++] = unreachable_t{}; start_unreachable(); break;
                case opcodes::nop: fb[op_index++] = nop_t{}; break;
                case opcodes::end: {
                   exit_scope();
