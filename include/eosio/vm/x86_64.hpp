@@ -19,6 +19,7 @@ namespace eosio { namespace vm {
    // - The base of memory is stored in rsi
    //
    // - FIXME: Factor the machine instructions into a separate assembler class.
+   // - FIXME: The top level entry point needs to set the floating point state
    class machine_code_writer {
     public:
       machine_code_writer(jit_allocator& alloc, std::size_t source_bytes, uint32_t funcnum, module& mod) :
@@ -929,16 +930,47 @@ namespace eosio { namespace vm {
       }
 
       void emit_i32_trunc_s_f32() {
-         // FIXME: make sure that fp exceptions do the right thing here.
-         // cvttss2si (%rsp), %eax
-         emit_bytes(0xf3, 0x0f, 0x2c, 0x04, 0x24);
+         // cvttss2si 8(%rsp), %eax
+         emit_f2i(0xf3, 0x0f, 0x2c, 0x44, 0x24, 0x08);
          // mov %eax, (%rsp)
          emit_bytes(0x89, 0x04 ,0x24);
       }
 
-      void emit_i32_trunc_u_f32() { unimplemented(); }
-      void emit_i32_trunc_s_f64() { unimplemented(); }
-      void emit_i32_trunc_u_f64() { unimplemented(); }
+      void emit_i32_trunc_u_f32() {
+         // cvttss2si 8(%rsp), %rax
+         emit_f2i(0xf3, 0x48, 0x0f, 0x2c, 0x44, 0x24, 0x08);
+         // mov %eax, (%rsp)
+         emit_bytes(0x89, 0x04 ,0x24);
+         // shl $32, %rax
+         emit_bytes(0x48, 0xc1, 0xe0, 0x20);
+         // test %eax, %eax
+         emit_bytes(0x85, 0xc0);
+         // jnz FP_ERROR_HANDLER
+         emit_bytes(0x0f, 0x85);
+         void * addr = emit_branch_target32();
+         // FIXME: adjust branch
+      }
+      void emit_i32_trunc_s_f64() {
+         // cvttsd2si 8(%rsp), %eax
+         emit_f2i(0xf2, 0x0f, 0x2c, 0x44, 0x24, 0x08);
+         // mov %eax, (%rsp)
+         emit_bytes(0x89, 0x04 ,0x24);
+      }
+
+      void emit_i32_trunc_u_f64() {
+         // cvttss2si 8(%rsp), %rax
+         emit_f2i(0xf3, 0x48, 0x0f, 0x2c, 0x44, 0x24, 0x08);
+         // mov %eax, (%rsp)
+         emit_bytes(0x89, 0x04 ,0x24);
+         // shl $32, %rax
+         emit_bytes(0x48, 0xc1, 0xe0, 0x20);
+         // test %eax, %eax
+         emit_bytes(0x85, 0xc0);
+         // jnz FP_ERROR_HANDLER
+         emit_bytes(0x0f, 0x85);
+         void * addr = emit_branch_target32();
+         // FIXME: adjust branch
+      }
 
       void emit_i64_extend_s_i32() {
          // movslq (%rsp), %rax
@@ -949,21 +981,80 @@ namespace eosio { namespace vm {
 
       void emit_i64_extend_u_i32() { /* Nothing to do */ }
       
-      void emit_i64_trunc_s_f32() { unimplemented(); }
-      void emit_i64_trunc_u_f32() { unimplemented(); }
-      void emit_i64_trunc_s_f64() { unimplemented(); }
+      void emit_i64_trunc_s_f32() {
+         // cvttss2si (%rsp), %rax
+         emit_f2i(0xf3, 0x48, 0x0f, 0x2c, 0x44, 0x24, 0x08);
+         // mov %rax, (%rsp)
+         emit_bytes(0x48, 0x89, 0x04 ,0x24);
+      }
+      void emit_i64_trunc_u_f32() {
+        // movss -2**63, %xmm0
+        // addss (%rsp), %xmm0
+        // cvtss2si (%rsp), %rax
+        // btc $63, %rax
+        // 
+        // FIXME:
+        unimplemented();
+      }
+      void emit_i64_trunc_s_f64() {
+         // cvttsd2si (%rsp), %rax
+         emit_f2i(0xf2, 0x48, 0x0f, 0x2c, 0x44, 0x24, 0x08);
+         // mov %rax, (%rsp)
+         emit_bytes(0x48, 0x89, 0x04 ,0x24);
+      }
       void emit_i64_trunc_u_f64() { unimplemented(); }
 
-      void emit_f32_convert_s_i32() { unimplemented(); }
-      void emit_f32_convert_u_i32() { unimplemented(); }
-      void emit_f32_convert_s_i64() { unimplemented(); }
+      void emit_f32_convert_s_i32() {
+         // cvtsi2ssl (%rsp), %xmm0
+         emit_bytes(0xf3, 0x0f, 0x2a, 0x04, 0x24);
+         // movss %xmm0, (%rsp)
+         emit_bytes(0xf3, 0x0f, 0x11, 0x04, 0x24);
+      }
+      void emit_f32_convert_u_i32() {
+         // zero-extend to 64-bits
+         // cvtsi2sslq (%rsp), %xmm0
+         emit_bytes(0xf3, 0x48, 0x0f, 0x2a, 0x04, 0x24);
+         // movss %xmm0, (%rsp)
+         emit_bytes(0xf3, 0x0f, 0x11, 0x04, 0x24);
+      }
+      void emit_f32_convert_s_i64() {
+         // cvtsi2sslq (%rsp), %xmm0
+         emit_bytes(0xf3, 0x48, 0x0f, 0x2a, 0x04, 0x24);
+         // movss %xmm0, (%rsp)
+         emit_bytes(0xf3, 0x0f, 0x11, 0x04, 0x24);
+      }
       void emit_f32_convert_u_i64() { unimplemented(); }
-      void emit_f32_demote_f64() { unimplemented(); }
-      void emit_f64_convert_s_i32() { unimplemented(); } // eosmechanics
-      void emit_f64_convert_u_i32() { unimplemented(); }
-      void emit_f64_convert_s_i64() { unimplemented(); }
+      void emit_f32_demote_f64() {
+         // cvtsd2ss (%rsp), %xmm0
+         emit_bytes(0xf2, 0x0f, 0x5a, 0x04, 0x24);
+         // movss %xmm0, (%rsp)
+         emit_bytes(0xf3, 0x0f, 0x11, 0x04, 0x24);
+      }
+      void emit_f64_convert_s_i32() {
+         //  cvtsi2sdl (%rsp), %xmm0
+         emit_bytes(0xf2, 0x0f, 0x2a, 0x04, 0x24);
+         // movsd %xmm0, (%rsp)
+         emit_bytes(0xf2, 0x0f, 0x11, 0x04, 0x24);
+      }
+      void emit_f64_convert_u_i32() {
+         //  cvtsi2sdq (%rsp), %xmm0
+         emit_bytes(0xf2, 0x48, 0x0f, 0x2a, 0x04, 0x24);
+         // movsd %xmm0, (%rsp)
+         emit_bytes(0xf2, 0x0f, 0x11, 0x04, 0x24);
+      }
+      void emit_f64_convert_s_i64() {
+         //  cvtsi2sdq (%rsp), %xmm0
+         emit_bytes(0xf2, 0x48, 0x0f, 0x2a, 0x04, 0x24);
+         // movsd %xmm0, (%rsp)
+         emit_bytes(0xf2, 0x0f, 0x11, 0x04, 0x24);
+      }
       void emit_f64_convert_u_i64() { unimplemented(); }
-      void emit_f64_promote_f32() { unimplemented(); }
+      void emit_f64_promote_f32() {
+         // cvtss2sd (%rsp), %xmm0
+         emit_bytes(0xf3, 0x0f, 0x5a, 0x04, 0x24);
+         // movsd %xmm0, (%rsp)
+         emit_bytes(0xf2, 0x0f, 0x11, 0x04, 0x24);
+      }
       
       void emit_i32_reinterpret_f32() { /* Nothing to do */ }
       void emit_i64_reinterpret_f64() { /* Nothing to do */ }
@@ -1204,6 +1295,30 @@ namespace eosio { namespace vm {
          emit_bytes(0x48, 0x8d, 0x64, 0x24, 0x08);
          // movsd %xmm0, (%rsp)
          emit_bytes(0xf2, 0x0f, 0x11, 0x04, 0x24);
+      }
+
+      // Beware: This pushes and pops mxcsr around the user op.  Remember to adjust access to %rsp in the caller.
+      // Note uses %rcx after the user instruction
+      template<class... T>
+      void emit_f2i(T... op) {
+         // mov 0x0x1f80, %eax // round-to-even/all exceptions masked/no exceptions set
+         emit_bytes(0x66, 0xb8, 0x80, 0x1f);
+         // push %rax
+         emit_bytes(0x50);
+         // ldmxcsr (%rsp)
+         emit_bytes(0x0f, 0xae, 0x14, 0x24);
+         // user op
+         emit_bytes(op...);
+         // stmxcsr (%rsp)
+         emit_bytes(0x0f, 0xae, 0x1c, 0x24);
+         // pop %rcx
+         emit_bytes(0x59);
+         // test %cl, 0x1 // invalid
+         emit_bytes(0xf6, 0xc1, 0x01);
+         // jnz FP_ERROR_HANDLER
+         emit_bytes(0x0f, 0x85);
+         void * handler = emit_branch_target32();
+         // FIXME: implement the handler
       }
 
       bool is_host_function(uint32_t funcnum) { return false; }
