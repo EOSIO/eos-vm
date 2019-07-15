@@ -7,6 +7,7 @@
 
 #include <optional>
 #include <string>
+#include <utility>
 
 namespace eosio { namespace vm {
    template <typename Host>
@@ -24,7 +25,7 @@ namespace eosio { namespace vm {
       }
 
       inline int32_t grow_linear_memory(int32_t pages) {
-	 EOS_WB_ASSERT(!(_mod.memories[0].limits.flags && (_mod.memories[0].limits.maximum < pages)), wasm_interpreter_exception, "memory limit reached");
+	      EOS_WB_ASSERT(!(_mod.memories[0].limits.flags && (_mod.memories[0].limits.maximum < pages)), wasm_interpreter_exception, "memory limit reached");
          const int32_t sz = _wasm_alloc->get_current_page();
          _wasm_alloc->alloc<char>(pages);
          return sz;
@@ -47,8 +48,8 @@ namespace eosio { namespace vm {
             setup_locals(index);
             const uint32_t& pc = _mod.function_sizes[index];
             set_pc(pc);
-            _current_offset = pc;
-            _code_index     = index - _mod.get_imported_functions_size();
+            _state.current_offset = pc;
+            _state.code_index     = index - _mod.get_imported_functions_size();
          }
       }
 
@@ -84,18 +85,18 @@ namespace eosio { namespace vm {
       inline void           push_call(uint32_t index) {
          const auto& ftype = _mod.get_function_type(index);
          _last_op_index    = _os.size() - ftype.param_types.size();
-         _as.push(activation_frame{ _pc + 1, _current_offset, _code_index, static_cast<uint16_t>(_last_op_index),
+         _as.push(activation_frame{ _state.pc + 1, _state.current_offset, _state.code_index, static_cast<uint16_t>(_last_op_index),
                                     ftype.return_type });
-         _cs.push(end_t{ 0, static_cast<uint32_t>(_current_offset + _mod.code[_code_index].code.size() - 1), 0,
+         _cs.push(end_t{ 0, static_cast<uint32_t>(_state.current_offset + _mod.code[_state.code_index].code.size() - 1), 0,
                          static_cast<uint16_t>(_last_op_index) });
       }
 
       inline void apply_pop_call() {
          if (_as.size()) {
             const auto& af      = _as.pop();
-            _current_offset     = af.offset;
-            _pc                 = af.pc;
-            _code_index         = af.index;
+            _state.current_offset     = af.offset;
+            _state.pc                 = af.pc;
+            _state.code_index         = af.index;
             uint8_t    ret_type = af.ret_type;
             uint16_t   op_index = af.op_index;
             operand_stack_elem el;
@@ -194,18 +195,44 @@ namespace eosio { namespace vm {
          }
       }
 
-      inline uint32_t get_pc() const { return _pc; }
-      inline void     set_pc(uint32_t pc) { _pc = pc; }
-      inline void     set_relative_pc(uint32_t pc) { _pc = _current_offset + pc; }
-      inline void     inc_pc() { _pc++; }
-      inline uint32_t get_code_index() const { return _code_index; }
-      inline uint32_t get_code_offset() const { return _pc - _current_offset; }
+      inline uint32_t get_pc() const { return _state.pc; }
+      inline void     set_pc(uint32_t pc) { _state.pc = pc; }
+      inline void     set_relative_pc(uint32_t pc) { _state.pc = _state.current_offset + pc; }
+      inline void     inc_pc() { _state.pc++; }
+      inline uint32_t get_code_index() const { return _state.code_index; }
+      inline uint32_t get_code_offset() const { return _state.pc - _state.current_offset; }
       inline void     exit(std::error_code err = std::error_code()) {
          _error_code = err;
-         _executing  = false;
       }
+
+      inline void reset() {
+         _os.eat(0);
+         _as.eat(0);
+         _cs.eat(0);
+
+         _linear_memory = _wasm_alloc->get_base_ptr<char>();
+         if (_mod.memories.size()) {
+            grow_linear_memory(_mod.memories[0].limits.initial - _wasm_alloc->get_current_page());
+         }
+
+         for (int i = 0; i < _mod.data.size(); i++) {
+            const auto& data_seg = _mod.data[i];
+            // TODO validate only use memory idx 0 in parse
+            auto addr = _linear_memory + data_seg.offset.value.i32;
+            memcpy((char*)(addr), data_seg.data.raw(), data_seg.data.size());
+         }
+         _state.initialized = true;
+      }
+      
+      inline void set_exiting_op( const std::pair<uint32_t, uint32_t>& exiting_loc ) {
+         _mod.code.at(exiting_loc.first).code.at(exiting_loc.second).set_exiting_which();
+      }
+
+      inline void clear_exiting_op( const std::pair<uint32_t, uint32_t>& exiting_loc ) {
+         _mod.code.at(exiting_loc.first).code.at(exiting_loc.second).clear_exiting_which();
+      }
+
       inline std::error_code get_error_code() const { return _error_code; }
-      inline bool            executing() const { return _executing; }
 
       template <typename Visitor, typename... Args>
       inline std::optional<operand_stack_elem> execute_func_table(Host* host, Visitor&& visitor, uint32_t table_index,
@@ -224,44 +251,42 @@ namespace eosio { namespace vm {
       inline std::optional<operand_stack_elem> execute(Host* host, Visitor&& visitor, uint32_t func_index, Args... args) {
          EOS_WB_ASSERT(func_index < std::numeric_limits<uint32_t>::max(), wasm_interpreter_exception,
                        "cannot execute function, function not found");
-         _host          = host;
-         _linear_memory = _wasm_alloc->get_base_ptr<char>();
-	 grow_linear_memory(_mod.memories[0].limits.initial);
-         for (int i = 0; i < _mod.data.size(); i++) {
-            const auto& data_seg = _mod.data[i];
-            // TODO validate only use memory idx 0 in parse
-            auto addr = _linear_memory + data_seg.offset.value.i32;
-            memcpy((char*)(addr), data_seg.data.raw(), data_seg.data.size());
-         }
-         _current_function = func_index;
-         _code_index       = func_index - _mod.import_functions.size();
-         _current_offset   = _mod.function_sizes[_current_function];
-         _exit_pc          = _current_offset + _mod.code[_code_index].code.size() - 1;
-         //_exit_pc          = _mod.code[_code_index].code.size() - 1;
-	 _mod.code.at(_code_index).code.at((_exit_pc)-_current_offset).toggle_exiting_which();
+         
+         // save the state of the original calling context
+         execution_state saved_state = _state;
+         clear_exiting_op( _state.exiting_loc );
 
-         _executing = true;
-         _os.eat(0);
-         _as.eat(0);
-         _cs.eat(0);
+         _state.host             = host;
+         _state.current_function = func_index;
+         _state.code_index       = func_index - _mod.import_functions.size();
+         _state.current_offset   = _mod.function_sizes[_state.current_function];
+         _state.pc               = _state.current_offset;
+         _state.exiting_loc      = { _state.code_index, _mod.code[_state.code_index].code.size() - 1 };
+      
+         set_exiting_op( _state.exiting_loc );
 
          push_args(args...);
          push_call(func_index);
-         // type_check(_mod.types[_mod.functions[func_index - _mod.import_functions.size()]]);
+         type_check(_mod.types[_mod.functions[func_index - _mod.import_functions.size()]]);
          setup_locals(func_index);
-         _pc = _current_offset; // set to actual start of function
 
          execute(visitor);
          operand_stack_elem ret;
          try {
             ret = pop_operand();
          } catch (...) { return {}; }
-         _os.eat(0);
+         print_stack();
+
+         // revert the state back to original calling context
+         clear_exiting_op( _state.exiting_loc );
+         _state = saved_state;
+         set_exiting_op( _state.exiting_loc );
+
          return ret;
       }
 
       inline void jump(uint32_t pop_info, uint32_t new_pc) {
-         _pc = _current_offset + new_pc;
+         _state.pc = _state.current_offset + new_pc;
          if ((pop_info & 0x80000000u)) {
             const auto& op = pop_operand();
             eat_operands(_os.size() - ((pop_info & 0x7FFFFFFFu) - 1));
@@ -311,18 +336,17 @@ namespace eosio { namespace vm {
 #define CREATE_EXITING_TABLE_ENTRY(NAME, CODE) &&ev_label_exiting_##NAME,
 #define CREATE_LABEL(NAME, CODE)                                                                 \
       ev_label_##NAME : visitor(ev_variant.template get<eosio::vm::NAME##_t>());                 \
-      ev_variant = _mod.code.at_no_check(_code_index).code.at_no_check(_pc - _current_offset); \
+      ev_variant = _mod.code.at_no_check(_state.code_index).code.at_no_check(_state.pc - _state.current_offset); \
       goto* dispatch_table[ev_variant.index()];
 #define CREATE_EXITING_LABEL(NAME, CODE)                                                 \
       std::cout << "Exiting Prog!" << std::endl; \
       ev_label_exiting_##NAME : visitor(ev_variant.template get<eosio::vm::NAME##_t>()); \
-      _mod.code[_code_index].code[_exit_pc - _current_offset].toggle_exiting_which();     \
+      clear_exiting_op(_state.exiting_loc); \
       return;
 #define CREATE_EMPTY_LABEL(NAME, CODE) ev_label_##NAME : throw wasm_interpreter_exception{"empty operand"};
 #define CREATE_EXITING_EMPTY_LABEL(NAME, CODE) ev_label_exiting_##NAME :  \
-      _mod.code[_code_index].code[_exit_pc - _current_offset].toggle_exiting_which();     \
+      clear_exiting_op(_state.exiting_loc); \
       return;
-      /*throw wasm_interpreter_exception{"empty operand"};*/
 
       template <typename Visitor>
       void execute(Visitor&& visitor) {
@@ -363,7 +387,7 @@ namespace eosio { namespace vm {
             ERROR_OPS(CREATE_EXITING_TABLE_ENTRY)
             &&__ev_last
          };
-         auto& ev_variant = _mod.code.at_no_check(_code_index).code.at_no_check(_pc - _current_offset);
+         auto& ev_variant = _mod.code.at_no_check(_state.code_index).code.at_no_check(_state.pc - _state.current_offset);
 	 goto *dispatch_table[ev_variant.index()];
 	 while (1) {
             CONTROL_FLOW_OPS(CREATE_LABEL);
@@ -405,16 +429,21 @@ namespace eosio { namespace vm {
          }
       }
 
+      struct execution_state {
+         Host* host                                = nullptr;
+         uint32_t current_function                 = 0;
+         std::pair<uint32_t, uint32_t> exiting_loc = {0,0};
+         uint32_t code_index       = 0;
+         uint32_t current_offset   = 0;
+         uint32_t pc               = 0;
+         bool     initialized      = false;
+      };
+
       bounded_allocator _base_allocator = {
          (constants::max_stack_size + constants::max_call_depth + constants::max_nested_structures) * (std::max(std::max(sizeof(operand_stack_elem), sizeof(control_stack_elem)), sizeof(activation_frame)))
       };
-      uint32_t                        _pc               = 0;
-      uint32_t                        _exit_pc          = 0;
-      uint32_t                        _current_function = 0;
-      uint32_t                        _code_index       = 0;
-      uint32_t                        _current_offset   = 0;
+      execution_state _state;
       uint16_t                        _last_op_index    = 0;
-      bool                            _executing        = false;
       char*                           _linear_memory    = nullptr;
       module&                         _mod;
       wasm_allocator*                 _wasm_alloc;
