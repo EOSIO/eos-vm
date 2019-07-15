@@ -60,7 +60,13 @@ namespace eosio { namespace vm {
          emit_bytes(0xc3);
       }
       
-      void emit_unreachable() { /* FIXME: emit a trap */ }
+      void emit_unreachable() {
+         // movabsq &on_unreachable, %rax
+         emit_bytes(0x48, 0xb8);
+         emit_operand_ptr(&on_unreachable);
+         // call %rax
+         emit_bytes(0xff, 0xd0);
+      }
       void emit_nop() {}
       void* emit_end() { return code; }
       void* emit_return(uint32_t depth_change) {
@@ -164,7 +170,7 @@ namespace eosio { namespace vm {
             void * branch = emit_branch_target32();
 #if 0
             // movabsq TARGET, %rax
-            emit_bytes(0x48, 0xa1);
+            emit_bytes(0x48, 0xb8);
             void * branch = code;
             emit_operand64(3735928559u);
             // callq %rax
@@ -432,7 +438,7 @@ namespace eosio { namespace vm {
 
       void emit_i64_const(uint64_t value) {
          // movabsq value, %rax
-         emit_bytes(0x48, 0xa1);
+         emit_bytes(0x48, 0xb8);
          emit_operand64(value);
          // push %rax
          emit_bytes(0x50);
@@ -447,7 +453,7 @@ namespace eosio { namespace vm {
       }
       void emit_f64_const(double value) {
          // movabsq value, %rax
-         emit_bytes(0x48, 0xa1);
+         emit_bytes(0x48, 0xb8);
          emit_operandf64(value);
          // push %rax
          emit_bytes(0x50);
@@ -833,7 +839,7 @@ namespace eosio { namespace vm {
          // popq %rcx; 
          emit_bytes(0x59);
          // movabsq 0x7fffffffffffffff, %rax
-         emit_bytes(0x48, 0xa1);
+         emit_bytes(0x48, 0xb8);
          emit_operand64(0x7fffffffffffffffull);
          // andq %rcx, %rax
          emit_bytes(0x48, 0x21, 0xc8);
@@ -846,7 +852,7 @@ namespace eosio { namespace vm {
          // popq %rcx; 
          emit_bytes(0x59);
          // movabsq 0x8000000000000000, %rax
-         emit_bytes(0x48, 0xa1);
+         emit_bytes(0x48, 0xb8);
          emit_operand64(0x8000000000000000ull);
          // xorq %rcx, %rax
          emit_bytes(0x48, 0x31, 0xc8);
@@ -902,7 +908,7 @@ namespace eosio { namespace vm {
          // popq %rcx; 
          emit_bytes(0x59);
          // movabsq 0x8000000000000000, %rax
-         emit_bytes(0x48, 0xa1);
+         emit_bytes(0x48, 0xb8);
          emit_operand64(0x8000000000000000ull);
          // andq %rax, %rcx
          emit_bytes(0x48, 0x21, 0xc1);
@@ -1205,8 +1211,8 @@ namespace eosio { namespace vm {
             // movd %xmm0, %eax
             emit_bytes(0x66, 0x0f, 0x7e, 0xc0);
             if (!flip_result) {
-               // andl 1, eax
-               emit_bytes(0x23, 0x04, 0x25, 0x01, 0x00, 0x00, 0x00);
+               // andl $1, %eax
+               emit_bytes(0x83, 0xe0, 0x01);
             } else {
                // incl %eax {0xffffffff, 0} -> {0, 1}
                emit_bytes(0xff, 0xc0);
@@ -1240,8 +1246,8 @@ namespace eosio { namespace vm {
             // movd %xmm0, %eax
             emit_bytes(0x66, 0x0f, 0x7e, 0xc0);
             if (!flip_result) {
-               // andl 1, eax
-               emit_bytes(0x23, 0x04, 0x25, 0x01, 0x00, 0x00, 0x00);
+               // andl $1, eax
+               emit_bytes(0x83, 0xe0, 0x01);
             } else {
                // incl %eax {0xffffffff, 0} -> {0, 1}
                emit_bytes(0xff, 0xc0);
@@ -1302,7 +1308,7 @@ namespace eosio { namespace vm {
       template<class... T>
       void emit_f2i(T... op) {
          // mov 0x0x1f80, %eax // round-to-even/all exceptions masked/no exceptions set
-         emit_bytes(0x66, 0xb8, 0x80, 0x1f);
+         emit_bytes(0xb8, 0x80, 0x1f, 0x00, 0x00);
          // push %rax
          emit_bytes(0x50);
          // ldmxcsr (%rsp)
@@ -1325,10 +1331,12 @@ namespace eosio { namespace vm {
       void call_host_function(const func_type& ft, uint32_t funcnum) {}
 
       template<auto F, typename Context>
-      static uint64_t host_function_wrapper(void* stack, Context* context) {
+      static uint64_t host_function_wrapper(void* stack /*rsi*/, Context* context /*rdi*/) {
          // unpack args
          // call
       }
+
+      static void on_unreachable() { throw wasm_interpreter_exception{ "unreachable" }; }
 
 #if 0
       union stack_elem {
