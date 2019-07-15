@@ -203,6 +203,10 @@ namespace eosio { namespace vm {
       inline uint32_t get_code_offset() const { return _state.pc - _state.current_offset; }
       inline void     exit(std::error_code err = std::error_code()) {
          _error_code = err;
+         clear_exiting_op(_state.exiting_loc);
+         std::cout << "Exiting at " << _state.code_index << " : " << _state.pc+1 << " ...\n";
+         _state.exiting_loc = { _state.code_index, _state.pc+1 };
+         set_exiting_op(_state.exiting_loc);
       }
 
       inline void reset() {
