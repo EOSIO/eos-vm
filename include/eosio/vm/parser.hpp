@@ -226,7 +226,7 @@ namespace eosio { namespace vm {
          fb.locals = std::move(locals);
 
          size_t            bytes = body_size - (code.offset() - before); // -1 is 'end' 0xb byte
-         Writer            code_writer(_code_alloc, bytes, idx, *_mod);
+         Writer            code_writer(Writer::choose_alloc(_allocator, _code_alloc), bytes, idx, *_mod);
          wasm_code_ptr     fb_code(code.raw(), bytes);
          code_writer.emit_prologue(fn_type, locals);
          parse_function_body_code(fb_code, bytes, code_writer, fn_type);

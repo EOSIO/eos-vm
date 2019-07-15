@@ -17,13 +17,15 @@ namespace eosio { namespace vm {
       }
 
     public:
-      explicit bitcode_writer(growable_allocator& alloc, std::size_t source_bytes) :
+      // FIXME: This function is really a hack.  Find a better way to make the allocator configurable.
+      static growable_allocator& choose_alloc(growable_allocator& alloc, jit_allocator&) { return alloc; }
+      explicit bitcode_writer(growable_allocator& alloc, std::size_t source_bytes, std::size_t /*idx*/, module& /*mod*/) :
          _allocator(alloc),
          fb(alloc, source_bytes) {}
       void emit_unreachable() { fb[op_index++] = unreachable_t{}; };
       void emit_nop() { fb[op_index++] = nop_t{}; }
       uint32_t emit_end() { return op_index; }
-      void emit_return(uint32_t /*operand_depth*/) { fb[op_index++] = return__t{}; }
+      uint32_t* emit_return(uint32_t /*operand_depth*/) { fb[op_index++] = return__t{}; return nullptr; }
       void emit_block() {}
       uint32_t emit_loop() { return op_index; }
       uint32_t* emit_if() { 
@@ -265,7 +267,7 @@ namespace eosio { namespace vm {
 
       void emit_error() { fb[op_index++] = error_t{}; }
       
-      void fix_branch(uint32_t* branch, uint32_t target) { *branch = target; }
+      void fix_branch(uint32_t* branch, uint32_t target) { if(branch) *branch = target; }
       void emit_prologue(const func_type&, const guarded_vector<local_entry>&) {}
       void emit_epilogue(const func_type&, const guarded_vector<local_entry>&) {
          fb.resize(op_index + 1);

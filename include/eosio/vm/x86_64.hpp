@@ -22,6 +22,7 @@ namespace eosio { namespace vm {
    // - FIXME: The top level entry point needs to set the floating point state
    class machine_code_writer {
     public:
+      static jit_allocator& choose_alloc(growable_allocator&, jit_allocator& alloc) { return alloc; }
       machine_code_writer(jit_allocator& alloc, std::size_t source_bytes, uint32_t funcnum, module& mod) :
          _mod(mod),
          _allocator(alloc),
