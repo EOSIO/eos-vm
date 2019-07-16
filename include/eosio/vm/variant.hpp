@@ -249,7 +249,7 @@ namespace eosio { namespace vm {
       }
 
       template <typename Alt>
-      inline constexpr bool is_a() {
+      inline constexpr bool is_a() const {
          return _which == detail::get_alternatives_index<0, Alt, Alternatives...>::value;
       }
       inline constexpr void toggle_exiting_which() { _which ^= 0x100; }

@@ -23,7 +23,7 @@ namespace eosio { namespace vm {
    class machine_code_writer {
     public:
       static jit_allocator& choose_alloc(growable_allocator&, jit_allocator& alloc) { return alloc; }
-      machine_code_writer(jit_allocator& alloc, std::size_t source_bytes, uint32_t funcnum, module& mod) :
+      machine_code_writer(jit_allocator& alloc, std::size_t source_bytes, uint32_t funcnum, module& mod, bool is_exported) :
          _mod(mod),
          _allocator(alloc),
          _ft(mod.get_function_type(funcnum)) {

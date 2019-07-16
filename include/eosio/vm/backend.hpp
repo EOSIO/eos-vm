@@ -71,17 +71,17 @@ namespace eosio { namespace vm {
          }
       }
 
-      void print_result(const std::optional<stack_elem>& result) {
+      void print_result(const std::optional<operand_stack_elem>& result) {
          if(result) {
             std::cout << "result: ";
-            if (std::holds_alternative<i32_const_t>(*result))
-               std::cout << "i32:" << std::get<i32_const_t>(*result).data.ui;
-            else if (std::holds_alternative<i64_const_t>(*result))
-               std::cout << "i64:" << std::get<i64_const_t>(*result).data.ui;
-            else if (std::holds_alternative<f32_const_t>(*result))
-               std::cout << "f32:" << std::get<f32_const_t>(*result).data.f;
-            else if (std::holds_alternative<f64_const_t>(*result))
-               std::cout << "f64:" << std::get<f64_const_t>(*result).data.f;
+            if (result->is_a<i32_const_t>())
+               std::cout << "i32:" << result->to_ui32();
+            else if (result->is_a<i64_const_t>())
+               std::cout << "i64:" << result->to_ui64();
+            else if (result->is_a<f32_const_t>())
+               std::cout << "f32:" << result->to_f32();
+            else if (result->is_a<f64_const_t>())
+              std::cout << "f64:" << result->to_f64();
             std::cout << std::endl;
         }
       }

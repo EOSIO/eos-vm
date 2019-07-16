@@ -13,19 +13,28 @@ namespace eosio { namespace vm {
 
       template<class I>
       decltype(auto) append_instr(I&& instr) {
-         return std::get<std::decay_t<I>>((fb[op_index++] = instr));
+         return (fb[op_index++] = instr).template get<std::decay_t<I>>();
       }
 
     public:
       // FIXME: This function is really a hack.  Find a better way to make the allocator configurable.
       static growable_allocator& choose_alloc(growable_allocator& alloc, jit_allocator&) { return alloc; }
-      explicit bitcode_writer(growable_allocator& alloc, std::size_t source_bytes, std::size_t /*idx*/, module& /*mod*/) :
+      explicit bitcode_writer(growable_allocator& alloc, std::size_t source_bytes, std::size_t /*idx*/, module& /*mod*/, bool is_exported) :
          _allocator(alloc),
-         fb(alloc, source_bytes) {}
+         fb(alloc, source_bytes),
+         _is_exported(is_exported) {}
       void emit_unreachable() { fb[op_index++] = unreachable_t{}; };
       void emit_nop() { fb[op_index++] = nop_t{}; }
       uint32_t emit_end() { return op_index; }
-      uint32_t* emit_return(uint32_t /*operand_depth*/) { fb[op_index++] = return__t{}; return nullptr; }
+      uint32_t* emit_return(uint32_t /*operand_depth*/) {
+         fb[op_index] = return__t{};
+         if (_is_exported) {
+            fb[op_index].toggle_exiting_which();
+            std::cout << "Exiting return\n";
+         }
+         op_index++;
+         return nullptr;
+      }
       void emit_block() {}
       uint32_t emit_loop() { return op_index; }
       uint32_t* emit_if() { 
@@ -282,6 +291,7 @@ namespace eosio { namespace vm {
       growable_allocator& _allocator;
       std::size_t op_index = 0;
       guarded_vector<opcode> fb;
+      bool _is_exported;
    };
 
 }}
