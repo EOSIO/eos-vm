@@ -440,6 +440,7 @@ namespace eosio { namespace vm {
                   pop_operand();
                   parse_br_table(code, bt);
                   fb[op_index++] = bt;
+                  start_unreachable();
                } break;
                case opcodes::call: {
                   uint32_t funcnum = parse_varuint32(code);
