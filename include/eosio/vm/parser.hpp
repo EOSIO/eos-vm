@@ -408,8 +408,10 @@ namespace eosio { namespace vm {
                   auto& relocations = std::get<std::vector<uint32_t*>>(old_index.relocations);
                   uint32_t* _if_pc      = relocations[0];
                   // reset the operand stack to the same state as the if
-                  EOS_WB_ASSERT((old_index.expected_result != types::pseudo) + old_index.operand_depth == operand_depth,
-                                wasm_parse_exception, "Malformed if body");
+                  if (!is_unreachable()) {
+                     EOS_WB_ASSERT((old_index.expected_result != types::pseudo) + old_index.operand_depth == operand_depth,
+                                   wasm_parse_exception, "Malformed if body");
+                  }
                   operand_depth = old_index.operand_depth;
                   start_reachable();
                   // Overwrite the branch from the `if` with the `else`.
