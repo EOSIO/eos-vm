@@ -279,7 +279,7 @@ namespace eosio { namespace vm {
 
          execute(visitor);
 
-         operand_stack_elem ret;
+         std::optional<operand_stack_elem> ret;
          if (_mod.types[_mod.functions[func_index - _mod.import_functions.size()]].return_count)
             ret = pop_operand();
          print_stack();
