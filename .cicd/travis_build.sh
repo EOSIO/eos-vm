@@ -13,7 +13,7 @@ trap cleanup EXIT
 execute docker run -e --rm -v $(pwd):/$PROJECT_NAME $FULL_TAG bash -c " \
 cd /$PROJECT_NAME && \
 echo '=== Updating Submodules' && \
-git submodule update --init --recursive --force && \
+git submodule update --init --recursive && \
 echo '=== BUILDING $PROJECT_NAME' && \
 mkdir -p build && cd build && \
 mv /\$DCMAKE_TOOLCHAIN_FILE . && \
