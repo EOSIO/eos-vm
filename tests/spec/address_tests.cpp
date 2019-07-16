@@ -46,7 +46,6 @@ TEST_CASE( "Testing wasm <address_0_wasm>", "[address_0_wasm_tests]" ) {
    CHECK(bkend.reset().call_with_return(nullptr, "env", "32_good5", static_cast<uint32_t>(0))->to_i32() == static_cast<uint32_t>(122));
    CHECK(bkend.reset().call_with_return(nullptr, "env", "8u_good1", static_cast<uint32_t>(65507))->to_i32() == static_cast<uint32_t>(0));
    CHECK(bkend.reset().call_with_return(nullptr, "env", "8u_good2", static_cast<uint32_t>(65507))->to_i32() == static_cast<uint32_t>(0));
-   return;
    CHECK(bkend.reset().call_with_return(nullptr, "env", "8u_good3", static_cast<uint32_t>(65507))->to_i32() == static_cast<uint32_t>(0));
    CHECK(bkend.reset().call_with_return(nullptr, "env", "8u_good4", static_cast<uint32_t>(65507))->to_i32() == static_cast<uint32_t>(0));
    CHECK(bkend.reset().call_with_return(nullptr, "env", "8u_good5", static_cast<uint32_t>(65507))->to_i32() == static_cast<uint32_t>(0));

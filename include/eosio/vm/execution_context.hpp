@@ -228,10 +228,11 @@ namespace eosio { namespace vm {
             auto addr = _linear_memory + data_seg.offset.value.i32;
             memcpy((char*)(addr), data_seg.data.raw(), data_seg.data.size());
          }
-         _state.initialized = true;
+	 _state = execution_state{};
       }
       
       inline void set_exiting_op( const std::pair<uint32_t, uint32_t>& exiting_loc ) {
+	 std::cout << "set_exiting_op " << _mod.code.at(exiting_loc.first).code.at(exiting_loc.second).index() << "\n";
          _mod.code.at(exiting_loc.first).code.at(exiting_loc.second).set_exiting_which();
       }
 
@@ -269,7 +270,13 @@ namespace eosio { namespace vm {
          _state.current_offset   = _mod.function_sizes[_state.current_function];
          _state.pc               = _state.current_offset;
          _state.exiting_loc      = { _state.code_index, _mod.code[_state.code_index].code.size() - 1 };
-      
+     
+	 std::cerr << "function_sizes " << _mod.function_sizes[_state.current_function] << "\n";
+	 std::cerr << "func_index " << func_index << "\n";
+	 std::cerr << "code_index " << _state.code_index << "\n";
+	 std::cerr << "current_offset " << _state.current_offset << "\n";
+	 std::cerr << "pc " << _state.pc << "\n";
+	 std::cerr << "exiting_loc " << _state.exiting_loc.first << " : " << _state.exiting_loc.second << "\n";
          set_exiting_op( _state.exiting_loc );
 
          push_args(args...);
@@ -280,9 +287,8 @@ namespace eosio { namespace vm {
          execute(visitor);
 
          operand_stack_elem ret;
-         if (_mod.types[_mod.functions[func_index - _mod.import_functions.size()]].return_count)
+         if (_mod.get_function_type(func_index).return_count)
             ret = pop_operand();
-         print_stack();
 
          // revert the state back to original calling context
          clear_exiting_op( _state.exiting_loc );
@@ -342,18 +348,23 @@ namespace eosio { namespace vm {
 
 #define CREATE_TABLE_ENTRY(NAME, CODE) &&ev_label_##NAME,
 #define CREATE_EXITING_TABLE_ENTRY(NAME, CODE) &&ev_label_exiting_##NAME,
-#define CREATE_LABEL(NAME, CODE)                                                                 \
-      ev_label_##NAME : visitor(ev_variant.template get<eosio::vm::NAME##_t>());                 \
-      ev_variant = _mod.code.at_no_check(_state.code_index).code.at_no_check(_state.pc - _state.current_offset); \
-      goto* dispatch_table[ev_variant.index()];
-#define CREATE_EXITING_LABEL(NAME, CODE)                                                 \
-      std::cout << "Exiting Prog!" << std::endl; \
-      ev_label_exiting_##NAME : visitor(ev_variant.template get<eosio::vm::NAME##_t>()); \
-      clear_exiting_op(_state.exiting_loc); \
+#define CREATE_LABEL(NAME, CODE)                                                                                  \
+      ev_label_##NAME : visitor(ev_variant->template get<eosio::vm::NAME##_t>());                                 \
+      ev_variant = &_mod.code.at_no_check(_state.code_index).code.at_no_check(_state.pc - _state.current_offset); \
+      goto* dispatch_table[ev_variant->index()];
+#define CREATE_EXITING_LABEL(NAME, CODE)                                                  \
+      std::cout << "Exiting Prog!" << std::endl;                                          \
+      ev_label_exiting_##NAME : visitor(ev_variant->template get<eosio::vm::NAME##_t>()); \
+      clear_exiting_op(_state.exiting_loc);                                               \
       return;
-#define CREATE_EMPTY_LABEL(NAME, CODE) ev_label_##NAME : throw wasm_interpreter_exception{"empty operand"};
-#define CREATE_EXITING_EMPTY_LABEL(NAME, CODE) ev_label_exiting_##NAME :  \
-      clear_exiting_op(_state.exiting_loc); \
+#define CREATE_EMPTY_LABEL(NAME, CODE) ev_label_##NAME :  \
+      std::cout << "Empty label!" << std::endl;                                          \
+      throw wasm_interpreter_exception{"empty operand"};
+#define CREATE_EXITING_EMPTY_LABEL(NAME, CODE) ev_label_exiting_##NAME : \
+      std::cout << "Exiting empty label!" << std::endl;                                          \
+      std::cout << "PC " << _state.pc << "\n"; \
+      std::cout << "Variant " << _mod.code.at_no_check(_state.code_index).code.at_no_check((_state.pc - _state.current_offset)).index() << "\n"; \
+      clear_exiting_op(_state.exiting_loc);                              \
       return;
 
       template <typename Visitor>
@@ -395,8 +406,8 @@ namespace eosio { namespace vm {
             ERROR_OPS(CREATE_EXITING_TABLE_ENTRY)
             &&__ev_last
          };
-         auto& ev_variant = _mod.code.at_no_check(_state.code_index).code.at_no_check(_state.pc - _state.current_offset);
-	 goto *dispatch_table[ev_variant.index()];
+         auto* ev_variant = &_mod.code.at_no_check(_state.code_index).code.at_no_check(_state.pc - _state.current_offset);
+	 goto *dispatch_table[ev_variant->index()];
 	 while (1) {
             CONTROL_FLOW_OPS(CREATE_LABEL);
             BR_TABLE_OP(CREATE_LABEL);

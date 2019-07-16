@@ -369,7 +369,6 @@ namespace eosio { namespace vm {
          while (code.offset() < bounds) {
             EOS_WB_ASSERT(pc_stack.size() <= constants::max_nested_structures, wasm_parse_exception,
                           "nested structures validation failure");
-
             switch (*code++) {
                case opcodes::unreachable: fb[op_index++] = unreachable_t{}; start_unreachable(); break;
                case opcodes::nop: fb[op_index++] = nop_t{}; break;

@@ -8,6 +8,11 @@
    opcode_macro(loop, 0x03)                     \
    opcode_macro(if_, 0x04)                      \
    opcode_macro(else_, 0x05)                    \
+   opcode_macro(padding_cf_0, 0x06)             \
+   opcode_macro(padding_cf_1, 0x07)             \
+   opcode_macro(padding_cf_2, 0x08)             \
+   opcode_macro(padding_cf_3, 0x09)             \
+   opcode_macro(padding_cf_4, 0x0A)             \
    opcode_macro(end, 0x0B)                      \
    opcode_macro(br, 0x0C)                       \
    opcode_macro(br_if, 0x0D)
@@ -17,16 +22,31 @@
    opcode_macro(return_, 0x0F)
 #define CALL_OPS(opcode_macro)                  \
    opcode_macro(call, 0x10)                     \
-   opcode_macro(call_indirect, 0x11)
+   opcode_macro(call_indirect, 0x11)            \
+   opcode_macro(padding_call_0, 0x12)           \
+   opcode_macro(padding_call_1, 0x13)           \
+   opcode_macro(padding_call_2, 0x14)           \
+   opcode_macro(padding_call_3, 0x15)           \
+   opcode_macro(padding_call_4, 0x16)           \
+   opcode_macro(padding_call_5, 0x17)           \
+   opcode_macro(padding_call_6, 0x18)           \
+   opcode_macro(padding_call_7, 0x19)
 #define PARAMETRIC_OPS(opcode_macro)            \
    opcode_macro(drop, 0x1A)                     \
-   opcode_macro(select, 0x1B)
+   opcode_macro(select, 0x1B)                   \
+   opcode_macro(padding_param_0, 0x1C)          \
+   opcode_macro(padding_param_1, 0x1D)          \
+   opcode_macro(padding_param_2, 0x1E)          \
+   opcode_macro(padding_param_3, 0x1F)
 #define VARIABLE_ACCESS_OPS(opcode_macro)       \
    opcode_macro(get_local, 0x20)                \
    opcode_macro(set_local, 0x21)                \
    opcode_macro(tee_local, 0x22)                \
    opcode_macro(get_global, 0x23)               \
-   opcode_macro(set_global, 0x24)
+   opcode_macro(set_global, 0x24)               \
+   opcode_macro(padding_va_0, 0x25)             \
+   opcode_macro(padding_va_1, 0x26)             \
+   opcode_macro(padding_va_2, 0x27)
 #define MEMORY_OPS(opcode_macro)                \
    opcode_macro(i32_load, 0x28)                 \
    opcode_macro(i64_load, 0x29)                 \

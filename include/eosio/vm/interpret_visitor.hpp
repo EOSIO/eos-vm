@@ -38,6 +38,29 @@ namespace eosio { namespace vm {
          throw wasm_interpreter_exception{ "unreachable" };
       }
 
+      template <typename T>
+      [[gnu::always_inline]] inline void operator()(T&&) {
+         throw wasm_interpreter_exception{ "padding" };
+      }
+      //[[gnu::always_inline]] inline void operator()(const padding_param_1_t&) {
+      //   throw wasm_interpreter_exception{ "padding_param_1" };
+      //}
+      //[[gnu::always_inline]] inline void operator()(const padding_param_2_t&) {
+      //   throw wasm_interpreter_exception{ "padding_param_2" };
+      //}
+      //[[gnu::always_inline]] inline void operator()(const padding_param_3_t&) {
+      //   throw wasm_interpreter_exception{ "padding_param_3" };
+      //}
+      //[[gnu::always_inline]] inline void operator()(const padding_va_0_t&) {
+      //   throw wasm_interpreter_exception{ "padding_va_0" };
+      //}
+      //[[gnu::always_inline]] inline void operator()(const padding_va_1_t&) {
+      //   throw wasm_interpreter_exception{ "padding_va_1" };
+      //}
+      //[[gnu::always_inline]] inline void operator()(const padding_va_2_t&) {
+      //   throw wasm_interpreter_exception{ "padding_va_2" };
+      //}
+
       [[gnu::always_inline]] inline void operator()(const nop_t& op) { context.inc_pc(); }
 
       [[gnu::always_inline]] inline void operator()(const fend_t& op) { context.apply_pop_call(); }
