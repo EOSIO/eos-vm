@@ -10,8 +10,6 @@ matrix:
     - os: linux
       dist: xenial
       services: docker
-      env:
-        - IMAGE_TAG='ubuntu-18.04'
 # before_cache: |
 #   ./.cicd/travis-before-cache.sh
 # before_install: |
