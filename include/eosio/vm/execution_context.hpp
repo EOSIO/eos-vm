@@ -229,11 +229,15 @@ namespace eosio { namespace vm {
       }
       
       inline void set_exiting_op( const std::pair<uint32_t, uint32_t>& exiting_loc ) {
-         _mod.code.at(exiting_loc.first).code.at(exiting_loc.second).set_exiting_which();
+         auto& fn = _mod.code.at(exiting_loc.first);
+         if (!fn.jit_code)
+            fn.code.at(exiting_loc.second).set_exiting_which();
       }
 
       inline void clear_exiting_op( const std::pair<uint32_t, uint32_t>& exiting_loc ) {
-         _mod.code.at(exiting_loc.first).code.at(exiting_loc.second).clear_exiting_which();
+         auto& fn = _mod.code.at(exiting_loc.first);
+         if (!fn.jit_code)
+            fn.code.at(exiting_loc.second).clear_exiting_which();
       }
 
       inline std::error_code get_error_code() const { return _error_code; }
