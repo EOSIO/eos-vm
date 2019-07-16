@@ -31,7 +31,6 @@ namespace eosio { namespace vm {
          start_function(code, funcnum);
       }
 
-      // FIXME: initialize locals
       void emit_prologue(const func_type& ft, const guarded_vector<local_entry>& locals) {
          // pushq RBP
          emit_bytes(0x55);
@@ -186,9 +185,61 @@ namespace eosio { namespace vm {
       }
 
       void emit_call_indirect(const func_type& ft, uint32_t functypeidx) {
-         unimplemented();
-         // check function type
-         // insert branch through table 0
+         auto& table = _mod.tables[0].table;
+         void * functions = &_mod.functions[0];
+         void * code_with_offset = &_mod.code[0].jit_code;
+         // FIXME: handle imported functions.
+         // pop %rax
+         emit_bytes(0x58);
+         // cmp $size, %rax
+         emit_bytes(0x48, 0x3d);
+         emit_operand32(table.size());
+         // ja ERROR
+         emit_bytes(0x0f, 0x87);
+         emit_branch_target32();
+         // shl $2, %rax
+         emit_bytes(0x48, 0xc1, 0xe0, 0x02);
+         // movabsq $table, %rdx
+         emit_bytes(0x48, 0xba);
+         emit_operand_ptr(&table[0]);
+         // add %rdx, %rax
+         emit_bytes(0x48, 0x01, 0xd0);
+         // movl (%rax), %eax // function index
+         emit_bytes(0x8b, 0x00);
+         // movl %eax, %ecx
+         emit_bytes(0x89, 0xc1);
+         // shl $2, %rcx
+         emit_bytes(0x48, 0xc1, 0xe1, 0x02);
+         // movabsq $functions, %rdx
+         emit_bytes(0x48, 0xba);
+         emit_operand_ptr(functions);
+         // add %rdx, %rcx
+         emit_bytes(0x48, 0x01, 0xd1);
+         // movl (%rcx), %ecx // function type
+         emit_bytes(0x8b, 0x09);
+         // cmp functypeidx, %ecx // FIXME: What if there are duplicate types.
+         emit_bytes(0x81, 0xf9);
+         emit_operand32(functypeidx);
+         // jne ERROR
+         emit_bytes(0x0f, 0x85);
+         emit_branch_target32();
+         // imul sizeof(function_body), %rax, %rax
+         static_assert(sizeof(function_body) < 256);
+         emit_bytes(0x48, 0x6b, 0xc0, sizeof(function_body));
+         // movabsq $code_with_offset, %rdx
+         emit_bytes(0x48, 0xba);
+         emit_operand_ptr(code_with_offset);
+         // addq %rdx, %rax
+         emit_bytes(0x48, 0x01, 0xd0);
+         // movq (%rax), %rax
+         emit_bytes(0x48, 0x8b, 0x00);
+         // callq *%rax
+         emit_bytes(0xff, 0xd0);
+
+         emit_multipop(ft.param_types.size());
+         if(ft.return_count != 0)
+            // pushq %rax
+            emit_bytes(0x50);
       }
 
       void emit_drop() {
