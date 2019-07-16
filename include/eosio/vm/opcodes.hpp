@@ -73,7 +73,7 @@ namespace eosio { namespace vm {
    EMPTY_OPS(CREATE_TYPES)
    ERROR_OPS(CREATE_TYPES)
 
-   using opcode = std::variant<
+   using opcode = variant<
       CONTROL_FLOW_OPS(IDENTITY)
       BR_TABLE_OP(IDENTITY)
       RETURN_OP(IDENTITY)

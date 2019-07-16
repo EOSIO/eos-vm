@@ -359,9 +359,10 @@
 #define IDENTITY(name, code) eosio::vm::name##_t,
 #define IDENTITY_END(name, code) eosio::vm::name##_t
 
+#if 0
 #define CREATE_LABEL(name, code)                                                                                       \
    ev_label_##name : ev_visitor(ev_variant.template get<eosio::vm::name##_t>());                                       \
-   goto* dispatch_table[ev_module.code.at_no_check(_code_index).code.at_no_check(_pc++ - _current_offset).index()];
+   goto* dispatch_table[ev_module.code.at_no_check(_code_index).code.at_no_check(_pc++ - _current_offset).index()]
 
 #define CREATE_EXITING_LABEL(name, code)                                                                               \
    ev_label_exiting_##name : ev_visitor(ev_variant.template get<eosio::vm::name##_t>());                               \
@@ -370,9 +371,9 @@
 #define CREATE_EMPTY_LABEL(name, code) ev_label_##name : throw wasm_interpreter_exception{};
 
 #define CREATE_EXITING_EMPTY_LABEL(name, code) ev_label_exiting_##name : throw wasm_interpreter_exception{};
-
 #define CREATE_TABLE_ENTRY(name, code) &&ev_label_##name,
 #define CREATE_EXITING_TABLE_ENTRY(name, code) &&ev_label_exiting_##name,
+#endif
 
 #define DBG_VISIT(name, code)                                                                                          \
    void operator()(name##_t& op) {                                                                                     \

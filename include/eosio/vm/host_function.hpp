@@ -250,28 +250,24 @@ namespace eosio { namespace vm {
          if constexpr (!std::is_same_v<R, void>) {
             if constexpr (std::is_same_v<Cls2, std::nullptr_t>) {
                R res = std::invoke(F, get_value<typename std::tuple_element<Is, Args>::type, Args>(
-                                            walloc, std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(
-                                                          os.get_back(i - Is)))...);
+                                            walloc, std::move(os.get_back(i - Is).get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>()))...);
                os.trim(sizeof...(Is));
                os.push(resolve_result<R>(std::move(res), walloc));
             } else {
                R res = std::invoke(F, construct_derived<Cls2, Cls>::value(*self),
                                    get_value<typename std::tuple_element<Is, Args>::type, Args>(
-                                         walloc, std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(
-                                                       os.get_back(i - Is)))...);
+                                         walloc, std::move(os.get_back(i - Is).get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>()))...);
                os.trim(sizeof...(Is));
                os.push(resolve_result<R>(std::move(res), walloc));
             }
          } else {
             if constexpr (std::is_same_v<Cls2, std::nullptr_t>) {
                std::invoke(F, get_value<typename std::tuple_element<Is, Args>::type, Args>(
-                                    walloc, std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(
-                                                  os.get_back(i - Is)))...);
+                                    walloc, std::move(os.get_back(i - Is).get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>()))...);
             } else {
                std::invoke(F, construct_derived<Cls2, Cls>::value(*self),
                            get_value<typename std::tuple_element<Is, Args>::type, Args>(
-                                 walloc, std::get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>(
-                                               os.get_back(i - Is)))...);
+                                 walloc, std::move(os.get_back(i - Is).get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>()))...);
             }
             os.trim(sizeof...(Is));
          }
