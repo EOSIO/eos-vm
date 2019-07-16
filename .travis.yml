@@ -1,5 +1,5 @@
 language: cpp
-git:xwxw
+git:
   depth: false # prevent git describe failure when executing the appbase version.cmake.in
 # cache:
 #   ccache: true
