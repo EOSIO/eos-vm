@@ -1130,26 +1130,23 @@ string generate_test_call(picojson::object obj, string expected_t, string expect
    stringstream ss;
 
    if (expected_t == "i32") {
-      ss << "to_i32";
-      ss << "(*bkend.call_with_return(nullptr, \"env\", ";
+      ss << "bkend.reset().call_with_return(nullptr, \"env\", ";
    } else if (expected_t == "i64") {
-      ss << "to_i64";
-      ss << "(*bkend.call_with_return(nullptr, \"env\", ";
+      ss << "bkend.reset().call_with_return(nullptr, \"env\", ";
    } else if (expected_t == "f32") {
-      ss << "to_f32";
-      ss << "(*bkend.call_with_return(nullptr, \"env\", ";
+      ss << "bkend.reset().call_with_return(nullptr, \"env\", ";
    } else if (expected_t == "f64") {
-      ss << "to_f64";
-      ss << "(*bkend.call_with_return(nullptr, \"env\", ";
+      ss << "bkend.reset().call_with_return(nullptr, \"env\", ";
    } else {
-      ss << "!bkend.call_with_return(nullptr, \"env\", ";
+      ss << "!bkend.reset().call_with_return(nullptr, \"env\", ";
    }
 
-   ss << "\"" << obj["field"].to_str() << "\", ";
+   ss << "\"" << obj["field"].to_str() << "\"";
 
    size_t i         = 0;
    size_t args_size = obj["args"].get<picojson::array>().size();
    for (picojson::value argv : obj["args"].get<picojson::array>()) {
+      ss << ", ";
       picojson::object arg = argv.get<picojson::object>();
       if (arg["type"].to_str() == "i32")
          ss << "static_cast<uint32_t>(" << arg["value"].to_str() << ")";
@@ -1159,20 +1156,18 @@ string generate_test_call(picojson::object obj, string expected_t, string expect
          ss << "static_cast<float>(type_converter32(" << arg["value"].to_str() << ").to_f())";
       else
          ss << "static_cast<double>(type_converter64(" << arg["value"].to_str() << ").to_f())";
-      if (i < args_size - 1)
-         ss << ", ";
    }
    if (expected_t == "i32") {
-      ss << ")) == ";
+      ss << ")->to_ui32() == ";
       ss << "static_cast<uint32_t>(" << expected_v << ")";
    } else if (expected_t == "i64") {
-      ss << ")) == ";
+      ss << ")->to_ui64() == ";
       ss << "static_cast<uint64_t>(" << expected_v << ")";
    } else if (expected_t == "f32") {
-      ss << ")) == ";
+      ss << ")->to_f32) == ";
       ss << "static_cast<float>(type_converter32(" << expected_v << ").to_f())";
    } else if (expected_t == "f64") {
-      ss << ")) == ";
+      ss << ")->to_f64() == ";
       ss << "static_cast<double>(type_converter64(" << expected_v << ").to_f())";
    } else {
       ss << "))";
@@ -1184,11 +1179,12 @@ string generate_trap_call(picojson::object obj) {
    stringstream ss;
 
    ss << "bkend(nullptr, \"env\", ";
-   ss << "\"" << obj["field"].to_str() << "\", ";
+   ss << "\"" << obj["field"].to_str() << "\"";
 
    size_t i         = 0;
    size_t args_size = obj["args"].get<picojson::array>().size();
    for (picojson::value argv : obj["args"].get<picojson::array>()) {
+      ss << ", ";
       picojson::object arg = argv.get<picojson::object>();
       if (arg["type"].to_str() == "i32")
          ss << "static_cast<uint32_t>(" << arg["value"].to_str() << ")";
@@ -1198,8 +1194,6 @@ string generate_trap_call(picojson::object obj) {
          ss << "static_cast<float>(type_converter32(" << arg["value"].to_str() << ").to_f())";
       else
          ss << "static_cast<double>(type_converter64(" << arg["value"].to_str() << ").to_f())";
-      if (i < args_size - 1)
-         ss << ", ";
    }
    ss << "), std::exception";
    return ss.str();
