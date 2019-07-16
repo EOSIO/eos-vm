@@ -269,7 +269,7 @@ namespace eosio { namespace vm {
       
          set_exiting_op( _state.exiting_loc );
 
-         if(auto fn = _mod.code[_code_index].jit_code) {
+         if(auto fn = _mod.code[_state.code_index].jit_code) {
            uint64_t result = fn(this, _linear_memory);
            return {i64_const_t{result}};
          }
