@@ -1164,13 +1164,13 @@ string generate_test_call(picojson::object obj, string expected_t, string expect
       ss << ")->to_ui64() == ";
       ss << "static_cast<uint64_t>(" << expected_v << ")";
    } else if (expected_t == "f32") {
-      ss << ")->to_f32) == ";
+      ss << ")->to_f32() == ";
       ss << "static_cast<float>(type_converter32(" << expected_v << ").to_f())";
    } else if (expected_t == "f64") {
       ss << ")->to_f64() == ";
       ss << "static_cast<double>(type_converter64(" << expected_v << ").to_f())";
    } else {
-      ss << "))";
+      ss << ")";
    }
    return ss.str();
 }
