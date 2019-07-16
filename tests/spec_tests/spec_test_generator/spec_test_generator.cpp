@@ -1208,8 +1208,10 @@ void generate_tests(const map<string, vector<picojson::object>>& mappings) {
    };
 
    for (const auto& [tsn, cmds] : mappings) {
+      auto tsn_id = tsn;
+      std::replace(tsn_id.begin(), tsn_id.end(), '-', '_');
       unit_tests << "TEST_CASE( \"Testing wasm <" << tsn << ">\", \"[" << tsn << "_tests]\" ) {\n";
-      unit_tests << "   " << test_preamble_0 << tsn << " );\n";
+      unit_tests << "   " << test_preamble_0 << tsn_id << " );\n";
       unit_tests << "   " << test_preamble_1 << "\n\n";
 
       for (picojson::object cmd : cmds) {
