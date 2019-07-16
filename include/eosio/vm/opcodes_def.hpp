@@ -270,10 +270,9 @@
    opcode_macro(empty0xFA, 0xFA)                \
    opcode_macro(empty0xFB, 0xFB)                \
    opcode_macro(empty0xFC, 0xFC)                \
-   opcode_macro(empty0xFD, 0xFD)                \
-   opcode_macro(empty0xFE, 0xFE)
+   opcode_macro(empty0xFD, 0xFD)
 #define ERROR_OPS(opcode_macro)                 \
-   opcode_macro(error, 0xFF)
+   opcode_macro(error, 0xFE)
 
 /* clang-format on */
 

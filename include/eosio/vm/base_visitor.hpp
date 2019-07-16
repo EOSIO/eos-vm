@@ -243,7 +243,6 @@ namespace eosio { namespace vm {
       [[gnu::always_inline]] inline void operator()(const empty0xFB_t& ) {}
       [[gnu::always_inline]] inline void operator()(const empty0xFC_t& ) {}
       [[gnu::always_inline]] inline void operator()(const empty0xFD_t& ) {}
-      [[gnu::always_inline]] inline void operator()(const empty0xFE_t& ) {}
       [[gnu::always_inline]] inline void operator()(const error_t& ) {}
    };
 
