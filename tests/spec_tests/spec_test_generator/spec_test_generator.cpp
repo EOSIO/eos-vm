@@ -1149,26 +1149,26 @@ string generate_test_call(picojson::object obj, string expected_t, string expect
       ss << ", ";
       picojson::object arg = argv.get<picojson::object>();
       if (arg["type"].to_str() == "i32")
-         ss << "static_cast<uint32_t>(" << arg["value"].to_str() << ")";
+         ss << "UINT32_C(" << arg["value"].to_str() << ")";
       else if (arg["type"].to_str() == "i64")
-         ss << "static_cast<uint64_t>(" << arg["value"].to_str() << ")";
+         ss << "UINT64_C(" << arg["value"].to_str() << ")";
       else if (arg["type"].to_str() == "f32")
-         ss << "static_cast<float>(type_converter32(" << arg["value"].to_str() << ").to_f())";
+         ss << "static_cast<float>(type_converter32(UINT32_C(" << arg["value"].to_str() << ")).to_f())";
       else
-         ss << "static_cast<double>(type_converter64(" << arg["value"].to_str() << ").to_f())";
+         ss << "static_cast<double>(type_converter64(UINT64_C(" << arg["value"].to_str() << ")).to_f())";
    }
    if (expected_t == "i32") {
       ss << ")->to_ui32() == ";
-      ss << "static_cast<uint32_t>(" << expected_v << ")";
+      ss << "UINT32_C(" << expected_v << ")";
    } else if (expected_t == "i64") {
       ss << ")->to_ui64() == ";
-      ss << "static_cast<uint64_t>(" << expected_v << ")";
+      ss << "UINT32_C(" << expected_v << ")";
    } else if (expected_t == "f32") {
       ss << ")->to_f32() == ";
-      ss << "static_cast<float>(type_converter32(" << expected_v << ").to_f())";
+      ss << "static_cast<float>(type_converter32(UINT32_C(" << expected_v << ")).to_f())";
    } else if (expected_t == "f64") {
       ss << ")->to_f64() == ";
-      ss << "static_cast<double>(type_converter64(" << expected_v << ").to_f())";
+      ss << "static_cast<double>(type_converter64(UINT64_C(" << expected_v << ")).to_f())";
    } else {
       ss << ")";
    }
@@ -1187,13 +1187,13 @@ string generate_trap_call(picojson::object obj) {
       ss << ", ";
       picojson::object arg = argv.get<picojson::object>();
       if (arg["type"].to_str() == "i32")
-         ss << "static_cast<uint32_t>(" << arg["value"].to_str() << ")";
+         ss << "UINT32_C(" << arg["value"].to_str() << ")";
       else if (arg["type"].to_str() == "i64")
-         ss << "static_cast<uint64_t>(" << arg["value"].to_str() << ")";
+         ss << "UINT64_C(" << arg["value"].to_str() << ")";
       else if (arg["type"].to_str() == "f32")
-         ss << "static_cast<float>(type_converter32(" << arg["value"].to_str() << ").to_f())";
+         ss << "static_cast<float>(type_converter32(UINT32_C(" << arg["value"].to_str() << ")).to_f())";
       else
-         ss << "static_cast<double>(type_converter64(" << arg["value"].to_str() << ").to_f())";
+         ss << "static_cast<double>(type_converter64(UINT64_C(" << arg["value"].to_str() << ")).to_f())";
    }
    ss << "), std::exception";
    return ss.str();
