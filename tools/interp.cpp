@@ -39,8 +39,9 @@ int main(int argc, char** argv) {
       // Execute any exported functions provided by the wasm.
       bkend.execute_all(&wd);
 
-   } catch ( ... ) {
+   } catch ( const eosio::vm::exception& ex ) {
       std::cerr << "eos-vm interpreter error\n";
+      std::cerr << ex.what() << " : " << ex.detail() << "\n";
    }
    return 0;
 }

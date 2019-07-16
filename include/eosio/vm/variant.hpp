@@ -176,7 +176,7 @@ namespace eosio { namespace vm {
          _which = detail::get_alternatives_index<0, T, Alternatives...>::value;
       }
       template <typename T, typename = std::enable_if_t<!std::is_base_of_v<variant, std::decay_t<T>>, int>>
-      explicit variant(T&& alt) {
+      variant(T&& alt) {
          static_assert(detail::is_valid_alternative<std::decay_t<T>, Alternatives...>::value,
                        "type not a valid alternative (T&&)");
          new (&_storage) std::decay_t<T>(std::forward<T>(alt));
@@ -253,6 +253,8 @@ namespace eosio { namespace vm {
          return _which == detail::get_alternatives_index<0, Alt, Alternatives...>::value;
       }
       inline constexpr void toggle_exiting_which() { _which ^= 0x100; }
+      inline constexpr void clear_exiting_which() { _which &= 0xFF; }
+      inline constexpr void set_exiting_which() { _which |= 0x100; }
 
       static constexpr size_t size() { return std::tuple_size_v<alternatives_tuple>; }
 
