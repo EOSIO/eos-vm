@@ -77,7 +77,8 @@ namespace eosio { namespace vm {
       template <typename Watchdog>
       inline void execute_all(Watchdog&& wd, Host* host = nullptr) {
          block_sigalrm sig_guard;
-         auto wd_guard = wd.scoped_run([this]() { _ctx.exit(); });
+         pthread_t self = pthread_self();
+         auto wd_guard = wd.scoped_run([this, self]() { pthread_kill(self, SIGALRM); });
          for (int i = 0; i < _mod.exports.size(); i++) {
             if (_mod.exports[i].kind == external_kind::Function) {
                std::string s{ (const char*)_mod.exports[i].field_str.raw(), _mod.exports[i].field_str.size() };
