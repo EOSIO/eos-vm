@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
       bkend.set_wasm_allocator( &wa );
 
       auto t3 = std::chrono::high_resolution_clock::now();
-      bkend.reset().execute_all();
+      bkend.reset().execute_all(null_watchdog());
       auto t4 = std::chrono::high_resolution_clock::now();
       std::cout << "Execution " << std::chrono::duration_cast<std::chrono::nanoseconds>(t4-t3).count() << "\n";
 

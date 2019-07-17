@@ -1,6 +1,7 @@
 #pragma once
 
 #include <eosio/vm/host_function.hpp>
+#include <eosio/vm/signals.hpp>
 #include <eosio/vm/types.hpp>
 #include <eosio/vm/wasm_stack.hpp>
 #include <eosio/vm/watchdog.hpp>
@@ -25,8 +26,10 @@ namespace eosio { namespace vm {
       }
 
       inline int32_t grow_linear_memory(int32_t pages) {
-	      EOS_WB_ASSERT(!(_mod.memories[0].limits.flags && (_mod.memories[0].limits.maximum < pages)), wasm_interpreter_exception, "memory limit reached");
+         EOS_WB_ASSERT(!(_mod.memories[0].limits.flags && (_mod.memories[0].limits.maximum < pages)), wasm_interpreter_exception, "memory limit reached");
          const int32_t sz = _wasm_alloc->get_current_page();
+         if (pages < 0 || !_mod.memories.size() || (_mod.memories[0].limits.flags && (_mod.memories[0].limits.maximum < sz + pages)))
+            return -1;
          _wasm_alloc->alloc<char>(pages);
          return sz;
       }
@@ -116,8 +119,9 @@ namespace eosio { namespace vm {
                _last_op_index = _as.peek().op_index;
             }
          }
-         if (_cs.size())
-            _cs.pop();
+         while (_cs.size())
+            if (std::holds_alternative<end_t>(_cs.pop()))
+               break;
       }
       inline control_stack_elem  pop_label() { return _cs.pop(); }
       inline operand_stack_elem  pop_operand() { return _os.pop(); }
@@ -127,10 +131,10 @@ namespace eosio { namespace vm {
          const auto& gl = _mod.globals[index];
          // computed g
          switch (gl.type.content_type) {
-            case types::i32: return i32_const_t{ *(uint32_t*)&gl.init.value.i32 };
-            case types::i64: return i64_const_t{ *(uint64_t*)&gl.init.value.i64 };
-            case types::f32: return f32_const_t{ gl.init.value.f32 };
-            case types::f64: return f64_const_t{ gl.init.value.f64 };
+            case types::i32: return i32_const_t{ *(uint32_t*)&gl.current.value.i32 };
+            case types::i64: return i64_const_t{ *(uint64_t*)&gl.current.value.i64 };
+            case types::f32: return f32_const_t{ gl.current.value.f32 };
+            case types::f64: return f64_const_t{ gl.current.value.f64 };
             default: throw wasm_interpreter_exception{ "invalid global type" };
          }
       }
@@ -142,22 +146,22 @@ namespace eosio { namespace vm {
          visit(overloaded{ [&](const i32_const_t& i) {
                                   EOS_WB_ASSERT(gl.type.content_type == types::i32, wasm_interpreter_exception,
                                                 "expected i32 global type");
-                                  gl.init.value.i32 = i.data.ui;
+                                  gl.current.value.i32 = i.data.ui;
                                },
                                 [&](const i64_const_t& i) {
                                    EOS_WB_ASSERT(gl.type.content_type == types::i64, wasm_interpreter_exception,
                                                  "expected i64 global type");
-                                   gl.init.value.i64 = i.data.ui;
+                                   gl.current.value.i64 = i.data.ui;
                                 },
                                 [&](const f32_const_t& f) {
                                    EOS_WB_ASSERT(gl.type.content_type == types::f32, wasm_interpreter_exception,
                                                  "expected f32 global type");
-                                   gl.init.value.f32 = f.data.ui;
+                                   gl.current.value.f32 = f.data.ui;
                                 },
                                 [&](const f64_const_t& f) {
                                    EOS_WB_ASSERT(gl.type.content_type == types::f64, wasm_interpreter_exception,
                                                  "expected f64 global type");
-                                   gl.init.value.f64 = f.data.ui;
+                                   gl.current.value.f64 = f.data.ui;
                                 },
                                 [](auto) { throw wasm_interpreter_exception{ "invalid global type" }; } },
                     el);
@@ -283,11 +287,23 @@ namespace eosio { namespace vm {
          type_check(_mod.types[_mod.functions[func_index - _mod.import_functions.size()]]);
          setup_locals(func_index);
 
-         execute(visitor);
-         operand_stack_elem ret;
-         try {
+         vm::invoke_with_signal_handler([&]() {
+            execute(visitor);
+         }, [](int sig) {
+            switch(sig) {
+             case SIGSEGV:
+             case SIGBUS:
+               throw wasm_memory_exception{ "wasm memory out-of-bounds" };
+             case SIGALRM:
+               throw timeout_exception{ "execution timed out" };
+             default:
+               assert(!"??????");
+            }
+         });
+
+         std::optional<operand_stack_elem> ret;
+         if (_mod.types[_mod.functions[func_index - _mod.import_functions.size()]].return_count)
             ret = pop_operand();
-         } catch (...) { return {}; }
          print_stack();
 
          // revert the state back to original calling context
@@ -295,6 +311,7 @@ namespace eosio { namespace vm {
          _state = saved_state;
          set_exiting_op( _state.exiting_loc );
 
+         _os.eat(0);
          return ret;
       }
 

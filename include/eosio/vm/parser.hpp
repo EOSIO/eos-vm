@@ -395,8 +395,10 @@ namespace eosio { namespace vm {
                   auto& old_index = pc_stack.back();
                   auto& relocations = std::get<std::vector<branch_t>>(old_index.relocations);
                   // reset the operand stack to the same state as the if
-                  EOS_WB_ASSERT((old_index.expected_result != types::pseudo) + old_index.operand_depth == operand_depth,
-                                wasm_parse_exception, "Malformed if body");
+                  if (!is_unreachable()) {
+                     EOS_WB_ASSERT((old_index.expected_result != types::pseudo) + old_index.operand_depth == operand_depth,
+                                   wasm_parse_exception, "Malformed if body");
+                  }
                   operand_depth = old_index.operand_depth;
                   start_reachable();
                   // Overwrite the branch from the `if` with the `else`.
@@ -429,6 +431,7 @@ namespace eosio { namespace vm {
                   uint32_t label = parse_varuint32(code);
                   auto branch = handler.emit_default(compute_depth_change(label));
                   handle_branch_target(label, branch);
+                  start_unreachable();
                } break;
                case opcodes::call: {
                   uint32_t funcnum = parse_varuint32(code);

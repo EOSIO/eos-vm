@@ -29,6 +29,15 @@ struct type_converter64 {
    }
 };
 
+// C++20: using std::bit_cast;
+template<typename T, typename U>
+T bit_cast(const U& u) {
+   static_assert(sizeof(T) == sizeof(U), "bitcast requires identical sizes.");
+   T result;
+   std::memcpy(&result, &u, sizeof(T));
+   return result;
+}
+
 inline std::vector<uint8_t> read_wasm(const std::string& fname) {
    std::ifstream wasm_file(fname, std::ios::binary);
    if (!wasm_file.is_open())

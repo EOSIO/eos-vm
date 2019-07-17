@@ -26,14 +26,8 @@ namespace eosio { namespace vm {
       void emit_unreachable() { fb[op_index++] = unreachable_t{}; };
       void emit_nop() { fb[op_index++] = nop_t{}; }
       uint32_t emit_end() { return op_index; }
-      uint32_t* emit_return(uint32_t /*operand_depth*/) {
-         fb[op_index] = return__t{};
-         if (_is_exported) {
-            fb[op_index].toggle_exiting_which();
-            std::cout << "Exiting return\n";
-         }
-         op_index++;
-         return nullptr;
+      uint32_t* emit_return(uint32_t depth_change) {
+         return emit_br(depth_change);
       }
       void emit_block() {}
       uint32_t emit_loop() { return op_index; }
