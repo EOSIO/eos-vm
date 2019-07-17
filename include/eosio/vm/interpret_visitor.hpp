@@ -124,8 +124,8 @@ namespace eosio { namespace vm {
       }
       [[gnu::always_inline]] inline void operator()(const select_t& op) {
          const auto& c  = context.pop_operand();
+         const auto& v2 = context.pop_operand();
          if (c.to_ui32() == 0) {
-            const auto& v2 = context.pop_operand();
             context.peek_operand() = v2;
          }
          context.inc_pc();
