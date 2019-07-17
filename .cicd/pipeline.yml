@@ -1,0 +1,28 @@
+env:
+  BUILD_TIMEOUT: 120
+  TEST_TIMEOUT: 60
+  TIMEOUT: 120
+  VERBOSE: true
+
+steps:
+
+  - trigger: "eos-vm-base-images-beta"
+    label: ":docker: Ensure base images exist"
+    build:
+      commit: "${BUILDKITE_COMMIT}"
+      branch: "${BUILDKITE_BRANCH}"
+
+  - wait
+
+  - label: ":ubuntu: [Ubuntu] 18.04 Build"
+    command:
+      - "mkdir /workdir/build && cd /workdir/build && cmake -DCMAKE_TOOLCHAIN_FILE=\$DCMAKE_TOOLCHAIN_FILE -DENABLE_TESTS=ON .. && make -j$(getconf _NPROCESSORS_ONLN)"
+    agents:
+      queue: "automation-eos-builder-fleet"
+    plugins:
+      - docker#v3.2.0:
+          shell: ["/bin/bash", "-i", "-e", "-c"]
+          debug: $DEBUG
+          image: "eosio/producer:eos-vm-ubuntu-18.04-23e67dc8b1923b2e030fa88749ec2b15f7c38f85"
+    timeout: $BUILD_TIMEOUT
+    skip: $SKIP_UBUNTU_18
