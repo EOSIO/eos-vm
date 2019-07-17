@@ -16,7 +16,7 @@ steps:
 
   - label: ":ubuntu: [Ubuntu] 18.04 Build"
     command:
-      - "mkdir /workdir/build && cd /workdir/build && mv /$DCMAKE_TOOLCHAIN_FILE . && cmake -DCMAKE_TOOLCHAIN_FILE=$DCMAKE_TOOLCHAIN_FILE -DENABLE_TESTS=ON .. && make -j$(getconf _NPROCESSORS_ONLN)"
+      - "env && mkdir /workdir/build && cd /workdir/build && mv /$DCMAKE_TOOLCHAIN_FILE . && cmake -DCMAKE_TOOLCHAIN_FILE=$DCMAKE_TOOLCHAIN_FILE -DENABLE_TESTS=ON .. && make -j$(getconf _NPROCESSORS_ONLN)"
     agents:
       queue: "automation-eos-builder-fleet"
     plugins:
