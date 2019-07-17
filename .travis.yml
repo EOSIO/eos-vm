@@ -24,6 +24,7 @@ matrix:
 # - docker push eosio/producer:ci-ubuntu-18.04
 # EOSIO
 script: |
+  pwd
   ./.cicd/travis-build.sh
 # notifications:
 #   webhooks:
