@@ -208,9 +208,9 @@
    opcode_macro(f32_reinterpret_i32, 0xBE)      \
    opcode_macro(f64_reinterpret_i64, 0xBF)
 #define SYNTHETIC_OPS(opcode_macro)             \
-   opcode_macro(fend, 0xC0)
+   opcode_macro(fend, 0xC0)                     \
+   opcode_macro(exit, 0xC1)
 #define EMPTY_OPS(opcode_macro)                 \
-   opcode_macro(empty0xC1, 0xC1)                \
    opcode_macro(empty0xC2, 0xC2)                \
    opcode_macro(empty0xC3, 0xC3)                \
    opcode_macro(empty0xC4, 0xC4)                \
@@ -270,9 +270,10 @@
    opcode_macro(empty0xFA, 0xFA)                \
    opcode_macro(empty0xFB, 0xFB)                \
    opcode_macro(empty0xFC, 0xFC)                \
-   opcode_macro(empty0xFD, 0xFD)
+   opcode_macro(empty0xFD, 0xFD)                \
+   opcode_macro(empty0xFE, 0xFE)
 #define ERROR_OPS(opcode_macro)                 \
-   opcode_macro(error, 0xFE)
+   opcode_macro(error, 0xFF)
 
 /* clang-format on */
 
@@ -280,13 +281,14 @@
 
 #define CREATE_STRINGS(name, code) #name,
 
+#define CREATE_MAP(name, code) { code, #name },
+
 #define CREATE_SYNTHETIC_TYPES(name, code)                                                                             \
    struct name##_t {                                                                                                   \
       name##_t() = default;                                                                                            \
       uint32_t pc;                                                                                                     \
+      static constexpr uint8_t opcode = code;                                                                          \
    };
-
-#define CREATE_MAP(name, code) { code, #name },
 
 #define CREATE_CONTROL_FLOW_TYPES(name, code)                                                                          \
    struct name##_t {                                                                                                   \
@@ -297,6 +299,7 @@
       uint32_t pc       = 0;                                                                                           \
       uint16_t index    = 0;                                                                                           \
       uint16_t op_index = 0;                                                                                           \
+      static constexpr uint8_t opcode = code;                                                                          \
    };
 
 #define CREATE_BR_TABLE_TYPE(name, code)                                                                               \
@@ -305,23 +308,27 @@
       struct elem_t { uint32_t pc; uint32_t stack_pop; };                                                              \
       elem_t* table;                                                                                                   \
       uint32_t  size;                                                                                                  \
+      static constexpr uint8_t opcode = code;                                                                          \
    };
 
 #define CREATE_TYPES(name, code)                                                                                       \
    struct name##_t {                                                                                                   \
       name##_t() = default;                                                                                            \
+      static constexpr uint8_t opcode = code;                                                                          \
    };
 
 #define CREATE_CALL_TYPES(name, code)                                                                                  \
    struct name##_t {                                                                                                   \
       name##_t() = default;                                                                                            \
       uint32_t index;                                                                                                  \
+      static constexpr uint8_t opcode = code;                                                                          \
    };
 
 #define CREATE_VARIABLE_ACCESS_TYPES(name, code)                                                                       \
    struct name##_t {                                                                                                   \
       name##_t() = default;                                                                                            \
       uint32_t index;                                                                                                  \
+      static constexpr uint8_t opcode = code;                                                                          \
    };
 
 #define CREATE_MEMORY_TYPES(name, code)                                                                                \
@@ -329,6 +336,7 @@
       name##_t() = default;                                                                                            \
       uint32_t flags_align;                                                                                            \
       uint32_t offset;                                                                                                 \
+      static constexpr uint8_t opcode = code;                                                                          \
    };
 
 #define CREATE_I32_CONSTANT_TYPE(name, code)                                                                           \
@@ -340,6 +348,7 @@
          uint32_t ui;                                                                                                  \
          int32_t  i;                                                                                                   \
       } data;                                                                                                          \
+      static constexpr uint8_t opcode = code;                                                                          \
    };
 
 #define CREATE_I64_CONSTANT_TYPE(name, code)                                                                           \
@@ -351,6 +360,7 @@
          uint64_t ui;                                                                                                  \
          int64_t  i;                                                                                                   \
       } data;                                                                                                          \
+      static constexpr uint8_t opcode = code;                                                                          \
    };
 
 #define CREATE_F32_CONSTANT_TYPE(name, code)                                                                           \
@@ -362,6 +372,7 @@
          uint32_t ui;                                                                                                  \
          float    f;                                                                                                   \
       } data;                                                                                                          \
+      static constexpr uint8_t opcode = code;                                                                          \
    };
 
 #define CREATE_F64_CONSTANT_TYPE(name, code)                                                                           \
@@ -373,34 +384,8 @@
          uint64_t ui;                                                                                                  \
          double   f;                                                                                                   \
       } data;                                                                                                          \
+      static constexpr uint8_t opcode = code;                                                                          \
    };
 
 #define IDENTITY(name, code) eosio::vm::name##_t,
 #define IDENTITY_END(name, code) eosio::vm::name##_t
-
-#if 0
-#define CREATE_LABEL(name, code)                                                                                       \
-   ev_label_##name : ev_visitor(ev_variant.template get<eosio::vm::name##_t>());                                       \
-   goto* dispatch_table[ev_module.code.at_no_check(_code_index).code.at_no_check(_pc++ - _current_offset).index()]
-
-#define CREATE_EXITING_LABEL(name, code)                                                                               \
-   ev_label_exiting_##name : ev_visitor(ev_variant.template get<eosio::vm::name##_t>());                               \
-   return;
-
-#define CREATE_EMPTY_LABEL(name, code) ev_label_##name : throw wasm_interpreter_exception{};
-
-#define CREATE_EXITING_EMPTY_LABEL(name, code) ev_label_exiting_##name : throw wasm_interpreter_exception{};
-#define CREATE_TABLE_ENTRY(name, code) &&ev_label_##name,
-#define CREATE_EXITING_TABLE_ENTRY(name, code) &&ev_label_exiting_##name,
-#endif
-
-#define DBG_VISIT(name, code)                                                                                          \
-   void operator()(name##_t& op) {                                                                                     \
-      std::cout << "Found " << #name << " at " << get_context().get_pc() << " " << get_context().get_code_index()      \
-                << " " << get_context().get_code_offset() << "\n";                                                     \
-      interpret_visitor<ExecutionCTX>::operator()(op);                                                                 \
-      get_context().print_stack();                                                                                     \
-   }
-
-#define DBG2_VISIT(name, code)                                                                                         \
-   void operator()(name##_t& op) { std::cout << "Found " << #name << "\n"; }

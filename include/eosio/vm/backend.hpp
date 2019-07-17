@@ -28,9 +28,9 @@ namespace eosio { namespace vm {
       }
 
       inline backend& reset() { 
-	 _walloc->reset(); 
-	 _ctx.reset();
-	 return *this;
+         _walloc->reset(); 
+	      _ctx.reset();
+	      return *this;
       }
 
       template <typename... Args>

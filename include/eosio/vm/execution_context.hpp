@@ -87,7 +87,8 @@ namespace eosio { namespace vm {
       inline void           push_call(uint32_t index) {
          const auto& ftype = _mod.get_function_type(index);
          _last_op_index    = _os.size() - ftype.param_types.size();
-         _as.push(activation_frame{ _state.pc + 1, _state.current_offset, _state.code_index, static_cast<uint16_t>(_last_op_index),
+         uint32_t return_pc = _as.size() < 1 ? _state.exiting_loc.second : _state.pc + 1;
+         _as.push(activation_frame{ return_pc, _state.current_offset, _state.code_index, static_cast<uint16_t>(_last_op_index),
                                     ftype.return_type });
          _cs.push(end_t{ 0, static_cast<uint32_t>(_state.current_offset + _mod.code[_state.code_index].code.size() - 1), 0,
                          static_cast<uint16_t>(_last_op_index) });
@@ -218,6 +219,7 @@ namespace eosio { namespace vm {
          _cs.eat(0);
 
          _linear_memory = _wasm_alloc->get_base_ptr<char>();
+         std::cout << "_linear_memory" << (uint32_t*)_linear_memory << "\n";
          if (_mod.memories.size()) {
             grow_linear_memory(_mod.memories[0].limits.initial - _wasm_alloc->get_current_page());
          }
@@ -228,11 +230,10 @@ namespace eosio { namespace vm {
             auto addr = _linear_memory + data_seg.offset.value.i32;
             memcpy((char*)(addr), data_seg.data.raw(), data_seg.data.size());
          }
-	 _state = execution_state{};
+         _state = execution_state{};
       }
       
       inline void set_exiting_op( const std::pair<uint32_t, uint32_t>& exiting_loc ) {
-	 std::cout << "set_exiting_op " << _mod.code.at(exiting_loc.first).code.at(exiting_loc.second).index() << "\n";
          _mod.code.at(exiting_loc.first).code.at(exiting_loc.second).set_exiting_which();
       }
 
@@ -262,22 +263,25 @@ namespace eosio { namespace vm {
          
          // save the state of the original calling context
          execution_state saved_state = _state;
-         clear_exiting_op( _state.exiting_loc );
 
+         _linear_memory = _wasm_alloc->get_base_ptr<char>();
+
+         clear_exiting_op( _state.exiting_loc );
          _state.host             = host;
          _state.current_function = func_index;
          _state.code_index       = func_index - _mod.import_functions.size();
          _state.current_offset   = _mod.function_sizes[_state.current_function];
          _state.pc               = _state.current_offset;
-         _state.exiting_loc      = { _state.code_index, _mod.code[_state.code_index].code.size() - 1 };
-     
-	 std::cerr << "function_sizes " << _mod.function_sizes[_state.current_function] << "\n";
-	 std::cerr << "func_index " << func_index << "\n";
-	 std::cerr << "code_index " << _state.code_index << "\n";
-	 std::cerr << "current_offset " << _state.current_offset << "\n";
-	 std::cerr << "pc " << _state.pc << "\n";
-	 std::cerr << "exiting_loc " << _state.exiting_loc.first << " : " << _state.exiting_loc.second << "\n";
+         _state.exiting_loc      = {_state.code_index, _mod.code.at_no_check(_state.code_index).code.size()-1};
          set_exiting_op( _state.exiting_loc );
+          
+         std::cerr << "function_sizes " << _mod.function_sizes[_state.current_function] << "\n";
+         std::cerr << "func_index " << func_index << "\n";
+         std::cerr << "code_index " << _state.code_index << "\n";
+         std::cerr << "current_offset " << _state.current_offset << "\n";
+         std::cerr << "pc " << _state.pc << "\n";
+         std::cerr << "exiting_loc " << _state.exiting_loc.first << " : " << _state.exiting_loc.second << "\n";
+         std::cerr << "Which " << _mod.code.at_no_check(_state.code_index).code.at_no_check(_state.exiting_loc.second).index() << "\n";
 
          push_args(args...);
          push_call(func_index);
@@ -294,7 +298,6 @@ namespace eosio { namespace vm {
          clear_exiting_op( _state.exiting_loc );
          _state = saved_state;
          set_exiting_op( _state.exiting_loc );
-
          _os.eat(0);
          return ret;
       }
@@ -351,11 +354,11 @@ namespace eosio { namespace vm {
 #define CREATE_LABEL(NAME, CODE)                                                                                  \
       ev_label_##NAME : visitor(ev_variant->template get<eosio::vm::NAME##_t>());                                 \
       ev_variant = &_mod.code.at_no_check(_state.code_index).code.at_no_check(_state.pc - _state.current_offset); \
+      std::cerr << "EV_VARIANT " << ev_variant << "\n"; \
       goto* dispatch_table[ev_variant->index()];
 #define CREATE_EXITING_LABEL(NAME, CODE)                                                  \
       std::cout << "Exiting Prog!" << std::endl;                                          \
       ev_label_exiting_##NAME : visitor(ev_variant->template get<eosio::vm::NAME##_t>()); \
-      clear_exiting_op(_state.exiting_loc);                                               \
       return;
 #define CREATE_EMPTY_LABEL(NAME, CODE) ev_label_##NAME :  \
       std::cout << "Empty label!" << std::endl;                                          \
@@ -364,7 +367,6 @@ namespace eosio { namespace vm {
       std::cout << "Exiting empty label!" << std::endl;                                          \
       std::cout << "PC " << _state.pc << "\n"; \
       std::cout << "Variant " << _mod.code.at_no_check(_state.code_index).code.at_no_check((_state.pc - _state.current_offset)).index() << "\n"; \
-      clear_exiting_op(_state.exiting_loc);                              \
       return;
 
       template <typename Visitor>
@@ -407,44 +409,44 @@ namespace eosio { namespace vm {
             &&__ev_last
          };
          auto* ev_variant = &_mod.code.at_no_check(_state.code_index).code.at_no_check(_state.pc - _state.current_offset);
-	 goto *dispatch_table[ev_variant->index()];
-	 while (1) {
-            CONTROL_FLOW_OPS(CREATE_LABEL);
-            BR_TABLE_OP(CREATE_LABEL);
-            RETURN_OP(CREATE_LABEL);
-            CALL_OPS(CREATE_LABEL);
-            PARAMETRIC_OPS(CREATE_LABEL);
-            VARIABLE_ACCESS_OPS(CREATE_LABEL);
-            MEMORY_OPS(CREATE_LABEL);
-            I32_CONSTANT_OPS(CREATE_LABEL);
-            I64_CONSTANT_OPS(CREATE_LABEL);
-            F32_CONSTANT_OPS(CREATE_LABEL);
-            F64_CONSTANT_OPS(CREATE_LABEL);
-            COMPARISON_OPS(CREATE_LABEL);
-            NUMERIC_OPS(CREATE_LABEL);
-            CONVERSION_OPS(CREATE_LABEL);
-            SYNTHETIC_OPS(CREATE_LABEL);
-            EMPTY_OPS(CREATE_EMPTY_LABEL);
-            ERROR_OPS(CREATE_LABEL);
-            CONTROL_FLOW_OPS(CREATE_EXITING_LABEL);
-            BR_TABLE_OP(CREATE_EXITING_LABEL);
-            RETURN_OP(CREATE_EXITING_LABEL);
-            CALL_OPS(CREATE_EXITING_LABEL);
-            PARAMETRIC_OPS(CREATE_EXITING_LABEL);
-            VARIABLE_ACCESS_OPS(CREATE_EXITING_LABEL);
-            MEMORY_OPS(CREATE_EXITING_LABEL);
-            I32_CONSTANT_OPS(CREATE_EXITING_LABEL);
-            I64_CONSTANT_OPS(CREATE_EXITING_LABEL);
-            F32_CONSTANT_OPS(CREATE_EXITING_LABEL);
-            F64_CONSTANT_OPS(CREATE_EXITING_LABEL);
-            COMPARISON_OPS(CREATE_EXITING_LABEL);
-            NUMERIC_OPS(CREATE_EXITING_LABEL);
-            CONVERSION_OPS(CREATE_EXITING_LABEL);
-            SYNTHETIC_OPS(CREATE_EXITING_LABEL);
-            EMPTY_OPS(CREATE_EXITING_EMPTY_LABEL);
-            ERROR_OPS(CREATE_EXITING_LABEL);
-            __ev_last:
-               throw wasm_interpreter_exception{"should never reach here"};
+         goto *dispatch_table[ev_variant->index()];
+         while (1) {
+             CONTROL_FLOW_OPS(CREATE_LABEL);
+             BR_TABLE_OP(CREATE_LABEL);
+             RETURN_OP(CREATE_LABEL);
+             CALL_OPS(CREATE_LABEL);
+             PARAMETRIC_OPS(CREATE_LABEL);
+             VARIABLE_ACCESS_OPS(CREATE_LABEL);
+             MEMORY_OPS(CREATE_LABEL);
+             I32_CONSTANT_OPS(CREATE_LABEL);
+             I64_CONSTANT_OPS(CREATE_LABEL);
+             F32_CONSTANT_OPS(CREATE_LABEL);
+             F64_CONSTANT_OPS(CREATE_LABEL);
+             COMPARISON_OPS(CREATE_LABEL);
+             NUMERIC_OPS(CREATE_LABEL);
+             CONVERSION_OPS(CREATE_LABEL);
+             SYNTHETIC_OPS(CREATE_LABEL);
+             EMPTY_OPS(CREATE_EMPTY_LABEL);
+             ERROR_OPS(CREATE_LABEL);
+             CONTROL_FLOW_OPS(CREATE_EXITING_LABEL);
+             BR_TABLE_OP(CREATE_EXITING_LABEL);
+             RETURN_OP(CREATE_EXITING_LABEL);
+             CALL_OPS(CREATE_EXITING_LABEL);
+             PARAMETRIC_OPS(CREATE_EXITING_LABEL);
+             VARIABLE_ACCESS_OPS(CREATE_EXITING_LABEL);
+             MEMORY_OPS(CREATE_EXITING_LABEL);
+             I32_CONSTANT_OPS(CREATE_EXITING_LABEL);
+             I64_CONSTANT_OPS(CREATE_EXITING_LABEL);
+             F32_CONSTANT_OPS(CREATE_EXITING_LABEL);
+             F64_CONSTANT_OPS(CREATE_EXITING_LABEL);
+             COMPARISON_OPS(CREATE_EXITING_LABEL);
+             NUMERIC_OPS(CREATE_EXITING_LABEL);
+             CONVERSION_OPS(CREATE_EXITING_LABEL);
+             SYNTHETIC_OPS(CREATE_EXITING_LABEL);
+             EMPTY_OPS(CREATE_EXITING_EMPTY_LABEL);
+             ERROR_OPS(CREATE_EXITING_LABEL);
+             __ev_last:
+                throw wasm_interpreter_exception{"should never reach here"};
          }
       }
 

@@ -218,7 +218,7 @@ namespace eosio { namespace vm {
          const auto&         body_size = parse_varuint32(code);
          const auto&         before    = code.offset();
          const auto&         local_cnt = parse_varuint32(code);
-	 _current_function_index++;
+         _current_function_index++;
          decltype(fb.locals) locals    = { _allocator, local_cnt };
          // parse the local entries
          for (size_t i = 0; i < local_cnt; i++) {
@@ -227,13 +227,16 @@ namespace eosio { namespace vm {
          }
          fb.locals = std::move(locals);
 
-         size_t            bytes = body_size - (code.offset() - before); // -1 is 'end' 0xb byte
-         decltype(fb.code) _code = { _allocator, bytes };
+         // -1 is 'end' 0xb byte and one extra slot for an exiting instruction to be held during execution, this is used to drive the pc past normal execution
+         size_t            bytes = (body_size - (code.offset() - before));
+         decltype(fb.code) _code = { _allocator, bytes + 1 };
          wasm_code_ptr     fb_code(code.raw(), bytes);
          parse_function_body_code(fb_code, bytes, _code, fn_type);
          code += bytes - 1;
          EOS_WB_ASSERT(*code++ == 0x0B, wasm_parse_exception, "failed parsing function body, expected 'end'");
-         _code[_code.size() - 1] = fend_t{};
+         _code[_code.size() - 2] = fend_t{};
+         _code[_code.size() - 1] = exit_t{};
+         _code[_code.size() - 1].set_exiting_which();
          fb.code                 = std::move(_code);
       }
 
@@ -341,12 +344,6 @@ namespace eosio { namespace vm {
                operand_depth = expected_operand_depth;
                is_in_unreachable = pc_stack.back().is_unreachable;
                pc_stack.pop_back();
-	       /*
-	       if (!pc_stack.size() && _export_indices.count(_current_function_index)) {
-                  fb[op_index -1 ].toggle_exiting_which();
-		  std::cout << "Exiting! with end at index " << _current_function_index << " " << op_index << " " << fb[op_index-1].index() << "\n";
-	       }
-	       */
             } else {
                throw wasm_invalid_element{ "unexpected end instruction" };
             }
@@ -378,13 +375,9 @@ namespace eosio { namespace vm {
                }
                case opcodes::return_: {
                   fb[op_index] = return__t{}; 
-		  start_unreachable(); 
-		  if (_export_indices.count(_current_function_index)) {
-                     fb[op_index].toggle_exiting_which();
-		     std::cout << "Exiting return\n";
-		  }
-		  op_index++;
-	       } break;
+                  start_unreachable(); 
+                  op_index++;
+               } break;
                case opcodes::block: {
                   uint32_t expected_result = *code++;
                   pc_stack.push_back({operand_depth, expected_result, is_in_unreachable, std::vector<uint32_t*>{}});
@@ -721,7 +714,7 @@ namespace eosio { namespace vm {
                case opcodes::error: fb[op_index++] = error_t{}; break;
             }
          }
-         fb.resize(op_index + 1);
+         fb.resize(op_index + 2);
       }
 
       void parse_data_segment(wasm_code_ptr& code, data_segment& ds) {
