@@ -1,6 +1,7 @@
 #pragma once
 
 #include <eosio/vm/host_function.hpp>
+#include <eosio/vm/signals.hpp>
 #include <eosio/vm/types.hpp>
 #include <eosio/vm/wasm_stack.hpp>
 #include <eosio/vm/watchdog.hpp>
@@ -277,7 +278,19 @@ namespace eosio { namespace vm {
          type_check(_mod.types[_mod.functions[func_index - _mod.import_functions.size()]]);
          setup_locals(func_index);
 
-         execute(visitor);
+         vm::invoke_with_signal_handler([&]() {
+            execute(visitor);
+         }, [](int sig) {
+            switch(sig) {
+             case SIGSEGV:
+             case SIGBUS:
+               throw wasm_memory_exception{ "wasm memory out-of-bounds" };
+             case SIGALRM:
+               throw timeout_exception{ "execution timed out" };
+             default:
+               assert(!"??????");
+            }
+         });
 
          std::optional<operand_stack_elem> ret;
          if (_mod.types[_mod.functions[func_index - _mod.import_functions.size()]].return_count)
