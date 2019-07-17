@@ -3,13 +3,6 @@ set -eo pipefail
 cd $( dirname "${BASH_SOURCE[0]}" )/.. # Ensure we're in the repo root and not inside of scripts
 . ./.cicd/.helpers
 
-function cleanup() {
-    echo "=== CLEANUP"
-    execute rm -rf build
-}
-
-trap cleanup EXIT
-
 execute docker run -e --rm -v $(pwd):/$PROJECT_NAME $FULL_TAG bash -c " \
 cd /$PROJECT_NAME && \
 echo '=== Updating Submodules' && \
