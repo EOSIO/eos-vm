@@ -20,6 +20,6 @@ steps:
     plugins:
       - docker#v3.2.0:
           debug: $DEBUG
-          image: "eosio/producer:eos-vm-ubuntu-18.04-23e67dc8b1923b2e030fa88749ec2b15f7c38f85"
+          image: "eosio/producer:eos-vm-ubuntu-18.04-8c69e80af565dc124d8218693ea7a548ca9dd359"
     timeout: $BUILD_TIMEOUT
     skip: $SKIP_UBUNTU_18
