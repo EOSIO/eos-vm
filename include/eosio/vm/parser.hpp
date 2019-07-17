@@ -378,13 +378,10 @@ namespace eosio { namespace vm {
                   break;
                }
                case opcodes::return_: {
-                  fb[op_index] = return__t{}; 
-		  start_unreachable(); 
-		  if (_export_indices.count(_current_function_index)) {
-                     fb[op_index].toggle_exiting_which();
-		     std::cout << "Exiting return\n";
-		  }
-		  op_index++;
+                  uint32_t label = pc_stack.size() - 1;
+                  return__t& instr = append_instr(return__t{});
+                  handle_branch_target(label, &instr.pc, &instr.data);
+                  start_unreachable();
 	       } break;
                case opcodes::block: {
                   uint32_t expected_result = *code++;

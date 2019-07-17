@@ -71,7 +71,7 @@ namespace eosio { namespace vm {
 
          context.inc_pc();
       }
-      [[gnu::always_inline]] inline void operator()(const return__t& op) { context.apply_pop_call(); }
+      [[gnu::always_inline]] inline void operator()(const return__t& op) { context.jump(op.data, op.pc); }
       [[gnu::always_inline]] inline void operator()(block_t& op) {
          context.inc_pc();
          op.index    = context.current_label_index();
@@ -107,7 +107,7 @@ namespace eosio { namespace vm {
       [[gnu::always_inline]] inline void operator()(const br_table_t& op) {
          const auto& in = context.pop_operand().to_ui32();
          const auto& entry = op.table[std::min(in, op.size)]; 
-         context.jump(op.table[in].stack_pop, entry.pc);
+         context.jump(entry.stack_pop, entry.pc);
       }
       [[gnu::always_inline]] inline void operator()(const call_t& op) {
          context.call(op.index);
