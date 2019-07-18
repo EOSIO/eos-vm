@@ -6,12 +6,18 @@ env:
 
 steps:
 
-  - trigger: "trigger-travis"
-    label: ":docker: Trigger Travis"
-    build:
-      commit: "${BUILDKITE_COMMIT}"
-      branch: "${BUILDKITE_BRANCH}"
-      repo: "${BUILDKITE_REPO}"
+  - label: ":webhook: Trigger Travis CI Build"
+    command: |
+      TRAVIS_MESSAGE="$BUILDKITE_MESSAGE - $(echo $BUILDKITE_BUILD_URL | grep -oe 'buildkite.*')"
+      BODY="$(jq -nc '{"request":{"branch":env.BUILDKITE_BRANCH,"message":env.TRAVIS_MESSAGE}}')"
+      RESULT="$(curl -s -X POST -H "Content-Type: application/json" -H "Accept: application/json" -H "Travis-API-Version: 3" -H "Authorization: token $TRAVIS_API_KEY" -d "$BODY" https://api.travis-ci.org/repo/EOSIO%2feos/requests)"
+      echo "$RESULT" | jq 2>/dev/null || echo "$RESULT"
+      if [[ "$(echo $RESULT | jq -r '.["@type"]')" != "pending" ]]; then
+          echo '+++ :no_entry: ERROR: Failed to trigger Travis API!'
+          exit 1
+      fi
+    agents:
+      queue: "automation-basic-builder-fleet"
 
   - trigger: "eos-vm-base-images-beta"
     label: ":docker: Ensure base images exist"
