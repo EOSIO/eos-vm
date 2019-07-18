@@ -11,6 +11,7 @@ steps:
     build:
       commit: "${BUILDKITE_COMMIT}"
       branch: "${BUILDKITE_BRANCH}"
+      repo: "${BUILDKITE_REPO}"
 
   - trigger: "eos-vm-base-images-beta"
     label: ":docker: Ensure base images exist"
