@@ -8,11 +8,11 @@ steps:
 
   - label: ":webhook: Trigger Travis CI Build"
     command: |
-      export TRAVIS_MESSAGE="$BUILDKITE_MESSAGE - $(echo $BUILDKITE_BUILD_URL | grep -oe 'buildkite.*')"
-      export BODY="$(jq -nc '{"request":{"branch":env.BUILDKITE_BRANCH,"message":env.TRAVIS_MESSAGE}}')"
-      echo $BODY
-      export RESULT="$(curl -s -X POST -H "Content-Type: application/json" -H "Accept: application/json" -H "Travis-API-Version: 3" -H "Authorization: token $TRAVIS_API_KEY" -d "$BODY" https://api.travis-ci.org/repo/EOSIO%2feos/requests)"
-      echo $RESULT
+      TRAVIS_MESSAGE="$$BUILDKITE_MESSAGE - $(echo $$BUILDKITE_BUILD_URL | grep -oe 'buildkite.*')"
+      BODY="$(jq -nc '{"request":{"branch":$$BUILDKITE_BRANCH,"message":$$TRAVIS_MESSAGE}}')"
+      echo $$BODY
+      export RESULT="$(curl -s -X POST -H "Content-Type: application/json" -H "Accept: application/json" -H "Travis-API-Version: 3" -H "Authorization: token $TRAVIS_API_KEY" -d "$$BODY" https://api.travis-ci.org/repo/EOSIO%2feos-vm/requests)"
+      echo $$RESULT
       echo "$RESULT" | jq 2>/dev/null || echo "$RESULT"
       if [[ "$(echo $RESULT | jq -r '.["@type"]')" != "pending" ]]; then
           echo '+++ :no_entry: ERROR: Failed to trigger Travis API!'
