@@ -185,7 +185,6 @@ namespace eosio { namespace vm {
       [[gnu::always_inline]] inline void operator()(const f64_reinterpret_i64_t& ) {}
       template <typename T>
       [[gnu::always_inline]] inline void operator()(T val) {
-         std::cerr << "Opcode " << std::hex << (uint32_t)std::decay_t<T>::opcode << std::dec << "\n";
          throw wasm_interpreter_exception{"invalid opcode"};
       }
    };

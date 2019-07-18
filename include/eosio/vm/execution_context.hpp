@@ -87,8 +87,7 @@ namespace eosio { namespace vm {
       inline void           push_call(uint32_t index) {
          const auto& ftype = _mod.get_function_type(index);
          _last_op_index    = _os.size() - ftype.param_types.size();
-         uint32_t return_pc = _as.size() < 1 ? _state.exiting_loc.second : _state.pc + 1;
-         _as.push(activation_frame{ return_pc, _state.current_offset, _state.code_index, static_cast<uint16_t>(_last_op_index),
+         _as.push(activation_frame{ _state.pc + 1, _state.current_offset, _state.code_index, static_cast<uint16_t>(_last_op_index),
                                     ftype.return_type });
          _cs.push(end_t{ 0, static_cast<uint32_t>(_state.current_offset + _mod.code[_state.code_index].code.size() - 1), 0,
                          static_cast<uint16_t>(_last_op_index) });
@@ -96,7 +95,7 @@ namespace eosio { namespace vm {
 
       inline void apply_pop_call() {
          if (_as.size()) {
-            const auto& af      = _as.pop();
+            const auto& af            = _as.pop();
             _state.current_offset     = af.offset;
             _state.pc                 = af.pc;
             _state.code_index         = af.index;
@@ -110,6 +109,11 @@ namespace eosio { namespace vm {
                                    el.is_a<f32_const_t>() && ret_type == types::f32 ||
                                    el.is_a<f64_const_t>() && ret_type == types::f64,
                              wasm_interpreter_exception, "wrong return type");
+            }
+
+            if (_as.size() < 1) {
+               _state.exiting_loc = {_state.code_index, _state.pc - _state.current_offset};
+               set_exiting_op(_state.exiting_loc);
             }
 
             eat_operands(op_index);
@@ -266,22 +270,11 @@ namespace eosio { namespace vm {
 
          _linear_memory = _wasm_alloc->get_base_ptr<char>();
 
-         clear_exiting_op( _state.exiting_loc );
          _state.host             = host;
          _state.current_function = func_index;
          _state.code_index       = func_index - _mod.import_functions.size();
          _state.current_offset   = _mod.function_sizes[_state.current_function];
          _state.pc               = _state.current_offset;
-         _state.exiting_loc      = {_state.code_index, _mod.code.at_no_check(_state.code_index).code.size()-1};
-         set_exiting_op( _state.exiting_loc );
-          
-         std::cerr << "function_sizes " << _mod.function_sizes[_state.current_function] << "\n";
-         std::cerr << "func_index " << func_index << "\n";
-         std::cerr << "code_index " << _state.code_index << "\n";
-         std::cerr << "current_offset " << _state.current_offset << "\n";
-         std::cerr << "pc " << _state.pc << "\n";
-         std::cerr << "exiting_loc " << _state.exiting_loc.first << " : " << _state.exiting_loc.second << "\n";
-         std::cerr << "Which " << _mod.code.at_no_check(_state.code_index).code.at_no_check(_state.exiting_loc.second).index() << "\n";
 
          push_args(args...);
          push_call(func_index);
@@ -354,20 +347,12 @@ namespace eosio { namespace vm {
 #define CREATE_LABEL(NAME, CODE)                                                                                  \
       ev_label_##NAME : visitor(ev_variant->template get<eosio::vm::NAME##_t>());                                 \
       ev_variant = &_mod.code.at_no_check(_state.code_index).code.at_no_check(_state.pc - _state.current_offset); \
-      std::cerr << "EV_VARIANT " << ev_variant << "\n"; \
       goto* dispatch_table[ev_variant->index()];
 #define CREATE_EXITING_LABEL(NAME, CODE)                                                  \
-      std::cout << "Exiting Prog!" << std::endl;                                          \
-      ev_label_exiting_##NAME : visitor(ev_variant->template get<eosio::vm::NAME##_t>()); \
+      ev_label_exiting_##NAME :  \
       return;
 #define CREATE_EMPTY_LABEL(NAME, CODE) ev_label_##NAME :  \
-      std::cout << "Empty label!" << std::endl;                                          \
       throw wasm_interpreter_exception{"empty operand"};
-#define CREATE_EXITING_EMPTY_LABEL(NAME, CODE) ev_label_exiting_##NAME : \
-      std::cout << "Exiting empty label!" << std::endl;                                          \
-      std::cout << "PC " << _state.pc << "\n"; \
-      std::cout << "Variant " << _mod.code.at_no_check(_state.code_index).code.at_no_check((_state.pc - _state.current_offset)).index() << "\n"; \
-      return;
 
       template <typename Visitor>
       void execute(Visitor&& visitor) {
@@ -443,7 +428,7 @@ namespace eosio { namespace vm {
              NUMERIC_OPS(CREATE_EXITING_LABEL);
              CONVERSION_OPS(CREATE_EXITING_LABEL);
              SYNTHETIC_OPS(CREATE_EXITING_LABEL);
-             EMPTY_OPS(CREATE_EXITING_EMPTY_LABEL);
+             EMPTY_OPS(CREATE_EXITING_LABEL);
              ERROR_OPS(CREATE_EXITING_LABEL);
              __ev_last:
                 throw wasm_interpreter_exception{"should never reach here"};

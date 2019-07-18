@@ -229,14 +229,12 @@ namespace eosio { namespace vm {
 
          // -1 is 'end' 0xb byte and one extra slot for an exiting instruction to be held during execution, this is used to drive the pc past normal execution
          size_t            bytes = (body_size - (code.offset() - before));
-         decltype(fb.code) _code = { _allocator, bytes + 1 };
+         decltype(fb.code) _code = { _allocator, bytes };
          wasm_code_ptr     fb_code(code.raw(), bytes);
          parse_function_body_code(fb_code, bytes, _code, fn_type);
          code += bytes - 1;
          EOS_WB_ASSERT(*code++ == 0x0B, wasm_parse_exception, "failed parsing function body, expected 'end'");
-         _code[_code.size() - 2] = fend_t{};
-         _code[_code.size() - 1] = exit_t{};
-         _code[_code.size() - 1].set_exiting_which();
+         _code[_code.size() - 1] = fend_t{};
          fb.code                 = std::move(_code);
       }
 
@@ -714,7 +712,7 @@ namespace eosio { namespace vm {
                case opcodes::error: fb[op_index++] = error_t{}; break;
             }
          }
-         fb.resize(op_index + 2);
+         fb.resize(op_index + 1);
       }
 
       void parse_data_segment(wasm_code_ptr& code, data_segment& ds) {
