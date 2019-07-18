@@ -8,7 +8,7 @@ steps:
 
   - label: ":webhook: Trigger Travis CI Build"
     command:
-      - ". ./travis-trigger.sh"
+      - ". ./.cicd/travis-trigger.sh"
     agents:
       queue: "automation-basic-builder-fleet"
 
