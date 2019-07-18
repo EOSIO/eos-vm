@@ -529,7 +529,7 @@ namespace eosio { namespace vm {
                } break;
                case opcodes::f64_const: {
                   double value;
-                  memcpy(&value, code.raw(), 7);
+                  memcpy(&value, code.raw(), 8);
                   code_writer.emit_f64_const( value );
                   code += 8;
                   push_operand();
