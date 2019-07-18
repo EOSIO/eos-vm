@@ -482,7 +482,7 @@ namespace eosio { namespace vm {
       void emit_grow_memory() { unimplemented(); }
 
       void emit_i32_const(uint32_t value) {
-         // mov value, %eax
+         // mov $value, %eax
          emit_bytes(0xb8);
          emit_operand32(value);
          // push %rax
@@ -490,7 +490,7 @@ namespace eosio { namespace vm {
       }
 
       void emit_i64_const(uint64_t value) {
-         // movabsq value, %rax
+         // movabsq $value, %rax
          emit_bytes(0x48, 0xb8);
          emit_operand64(value);
          // push %rax
@@ -498,14 +498,14 @@ namespace eosio { namespace vm {
       }
 
       void emit_f32_const(float value) { 
-         // mov value, %eax
-         emit_bytes(0x8b, 0x04, 0x25);
+         // mov $value, %eax
+         emit_bytes(0xb8);
          emit_operandf32(value);
          // push %rax
          emit_bytes(0x50);
       }
       void emit_f64_const(double value) {
-         // movabsq value, %rax
+         // movabsq $value, %rax
          emit_bytes(0x48, 0xb8);
          emit_operandf64(value);
          // push %rax
