@@ -8,16 +8,16 @@ steps:
 
   - label: ":webhook: Trigger Travis CI Build"
     command: |
-      TRAVIS_MESSAGE="$$BUILDKITE_MESSAGE - $(echo $$BUILDKITE_BUILD_URL | grep -oe 'buildkite.*')"
-      BODY="$(jq -nc '{"request":{"branch":${BUILDKITE_BRANCH},"message":$$TRAVIS_MESSAGE}}')"
-      echo $$BODY
-      export RESULT="$(curl -s -X POST -H "Content-Type: application/json" -H "Accept: application/json" -H "Travis-API-Version: 3" -H "Authorization: token $TRAVIS_API_KEY" -d "$$BODY" https://api.travis-ci.org/repo/EOSIO%2feos-vm/requests)"
-      echo $$RESULT
-      echo "$RESULT" | jq 2>/dev/null || echo "$RESULT"
-      if [[ "$(echo $RESULT | jq -r '.["@type"]')" != "pending" ]]; then
-          echo '+++ :no_entry: ERROR: Failed to trigger Travis API!'
-          exit 1
-      fi
+      BODY="$(jq -nc '{ "request": { "branch": "${BUILDKITE_BRANCH}", "message": "${BUILDKITE_MESSAGE} - $(echo ${BUILDKITE_BUILD_URL} | grep -oe 'buildkite.*')" }' )"
+      echo ${BODY}
+      export RESULT="$(curl -s -X POST -H "Content-Type: application/json" -H "Accept: application/json" -H "Travis-API-Version: 3" -H "Authorization: token ${TRAVIS_API_KEY}" -d "${BODY}" https://api.travis-ci.org/repo/EOSIO%2feos-vm/requests)"
+      echo ${RESULT}
+      exit 1
+      # echo "$RESULT" | jq 2>/dev/null || echo "$RESULT"
+      # if [[ "$(echo $RESULT | jq -r '.["@type"]')" != "pending" ]]; then
+      #     echo '+++ :no_entry: ERROR: Failed to trigger Travis API!'
+      #     exit 1
+      # fi
     agents:
       queue: "automation-basic-builder-fleet"
 
