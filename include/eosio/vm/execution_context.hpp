@@ -5,6 +5,7 @@
 #include <eosio/vm/types.hpp>
 #include <eosio/vm/wasm_stack.hpp>
 #include <eosio/vm/watchdog.hpp>
+#include <eosio/vm/x86_64.hpp>
 
 #include <optional>
 #include <string>
@@ -278,8 +279,26 @@ namespace eosio { namespace vm {
          set_exiting_op( _state.exiting_loc );
 
          if(auto fn = _mod.code[_state.code_index].jit_code) {
-           uint64_t result = fn(this, _linear_memory);
-           return {i64_const_t{result}};
+            const func_type& ft = _mod.get_function_type(func_index);
+            native_value result;
+
+            vm::invoke_with_signal_handler([&]() {
+               result = machine_code_writer::invoke(fn, this, _linear_memory, args...);
+            }, &handle_signal);
+
+            // revert the state back to original calling context
+            clear_exiting_op( _state.exiting_loc );
+            _state = saved_state;
+            set_exiting_op( _state.exiting_loc );
+
+            if(!ft.return_count)
+               return {};
+            else switch (ft.return_type) {
+               case i32: return {i32_const_t{result.i32}};
+               case i64: return {i64_const_t{result.i64}};
+               case f32: return {f32_const_t{result.f32}};
+               case f64: return {f64_const_t{result.f64}};
+            }
          }
 
          push_args(args...);
@@ -289,17 +308,7 @@ namespace eosio { namespace vm {
 
          vm::invoke_with_signal_handler([&]() {
             execute(visitor);
-         }, [](int sig) {
-            switch(sig) {
-             case SIGSEGV:
-             case SIGBUS:
-               throw wasm_memory_exception{ "wasm memory out-of-bounds" };
-             case SIGALRM:
-               throw timeout_exception{ "execution timed out" };
-             default:
-               assert(!"??????");
-            }
-         });
+         }, &handle_signal);
 
          std::optional<operand_stack_elem> ret;
          if (_mod.types[_mod.functions[func_index - _mod.import_functions.size()]].return_count)
@@ -359,6 +368,18 @@ namespace eosio { namespace vm {
                   case types::f64: push_operand(f64_const_t{ (uint64_t)0 }); break;
                   default: throw wasm_interpreter_exception{ "invalid function param type" };
                }
+         }
+      }
+
+      static void handle_signal(int sig) {
+         switch(sig) {
+          case SIGSEGV:
+          case SIGBUS:
+            throw wasm_memory_exception{ "wasm memory out-of-bounds" };
+          case SIGALRM:
+            throw timeout_exception{ "execution timed out" };
+          default:
+            assert(!"??????");
          }
       }
 

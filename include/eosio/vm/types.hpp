@@ -113,11 +113,23 @@ namespace eosio { namespace vm {
       value_type type;
    };
 
+   union native_value {
+      native_value() = default;
+      constexpr native_value(uint32_t arg) : i32(arg) {}
+      constexpr native_value(uint64_t arg) : i64(arg) {}
+      constexpr native_value(float arg) : f32(arg) {}
+      constexpr native_value(double arg) : f64(arg) {}
+      uint32_t i32;
+      uint64_t i64;
+      float f32;
+      double f64;
+   };
+
    struct function_body {
       uint32_t                    body_size;
       guarded_vector<local_entry> locals;
       guarded_vector<opcode>      code;
-      uint64_t                  (*jit_code)(void*, void*);
+      native_value              (*jit_code)(void*, void*);
    };
 
    struct data_segment {

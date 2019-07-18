@@ -154,6 +154,7 @@ namespace eosio { namespace vm {
       }
       static void start_function(void* func_start, uint32_t funcnum) {
          auto& vec = call_singleton();
+         if(funcnum == 0) vec.clear();
          if(funcnum >= vec.size()) vec.resize(funcnum + 1);
          for(void* branch : std::get<std::vector<void*>>(vec[funcnum])) {
             fix_branch(branch, func_start);
@@ -1137,10 +1138,17 @@ namespace eosio { namespace vm {
          memcpy(branch, &target, 8);
       }
 
-      using fn_type = uint64_t(*)(void* context, void* memory);
+      using fn_type = native_value(*)(void* context, void* memory);
       void finalize(function_body& body) {
          body.jit_code = reinterpret_cast<fn_type>(_allocator.setpos(code));
       }
+
+      template<typename... Args>
+      static native_value invoke(fn_type fn, void* context, void* linear_memory, Args&... args) {
+         native_value args_raw[] = { transform_arg(args)... };
+         return invoke_impl<sizeof...(Args)>(args_raw, fn, context, linear_memory);
+      }
+
     private:
 
       module& _mod;
@@ -1390,33 +1398,37 @@ namespace eosio { namespace vm {
 
       static void on_unreachable() { throw wasm_interpreter_exception{ "unreachable" }; }
 
-#if 0
-      union stack_elem {
-         uint32_t i32;
-         uint64_t i64;
-         float f32;
-         double f64;
-      };
-      template <typename T>
-      void start(stack_elem* data, int count, void(*fun)(), void* context) {
-         asm {
-            movq data, %rax;
-            movq count, %rcx;
-            testq %rcx, %rcx;
-            jz done;
-           loop:
-            movq (%rax), %rdx;
-            lea 8(%rax), %rax;
-            pushq %rdx;
-            decq %rcx;
-            jnz loop;
-           done:
-            movq context, %rsi;
-            movq fun, %rax
-            callq %rax;
-         }
+      static uint32_t transform_arg(bool value) { return value; }
+      static uint32_t transform_arg(uint32_t value) { return value; }
+      static uint64_t transform_arg(uint64_t value) { return value; }
+      static float    transform_arg(float value) { return value; }
+      static double   transform_arg(double value) { return value; }
+
+      template<int Count>
+      static native_value invoke_impl(native_value* data, fn_type fun, void* context, void* linear_memory) {
+         static_assert(sizeof(native_value) == 8, "8-bytes expected for native_value");
+         native_value result;
+         int count = Count;
+         asm volatile(
+            "test %[count], %[count]; "
+            "jz 2f; "
+            "1: "
+            "movq (%[data]), %%rax; "
+            "lea 8(%[data]), %[data]; "
+            "pushq %%rax; "
+            "dec %[count]; "
+            "jnz 1b; "
+            "2: "
+            "callq *%[fun]; "
+            "add %[StackOffset], %%rsp"
+            : [result] "=a" (result), [count] "+r" (count) // output
+            : [data] "r" (data), [count] "r" (count), [fun] "r" (fun),
+              [context] "D" (context), [linear_memory] "S" (linear_memory),
+              [StackOffset] "n" (Count*8) // input
+            : "memory", "cc" // clobber
+         );
+         return result;
       }
-#endif
    };
    
 }}
