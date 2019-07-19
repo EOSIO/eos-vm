@@ -1236,10 +1236,23 @@ void generate_tests(const map<string, vector<picojson::object>>& mappings) {
    }
 }
 
+void usage(const char* name) {
+   std::cerr << "Usage:\n"
+             << "  " << name << " [json file created by wast2json]\n";
+   std::exit(2);
+}
+
 int main(int argc, char** argv) {
    ifstream     ifs;
    stringstream ss;
+   if(argc != 2 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
+      usage(argc?argv[0]:"spec_test_generator");
+   }
    ifs.open(argv[1]);
+   if(!ifs) {
+      std::cerr << "Cannot open file: " << argv[1] << std::endl;
+      return EXIT_FAILURE;
+   }
    string s;
    while (getline(ifs, s)) ss << s;
    ifs.close();
