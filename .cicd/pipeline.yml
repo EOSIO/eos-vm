@@ -6,14 +6,11 @@ env:
 
 steps:
 
-  - trigger: "trigger-travis"
-    label: ":docker: Trigger Travis"
-    build:
-      commit: "${BUILDKITE_COMMIT}"
-      branch: "${BUILDKITE_BRANCH}"
-      env:
-        TRIGGER_SOURCE: "eos-vm"
-        BUILDKITE_REPO: ""
+  - label: ":webhook: Trigger Travis CI Build"
+    command:
+      - "./.cicd/travis-trigger.sh"
+    agents:
+      queue: "automation-eos-builder-fleet"
 
   - trigger: "eos-vm-base-images-beta"
     label: ":docker: Ensure base images exist"
