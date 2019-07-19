@@ -113,8 +113,12 @@ namespace eosio { namespace vm {
             }
 
             if (_as.size() < 1) {
-               _state.exiting_loc = {_state.code_index, _state.pc - _state.current_offset};
+               //_state.exiting_loc = {0, 0}; //_state.code_index, _state.pc - _state.current_offset};
+               std::cout << "exiting location " << _state.exiting_loc.first << ", " << _state.exiting_loc.second << '\n';
                set_exiting_op(_state.exiting_loc);
+               _state.pc = 0;
+               _state.current_offset = 0;
+               _state.code_index = 0;
             }
 
             eat_operands(op_index);
@@ -124,9 +128,11 @@ namespace eosio { namespace vm {
                _last_op_index = _as.peek().op_index;
             }
          }
+         /*
          while (_cs.size())
-            if (std::holds_alternative<end_t>(_cs.pop()))
+            if (_cs.pop().is_a<end_t>())
                break;
+               */
       }
       inline control_stack_elem  pop_label() { return _cs.pop(); }
       inline operand_stack_elem  pop_operand() { return _os.pop(); }
@@ -278,6 +284,7 @@ namespace eosio { namespace vm {
          _state.code_index       = func_index - _mod.import_functions.size();
          _state.current_offset   = _mod.function_sizes[_state.current_function];
          _state.pc               = _state.current_offset;
+         _state.exiting_loc      = {0, 0};
 
          push_args(args...);
          push_call(func_index);
@@ -294,6 +301,7 @@ namespace eosio { namespace vm {
              case SIGALRM:
                throw timeout_exception{ "execution timed out" };
              default:
+               /* TODO fix this */
                assert(!"??????");
             }
          });

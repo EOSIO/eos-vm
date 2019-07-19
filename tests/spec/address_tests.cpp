@@ -93,17 +93,17 @@ TEST_CASE( "Testing wasm <address_0_wasm>", "[address_0_wasm_tests]" ) {
    CHECK(bkend.reset().call_with_return(nullptr, "env", "32_good2", static_cast<uint32_t>(65508))->to_i32() == static_cast<uint32_t>(0));
    CHECK(bkend.reset().call_with_return(nullptr, "env", "32_good3", static_cast<uint32_t>(65508))->to_i32() == static_cast<uint32_t>(0));
    CHECK(bkend.reset().call_with_return(nullptr, "env", "32_good4", static_cast<uint32_t>(65508))->to_i32() == static_cast<uint32_t>(0));
-   CHECK_THROWS_AS(bkend(nullptr, "env", "32_good5", static_cast<uint32_t>(65508)), std::exception);
-   CHECK_THROWS_AS(bkend(nullptr, "env", "8u_bad", static_cast<uint32_t>(0)), std::exception);
-   CHECK_THROWS_AS(bkend(nullptr, "env", "8s_bad", static_cast<uint32_t>(0)), std::exception);
-   CHECK_THROWS_AS(bkend(nullptr, "env", "16u_bad", static_cast<uint32_t>(0)), std::exception);
-   CHECK_THROWS_AS(bkend(nullptr, "env", "16s_bad", static_cast<uint32_t>(0)), std::exception);
-   CHECK_THROWS_AS(bkend(nullptr, "env", "32_bad", static_cast<uint32_t>(0)), std::exception);
-   CHECK_THROWS_AS(bkend(nullptr, "env", "8u_bad", static_cast<uint32_t>(1)), std::exception);
-   CHECK_THROWS_AS(bkend(nullptr, "env", "8s_bad", static_cast<uint32_t>(1)), std::exception);
-   CHECK_THROWS_AS(bkend(nullptr, "env", "16u_bad", static_cast<uint32_t>(1)), std::exception);
-   CHECK_THROWS_AS(bkend(nullptr, "env", "16s_bad", static_cast<uint32_t>(1)), std::exception);
-   CHECK_THROWS_AS(bkend(nullptr, "env", "32_bad", static_cast<uint32_t>(1)), std::exception);
+   CHECK_THROWS_AS(bkend.reset().call(nullptr, "env", "32_good5", static_cast<uint32_t>(65508)), std::exception);
+   CHECK_THROWS_AS(bkend.reset().call(nullptr, "env", "8u_bad", static_cast<uint32_t>(0)), std::exception);
+   CHECK_THROWS_AS(bkend.reset().call(nullptr, "env", "8s_bad", static_cast<uint32_t>(0)), std::exception);
+   CHECK_THROWS_AS(bkend.reset().call(nullptr, "env", "16u_bad", static_cast<uint32_t>(0)), std::exception);
+   CHECK_THROWS_AS(bkend.reset().call(nullptr, "env", "16s_bad", static_cast<uint32_t>(0)), std::exception);
+   CHECK_THROWS_AS(bkend.reset().call(nullptr, "env", "32_bad", static_cast<uint32_t>(0)), std::exception);
+   CHECK_THROWS_AS(bkend.reset().call(nullptr, "env", "8u_bad", static_cast<uint32_t>(1)), std::exception);
+   CHECK_THROWS_AS(bkend.reset().call(nullptr, "env", "8s_bad", static_cast<uint32_t>(1)), std::exception);
+   CHECK_THROWS_AS(bkend.reset().call(nullptr, "env", "16u_bad", static_cast<uint32_t>(1)), std::exception);
+   CHECK_THROWS_AS(bkend.reset().call(nullptr, "env", "16s_bad", static_cast<uint32_t>(1)), std::exception);
+   CHECK_THROWS_AS(bkend.reset().call(nullptr, "env", "32_bad", static_cast<uint32_t>(1)), std::exception);
 }
 
 TEST_CASE( "Testing wasm <address_2_wasm>", "[address_2_wasm_tests]" ) {
