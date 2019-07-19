@@ -81,8 +81,8 @@ namespace eosio { namespace vm {
             if (_mod.exports[i].kind == external_kind::Function) {
                std::string s{ (const char*)_mod.exports[i].field_str.raw(), _mod.exports[i].field_str.size() };
 	       if constexpr (eos_vm_debug) {
-	          _ctx.execute(host, interpret_visitor(_ctx), s);
-	          //_ctx.execute(host, debug_visitor(_ctx), s);
+	          //_ctx.execute(host, interpret_visitor(_ctx), s);
+	          _ctx.execute(host, debug_visitor(_ctx), s);
 	       } else {
 	          _ctx.execute(host, interpret_visitor(_ctx), s);
 	       }

@@ -223,7 +223,6 @@ namespace eosio { namespace vm {
          _cs.eat(0);
 
          _linear_memory = _wasm_alloc->get_base_ptr<char>();
-         std::cout << "_linear_memory" << (uint32_t*)_linear_memory << "\n";
          if (_mod.memories.size()) {
             grow_linear_memory(_mod.memories[0].limits.initial - _wasm_alloc->get_current_page());
          }
@@ -238,11 +237,13 @@ namespace eosio { namespace vm {
       }
       
       inline void set_exiting_op( const std::pair<uint32_t, uint32_t>& exiting_loc ) {
-         _mod.code.at(exiting_loc.first).code.at(exiting_loc.second).set_exiting_which();
+         if (exiting_loc.first != -1 && exiting_loc.second != -1)
+            _mod.code.at(exiting_loc.first).code.at(exiting_loc.second).set_exiting_which();
       }
 
       inline void clear_exiting_op( const std::pair<uint32_t, uint32_t>& exiting_loc ) {
-         _mod.code.at(exiting_loc.first).code.at(exiting_loc.second).clear_exiting_which();
+         if (exiting_loc.first != -1 && exiting_loc.second != -1)
+            _mod.code.at(exiting_loc.first).code.at(exiting_loc.second).clear_exiting_which();
       }
 
       inline std::error_code get_error_code() const { return _error_code; }
@@ -265,6 +266,7 @@ namespace eosio { namespace vm {
          EOS_WB_ASSERT(func_index < std::numeric_limits<uint32_t>::max(), wasm_interpreter_exception,
                        "cannot execute function, function not found");
          
+         clear_exiting_op( _state.exiting_loc );
          // save the state of the original calling context
          execution_state saved_state = _state;
 
@@ -438,7 +440,7 @@ namespace eosio { namespace vm {
       struct execution_state {
          Host* host                                = nullptr;
          uint32_t current_function                 = 0;
-         std::pair<uint32_t, uint32_t> exiting_loc = {0,0};
+         std::pair<int64_t, int64_t> exiting_loc = {-1,-1};
          uint32_t code_index       = 0;
          uint32_t current_offset   = 0;
          uint32_t pc               = 0;
