@@ -6,6 +6,7 @@
 #include <eosio/vm/execution_context.hpp>
 #include <eosio/vm/interpret_visitor.hpp>
 #include <eosio/vm/parser.hpp>
+#include <eosio/vm/signals.hpp>
 #include <eosio/vm/types.hpp>
 
 #include <fstream>
@@ -73,10 +74,11 @@ namespace eosio { namespace vm {
          }
       }
 
-      template <typename Watchdog = nullptr_t>
-      inline void execute_all(Watchdog* wd = nullptr, Host* host = nullptr) {
-         if constexpr (!std::is_same_v<Watchdog, nullptr_t>)
-            wd->run();
+      template <typename Watchdog>
+      inline void execute_all(Watchdog&& wd, Host* host = nullptr) {
+         block_sigalrm sig_guard;
+         pthread_t self = pthread_self();
+         auto wd_guard = wd.scoped_run([this, self]() { pthread_kill(self, SIGALRM); });
          for (int i = 0; i < _mod.exports.size(); i++) {
             if (_mod.exports[i].kind == external_kind::Function) {
                std::string s{ (const char*)_mod.exports[i].field_str.raw(), _mod.exports[i].field_str.size() };

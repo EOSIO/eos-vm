@@ -372,10 +372,11 @@ namespace eosio { namespace vm {
                   break;
                }
                case opcodes::return_: {
-                  fb[op_index] = return__t{}; 
-                  start_unreachable(); 
-                  op_index++;
-               } break;
+                  uint32_t label = pc_stack.size() - 1;
+                  return__t& instr = append_instr(return__t{});
+                  handle_branch_target(label, &instr.pc, &instr.data);
+                  start_unreachable();
+	       } break;
                case opcodes::block: {
                   uint32_t expected_result = *code++;
                   pc_stack.push_back({operand_depth, expected_result, is_in_unreachable, std::vector<uint32_t*>{}});
@@ -398,8 +399,10 @@ namespace eosio { namespace vm {
                   auto& relocations = std::get<std::vector<uint32_t*>>(old_index.relocations);
                   uint32_t* _if_pc      = relocations[0];
                   // reset the operand stack to the same state as the if
-                  EOS_WB_ASSERT((old_index.expected_result != types::pseudo) + old_index.operand_depth == operand_depth,
-                                wasm_parse_exception, "Malformed if body");
+                  if (!is_unreachable()) {
+                     EOS_WB_ASSERT((old_index.expected_result != types::pseudo) + old_index.operand_depth == operand_depth,
+                                   wasm_parse_exception, "Malformed if body");
+                  }
                   operand_depth = old_index.operand_depth;
                   start_reachable();
                   // Overwrite the branch from the `if` with the `else`.
@@ -428,6 +431,7 @@ namespace eosio { namespace vm {
                   pop_operand();
                   parse_br_table(code, bt);
                   fb[op_index++] = bt;
+                  start_unreachable();
                } break;
                case opcodes::call: {
                   uint32_t funcnum = parse_varuint32(code);
