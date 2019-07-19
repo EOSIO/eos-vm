@@ -1,5 +1,7 @@
 #pragma once
 
+#include <eosio/vm/exceptions.hpp>
+
 #include <atomic>
 #include <cstdlib>
 #include <signal.h>
@@ -94,8 +96,15 @@ namespace eosio { namespace vm {
             pthread_sigmask(SIG_SETMASK, &old_sigmask, nullptr);
             std::atomic_store(&signal_dest, old_signal_handler);
          } catch(...) {
-            pthread_sigmask(SIG_SETMASK, &old_sigmask, nullptr);
+            sigset_t new_sigmask;
+            pthread_sigmask(SIG_SETMASK, &old_sigmask, &new_sigmask);
             std::atomic_store(&signal_dest, old_signal_handler);
+            // FIXME: Audit the code base for this condition and turn it on.
+            // It isn't safe to throw without blocking SIGALRM,
+            // but an actual failure is rare.  Trap errors here.
+            if(!sigismember(&new_sigmask, SIGALRM) && false) {
+               abort();
+            }
             throw;
          }
       } else {
@@ -109,7 +118,12 @@ namespace eosio { namespace vm {
    // SIGALRM needs to be blocked:
    // - after the watchdog has started, but outside wasm execution.
    // - During the execution of host_functions that create objects
-   //   with non-trivial destructors.
+   //   with non-trivial destructors and when handling other exceptions.
+   // The correct behavior is different in the two cases.  In the
+   // former case, any pending SIGALRM from the watchdog will be canceled
+   // on destruction.  In the latter case, SIGALRM will remain blocked
+   // during stack unwinding, if an exception is thrown.
+   template<bool CancelPendingOnExit, bool RestoreOnException>
    class block_sigalrm {
     public:
       block_sigalrm() {
@@ -117,12 +131,34 @@ namespace eosio { namespace vm {
          sigemptyset(&block_mask);
          sigaddset(&block_mask, SIGALRM);
          pthread_sigmask(SIG_BLOCK, &block_mask, &original_sigmask);
+         if constexpr (!RestoreOnException) {
+            original_uncaught_exceptions = std::uncaught_exceptions();
+         }
       }
       ~block_sigalrm() {
-         pthread_sigmask(SIG_SETMASK, &original_sigmask, nullptr);
+         if constexpr (CancelPendingOnExit) {
+            setup_signal_handler(); // If we haven't already set it up, do so now
+            sigjmp_buf dest;
+            sigjmp_buf* old_signal_handler;
+            if(sigsetjmp(dest, 1) == 0) {
+               old_signal_handler = std::atomic_exchange(&signal_dest, &dest);
+               sigset_t unblock_mask, old_sigmask;
+               sigemptyset(&unblock_mask);
+               sigaddset(&unblock_mask, SIGALRM);
+               pthread_sigmask(SIG_UNBLOCK, &unblock_mask, &old_sigmask);
+               pthread_sigmask(SIG_SETMASK, &old_sigmask, nullptr);
+            }
+            std::atomic_store(&signal_dest, old_signal_handler);
+         }
+         if (RestoreOnException || original_uncaught_exceptions == std::uncaught_exceptions())
+            pthread_sigmask(SIG_SETMASK, &original_sigmask, nullptr);
       }
    private:
+      int original_uncaught_exceptions;
       sigset_t original_sigmask;
    };
+
+   using block_sigalrm_outer = block_sigalrm<true, true>;
+   using block_sigalrm_inner = block_sigalrm<false, false>;
 
 }} // namespace eosio::vm

@@ -76,7 +76,7 @@ namespace eosio { namespace vm {
 
       template <typename Watchdog>
       inline void execute_all(Watchdog&& wd, Host* host = nullptr) {
-         block_sigalrm sig_guard;
+         block_sigalrm_outer sig_guard;
          pthread_t self = pthread_self();
          auto wd_guard = wd.scoped_run([this, self]() { pthread_kill(self, SIGALRM); });
          for (int i = 0; i < _mod.exports.size(); i++) {
