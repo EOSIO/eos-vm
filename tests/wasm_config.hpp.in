@@ -830,6 +830,8 @@ namespace eosio { namespace vm {
    static constexpr auto const_363_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/const.363.wasm";
    static constexpr auto const_364_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/const.364.wasm";
    static constexpr auto const_365_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/const.365.wasm";
+   static constexpr auto const_366_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/const.366.wasm";
+   static constexpr auto const_367_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/const.367.wasm";
    static constexpr auto conversions_0_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/conversions.0.wasm";
    static constexpr auto conversions_1_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/conversions.1.wasm";
    static constexpr auto conversions_2_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/conversions.2.wasm";
