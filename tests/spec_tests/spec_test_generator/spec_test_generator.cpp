@@ -1124,21 +1124,21 @@ const string test_includes = "#include <algorithm>\n#include <vector>\n#include 
                              "<eosio/vm/backend.hpp>\n\nusing namespace eosio;\nusing namespace eosio::vm;\n"
                              "extern wasm_allocator wa;\nusing backend_t = backend<std::nullptr_t>;\n\n";
 const string test_preamble_0 = "auto code = backend_t::read_wasm( ";
-const string test_preamble_1 = "backend_t bkend( code );\n   bkend.set_wasm_allocator( &wa );";
+const string test_preamble_1 = "backend_t bkend( code );\n   bkend.set_wasm_allocator( &wa );\n   bkend.reset();";
 
 string generate_test_call(picojson::object obj, string expected_t, string expected_v) {
    stringstream ss;
 
    if (expected_t == "i32") {
-      ss << "bkend.reset().call_with_return(nullptr, \"env\", ";
+      ss << "bkend.call_with_return(nullptr, \"env\", ";
    } else if (expected_t == "i64") {
       ss << "bkend.reset().call_with_return(nullptr, \"env\", ";
    } else if (expected_t == "f32") {
-      ss << "bit_cast<uint32_t>(bkend.reset().call_with_return(nullptr, \"env\", ";
+      ss << "bit_cast<uint32_t>(bkend.call_with_return(nullptr, \"env\", ";
    } else if (expected_t == "f64") {
-      ss << "bit_cast<uint64_t>(bkend.reset().call_with_return(nullptr, \"env\", ";
+      ss << "bit_cast<uint64_t>(bkend.call_with_return(nullptr, \"env\", ";
    } else {
-      ss << "!bkend.reset().call_with_return(nullptr, \"env\", ";
+      ss << "!bkend.call_with_return(nullptr, \"env\", ";
    }
 
    ss << "\"" << obj["field"].to_str() << "\"";
@@ -1198,6 +1198,30 @@ string generate_trap_call(picojson::object obj) {
    ss << "), std::exception";
    return ss.str();
 }
+
+string generate_call(picojson::object obj) {
+   stringstream ss;
+
+   ss << "bkend(nullptr, \"env\", ";
+   ss << "\"" << obj["field"].to_str() << "\"";
+
+   size_t i         = 0;
+   size_t args_size = obj["args"].get<picojson::array>().size();
+   for (picojson::value argv : obj["args"].get<picojson::array>()) {
+      ss << ", ";
+      picojson::object arg = argv.get<picojson::object>();
+      if (arg["type"].to_str() == "i32")
+         ss << "UINT32_C(" << arg["value"].to_str() << ")";
+      else if (arg["type"].to_str() == "i64")
+         ss << "UINT64_C(" << arg["value"].to_str() << ")";
+      else if (arg["type"].to_str() == "f32")
+         ss << "bit_cast<float>(UINT32_C(" << arg["value"].to_str() << "))";
+      else
+         ss << "bit_cast<double>(UINT64_C(" << arg["value"].to_str() << "))";
+   }
+   ss << ")";
+   return ss.str();
+}
 void generate_tests(const map<string, vector<picojson::object>>& mappings) {
    stringstream unit_tests;
    string       exp_t, exp_v;
@@ -1228,6 +1252,8 @@ void generate_tests(const map<string, vector<picojson::object>>& mappings) {
          } else if (cmd["type"].to_str() == "assert_trap") {
             unit_tests << "   CHECK_THROWS_AS(";
             unit_tests << generate_trap_call(cmd["action"].get<picojson::object>()) << ");\n";
+         } else if (cmd["type"].to_str() == "action") {
+            unit_tests << generate_call(cmd["action"].get<picojson::object>()) << ";\n";
          }
       }
       unit_tests << "}\n\n";
@@ -1236,10 +1262,23 @@ void generate_tests(const map<string, vector<picojson::object>>& mappings) {
    }
 }
 
+void usage(const char* name) {
+   std::cerr << "Usage:\n"
+             << "  " << name << " [json file created by wast2json]\n";
+   std::exit(2);
+}
+
 int main(int argc, char** argv) {
    ifstream     ifs;
    stringstream ss;
+   if(argc != 2 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
+      usage(argc?argv[0]:"spec_test_generator");
+   }
    ifs.open(argv[1]);
+   if(!ifs) {
+      std::cerr << "Cannot open file: " << argv[1] << std::endl;
+      return EXIT_FAILURE;
+   }
    string s;
    while (getline(ifs, s)) ss << s;
    ifs.close();
