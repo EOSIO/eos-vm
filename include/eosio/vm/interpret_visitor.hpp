@@ -966,7 +966,7 @@ namespace eosio { namespace vm {
          if constexpr (use_softfloat)
             oper = _eosio_f64_neg(oper);
          else
-            oper = (-1.0) * oper;
+            oper = -oper;
       }
       [[gnu::always_inline]] inline void operator()(const f64_ceil_t& op) {
 
