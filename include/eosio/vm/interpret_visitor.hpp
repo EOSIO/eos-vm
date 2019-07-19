@@ -847,7 +847,7 @@ namespace eosio { namespace vm {
          if constexpr (use_softfloat)
             oper = _eosio_f32_neg(oper);
          else
-            oper = (-1.0f) * oper;
+            oper = -oper;
       }
       [[gnu::always_inline]] inline void operator()(const f32_ceil_t& op) {
          context.inc_pc();

@@ -926,4 +926,5 @@ namespace eosio { namespace vm {
    static constexpr auto memory_24_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/memory.24.wasm";
    static constexpr auto memory_25_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/memory.25.wasm";
    static constexpr auto f32_0_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/f32.0.wasm";
+   static constexpr auto f32_bitwise_0_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/f32_bitwise.0.wasm";
 }} // ns eosio::vm
