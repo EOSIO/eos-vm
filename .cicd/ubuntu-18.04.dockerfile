@@ -18,6 +18,7 @@ RUN echo 'set(OPT_PATH @)' > $DCMAKE_TOOLCHAIN_FILE \
 && echo 'set(CMAKE_CXX_STANDARD_LIBRARIES "/usr/lib/llvm-8/lib/libc++.a /usr/lib/llvm-8/lib/libc++abi.a")' >> $DCMAKE_TOOLCHAIN_FILE
 
 CMD bash -c "cd /workdir && \
+ccache -s && \
 echo '=== Updating Submodules' && \
 git submodule update --init --recursive && \
 echo '=== BUILDING $PROJECT_NAME' && \
