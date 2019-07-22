@@ -1413,11 +1413,21 @@ namespace eosio { namespace vm {
 
       static void on_unreachable() { throw wasm_interpreter_exception{ "unreachable" }; }
 
-      static uint32_t transform_arg(bool value) { return value; }
-      static uint32_t transform_arg(uint32_t value) { return value; }
-      static uint64_t transform_arg(uint64_t value) { return value; }
-      static float    transform_arg(float value) { return value; }
-      static double   transform_arg(double value) { return value; }
+      template<typename T>
+      static native_value transform_arg(T value) {
+         // make sure that the garbage bits are always zero.
+         native_value result;
+         std::memset(&result, 0, sizeof(result));
+         auto transformed_value = transform_arg_impl(value);
+         std::memcpy(&result, &transformed_value, sizeof(transformed_value));
+         return result;
+      }
+
+      static uint32_t transform_arg_impl(bool value) { return value; }
+      static uint32_t transform_arg_impl(uint32_t value) { return value; }
+      static uint64_t transform_arg_impl(uint64_t value) { return value; }
+      static float    transform_arg_impl(float value) { return value; }
+      static double   transform_arg_impl(double value) { return value; }
 
       template<int Count>
       static native_value invoke_impl(native_value* data, fn_type fun, void* context, void* linear_memory) {
