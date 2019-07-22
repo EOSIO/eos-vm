@@ -1190,10 +1190,18 @@ namespace eosio { namespace vm {
       void emit_load_impl(uint32_t offset, T... loadop) {
          // pop %rax
          emit_bytes(0x58);
-         // add offset, %rax // FIXME: offset should not be sign-extended
-         if (offset & 0x80000000) unimplemented();
-         emit_bytes(0x48, 0x05);
-         emit_operand32(offset);
+          // FIXME: offset should not be sign-extended
+         if (offset & 0x80000000) {
+            // mov $offset, %ecx
+            emit_bytes(0xb9);
+            emit_operand32(offset);
+            // add %rcx, %rax
+            emit_bytes(0x48, 0x01, 0xc8);
+         } else if (offset != 0) {
+            // add offset, %rax
+            emit_bytes(0x48, 0x05);
+            emit_operand32(offset);
+         }
          // add %rsi, %rax
          emit_bytes(0x48, 0x01, 0xf0);
          // from the caller
@@ -1208,10 +1216,17 @@ namespace eosio { namespace vm {
          emit_bytes(0x59);
          // pop RAX
          emit_bytes(0x58);
-         // add $offset, %rax // FIXME: offset should not be sign-extended
-         if (offset & 0x80000000) unimplemented();
-         emit_bytes(0x48, 0x05);
-         emit_operand32(offset);
+         if (offset & 0x80000000) {
+            // mov $offset, %ecx
+            emit_bytes(0xb9);
+            emit_operand32(offset);
+            // add %rcx, %rax
+            emit_bytes(0x48, 0x01, 0xc8);
+         } else if (offset != 0) {
+            // add offset, %rax
+            emit_bytes(0x48, 0x05);
+            emit_operand32(offset);
+         }
          // add %rsi, %rax
          emit_bytes(0x48, 0x01, 0xf0);
          // from the caller
