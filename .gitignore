@@ -34,6 +34,10 @@
 # Editor temporary files
 *.swp
 *.swo
+.vscode/
 
 build/
 compile_commands.json
+
+# Python
+__pycache__/
