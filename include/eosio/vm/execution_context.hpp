@@ -284,12 +284,11 @@ namespace eosio { namespace vm {
             switch(sig) {
              case SIGSEGV:
              case SIGBUS:
-               throw wasm_memory_exception{ "wasm memory out-of-bounds" };
-             case SIGALRM:
-               throw timeout_exception{ "execution timed out" };
+               break;
              default:
                assert(!"??????");
             }
+            throw wasm_memory_exception{ "wasm memory out-of-bounds" };
          });
 
          std::optional<operand_stack_elem> ret;
