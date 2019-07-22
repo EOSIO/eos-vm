@@ -25,5 +25,5 @@ mkdir -p build && cd build && \
 mv /$DCMAKE_TOOLCHAIN_FILE . && \
 cmake -DCMAKE_TOOLCHAIN_FILE=$DCMAKE_TOOLCHAIN_FILE -DENABLE_TESTS=ON .. && \
 make -j$(getconf _NPROCESSORS_ONLN) && \
-ctest -j$(getconf _NPROCESSORS_ONLN) -V -T Test && \
+# ctest -j$(getconf _NPROCESSORS_ONLN) -V -T Test && \
 echo '=== COMPLETE'"

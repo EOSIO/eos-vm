@@ -1,6 +1,10 @@
 language: cpp
 git:
   depth: false
+cache:
+  ccache: true
+  directories:
+    - $HOME/Library/Caches/Homebrew
 matrix:
   include:
   - os: linux
