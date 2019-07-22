@@ -2,7 +2,7 @@ FROM ubuntu:18.04
 
 ENV DCMAKE_TOOLCHAIN_FILE clang.make
 
-RUN apt update && apt install -y git cmake clang-8 libc++-8* libc++abi-8*
+RUN apt update && apt install -y git cmake clang-8 libc++-8* libc++abi-8* ccache
 
 # Setup clang file to use in cmake
 RUN echo 'set(OPT_PATH @)' > $DCMAKE_TOOLCHAIN_FILE \
