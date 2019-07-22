@@ -269,6 +269,11 @@ namespace eosio { namespace vm {
       }
 
       template <typename Visitor, typename... Args>
+      inline std::optional<operand_stack_elem> execute_start(Host* host, Visitor&& visitor) {
+         return execute(host, std::forward<Visitor>(visitor), _mod.start);
+      }
+
+      template <typename Visitor, typename... Args>
       inline std::optional<operand_stack_elem> execute(Host* host, Visitor&& visitor, uint32_t func_index, Args... args) {
          EOS_WB_ASSERT(func_index < std::numeric_limits<uint32_t>::max(), wasm_interpreter_exception,
                        "cannot execute function, function not found");
