@@ -42,7 +42,7 @@ namespace eosio { namespace vm {
             // TODO validate only importing functions
             const auto& ft = _mod.types[_mod.imports[index].type.func_t];
             type_check(ft);
-            _rhf(_host, *this, _mod.import_functions[index]);
+            _rhf(_state.host, *this, _mod.import_functions[index]);
             inc_pc();
          } else {
             // const auto& ft = _mod.types[_mod.functions[index - _mod.get_imported_functions_size()]];
@@ -482,7 +482,6 @@ namespace eosio { namespace vm {
       char*                           _linear_memory    = nullptr;
       module&                         _mod;
       wasm_allocator*                 _wasm_alloc;
-      Host*                           _host;
       control_stack                   _cs = { _base_allocator };
       operand_stack                   _os = { _base_allocator };
       call_stack                      _as = { _base_allocator };
