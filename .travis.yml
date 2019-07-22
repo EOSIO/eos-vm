@@ -1,30 +1,13 @@
 language: cpp
 git:
-  depth: false # prevent git describe failure when executing the appbase version.cmake.in
-# cache:
-#   ccache: true
-#   directories:
-#     - $HOME/Library/Caches/Homebrew
+  depth: false
 matrix:
   include:
-    - os: linux
-      dist: xenial
-      services: docker
-# before_cache: |
-#   ./.cicd/travis-before-cache.sh
-# before_install: |
-#   ./.cicd/travis-before-install.sh
-# DOCKER
-# script:
-# # - docker build -t eosio/ci:ubuntu-18.04 -f ./.cicd/ubuntu-18.04.dockerfile .
-# - docker build -t eosio/producer:ci-ubuntu-18.04 -f ./.cicd/ubuntu-18.04.dockerfile .
-# after_success:
-# - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-# # - docker push eosio/ci:ubuntu-18.04
-# - docker push eosio/producer:ci-ubuntu-18.04
-# EOSIO
+  - os: linux
+    dist: xenial
+    services: docker
 script:
-  - "./.cicd/travis-build.sh"
-# notifications:
-#   webhooks:
-#     secure: gmqODqoFAil2cR7v++ibqRNECBOSD/VJX+2qPa7XptkVWmVMzbII5CNgBQAscjFsp9arHPMXCCzkBi847PCSiHdsnYFQ4T273FLRWr3cDbLjfmR+BJ7dGKvQnlpSi2Ze2TtAPJyRl+iv+cxDj7cWE5zw2c4xbgh1a/cNO+/ayUfFkyMEIfVWRsHkdkra4gOLywou0XRLHr4CX1V60uU7uuqATnIMMi7gQYwiKKtZqjkbf8wcBvZirDhjQ6lDPN5tnZo6L4QHmqjtzNJg/UrD4h+zES53dLVI4uxlXRAwwpw+mJOFA3QE/3FT+bMQjLCffUz4gZaWcdgebPYzrwSWUbJoFdWAOwcTqivQY0FIQzcz/r6uGWcwWTavzkPEbg68BVM2BZId/0110J6feeTkpJ3MPV+UsIoGTvbg50vi/I06icftuZ/cLqDj3+Emifm7Jlr1sRTSdqtYAJj/2ImUfsb46cwgjAVhFOTvc+KuPgJQgvOXV7bZkxEr5qDWo8Al2sV8BWb83j1rMlZ4LfERokImDVqxu2kkcunchzvhtYFTesSpmwegVpwceCtOtO0rEUgATnfTEHzk2rm8nuz4UtidsQnluUKqmKD0QCqHXFfn+3ZRJsDqr+iCYdxv1BAeAVc9q1L7bgrKDMGiJgkxuhZ2v3J2SflWLvjZjFDduuc=
+- "./.cicd/travis-build.sh"
+notifications:
+  webhooks:
+    secure: n0VHgAzeIqcnitJBX+UMdrnbUZQ3Nh/CvVj2I4E5FhjoolzM0pRmnPQ4h6BQ/QwTdGPh1AbitDDDGRCSGtZH2erp9OFv+gePZyaRN/+h0Q3Ak8hwfqr7UoEUcJuPFA6S42TduCs6Kn+1XnL5g2OZYAmlS9+H7MvjUqFloa0YL/F8RJ4rvXVtMsHbC6bKXSBwVROU8G4rq8zNnNShL91i5xakhywfLkhgmRM/xuL4I+7+5LXJwOvnQMQnyL55NdREmvvwJqjHNBPvjTe1Rm2xQpC5+gxW2ZaqtjuulwY/IJgWWhUlJhrZTiBpf6v3camqdFxAjA+7fGDiZNXGe4xgZuEojj++2oM6orGhGc58Pr015lxGgcLF7d7+sqINCEnTVtleSC7czsnkcpONVOyi9BW2Gyxjaf2EN09/XH3QzH093WkOeEhREwMUo7Xa2ugu/svnqp890FTgGftUY0dJkOP8v3y+sU9DQ9/CwcsRIzFBfoZFOL0OySM9+nH4Ervkf5z8n1ikGHjE6xv63P1nV7SmrTjnIGgJ60xYFtPgV0ELBmy4cbVF86Jcr8KrTPhna3wgXX80g8UOgZlVIUOErvhJWxThW6wz2PO07QU5Y+caz0zrL2c7AuXXn5BQjtMPBSIomOybgFyrP0Yf6qKBXTV4Y3qEpiYa/PkZvxUsT6U=
