@@ -80,8 +80,8 @@ namespace eosio { namespace vm {
          emit_bytes(0x58);
          // test EAX, EAX
          emit_bytes(0x85, 0xC0);
-         // jnz DEST
-         emit_bytes(0x0F, 0x85);
+         // jz DEST
+         emit_bytes(0x0F, 0x84);
          return emit_branch_target32();
       }
       void* emit_else(void* if_loc) {
@@ -99,14 +99,26 @@ namespace eosio { namespace vm {
       void* emit_br_if(uint32_t depth_change) {
          // pop RAX
          emit_bytes(0x58);
-         // add RSP, depth_change*8
-         if(depth_change != 0) unimplemented();
-         emit_multipop(depth_change); // doesn't work
          // test EAX, EAX
          emit_bytes(0x85, 0xC0);
-         // jnz DEST
-         emit_bytes(0x0F, 0x85);
-         return emit_branch_target32();
+
+         if(depth_change == 0u || depth_change == 0x80000001u) {
+            // jnz DEST
+            emit_bytes(0x0F, 0x85);
+            return emit_branch_target32();
+         } else {
+            // jz SKIP
+            emit_bytes(0x0f, 0x84);
+            void* skip = emit_branch_target32();
+            // add depth_change*8, %rsp
+            emit_multipop(depth_change);
+            // jmp DEST
+            emit_bytes(0xe9);
+            void* result = emit_branch_target32();
+            // SKIP:
+            fix_branch(skip, code);
+            return result;
+         }
       }
 
       // FIXME This just does a linear search.
@@ -1177,12 +1189,21 @@ namespace eosio { namespace vm {
 
       static void unimplemented() { EOS_WB_ASSERT(false, wasm_parse_exception, "Sorry, not implemented."); }
 
+      // clobbers %rax if the high bit of count is set.
       void emit_multipop(uint32_t count) {
          if(count > 0 && count != 0x80000001) {
+            if (count & 0x80000000) {
+               // mov (%rsp), %rax
+               emit_bytes(0x48, 0x8b, 0x04, 0x24);
+            }
             // add depth_change*8, %rsp
-            if(count & 0xF0000000) unimplemented();
+            if(count & 0x70000000) unimplemented();
             emit_bytes(0x48, 0x81, 0xc4); // TODO: Prefer imm8 where appropriate
             emit_operand32(count * 8); // FIXME: handle overflow
+            if (count & 0x80000000) {
+               // push %rax
+               emit_bytes(0x50);
+            }
          }
       }
 
