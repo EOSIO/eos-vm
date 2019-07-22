@@ -113,8 +113,6 @@ namespace eosio { namespace vm {
             }
 
             if (_as.size() < 1) {
-               //_state.exiting_loc = {0, 0}; //_state.code_index, _state.pc - _state.current_offset};
-               std::cout << "exiting location " << _state.exiting_loc.first << ", " << _state.exiting_loc.second << '\n';
                set_exiting_op(_state.exiting_loc);
                _state.pc = 0;
                _state.current_offset = 0;
@@ -239,6 +237,12 @@ namespace eosio { namespace vm {
             // TODO validate only use memory idx 0 in parse
             auto addr = _linear_memory + data_seg.offset.value.i32;
             memcpy((char*)(addr), data_seg.data.raw(), data_seg.data.size());
+         }
+
+         // reset the mutable globals
+         for (int i = 0; i < _mod.globals.size(); i++) {
+            if (_mod.globals[i].type.mutability)
+               _mod.globals[i].current = _mod.globals[i].init;
          }
          _state = execution_state{};
       }
