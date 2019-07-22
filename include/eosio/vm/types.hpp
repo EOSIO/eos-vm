@@ -12,6 +12,7 @@
 #include <eosio/vm/vector.hpp>
 
 #include <cstring>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -130,7 +131,7 @@ namespace eosio { namespace vm {
 
    struct module {
       growable_allocator              allocator = { constants::initial_module_size };
-      uint32_t                        start     = 0;
+      uint32_t                        start     = std::numeric_limits<uint32_t>::max();
       guarded_vector<func_type>       types     = { allocator, 0 };
       guarded_vector<import_entry>    imports   = { allocator, 0 };
       guarded_vector<uint32_t>        functions = { allocator, 0 };

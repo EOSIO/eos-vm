@@ -269,8 +269,9 @@ namespace eosio { namespace vm {
       }
 
       template <typename Visitor, typename... Args>
-      inline std::optional<operand_stack_elem> execute_start(Host* host, Visitor&& visitor) {
-         return execute(host, std::forward<Visitor>(visitor), _mod.start);
+      inline void execute_start(Host* host, Visitor&& visitor) {
+         if (_mod.start != std::numeric_limits<uint32_t>::max())
+            execute(host, std::forward<Visitor>(visitor), _mod.start);
       }
 
       template <typename Visitor, typename... Args>

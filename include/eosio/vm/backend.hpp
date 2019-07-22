@@ -28,7 +28,7 @@ namespace eosio { namespace vm {
          return call(host, mod, func, args...);
       }
 
-      inline backend& initialize(Host* host) { 
+      inline backend& initialize(Host* host=nullptr) { 
          _walloc->reset(); 
 	      _ctx.reset();
          _ctx.execute_start(host, interpret_visitor(_ctx));

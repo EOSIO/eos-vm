@@ -33,7 +33,6 @@ TEST_CASE( "Testing wasm <elem_11_wasm>", "[elem_11_wasm_tests]" ) {
    auto code = backend_t::read_wasm( elem_11_wasm );
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
-
 }
 */
 
@@ -41,7 +40,6 @@ TEST_CASE( "Testing wasm <elem_12_wasm>", "[elem_12_wasm_tests]" ) {
    auto code = backend_t::read_wasm( elem_12_wasm );
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
-
 }
 
 /* Only allowing imports of functions currently
@@ -49,49 +47,42 @@ TEST_CASE( "Testing wasm <elem_13_wasm>", "[elem_13_wasm_tests]" ) {
    auto code = backend_t::read_wasm( elem_13_wasm );
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
-
 }
 
 TEST_CASE( "Testing wasm <elem_14_wasm>", "[elem_14_wasm_tests]" ) {
    auto code = backend_t::read_wasm( elem_14_wasm );
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
-
 }
 
 TEST_CASE( "Testing wasm <elem_15_wasm>", "[elem_15_wasm_tests]" ) {
    auto code = backend_t::read_wasm( elem_15_wasm );
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
-
 }
 
 TEST_CASE( "Testing wasm <elem_16_wasm>", "[elem_16_wasm_tests]" ) {
    auto code = backend_t::read_wasm( elem_16_wasm );
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
-
 }
 
 TEST_CASE( "Testing wasm <elem_17_wasm>", "[elem_17_wasm_tests]" ) {
    auto code = backend_t::read_wasm( elem_17_wasm );
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
-
 }
 
 TEST_CASE( "Testing wasm <elem_1_wasm>", "[elem_1_wasm_tests]" ) {
    auto code = backend_t::read_wasm( elem_1_wasm );
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
-
 }
 
 TEST_CASE( "Testing wasm <elem_2_wasm>", "[elem_2_wasm_tests]" ) {
    auto code = backend_t::read_wasm( elem_2_wasm );
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
-
 }
 */
 
@@ -196,6 +187,5 @@ TEST_CASE( "Testing wasm <elem_9_wasm>", "[elem_9_wasm_tests]" ) {
    auto code = backend_t::read_wasm( elem_9_wasm );
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
-
 }
 */
