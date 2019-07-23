@@ -49,6 +49,14 @@ namespace eosio { namespace vm {
       value_type                 return_type;
    };
 
+   inline bool operator==(const func_type& lhs, const func_type& rhs) {
+      return lhs.form == rhs.form &&
+        lhs.param_types.size() == rhs.param_types.size() &&
+        std::equal(lhs.param_types.raw(), lhs.param_types.raw() + lhs.param_types.size(), rhs.param_types.raw()) &&
+        lhs.return_count == rhs.return_count &&
+        (lhs.return_count || lhs.return_type == rhs.return_type);
+   }
+
    union expr_value {
       int32_t  i32;
       int64_t  i64;
@@ -159,6 +167,8 @@ namespace eosio { namespace vm {
       // not part of the spec for WASM
       guarded_vector<uint32_t> import_functions = { allocator, 0 };
       guarded_vector<uint32_t> function_sizes   = { allocator, 0 };
+      guarded_vector<uint32_t> type_aliases     = { allocator, 0 };
+      guarded_vector<uint32_t> fast_functions   = { allocator, 0 };
 
       uint32_t get_imported_functions_size() const {
          uint32_t number_of_imports = 0;
@@ -188,6 +198,24 @@ namespace eosio { namespace vm {
             }
          }
          return index;
+      }
+
+      void normalize_types() {
+         type_aliases.resize(types.size());
+         for (uint32_t i = 0; i < types.size(); ++i) {
+            uint32_t j = 0;
+            for (; j < i; ++j) {
+               if (types[j] == types[i]) {
+                  break;
+               }
+            }
+            type_aliases[i] = j;
+         }
+
+         fast_functions.resize(functions.size());
+         for (uint32_t i = 0; i < functions.size(); ++i) {
+            fast_functions[i] = type_aliases[functions[i]];
+         }
       }
    };
 

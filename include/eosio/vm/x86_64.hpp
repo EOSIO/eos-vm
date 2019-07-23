@@ -200,8 +200,9 @@ namespace eosio { namespace vm {
 
       void emit_call_indirect(const func_type& ft, uint32_t functypeidx) {
          auto& table = _mod.tables[0].table;
-         void * functions = &_mod.functions[0];
+         void * functions = &_mod.fast_functions[0];
          void * code_with_offset = &_mod.code[0].jit_code;
+         functypeidx = _mod.type_aliases[functypeidx];
          // FIXME: handle imported functions.
          // pop %rax
          emit_bytes(0x58);

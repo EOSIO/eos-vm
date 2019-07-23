@@ -64,6 +64,7 @@ namespace eosio { namespace vm {
                case section_id::import_section: parse_section<section_id::import_section>(code_ptr, mod.imports); break;
                case section_id::function_section:
                   parse_section<section_id::function_section>(code_ptr, mod.functions);
+                  mod.normalize_types();
                   break;
                case section_id::table_section: parse_section<section_id::table_section>(code_ptr, mod.tables); break;
                case section_id::memory_section:
