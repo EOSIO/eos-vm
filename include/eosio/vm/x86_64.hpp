@@ -20,6 +20,7 @@ namespace eosio { namespace vm {
    //
    // - FIXME: Factor the machine instructions into a separate assembler class.
    // - FIXME: The top level entry point needs to set the floating point state
+   template<typename Context>
    class machine_code_writer {
     public:
       static jit_allocator& choose_alloc(growable_allocator&, jit_allocator& alloc) { return alloc; }
@@ -490,8 +491,44 @@ namespace eosio { namespace vm {
          emit_store_impl(offset, 0x89, 0x08);
       }
 
-      void emit_current_memory() { unimplemented(); }
-      void emit_grow_memory() { unimplemented(); }
+      void emit_current_memory() {
+         // pushq %rdi
+         emit_bytes(0x57);
+         // pushq %rsi
+         emit_bytes(0x56);
+         // movabsq $current_memory, %rax
+         emit_bytes(0x48, 0xb8);
+         emit_operand_ptr(&current_memory);
+         // call *%rax
+         emit_bytes(0xff, 0xd0);
+         // pop %rsi
+         emit_bytes(0x5e);
+         // pop %rdi
+         emit_bytes(0x5f);
+         // push %rax
+         emit_bytes(0x50);
+      }
+      void emit_grow_memory() {
+         // popq %rax
+         emit_bytes(0x58);
+         // pushq %rdi
+         emit_bytes(0x57);
+         // pushq %rsi
+         emit_bytes(0x56);
+         // movq %rax, %rsi
+         emit_bytes(0x48, 0x89, 0xc6);
+         // movabsq $grow_memory, %rax
+         emit_bytes(0x48, 0xb8);
+         emit_operand_ptr(&grow_memory);
+         // call *%rax
+         emit_bytes(0xff, 0xd0);
+         // pop %rsi
+         emit_bytes(0x5e);
+         // pop %rdi
+         emit_bytes(0x5f);
+         // push %rax
+         emit_bytes(0x50);
+      }
 
       void emit_i32_const(uint32_t value) {
          // mov $value, %eax
@@ -1196,8 +1233,12 @@ namespace eosio { namespace vm {
                // mov (%rsp), %rax
                emit_bytes(0x48, 0x8b, 0x04, 0x24);
             }
+            if(count & 0x70000000) {
+               // This code is probably unreachable.
+               // int3
+               emit_bytes(0xCC);
+            }
             // add depth_change*8, %rsp
-            if(count & 0x70000000) unimplemented();
             emit_bytes(0x48, 0x81, 0xc4); // TODO: Prefer imm8 where appropriate
             emit_operand32(count * 8); // FIXME: handle overflow
             if (count & 0x80000000) {
@@ -1426,10 +1467,18 @@ namespace eosio { namespace vm {
       bool is_host_function(uint32_t funcnum) { return false; }
       void call_host_function(const func_type& ft, uint32_t funcnum) {}
 
-      template<auto F, typename Context>
-      static uint64_t host_function_wrapper(void* stack /*rsi*/, Context* context /*rdi*/) {
+      template<auto F>
+      static uint64_t host_function_wrapper(Context* context /*rdi*/, void* stack /*rsi*/) {
          // unpack args
          // call
+      }
+
+      static uint32_t current_memory(Context* context /*rdi*/) {
+         return context->current_linear_memory();
+      }
+
+      static uint32_t grow_memory(Context* context /*rdi*/, uint32_t pages) {
+         return context->grow_linear_memory(pages);
       }
 
       static void on_unreachable() { throw wasm_interpreter_exception{ "unreachable" }; }

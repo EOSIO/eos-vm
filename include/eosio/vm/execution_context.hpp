@@ -283,7 +283,7 @@ namespace eosio { namespace vm {
             native_value result;
 
             vm::invoke_with_signal_handler([&]() {
-               result = machine_code_writer::invoke(fn, this, _linear_memory, args...);
+               result = machine_code_writer<execution_context>::invoke(fn, this, _linear_memory, args...);
             }, &handle_signal);
 
             // revert the state back to original calling context
