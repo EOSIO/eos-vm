@@ -786,7 +786,32 @@ namespace eosio { namespace vm {
       // cdq; idiv %ecx; pushq %rax
       void emit_i32_div_s() { emit_i32_binop(0x99, 0xf7, 0xf9, 0x50); }
       void emit_i32_div_u() { emit_i32_binop(0x31, 0xd2, 0xf7, 0xf1, 0x50); }
-      void emit_i32_rem_s() { emit_i32_binop(0x99, 0xf7, 0xf9, 0x52); }
+      void emit_i32_rem_s() {
+         // pop %rcx
+         emit_bytes(0x59);
+         // pop %rax
+         emit_bytes(0x58);
+         // cmp $-1, %edx
+         emit_bytes(0x83, 0xf9, 0xff);
+         // je MINUS1
+         emit_bytes(0x0f, 0x84);
+         void* minus1 = emit_branch_target32();
+         // cdq
+         emit_bytes(0x99);
+         // idiv %ecx
+         emit_bytes(0xf7, 0xf9);
+         // jmp END
+         emit_bytes(0xe9);
+         void* end = emit_branch_target32();
+         // MINUS1:
+         fix_branch(minus1, code);
+         // xor %edx, %edx
+         emit_bytes(0x31, 0xd2);
+         // END:
+         fix_branch(end, code);
+         // push %rdx
+         emit_bytes(0x52);
+      }
       void emit_i32_rem_u() { emit_i32_binop(0x31, 0xd2, 0xf7, 0xf1, 0x52); }
       void emit_i32_and() { emit_i32_binop(0x21, 0xc8, 0x50); }
       void emit_i32_or() { emit_i32_binop(0x09, 0xc8, 0x50); }
@@ -835,7 +860,32 @@ namespace eosio { namespace vm {
       // cdq; idiv %rcx; pushq %rax
       void emit_i64_div_s() { emit_i64_binop(0x48, 0x99, 0x48, 0xf7, 0xf9, 0x50); }
       void emit_i64_div_u() { emit_i64_binop(0x48, 0x31, 0xd2, 0x48, 0xf7, 0xf1, 0x50); }
-      void emit_i64_rem_s() { emit_i64_binop(0x48, 0x99, 0x48, 0xf7, 0xf9, 0x52); }
+      void emit_i64_rem_s() {
+         // pop %rcx
+         emit_bytes(0x59);
+         // pop %rax
+         emit_bytes(0x58);
+         // cmp $-1, %rcx
+         emit_bytes(0x48, 0x83, 0xf9, 0xff);
+         // je MINUS1
+         emit_bytes(0x0f, 0x84);
+         void* minus1 = emit_branch_target32();
+         // cqo
+         emit_bytes(0x48, 0x99);
+         // idiv %rcx
+         emit_bytes(0x48, 0xf7, 0xf9);
+         // jmp END
+         emit_bytes(0xe9);
+         void* end = emit_branch_target32();
+         // MINUS1:
+         fix_branch(minus1, code);
+         // xor %edx, %edx
+         emit_bytes(0x31, 0xd2);
+         // END:
+         fix_branch(end, code);
+         // push %rdx
+         emit_bytes(0x52);
+      }
       void emit_i64_rem_u() { emit_i64_binop(0x48, 0x31, 0xd2, 0x48, 0xf7, 0xf1, 0x52); }
       void emit_i64_and() { emit_i64_binop(0x48, 0x21, 0xc8, 0x50); }
       void emit_i64_or() { emit_i64_binop(0x48, 0x09, 0xc8, 0x50); }
