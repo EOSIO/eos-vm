@@ -849,52 +849,47 @@ namespace eosio { namespace vm {
       void emit_f32_abs() {
          // popq %rax; 
          emit_bytes(0x58);
-         // movl 0x7fffffff, %ecx
-         emit_bytes(0x8b, 0x0c, 0x25);
+         // andl 0x7fffffff, %eax
+         emit_bytes(0x25);
          emit_operand32(0x7fffffff);
-         // andl %ecx, %eax
-         emit_bytes(0x21, 0xc8);
          // pushq %rax
          emit_bytes(0x50);
       }
 
       void emit_f32_neg() {
-         // FIXME: use btc
-         // popq %rax; 
+         // popq %rax
          emit_bytes(0x58);
-         // movl 0x80000000, %ecx
-         emit_bytes(0x8b, 0x0c, 0x25);
+         // xorl 0x80000000, %eax
+         emit_bytes(0x35);
          emit_operand32(0x80000000);
-         // xorl %ecx, %eax
-         emit_bytes(0x31, 0xc8);
          // pushq %rax
          emit_bytes(0x50);
       }
 
       void emit_f32_ceil() {
          // roundss 0b1010, (%rsp), %xmm0
-         emit_bytes(0x66, 0x0f, 0x3a, 0x0a, 0x01, 0x24, 0x0a);
+         emit_bytes(0x66, 0x0f, 0x3a, 0x0a, 0x04, 0x24, 0x0a);
          // movss %xmm0, (%rsp)
          emit_bytes(0xf3, 0x0f, 0x11, 0x04, 0x24);
       }
 
       void emit_f32_floor() {
          // roundss 0b1001, (%rsp), %xmm0
-         emit_bytes(0x66, 0x0f, 0x3a, 0x0a, 0x01, 0x24, 0x09);
+         emit_bytes(0x66, 0x0f, 0x3a, 0x0a, 0x04, 0x24, 0x09);
          // movss %xmm0, (%rsp)
          emit_bytes(0xf3, 0x0f, 0x11, 0x04, 0x24);
       }
 
       void emit_f32_trunc() {
          // roundss 0b1011, (%rsp), %xmm0
-         emit_bytes(0x66, 0x0f, 0x3a, 0x0a, 0x01, 0x24, 0x0b);
+         emit_bytes(0x66, 0x0f, 0x3a, 0x0a, 0x04, 0x24, 0x0b);
          // movss %xmm0, (%rsp)
          emit_bytes(0xf3, 0x0f, 0x11, 0x04, 0x24);
       }
 
       void emit_f32_nearest() {
          // roundss 0b1000, (%rsp), %xmm0
-         emit_bytes(0x66, 0x0f, 0x3a, 0x0a, 0x01, 0x24, 0x08);
+         emit_bytes(0x66, 0x0f, 0x3a, 0x0a, 0x04, 0x24, 0x08);
          // movss %xmm0, (%rsp)
          emit_bytes(0xf3, 0x0f, 0x11, 0x04, 0x24);
       }
@@ -918,17 +913,14 @@ namespace eosio { namespace vm {
       void emit_f32_copysign() {
          // popq %rax; 
          emit_bytes(0x58);
-         // movl 0x80000000, %ecx
-         emit_bytes(0x8b, 0x0c, 0x25);
+         // andl 0x80000000, %eax
+         emit_bytes(0x25);
          emit_operand32(0x80000000);
-         // andl %ecx, %eax
-         emit_bytes(0x21, 0xc8);
-         // popq %rdx
-         emit_bytes(0x5a);
-         // notl %ecx
-         emit_bytes(0xf7, 0xd1);
-         // andl %edx, %ecx
-         emit_bytes(0x21, 0xd1);
+         // popq %rcx
+         emit_bytes(0x59);
+         // andl 0x7fffffff, %ecx
+         emit_bytes(0x81, 0xe1);
+         emit_operand32(0x7fffffff);
          // orl %ecx, %eax
          emit_bytes(0x09, 0xc8);
          // pushq %rax
@@ -940,7 +932,7 @@ namespace eosio { namespace vm {
       void emit_f64_abs() {
          // popq %rcx; 
          emit_bytes(0x59);
-         // movabsq 0x7fffffffffffffff, %rax
+         // movabsq $0x7fffffffffffffff, %rax
          emit_bytes(0x48, 0xb8);
          emit_operand64(0x7fffffffffffffffull);
          // andq %rcx, %rax
@@ -950,10 +942,9 @@ namespace eosio { namespace vm {
       }
 
       void emit_f64_neg() {
-         // FIXME: use btc
          // popq %rcx; 
          emit_bytes(0x59);
-         // movabsq 0x8000000000000000, %rax
+         // movabsq $0x8000000000000000, %rax
          emit_bytes(0x48, 0xb8);
          emit_operand64(0x8000000000000000ull);
          // xorq %rcx, %rax
@@ -1049,8 +1040,8 @@ namespace eosio { namespace vm {
          emit_f2i(0xf3, 0x48, 0x0f, 0x2c, 0x44, 0x24, 0x08);
          // mov %eax, (%rsp)
          emit_bytes(0x89, 0x04 ,0x24);
-         // shl $32, %rax
-         emit_bytes(0x48, 0xc1, 0xe0, 0x20);
+         // shr $32, %rax
+         emit_bytes(0x48, 0xc1, 0xe8, 0x20);
          // test %eax, %eax
          emit_bytes(0x85, 0xc0);
          // jnz FP_ERROR_HANDLER
@@ -1061,17 +1052,17 @@ namespace eosio { namespace vm {
       void emit_i32_trunc_s_f64() {
          // cvttsd2si 8(%rsp), %eax
          emit_f2i(0xf2, 0x0f, 0x2c, 0x44, 0x24, 0x08);
-         // mov %eax, (%rsp)
-         emit_bytes(0x89, 0x04 ,0x24);
+         // movq %rax, (%rsp)
+         emit_bytes(0x48, 0x89, 0x04 ,0x24);
       }
 
       void emit_i32_trunc_u_f64() {
-         // cvttss2si 8(%rsp), %rax
-         emit_f2i(0xf3, 0x48, 0x0f, 0x2c, 0x44, 0x24, 0x08);
-         // mov %eax, (%rsp)
-         emit_bytes(0x89, 0x04 ,0x24);
-         // shl $32, %rax
-         emit_bytes(0x48, 0xc1, 0xe0, 0x20);
+         // cvttsd2si 8(%rsp), %rax
+         emit_f2i(0xf2, 0x48, 0x0f, 0x2c, 0x44, 0x24, 0x08);
+         // movq %rax, (%rsp)
+         emit_bytes(0x48, 0x89, 0x04 ,0x24);
+         // shr $32, %rax
+         emit_bytes(0x48, 0xc1, 0xe8, 0x20);
          // test %eax, %eax
          emit_bytes(0x85, 0xc0);
          // jnz FP_ERROR_HANDLER
@@ -1096,13 +1087,43 @@ namespace eosio { namespace vm {
          emit_bytes(0x48, 0x89, 0x04 ,0x24);
       }
       void emit_i64_trunc_u_f32() {
-        // movss -2**63, %xmm0
-        // addss (%rsp), %xmm0
-        // cvtss2si (%rsp), %rax
-        // btc $63, %rax
-        // 
-        // FIXME:
-        unimplemented();
+         // mov $0x5f000000, %eax
+         emit_bytes(0xb8);
+         emit_operand32(0x5f000000);
+         // movss (%rsp), %xmm0
+         emit_bytes(0xf3, 0x0f, 0x10, 0x04, 0x24);
+         // mov %eax, (%rsp)
+         emit_bytes(0x89, 0x04, 0x24);
+         // movss (%rsp), %xmm1
+         emit_bytes(0xf3, 0x0f, 0x10, 0x0c, 0x24);
+         // movaps %xmm0, %xmm2
+         emit_bytes(0x0f, 0x28, 0xd0);
+         // subss %xmm1, %xmm2
+         emit_bytes(0xf3, 0x0f, 0x5c, 0xd1);
+         // cvttss2siq %xmm2, %rax
+         emit_f2i(0xf3, 0x48, 0x0f, 0x2c, 0xc2);
+         // movabsq $0x8000000000000000, %rcx
+         emit_bytes(0x48, 0xb9);
+         emit_operand64(0x8000000000000000);
+         // xorq %rax, %rcx
+         emit_bytes(0x48, 0x31, 0xc1);
+         // cvttss2siq %xmm0, %rax // FIXME: check for < 0 here
+         emit_bytes(0xf3, 0x48, 0x0f, 0x2c, 0xc0);
+         // xor %rdx, %rdx
+         emit_bytes(0x48, 0x31, 0xd2);
+         // ucomiss %xmm0, %xmm1
+         emit_bytes(0x0f, 0x2e, 0xc8);
+         // cmovaq %rax, %rdx
+         emit_bytes(0x48, 0x0f, 0x47, 0xd0);
+         // cmovbeq %rcx, %rax
+         emit_bytes(0x48, 0x0f, 0x46, 0xc1);
+         // mov %rax, (%rsp)
+         emit_bytes(0x48, 0x89, 0x04, 0x24);
+         // bt $63, %rdx
+         emit_bytes(0x48, 0x0f, 0xba, 0xe2, 0x3f);
+         // jc FP_ERROR_HANDLER
+         emit_bytes(0x0f, 0x82);
+         void * target = emit_branch_target32();
       }
       void emit_i64_trunc_s_f64() {
          // cvttsd2si (%rsp), %rax
@@ -1110,7 +1131,45 @@ namespace eosio { namespace vm {
          // mov %rax, (%rsp)
          emit_bytes(0x48, 0x89, 0x04 ,0x24);
       }
-      void emit_i64_trunc_u_f64() { unimplemented(); }
+      void emit_i64_trunc_u_f64() {
+         // movabsq $0x43e0000000000000, %rax
+         emit_bytes(0x48, 0xb8);
+         emit_operand64(0x43e0000000000000);
+         // movsd (%rsp), %xmm0
+         emit_bytes(0xf2, 0x0f, 0x10, 0x04, 0x24);
+         // movq %rax, (%rsp)
+         emit_bytes(0x48, 0x89, 0x04, 0x24);
+         // movsd (%rsp), %xmm1
+         emit_bytes(0xf2, 0x0f, 0x10, 0x0c, 0x24);
+         // movapd %xmm0, %xmm2
+         emit_bytes(0x66, 0x0f, 0x28, 0xd0);
+         // subsd %xmm1, %xmm2
+         emit_bytes(0xf2, 0x0f, 0x5c, 0xd1);
+         // cvttsd2siq %xmm2, %rax
+         emit_f2i(0xf2, 0x48, 0x0f, 0x2c, 0xc2);
+         // movabsq $0x8000000000000000, %rcx
+         emit_bytes(0x48, 0xb9);
+         emit_operand64(0x8000000000000000);
+         // xorq %rax, %rcx
+         emit_bytes(0x48, 0x31, 0xc1);
+         // cvttsd2siq %xmm0, %rax
+         emit_bytes(0xf2, 0x48, 0x0f, 0x2c, 0xc0);
+         // xor %rdx, %rdx
+         emit_bytes(0x48, 0x31, 0xd2);
+         // ucomisd %xmm0, %xmm1
+         emit_bytes(0x66, 0x0f, 0x2e, 0xc8);
+         // cmovaq %rax, %rdx
+         emit_bytes(0x48, 0x0f, 0x47, 0xd0);
+         // cmovbeq %rcx, %rax
+         emit_bytes(0x48, 0x0f, 0x46, 0xc1);
+         // mov %rax, (%rsp)
+         emit_bytes(0x48, 0x89, 0x04, 0x24);
+         // bt $63, %rdx
+         emit_bytes(0x48, 0x0f, 0xba, 0xe2, 0x3f);
+         // jc FP_ERROR_HANDLER
+         emit_bytes(0x0f, 0x82);
+         void * target = emit_branch_target32();
+      }
 
       void emit_f32_convert_s_i32() {
          // cvtsi2ssl (%rsp), %xmm0
@@ -1131,7 +1190,42 @@ namespace eosio { namespace vm {
          // movss %xmm0, (%rsp)
          emit_bytes(0xf3, 0x0f, 0x11, 0x04, 0x24);
       }
-      void emit_f32_convert_u_i64() { unimplemented(); }
+      void emit_f32_convert_u_i64() {
+        // movq (%rsp), %rax
+        emit_bytes(0x48, 0x8b, 0x04, 0x24);
+        // testq %rax, %rax
+        emit_bytes(0x48, 0x85, 0xc0);
+        // js LARGE
+        emit_bytes(0x0f, 0x88);
+        void * large = emit_branch_target32();
+        // cvtsi2ssq %rax, %xmm0
+        emit_bytes(0xf3, 0x48, 0x0f, 0x2a, 0xc0);
+        // jmp done
+        emit_bytes(0xe9);
+        void* done = emit_branch_target32();
+        // LARGE:
+        fix_branch(large, code);
+        // movq %rax, %rcx
+        emit_bytes(0x48, 0x89, 0xc1);
+        // shrq %rax
+        emit_bytes(0x48, 0xd1, 0xe8);
+        // andl $1, %ecx
+        emit_bytes(0x83, 0xe1, 0x01);
+        // orq %rcx, %rax
+        emit_bytes(0x48, 0x09, 0xc8);
+        // cvtsi2ssq %rax, %xmm0
+        emit_bytes(0xf3, 0x48, 0x0f, 0x2a, 0xc0);
+        // addss %xmm0, %xmm0
+        emit_bytes(0xf3, 0x0f, 0x58, 0xc0);
+        // DONE:
+        fix_branch(done, code);
+        // xorl %eax, %eax
+        emit_bytes(0x31, 0xc0);
+        // movl %eax, 4(%rsp)
+        emit_bytes(0x89, 0x44, 0x24, 0x04);
+        // movss %xmm0, (%rsp)
+        emit_bytes(0xf3, 0x0f, 0x11, 0x04, 0x24);
+      }
       void emit_f32_demote_f64() {
          // cvtsd2ss (%rsp), %xmm0
          emit_bytes(0xf2, 0x0f, 0x5a, 0x04, 0x24);
@@ -1156,7 +1250,38 @@ namespace eosio { namespace vm {
          // movsd %xmm0, (%rsp)
          emit_bytes(0xf2, 0x0f, 0x11, 0x04, 0x24);
       }
-      void emit_f64_convert_u_i64() { unimplemented(); }
+      void emit_f64_convert_u_i64() {
+        // movq (%rsp), %rax
+        emit_bytes(0x48, 0x8b, 0x04, 0x24);
+        // testq %rax, %rax
+        emit_bytes(0x48, 0x85, 0xc0);
+        // js LARGE
+        emit_bytes(0x0f, 0x88);
+        void * large = emit_branch_target32();
+        // cvtsi2sdq %rax, %xmm0
+        emit_bytes(0xf2, 0x48, 0x0f, 0x2a, 0xc0);
+        // jmp done
+        emit_bytes(0xe9);
+        void* done = emit_branch_target32();
+        // LARGE:
+        fix_branch(large, code);
+        // movq %rax, %rcx
+        emit_bytes(0x48, 0x89, 0xc1);
+        // shrq %rax
+        emit_bytes(0x48, 0xd1, 0xe8);
+        // andl $1, %ecx
+        emit_bytes(0x83, 0xe1, 0x01);
+        // orq %rcx, %rax
+        emit_bytes(0x48, 0x09, 0xc8);
+        // cvtsi2sdq %rax, %xmm0
+        emit_bytes(0xf2, 0x48, 0x0f, 0x2a, 0xc0);
+        // addsd %xmm0, %xmm0
+        emit_bytes(0xf2, 0x0f, 0x58, 0xc0);
+        // DONE:
+        fix_branch(done, code);
+        // movsd %xmm0, (%rsp)
+        emit_bytes(0xf2, 0x0f, 0x11, 0x04, 0x24);
+      }
       void emit_f64_promote_f32() {
          // cvtss2sd (%rsp), %xmm0
          emit_bytes(0xf3, 0x0f, 0x5a, 0x04, 0x24);
