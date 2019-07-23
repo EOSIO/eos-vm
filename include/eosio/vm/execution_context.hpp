@@ -95,7 +95,6 @@ namespace eosio { namespace vm {
       }
 
       inline void apply_pop_call() {
-         std::cout << "Apply pop call " << _as.size() << "\n";
          const auto& af = _as.pop();
          const uint8_t    ret_type = af.ret_type;
          const uint16_t   op_index = af.op_index;
@@ -108,14 +107,13 @@ namespace eosio { namespace vm {
                                    el.is_a<f64_const_t>() && ret_type == types::f64,
                              wasm_interpreter_exception, "wrong return type");
          }
-         if (_as.size() > 2) {
+         if (_as.size() > 0) {
             _state.current_offset     = af.offset;
             _state.pc                 = af.pc;
             _state.code_index         = af.index;
             _last_op_index = _as.peek().op_index;
 
          } else {
-            std::cout << "Exiting loc " << _state.exiting_loc.first << " : " << _state.exiting_loc.second << "\n";
             set_exiting_op(_state.exiting_loc);
             _state.pc = 0;
             _state.current_offset = 0;
