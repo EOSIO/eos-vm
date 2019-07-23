@@ -802,8 +802,8 @@ namespace eosio { namespace vm {
       void emit_i64_clz() {
          // popq %rax
          emit_bytes(0x58);
-         // lzcntl %eax, %eax
-         emit_bytes(0x48, 0xf3, 0x0f, 0xbd, 0xc0);
+         // lzcntq %eax, %eax
+         emit_bytes(0xf3, 0x48, 0x0f, 0xbd, 0xc0);
          // pushq %rax
          emit_bytes(0x50);
       }
@@ -811,8 +811,8 @@ namespace eosio { namespace vm {
       void emit_i64_ctz() {
          // popq %rax
          emit_bytes(0x58);
-         // tzcntl %eax, %eax
-         emit_bytes(0x48, 0xf3, 0x0f, 0xbc, 0xc0);
+         // tzcntq %eax, %eax
+         emit_bytes(0xf3, 0x48, 0x0f, 0xbc, 0xc0);
          // pushq %rax
          emit_bytes(0x50);
       }
@@ -820,8 +820,8 @@ namespace eosio { namespace vm {
       void emit_i64_popcnt() {
          // popq %rax
          emit_bytes(0x58);
-         // popcntl %eax, %eax
-         emit_bytes(0x48, 0xf3, 0x0f, 0xb8, 0xc0);
+         // popcntq %rax, %rax
+         emit_bytes(0xf3, 0x48, 0x0f, 0xb8, 0xc0);
          // pushq %rax
          emit_bytes(0x50);
       }
