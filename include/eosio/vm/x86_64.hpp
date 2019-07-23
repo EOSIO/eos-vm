@@ -955,28 +955,28 @@ namespace eosio { namespace vm {
 
       void emit_f64_ceil() {
          // roundsd 0b1010, (%rsp), %xmm0
-         emit_bytes(0x66, 0x0f, 0x3a, 0x0b, 0x01, 0x24, 0x0a);
+         emit_bytes(0x66, 0x0f, 0x3a, 0x0b, 0x04, 0x24, 0x0a);
          // movsd %xmm0, (%rsp)
          emit_bytes(0xf2, 0x0f, 0x11, 0x04, 0x24);
       }
 
       void emit_f64_floor() {
-         // roundss 0b1001, (%rsp), %xmm0
-         emit_bytes(0x66, 0x0f, 0x3a, 0x0b, 0x01, 0x24, 0x09);
+         // roundsd 0b1001, (%rsp), %xmm0
+         emit_bytes(0x66, 0x0f, 0x3a, 0x0b, 0x04, 0x24, 0x09);
          // movss %xmm0, (%rsp)
          emit_bytes(0xf2, 0x0f, 0x11, 0x04, 0x24);
       }
 
       void emit_f64_trunc() {
-         // roundss 0b1011, (%rsp), %xmm0
-         emit_bytes(0x66, 0x0f, 0x3a, 0x0b, 0x01, 0x24, 0x0b);
+         // roundsd 0b1011, (%rsp), %xmm0
+         emit_bytes(0x66, 0x0f, 0x3a, 0x0b, 0x04, 0x24, 0x0b);
          // movss %xmm0, (%rsp)
          emit_bytes(0xf2, 0x0f, 0x11, 0x04, 0x24);
       }
 
       void emit_f64_nearest() {
-         // roundss 0b1000, (%rsp), %xmm0
-         emit_bytes(0x66, 0x0f, 0x3a, 0x0b, 0x01, 0x24, 0x08);
+         // roundsd 0b1000, (%rsp), %xmm0
+         emit_bytes(0x66, 0x0f, 0x3a, 0x0b, 0x04, 0x24, 0x08);
          // movss %xmm0, (%rsp)
          emit_bytes(0xf2, 0x0f, 0x11, 0x04, 0x24);
       }
@@ -1630,6 +1630,11 @@ namespace eosio { namespace vm {
          native_value result;
          int count = Count;
          asm volatile(
+            "sub $16, %%rsp; "
+            "stmxcsr 8(%%rsp); "
+            "mov $0x1f80, %%rax; "
+            "mov %%rax, (%%rsp); "
+            "ldmxcsr (%%rsp); "
             "test %[count], %[count]; "
             "jz 2f; "
             "1: "
@@ -1640,7 +1645,9 @@ namespace eosio { namespace vm {
             "jnz 1b; "
             "2: "
             "callq *%[fun]; "
-            "add %[StackOffset], %%rsp"
+            "add %[StackOffset], %%rsp; "
+            "ldmxcsr 8(%%rsp); "
+            "add $16, %%rsp; "
             : [result] "=a" (result), [count] "+r" (count) // output
             : [data] "r" (data), [count] "r" (count), [fun] "r" (fun),
               [context] "D" (context), [linear_memory] "S" (linear_memory),
