@@ -137,6 +137,7 @@ namespace eosio { namespace vm {
 
          gv.type.mutability = *code++;
          parse_init_expr(code, gv.init);
+         gv.current = gv.init;
       }
 
       void parse_memory_type(wasm_code_ptr& code, memory_type& mt) {
@@ -221,7 +222,7 @@ namespace eosio { namespace vm {
          const auto&         body_size = parse_varuint32(code);
          const auto&         before    = code.offset();
          const auto&         local_cnt = parse_varuint32(code);
-	 _current_function_index++;
+         _current_function_index++;
          decltype(fb.locals) locals    = { _allocator, local_cnt };
          // parse the local entries
          for (size_t i = 0; i < local_cnt; i++) {
@@ -230,7 +231,8 @@ namespace eosio { namespace vm {
          }
          fb.locals = std::move(locals);
 
-         size_t            bytes = body_size - (code.offset() - before); // -1 is 'end' 0xb byte
+         // -1 is 'end' 0xb byte and one extra slot for an exiting instruction to be held during execution, this is used to drive the pc past normal execution
+         size_t            bytes = (body_size - (code.offset() - before));
          Writer            code_writer(Writer::choose_alloc(_allocator, _code_alloc), bytes, idx, *_mod, _export_indices.count(_current_function_index));
          wasm_code_ptr     fb_code(code.raw(), bytes);
          code_writer.emit_prologue(fn_type, locals);
@@ -330,12 +332,6 @@ namespace eosio { namespace vm {
                operand_depth = expected_operand_depth;
                is_in_unreachable = pc_stack.back().is_unreachable;
                pc_stack.pop_back();
-	       /*
-	       if (!pc_stack.size() && _export_indices.count(_current_function_index)) {
-                  fb[op_index -1 ].toggle_exiting_which();
-		  std::cout << "Exiting! with end at index " << _current_function_index << " " << op_index << " " << fb[op_index-1].index() << "\n";
-	       }
-	       */
             } else {
                throw wasm_invalid_element{ "unexpected end instruction" };
             }
@@ -358,7 +354,6 @@ namespace eosio { namespace vm {
          while (code.offset() < bounds) {
             EOS_WB_ASSERT(pc_stack.size() <= constants::max_nested_structures, wasm_parse_exception,
                           "nested structures validation failure");
-
             switch (*code++) {
                case opcodes::unreachable: code_writer.emit_unreachable(); start_unreachable(); break;
                case opcodes::nop: code_writer.emit_nop(); break;

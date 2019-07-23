@@ -1293,7 +1293,6 @@ namespace eosio { namespace vm {
          auto& oper = context.peek_operand();
          oper       = f64_const_t{ oper.to_ui64() };
       }
-      [[gnu::always_inline]] inline void operator()(const error_t& op) { context.inc_pc(); }
    };
 
 }} // namespace eosio::vm

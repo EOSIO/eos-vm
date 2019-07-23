@@ -925,9 +925,14 @@ namespace eosio { namespace vm {
    static constexpr auto memory_23_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/memory.23.wasm";
    static constexpr auto memory_24_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/memory.24.wasm";
    static constexpr auto memory_25_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/memory.25.wasm";
+   static constexpr auto i32_0_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/i32.0.wasm";
+   static constexpr auto i64_0_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/i64.0.wasm";
    static constexpr auto f32_0_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/f32.0.wasm";
    static constexpr auto f32_bitwise_0_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/f32_bitwise.0.wasm";
    static constexpr auto f32_cmp_0_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/f32_cmp.0.wasm";
+   static constexpr auto f64_0_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/f64.0.wasm";
+   static constexpr auto f64_bitwise_0_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/f64_bitwise.0.wasm";
+   static constexpr auto f64_cmp_0_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/f64_cmp.0.wasm";
    static constexpr auto float_exprs_0_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/float_exprs.0.wasm";
    static constexpr auto float_exprs_1_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/float_exprs.1.wasm";
    static constexpr auto float_exprs_2_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/float_exprs.2.wasm";

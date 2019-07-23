@@ -1,5 +1,7 @@
 #pragma once
 
+#include <eosio/vm/exceptions.hpp>
+
 #include <atomic>
 #include <cstdlib>
 #include <signal.h>
@@ -20,7 +22,6 @@ namespace eosio { namespace vm {
          switch(sig) {
             case SIGSEGV: prev_action = &prev_signal_handler<SIGSEGV>; break;
             case SIGBUS: prev_action = &prev_signal_handler<SIGBUS>; break;
-            case SIGALRM: prev_action = &prev_signal_handler<SIGALRM>; break;
             default: std::abort();
          }
          if (!prev_action) std::abort();
@@ -49,7 +50,6 @@ namespace eosio { namespace vm {
       sa.sa_flags = SA_NODEFER | SA_SIGINFO;
       sigaction(SIGSEGV, &sa, &prev_signal_handler<SIGSEGV>);
       sigaction(SIGBUS, &sa, &prev_signal_handler<SIGBUS>);
-      sigaction(SIGALRM, &sa, &prev_signal_handler<SIGALRM>);
    }
 
    inline void setup_signal_handler() {
@@ -63,7 +63,7 @@ namespace eosio { namespace vm {
    /// with non-trivial destructors, then it must mask the relevant signals
    /// during the lifetime of these objects or the behavior is undefined.
    ///
-   /// signals handled: SIGSEGV, SIGBUS, SIGALRM
+   /// signals handled: SIGSEGV, SIGBUS
    ///
    // Make this noinline to prevent possible corruption of the caller's local variables.
    // It's unlikely, but I'm not sure that it can definitely be ruled out if both
@@ -87,7 +87,6 @@ namespace eosio { namespace vm {
          sigemptyset(&unblock_mask);
          sigaddset(&unblock_mask, SIGSEGV);
          sigaddset(&unblock_mask, SIGBUS);
-         sigaddset(&unblock_mask, SIGALRM);
          pthread_sigmask(SIG_UNBLOCK, &unblock_mask, &old_sigmask);
          try {
             f();
@@ -105,24 +104,5 @@ namespace eosio { namespace vm {
          e(sig);
       }
    }
-
-   // SIGALRM needs to be blocked:
-   // - after the watchdog has started, but outside wasm execution.
-   // - During the execution of host_functions that create objects
-   //   with non-trivial destructors.
-   class block_sigalrm {
-    public:
-      block_sigalrm() {
-         sigset_t block_mask;
-         sigemptyset(&block_mask);
-         sigaddset(&block_mask, SIGALRM);
-         pthread_sigmask(SIG_BLOCK, &block_mask, &original_sigmask);
-      }
-      ~block_sigalrm() {
-         pthread_sigmask(SIG_SETMASK, &original_sigmask, nullptr);
-      }
-   private:
-      sigset_t original_sigmask;
-   };
 
 }} // namespace eosio::vm

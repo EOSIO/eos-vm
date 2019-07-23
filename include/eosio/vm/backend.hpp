@@ -30,10 +30,11 @@ namespace eosio { namespace vm {
          return call(host, mod, func, args...);
       }
 
-      inline backend& reset() { 
-	 _walloc->reset(); 
-	 _ctx.reset();
-	 return *this;
+      inline backend& initialize(Host* host=nullptr) { 
+         _walloc->reset(); 
+	      _ctx.reset();
+         _ctx.execute_start(host, interpret_visitor(_ctx));
+	      return *this;
       }
 
       template <typename... Args>
@@ -93,17 +94,27 @@ namespace eosio { namespace vm {
 
       template <typename Watchdog>
       inline void execute_all(Watchdog&& wd, Host* host = nullptr) {
-         block_sigalrm sig_guard;
-         pthread_t self = pthread_self();
-         auto wd_guard = wd.scoped_run([this, self]() { pthread_kill(self, SIGALRM); });
-         for (int i = 0; i < _mod.exports.size(); i++) {
-            if (_mod.exports[i].kind == external_kind::Function) {
-               std::string s{ (const char*)_mod.exports[i].field_str.raw(), _mod.exports[i].field_str.size() };
-	       if constexpr (eos_vm_debug) {
-                   print_result(_ctx.execute(host, debug_visitor(_ctx), s));
-	       } else {
-	          _ctx.execute(host, interpret_visitor(_ctx), s);
-	       }
+         auto wd_guard = wd.scoped_run([this]() {
+            _timed_out = true;
+            mprotect(_mod.allocator._base, _mod.allocator._size, PROT_NONE);
+         });
+         try {
+            for (int i = 0; i < _mod.exports.size(); i++) {
+               if (_mod.exports[i].kind == external_kind::Function) {
+                  std::string s{ (const char*)_mod.exports[i].field_str.raw(), _mod.exports[i].field_str.size() };
+	          if constexpr (eos_vm_debug) {
+                     print_result(_ctx.execute(host, debug_visitor(_ctx), s));
+	          } else {
+	             _ctx.execute(host, interpret_visitor(_ctx), s);
+	          }
+               }
+            }
+         } catch(wasm_memory_exception&) {
+            if (_timed_out) {
+               mprotect(_mod.allocator._base, _mod.allocator._size, PROT_READ | PROT_WRITE);
+               throw timeout_exception{ "execution timed out" };
+            } else {
+               throw;
             }
          }
       }
@@ -138,5 +149,6 @@ namespace eosio { namespace vm {
       wasm_allocator*         _walloc = nullptr; // non owning pointer
       module                  _mod;
       execution_context<Host> _ctx;
+      std::atomic<bool>       _timed_out;
    };
 }} // namespace eosio::vm

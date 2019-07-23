@@ -1124,7 +1124,7 @@ const string test_includes = "#include <algorithm>\n#include <vector>\n#include 
                              "<eosio/vm/backend.hpp>\n\nusing namespace eosio;\nusing namespace eosio::vm;\n"
                              "extern wasm_allocator wa;\nusing backend_t = backend<std::nullptr_t>;\n\n";
 const string test_preamble_0 = "auto code = backend_t::read_wasm( ";
-const string test_preamble_1 = "backend_t bkend( code );\n   bkend.set_wasm_allocator( &wa );\n   bkend.reset();";
+const string test_preamble_1 = "backend_t bkend( code );\n   bkend.set_wasm_allocator( &wa );\n   bkend.initialize(nullptr);";
 
 string generate_test_call(picojson::object obj, string expected_t, string expected_v) {
    stringstream ss;
@@ -1132,7 +1132,7 @@ string generate_test_call(picojson::object obj, string expected_t, string expect
    if (expected_t == "i32") {
       ss << "bkend.call_with_return(nullptr, \"env\", ";
    } else if (expected_t == "i64") {
-      ss << "bkend.reset().call_with_return(nullptr, \"env\", ";
+      ss << "bkend.call_with_return(nullptr, \"env\", ";
    } else if (expected_t == "f32") {
       ss << "bit_cast<uint32_t>(bkend.call_with_return(nullptr, \"env\", ";
    } else if (expected_t == "f64") {

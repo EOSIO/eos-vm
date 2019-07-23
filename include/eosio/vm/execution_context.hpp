@@ -43,7 +43,7 @@ namespace eosio { namespace vm {
             // TODO validate only importing functions
             const auto& ft = _mod.types[_mod.imports[index].type.func_t];
             type_check(ft);
-            _rhf(_host, *this, _mod.import_functions[index]);
+            _rhf(_state.host, *this, _mod.import_functions[index]);
             inc_pc();
          } else {
             // const auto& ft = _mod.types[_mod.functions[index - _mod.get_imported_functions_size()]];
@@ -96,33 +96,35 @@ namespace eosio { namespace vm {
       }
 
       inline void apply_pop_call() {
-         if (_as.size()) {
-            const auto& af      = _as.pop();
-            _state.current_offset     = af.offset;
-            _state.pc                 = af.pc;
-            _state.code_index         = af.index;
-            uint8_t    ret_type = af.ret_type;
-            uint16_t   op_index = af.op_index;
-            operand_stack_elem el;
-            if (ret_type) {
-               el = pop_operand();
-               EOS_WB_ASSERT(el.is_a<i32_const_t>() && ret_type == types::i32 ||
+         std::cout << "Apply pop call " << _as.size() << "\n";
+         const auto& af = _as.pop();
+         const uint8_t    ret_type = af.ret_type;
+         const uint16_t   op_index = af.op_index;
+         operand_stack_elem el;
+         if (ret_type) {
+            el = pop_operand();
+            EOS_WB_ASSERT(el.is_a<i32_const_t>() && ret_type == types::i32 ||
                                    el.is_a<i64_const_t>() && ret_type == types::i64 ||
                                    el.is_a<f32_const_t>() && ret_type == types::f32 ||
                                    el.is_a<f64_const_t>() && ret_type == types::f64,
                              wasm_interpreter_exception, "wrong return type");
-            }
-
-            eat_operands(op_index);
-            if (ret_type)
-               push_operand(el);
-            if (_as.size()) {
-               _last_op_index = _as.peek().op_index;
-            }
          }
-         while (_cs.size())
-            if (std::holds_alternative<end_t>(_cs.pop()))
-               break;
+         if (_as.size() > 2) {
+            _state.current_offset     = af.offset;
+            _state.pc                 = af.pc;
+            _state.code_index         = af.index;
+            _last_op_index = _as.peek().op_index;
+
+         } else {
+            std::cout << "Exiting loc " << _state.exiting_loc.first << " : " << _state.exiting_loc.second << "\n";
+            set_exiting_op(_state.exiting_loc);
+            _state.pc = 0;
+            _state.current_offset = 0;
+            _state.code_index = 0;
+         }
+         eat_operands(op_index);
+         if (ret_type)
+            push_operand(el);
       }
       inline control_stack_elem  pop_label() { return _cs.pop(); }
       inline operand_stack_elem  pop_operand() { return _os.pop(); }
@@ -130,7 +132,6 @@ namespace eosio { namespace vm {
       inline operand_stack_elem  get_global(uint32_t index) {
          EOS_WB_ASSERT(index < _mod.globals.size(), wasm_interpreter_exception, "global index out of range");
          const auto& gl = _mod.globals[index];
-         // computed g
          switch (gl.type.content_type) {
             case types::i32: return i32_const_t{ *(uint32_t*)&gl.current.value.i32 };
             case types::i64: return i64_const_t{ *(uint64_t*)&gl.current.value.i64 };
@@ -215,10 +216,7 @@ namespace eosio { namespace vm {
       }
 
       inline void reset() {
-         _os.eat(0);
-         _as.eat(0);
-         _cs.eat(0);
-
+      
          _linear_memory = _wasm_alloc->get_base_ptr<char>();
          if (_mod.memories.size()) {
             grow_linear_memory(_mod.memories[0].limits.initial - _wasm_alloc->get_current_page());
@@ -230,18 +228,24 @@ namespace eosio { namespace vm {
             auto addr = _linear_memory + data_seg.offset.value.i32;
             memcpy((char*)(addr), data_seg.data.raw(), data_seg.data.size());
          }
-         _state.initialized = true;
+
+         // reset the mutable globals
+         for (int i = 0; i < _mod.globals.size(); i++) {
+            if (_mod.globals[i].type.mutability)
+               _mod.globals[i].current = _mod.globals[i].init;
+         }
+         _state = execution_state{};
       }
       
       inline void set_exiting_op( const std::pair<uint32_t, uint32_t>& exiting_loc ) {
          auto& fn = _mod.code.at(exiting_loc.first);
-         if (!fn.jit_code)
+         if (!fn.jit_code && exiting_loc.first != -1 && exiting_loc.second != -1)
             fn.code.at(exiting_loc.second).set_exiting_which();
       }
 
       inline void clear_exiting_op( const std::pair<uint32_t, uint32_t>& exiting_loc ) {
          auto& fn = _mod.code.at(exiting_loc.first);
-         if (!fn.jit_code)
+         if (!fn.jit_code && exiting_loc.first != -1 && exiting_loc.second != -1)
             fn.code.at(exiting_loc.second).clear_exiting_which();
       }
 
@@ -261,22 +265,31 @@ namespace eosio { namespace vm {
       }
 
       template <typename Visitor, typename... Args>
+      inline void execute_start(Host* host, Visitor&& visitor) {
+         if (_mod.start != std::numeric_limits<uint32_t>::max())
+            execute(host, std::forward<Visitor>(visitor), _mod.start);
+      }
+
+      template <typename Visitor, typename... Args>
       inline std::optional<operand_stack_elem> execute(Host* host, Visitor&& visitor, uint32_t func_index, Args... args) {
          EOS_WB_ASSERT(func_index < std::numeric_limits<uint32_t>::max(), wasm_interpreter_exception,
                        "cannot execute function, function not found");
          
+         clear_exiting_op( _state.exiting_loc );
          // save the state of the original calling context
          execution_state saved_state = _state;
-         clear_exiting_op( _state.exiting_loc );
+
+         _linear_memory = _wasm_alloc->get_base_ptr<char>();
 
          _state.host             = host;
          _state.current_function = func_index;
          _state.code_index       = func_index - _mod.import_functions.size();
          _state.current_offset   = _mod.function_sizes[_state.current_function];
          _state.pc               = _state.current_offset;
-         _state.exiting_loc      = { _state.code_index, _mod.code[_state.code_index].code.size() - 1 };
-      
-         set_exiting_op( _state.exiting_loc );
+         _state.exiting_loc      = {0, 0};
+         _state.as_index         = _as.size();
+         _state.os_index         = _os.size();
+         _state.cs_index         = _cs.size();
 
          if(auto fn = _mod.code[_state.code_index].jit_code) {
             const func_type& ft = _mod.get_function_type(func_index);
@@ -311,16 +324,17 @@ namespace eosio { namespace vm {
          }, &handle_signal);
 
          std::optional<operand_stack_elem> ret;
-         if (_mod.types[_mod.functions[func_index - _mod.import_functions.size()]].return_count)
+         if (_mod.get_function_type(func_index).return_count) {
             ret = pop_operand();
-         print_stack();
+         }
 
          // revert the state back to original calling context
          clear_exiting_op( _state.exiting_loc );
          _state = saved_state;
          set_exiting_op( _state.exiting_loc );
-
-         _os.eat(0);
+         _os.eat(_state.os_index);
+         _cs.eat(_state.cs_index);
+         _as.eat(_state.as_index);
          return ret;
       }
 
@@ -375,29 +389,25 @@ namespace eosio { namespace vm {
          switch(sig) {
           case SIGSEGV:
           case SIGBUS:
-            throw wasm_memory_exception{ "wasm memory out-of-bounds" };
-          case SIGALRM:
-            throw timeout_exception{ "execution timed out" };
+            break;
           default:
+            /* TODO fix this */
             assert(!"??????");
          }
+         throw wasm_memory_exception{ "wasm memory out-of-bounds" };
       }
 
 #define CREATE_TABLE_ENTRY(NAME, CODE) &&ev_label_##NAME,
 #define CREATE_EXITING_TABLE_ENTRY(NAME, CODE) &&ev_label_exiting_##NAME,
-#define CREATE_LABEL(NAME, CODE)                                                                 \
-      ev_label_##NAME : visitor(ev_variant.template get<eosio::vm::NAME##_t>());                 \
-      ev_variant = _mod.code.at_no_check(_state.code_index).code.at_no_check(_state.pc - _state.current_offset); \
-      goto* dispatch_table[ev_variant.index()];
-#define CREATE_EXITING_LABEL(NAME, CODE)                                                 \
-      std::cout << "Exiting Prog!" << std::endl; \
-      ev_label_exiting_##NAME : visitor(ev_variant.template get<eosio::vm::NAME##_t>()); \
-      clear_exiting_op(_state.exiting_loc); \
+#define CREATE_LABEL(NAME, CODE)                                                                                  \
+      ev_label_##NAME : visitor(ev_variant->template get<eosio::vm::NAME##_t>());                                 \
+      ev_variant = &_mod.code.at_no_check(_state.code_index).code.at_no_check(_state.pc - _state.current_offset); \
+      goto* dispatch_table[ev_variant->index()];
+#define CREATE_EXITING_LABEL(NAME, CODE)                                                  \
+      ev_label_exiting_##NAME :  \
       return;
-#define CREATE_EMPTY_LABEL(NAME, CODE) ev_label_##NAME : throw wasm_interpreter_exception{"empty operand"};
-#define CREATE_EXITING_EMPTY_LABEL(NAME, CODE) ev_label_exiting_##NAME :  \
-      clear_exiting_op(_state.exiting_loc); \
-      return;
+#define CREATE_EMPTY_LABEL(NAME, CODE) ev_label_##NAME :  \
+      throw wasm_interpreter_exception{"empty operand"};
 
       template <typename Visitor>
       void execute(Visitor&& visitor) {
@@ -438,52 +448,55 @@ namespace eosio { namespace vm {
             ERROR_OPS(CREATE_EXITING_TABLE_ENTRY)
             &&__ev_last
          };
-         auto& ev_variant = _mod.code.at_no_check(_state.code_index).code.at_no_check(_state.pc - _state.current_offset);
-	 goto *dispatch_table[ev_variant.index()];
-	 while (1) {
-            CONTROL_FLOW_OPS(CREATE_LABEL);
-            BR_TABLE_OP(CREATE_LABEL);
-            RETURN_OP(CREATE_LABEL);
-            CALL_OPS(CREATE_LABEL);
-            PARAMETRIC_OPS(CREATE_LABEL);
-            VARIABLE_ACCESS_OPS(CREATE_LABEL);
-            MEMORY_OPS(CREATE_LABEL);
-            I32_CONSTANT_OPS(CREATE_LABEL);
-            I64_CONSTANT_OPS(CREATE_LABEL);
-            F32_CONSTANT_OPS(CREATE_LABEL);
-            F64_CONSTANT_OPS(CREATE_LABEL);
-            COMPARISON_OPS(CREATE_LABEL);
-            NUMERIC_OPS(CREATE_LABEL);
-            CONVERSION_OPS(CREATE_LABEL);
-            SYNTHETIC_OPS(CREATE_LABEL);
-            EMPTY_OPS(CREATE_EMPTY_LABEL);
-            ERROR_OPS(CREATE_LABEL);
-            CONTROL_FLOW_OPS(CREATE_EXITING_LABEL);
-            BR_TABLE_OP(CREATE_EXITING_LABEL);
-            RETURN_OP(CREATE_EXITING_LABEL);
-            CALL_OPS(CREATE_EXITING_LABEL);
-            PARAMETRIC_OPS(CREATE_EXITING_LABEL);
-            VARIABLE_ACCESS_OPS(CREATE_EXITING_LABEL);
-            MEMORY_OPS(CREATE_EXITING_LABEL);
-            I32_CONSTANT_OPS(CREATE_EXITING_LABEL);
-            I64_CONSTANT_OPS(CREATE_EXITING_LABEL);
-            F32_CONSTANT_OPS(CREATE_EXITING_LABEL);
-            F64_CONSTANT_OPS(CREATE_EXITING_LABEL);
-            COMPARISON_OPS(CREATE_EXITING_LABEL);
-            NUMERIC_OPS(CREATE_EXITING_LABEL);
-            CONVERSION_OPS(CREATE_EXITING_LABEL);
-            SYNTHETIC_OPS(CREATE_EXITING_LABEL);
-            EMPTY_OPS(CREATE_EXITING_EMPTY_LABEL);
-            ERROR_OPS(CREATE_EXITING_LABEL);
-            __ev_last:
-               throw wasm_interpreter_exception{"should never reach here"};
+         auto* ev_variant = &_mod.code.at_no_check(_state.code_index).code.at_no_check(_state.pc - _state.current_offset);
+         goto *dispatch_table[ev_variant->index()];
+         while (1) {
+             CONTROL_FLOW_OPS(CREATE_LABEL);
+             BR_TABLE_OP(CREATE_LABEL);
+             RETURN_OP(CREATE_LABEL);
+             CALL_OPS(CREATE_LABEL);
+             PARAMETRIC_OPS(CREATE_LABEL);
+             VARIABLE_ACCESS_OPS(CREATE_LABEL);
+             MEMORY_OPS(CREATE_LABEL);
+             I32_CONSTANT_OPS(CREATE_LABEL);
+             I64_CONSTANT_OPS(CREATE_LABEL);
+             F32_CONSTANT_OPS(CREATE_LABEL);
+             F64_CONSTANT_OPS(CREATE_LABEL);
+             COMPARISON_OPS(CREATE_LABEL);
+             NUMERIC_OPS(CREATE_LABEL);
+             CONVERSION_OPS(CREATE_LABEL);
+             SYNTHETIC_OPS(CREATE_LABEL);
+             EMPTY_OPS(CREATE_EMPTY_LABEL);
+             ERROR_OPS(CREATE_LABEL);
+             CONTROL_FLOW_OPS(CREATE_EXITING_LABEL);
+             BR_TABLE_OP(CREATE_EXITING_LABEL);
+             RETURN_OP(CREATE_EXITING_LABEL);
+             CALL_OPS(CREATE_EXITING_LABEL);
+             PARAMETRIC_OPS(CREATE_EXITING_LABEL);
+             VARIABLE_ACCESS_OPS(CREATE_EXITING_LABEL);
+             MEMORY_OPS(CREATE_EXITING_LABEL);
+             I32_CONSTANT_OPS(CREATE_EXITING_LABEL);
+             I64_CONSTANT_OPS(CREATE_EXITING_LABEL);
+             F32_CONSTANT_OPS(CREATE_EXITING_LABEL);
+             F64_CONSTANT_OPS(CREATE_EXITING_LABEL);
+             COMPARISON_OPS(CREATE_EXITING_LABEL);
+             NUMERIC_OPS(CREATE_EXITING_LABEL);
+             CONVERSION_OPS(CREATE_EXITING_LABEL);
+             SYNTHETIC_OPS(CREATE_EXITING_LABEL);
+             EMPTY_OPS(CREATE_EXITING_LABEL);
+             ERROR_OPS(CREATE_EXITING_LABEL);
+             __ev_last:
+                throw wasm_interpreter_exception{"should never reach here"};
          }
       }
 
       struct execution_state {
          Host* host                                = nullptr;
          uint32_t current_function                 = 0;
-         std::pair<uint32_t, uint32_t> exiting_loc = {0,0};
+         std::pair<int64_t, int64_t> exiting_loc = {-1,-1};
+	 uint32_t as_index         = 0;
+	 uint32_t cs_index         = 0;
+	 uint32_t os_index         = 0;
          uint32_t code_index       = 0;
          uint32_t current_offset   = 0;
          uint32_t pc               = 0;
@@ -498,7 +511,6 @@ namespace eosio { namespace vm {
       char*                           _linear_memory    = nullptr;
       module&                         _mod;
       wasm_allocator*                 _wasm_alloc;
-      Host*                           _host;
       control_stack                   _cs = { _base_allocator };
       operand_stack                   _os = { _base_allocator };
       call_stack                      _as = { _base_allocator };
