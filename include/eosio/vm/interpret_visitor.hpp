@@ -847,7 +847,7 @@ namespace eosio { namespace vm {
          if constexpr (use_softfloat)
             oper = _eosio_f32_neg(oper);
          else
-            oper = (-1.0f) * oper;
+            oper = -oper;
       }
       [[gnu::always_inline]] inline void operator()(const f32_ceil_t& op) {
          context.inc_pc();
@@ -966,7 +966,7 @@ namespace eosio { namespace vm {
          if constexpr (use_softfloat)
             oper = _eosio_f64_neg(oper);
          else
-            oper = (-1.0) * oper;
+            oper = -oper;
       }
       [[gnu::always_inline]] inline void operator()(const f64_ceil_t& op) {
 
@@ -1293,7 +1293,6 @@ namespace eosio { namespace vm {
          auto& oper = context.peek_operand();
          oper       = f64_const_t{ oper.to_ui64() };
       }
-      [[gnu::always_inline]] inline void operator()(const error_t& op) { context.inc_pc(); }
    };
 
 }} // namespace eosio::vm

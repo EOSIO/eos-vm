@@ -28,10 +28,11 @@ namespace eosio { namespace vm {
          return call(host, mod, func, args...);
       }
 
-      inline backend& reset() { 
-	 _walloc->reset(); 
-	 _ctx.reset();
-	 return *this;
+      inline backend& initialize(Host* host=nullptr) { 
+         _walloc->reset(); 
+	      _ctx.reset();
+         _ctx.execute_start(host, interpret_visitor(_ctx));
+	      return *this;
       }
 
       template <typename... Args>

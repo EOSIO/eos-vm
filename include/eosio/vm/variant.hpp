@@ -148,8 +148,8 @@ namespace eosio { namespace vm {
 
    template <typename... Alternatives>
    class variant {
-      static_assert(sizeof...(Alternatives) < std::numeric_limits<uint8_t>::max(),
-                    "eosio::vm::variant can only accept 255 alternatives");
+      static_assert(sizeof...(Alternatives) <= std::numeric_limits<uint8_t>::max()+1,
+                    "eosio::vm::variant can only accept 256 alternatives");
 
     public:
       variant() = default;
@@ -175,6 +175,7 @@ namespace eosio { namespace vm {
          new (&_storage) std::decay_t<T>(alt);
          _which = detail::get_alternatives_index<0, T, Alternatives...>::value;
       }
+
       template <typename T, typename = std::enable_if_t<!std::is_base_of_v<variant, std::decay_t<T>>, int>>
       variant(T&& alt) {
          static_assert(detail::is_valid_alternative<std::decay_t<T>, Alternatives...>::value,
