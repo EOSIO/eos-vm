@@ -95,7 +95,8 @@ namespace eosio { namespace vm {
       }
 
       inline void apply_pop_call() {
-         if (_as.size()) {
+         std::cout << "Apply pop call " << _as.size() << "\n";
+         if (_as.size() > 1) {
             const auto& af            = _as.pop();
             _state.current_offset     = af.offset;
             _state.pc                 = af.pc;
@@ -111,13 +112,19 @@ namespace eosio { namespace vm {
                                    el.is_a<f64_const_t>() && ret_type == types::f64,
                              wasm_interpreter_exception, "wrong return type");
             }
-
-            if (_as.size() < 1) {
-               set_exiting_op(_state.exiting_loc);
-               _state.pc = 0;
-               _state.current_offset = 0;
-               _state.code_index = 0;
+            eat_operands(op_index);
+            if (ret_type)
+               push_operand(el);
+            if (_as.size()) {
+               _last_op_index = _as.peek().op_index;
             }
+
+         } else {
+            std::cout << "Exiting loc " << _state.exiting_loc.first << " : " << _state.exiting_loc.second << "\n";
+            set_exiting_op(_state.exiting_loc);
+            _state.pc = 0;
+            _state.current_offset = 0;
+            _state.code_index = 0;
 
             eat_operands(op_index);
             if (ret_type)
@@ -126,11 +133,6 @@ namespace eosio { namespace vm {
                _last_op_index = _as.peek().op_index;
             }
          }
-         /*
-         while (_cs.size())
-            if (_cs.pop().is_a<end_t>())
-               break;
-               */
       }
       inline control_stack_elem  pop_label() { return _cs.pop(); }
       inline operand_stack_elem  pop_operand() { return _os.pop(); }
@@ -138,7 +140,6 @@ namespace eosio { namespace vm {
       inline operand_stack_elem  get_global(uint32_t index) {
          EOS_WB_ASSERT(index < _mod.globals.size(), wasm_interpreter_exception, "global index out of range");
          const auto& gl = _mod.globals[index];
-         // computed g
          switch (gl.type.content_type) {
             case types::i32: return i32_const_t{ *(uint32_t*)&gl.current.value.i32 };
             case types::i64: return i64_const_t{ *(uint64_t*)&gl.current.value.i64 };
@@ -223,10 +224,7 @@ namespace eosio { namespace vm {
       }
 
       inline void reset() {
-         _os.eat(0);
-         _as.eat(0);
-         _cs.eat(0);
-
+      
          _linear_memory = _wasm_alloc->get_base_ptr<char>();
          if (_mod.memories.size()) {
             grow_linear_memory(_mod.memories[0].limits.initial - _wasm_alloc->get_current_page());
@@ -295,6 +293,9 @@ namespace eosio { namespace vm {
          _state.current_offset   = _mod.function_sizes[_state.current_function];
          _state.pc               = _state.current_offset;
          _state.exiting_loc      = {0, 0};
+         _state.as_index         = _as.size();
+         _state.os_index         = _os.size();
+         _state.cs_index         = _cs.size();
 
          push_args(args...);
          push_call(func_index);
@@ -315,15 +316,18 @@ namespace eosio { namespace vm {
             throw wasm_memory_exception{ "wasm memory out-of-bounds" };
          });
 
-         operand_stack_elem ret;
-         if (_mod.get_function_type(func_index).return_count)
+         std::optional<operand_stack_elem> ret;
+         if (_mod.get_function_type(func_index).return_count) {
             ret = pop_operand();
+         }
 
          // revert the state back to original calling context
          clear_exiting_op( _state.exiting_loc );
          _state = saved_state;
          set_exiting_op( _state.exiting_loc );
-         _os.eat(0);
+         _os.eat(_state.os_index);
+         _cs.eat(_state.cs_index);
+         _as.eat(_state.as_index);
          return ret;
       }
 
@@ -471,6 +475,9 @@ namespace eosio { namespace vm {
          Host* host                                = nullptr;
          uint32_t current_function                 = 0;
          std::pair<int64_t, int64_t> exiting_loc = {-1,-1};
+	 uint32_t as_index         = 0;
+	 uint32_t cs_index         = 0;
+	 uint32_t os_index         = 0;
          uint32_t code_index       = 0;
          uint32_t current_offset   = 0;
          uint32_t pc               = 0;

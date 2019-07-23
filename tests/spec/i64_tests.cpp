@@ -376,7 +376,9 @@ TEST_CASE( "Testing wasm <i64_0_wasm>", "[i64_0_wasm_tests]" ) {
    CHECK(bkend.call_with_return(nullptr, "env", "ge_u", UINT64_C(9223372036854775808), UINT64_C(0))->to_ui32() == UINT32_C(1));
    CHECK(bkend.call_with_return(nullptr, "env", "ge_u", UINT64_C(0), UINT64_C(9223372036854775808))->to_ui32() == UINT32_C(0));
    CHECK(bkend.call_with_return(nullptr, "env", "ge_u", UINT64_C(9223372036854775808), UINT64_C(18446744073709551615))->to_ui32() == UINT32_C(0));
+   std::cout << "Test 1\n";
    CHECK(bkend.call_with_return(nullptr, "env", "ge_u", UINT64_C(18446744073709551615), UINT64_C(9223372036854775808))->to_ui32() == UINT32_C(1));
+   std::cout << "Test 2\n";
    CHECK(bkend.call_with_return(nullptr, "env", "ge_u", UINT64_C(9223372036854775808), UINT64_C(9223372036854775807))->to_ui32() == UINT32_C(1));
    CHECK(bkend.call_with_return(nullptr, "env", "ge_u", UINT64_C(9223372036854775807), UINT64_C(9223372036854775808))->to_ui32() == UINT32_C(0));
 }
