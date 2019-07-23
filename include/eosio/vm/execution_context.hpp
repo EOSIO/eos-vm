@@ -114,6 +114,7 @@ namespace eosio { namespace vm {
             _last_op_index = _as.peek().op_index;
 
          } else {
+            std::cout << "exiting at " << _state.exiting_loc.first << " : " << _state.exiting_loc.second << "\n";
             set_exiting_op(_state.exiting_loc);
             _state.pc = 0;
             _state.current_offset = 0;
@@ -213,7 +214,6 @@ namespace eosio { namespace vm {
       }
 
       inline void reset() {
-      
          _linear_memory = _wasm_alloc->get_base_ptr<char>();
          if (_mod.memories.size()) {
             grow_linear_memory(_mod.memories[0].limits.initial - _wasm_alloc->get_current_page());
@@ -232,6 +232,10 @@ namespace eosio { namespace vm {
                _mod.globals[i].current = _mod.globals[i].init;
          }
          _state = execution_state{};
+         _os.eat(_state.os_index);
+         _cs.eat(_state.cs_index);
+         _as.eat(_state.as_index);
+
       }
       
       inline void set_exiting_op( const std::pair<uint32_t, uint32_t>& exiting_loc ) {
