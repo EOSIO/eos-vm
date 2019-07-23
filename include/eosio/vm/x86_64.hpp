@@ -1334,7 +1334,7 @@ namespace eosio { namespace vm {
             // pushq rax
          } else {
             // ucomiss+seta/setae is shorter but can't handle eq/ne
-            if(!switch_params) {
+            if(switch_params) {
                // movss (%rsp), %xmm0
                emit_bytes(0xf3, 0x0f, 0x10, 0x04, 0x24);
                // cmpCCss 8(%rsp), %xmm0
@@ -1369,7 +1369,7 @@ namespace eosio { namespace vm {
             // pushq rax
          } else {
             // ucomisd+seta/setae is shorter but can't handle eq/ne
-            if(!switch_params) {
+            if(switch_params) {
                // movsd (%rsp), %xmm0
                emit_bytes(0xf2, 0x0f, 0x10, 0x04, 0x24);
                // cmpCCsd 8(%rsp), %xmm0
