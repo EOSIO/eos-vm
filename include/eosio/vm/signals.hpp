@@ -22,6 +22,7 @@ namespace eosio { namespace vm {
          switch(sig) {
             case SIGSEGV: prev_action = &prev_signal_handler<SIGSEGV>; break;
             case SIGBUS: prev_action = &prev_signal_handler<SIGBUS>; break;
+            case SIGFPE: prev_action = &prev_signal_handler<SIGFPE>; break;
             default: std::abort();
          }
          if (!prev_action) std::abort();
@@ -50,6 +51,7 @@ namespace eosio { namespace vm {
       sa.sa_flags = SA_NODEFER | SA_SIGINFO;
       sigaction(SIGSEGV, &sa, &prev_signal_handler<SIGSEGV>);
       sigaction(SIGBUS, &sa, &prev_signal_handler<SIGBUS>);
+      sigaction(SIGFPE, &sa, &prev_signal_handler<SIGBUS>);
    }
 
    inline void setup_signal_handler() {
@@ -87,6 +89,7 @@ namespace eosio { namespace vm {
          sigemptyset(&unblock_mask);
          sigaddset(&unblock_mask, SIGSEGV);
          sigaddset(&unblock_mask, SIGBUS);
+         sigaddset(&unblock_mask, SIGFPE);
          pthread_sigmask(SIG_UNBLOCK, &unblock_mask, &old_sigmask);
          try {
             f();

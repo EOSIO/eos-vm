@@ -393,6 +393,7 @@ namespace eosio { namespace vm {
          switch(sig) {
           case SIGSEGV:
           case SIGBUS:
+          case SIGFPE:
             break;
           default:
             /* TODO fix this */
