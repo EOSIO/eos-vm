@@ -85,6 +85,7 @@ namespace eosio { namespace vm {
       inline uint16_t       current_operands_index() const { return _os.current_index(); }
       inline void           push_call(const activation_frame& el) { _as.push(el); }
       inline activation_frame     pop_call() { return _as.pop(); }
+      inline uint32_t       call_depth()const { return _as.size(); }
       inline void           push_call(uint32_t index) {
          const auto& ftype = _mod.get_function_type(index);
          _last_op_index    = _os.size() - ftype.param_types.size();
