@@ -75,9 +75,6 @@ namespace eosio { namespace vm {
       inline auto           get_wasm_allocator() { return _wasm_alloc; }
       inline char*          linear_memory() { return _linear_memory; }
       inline uint32_t       table_elem(uint32_t i) { return _mod.tables[0].table[i]; }
-      inline void           push_label(const control_stack_elem& el) { _cs.push(el); }
-      inline uint16_t       current_label_index() const { return _cs.current_index(); }
-      inline void           eat_labels(uint16_t index) { _cs.eat(index); }
       inline void           push_operand(const operand_stack_elem& el) { _os.push(el); }
       inline operand_stack_elem     get_operand(uint16_t index) const { return _os.get(_last_op_index + index); }
       inline void           eat_operands(uint16_t index) { _os.eat(index); }
@@ -91,8 +88,6 @@ namespace eosio { namespace vm {
          _last_op_index    = _os.size() - ftype.param_types.size();
          _as.push(activation_frame{ _state.pc + 1, _state.current_offset, _state.code_index, static_cast<uint16_t>(_last_op_index),
                                     ftype.return_type });
-         _cs.push(end_t{ 0, static_cast<uint32_t>(_state.current_offset + _mod.code[_state.code_index].code.size() - 1), 0,
-                         static_cast<uint16_t>(_last_op_index) });
       }
 
       inline void apply_pop_call() {
@@ -125,7 +120,6 @@ namespace eosio { namespace vm {
          if (ret_type)
             push_operand(el);
       }
-      inline control_stack_elem  pop_label() { return _cs.pop(); }
       inline operand_stack_elem  pop_operand() { return _os.pop(); }
       inline operand_stack_elem& peek_operand(size_t i = 0) { return _os.peek(i); }
       inline operand_stack_elem  get_global(uint32_t index) {
@@ -234,7 +228,6 @@ namespace eosio { namespace vm {
          }
          _state = execution_state{};
          _os.eat(_state.os_index);
-         _cs.eat(_state.cs_index);
          _as.eat(_state.as_index);
 
       }
@@ -289,7 +282,6 @@ namespace eosio { namespace vm {
          _state.exiting_loc      = {0, 0};
          _state.as_index         = _as.size();
          _state.os_index         = _os.size();
-         _state.cs_index         = _cs.size();
 
          push_args(args...);
          push_call(func_index);
@@ -320,7 +312,6 @@ namespace eosio { namespace vm {
          _state = saved_state;
          set_exiting_op( _state.exiting_loc );
          _os.eat(_state.os_index);
-         _cs.eat(_state.cs_index);
          _as.eat(_state.as_index);
          return ret;
       }
@@ -486,7 +477,6 @@ namespace eosio { namespace vm {
       char*                           _linear_memory    = nullptr;
       module&                         _mod;
       wasm_allocator*                 _wasm_alloc;
-      control_stack                   _cs = { _base_allocator };
       operand_stack                   _os = { _base_allocator };
       call_stack                      _as = { _base_allocator };
       registered_host_functions<Host> _rhf;
