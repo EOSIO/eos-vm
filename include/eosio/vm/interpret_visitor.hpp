@@ -42,57 +42,16 @@ namespace eosio { namespace vm {
 
       [[gnu::always_inline]] inline void operator()(const fend_t& op) { context.apply_pop_call(); }
 
-      [[gnu::always_inline]] inline void operator()(const end_t& op) {
-         const auto& label    = context.pop_label();
-         uint16_t    op_index = 0;
-         uint8_t     ret_type = 0;
-         std::visit(overloaded{ [&](const block_t& b) {
-                                  op_index = b.op_index;
-                                  ret_type = static_cast<uint8_t>(b.data);
-                               },
-                                [&](const loop_t& l) {
-                                   op_index = l.op_index;
-                                   ret_type = static_cast<uint8_t>(l.data);
-                                },
-                                [&](const if__t& i) {
-                                   op_index = i.op_index;
-                                   ret_type = static_cast<uint8_t>(i.data);
-                                },
-                                [&](auto) { throw wasm_interpreter_exception{ "expected control structure" }; } },
-                    label);
-
-         if (ret_type != types::pseudo) {
-            const auto& op = context.pop_operand();
-            context.eat_operands(op_index);
-            context.push_operand(op);
-         } else {
-            context.eat_operands(op_index);
-         }
-
-         context.inc_pc();
-      }
+      [[gnu::always_inline]] inline void operator()(const end_t& op) { context.inc_pc(); }
       [[gnu::always_inline]] inline void operator()(const return__t& op) { context.jump(op.data, op.pc); }
-      [[gnu::always_inline]] inline void operator()(block_t& op) {
-         context.inc_pc();
-         op.index    = context.current_label_index();
-         op.op_index = context.current_operands_index();
-         context.push_label(op);
-      }
-      [[gnu::always_inline]] inline void operator()(loop_t& op) {
-         context.inc_pc();
-         op.index    = context.current_label_index();
-         op.op_index = context.current_operands_index();
-         context.push_label(op);
-      }
+      [[gnu::always_inline]] inline void operator()(block_t& op) { context.inc_pc(); }
+      [[gnu::always_inline]] inline void operator()(loop_t& op) { context.inc_pc(); }
       [[gnu::always_inline]] inline void operator()(if__t& op) {
          context.inc_pc();
-         op.index         = context.current_label_index();
          const auto& oper = context.pop_operand();
          if (!oper.to_ui32()) {
             context.set_relative_pc(op.pc);
          }
-         op.op_index = context.current_operands_index();
-         context.push_label(op);
       }
       [[gnu::always_inline]] inline void operator()(const else__t& op) { context.set_relative_pc(op.pc); }
       [[gnu::always_inline]] inline void operator()(const br_t& op) { context.jump(op.data, op.pc); }

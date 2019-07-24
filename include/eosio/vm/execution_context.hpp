@@ -105,9 +105,6 @@ namespace eosio { namespace vm {
       inline auto           get_wasm_allocator() { return _wasm_alloc; }
       inline char*          linear_memory() { return _linear_memory; }
       inline uint32_t       table_elem(uint32_t i) { return _mod.tables[0].table[i]; }
-      inline void           push_label(const control_stack_elem& el) { _cs.push(el); }
-      inline uint16_t       current_label_index() const { return _cs.current_index(); }
-      inline void           eat_labels(uint16_t index) { _cs.eat(index); }
       inline void           push_operand(const operand_stack_elem& el) { _os.push(el); }
       inline operand_stack_elem     get_operand(uint16_t index) const { return _os.get(_last_op_index + index); }
       inline void           eat_operands(uint16_t index) { _os.eat(index); }
@@ -115,17 +112,15 @@ namespace eosio { namespace vm {
       inline uint16_t       current_operands_index() const { return _os.current_index(); }
       inline void           push_call(const activation_frame& el) { _as.push(el); }
       inline activation_frame     pop_call() { return _as.pop(); }
+      inline uint32_t       call_depth()const { return _as.size(); }
       inline void           push_call(uint32_t index) {
          const auto& ftype = _mod.get_function_type(index);
          _last_op_index    = _os.size() - ftype.param_types.size();
          _as.push(activation_frame{ _state.pc + 1, _state.current_offset, _state.code_index, static_cast<uint16_t>(_last_op_index),
                                     ftype.return_type });
-         _cs.push(end_t{ 0, static_cast<uint32_t>(_state.current_offset + _mod.code[_state.code_index].code.size() - 1), 0,
-                         static_cast<uint16_t>(_last_op_index) });
       }
 
       inline void apply_pop_call() {
-         std::cout << "Apply pop call " << _as.size() << "\n";
          const auto& af = _as.pop();
          const uint8_t    ret_type = af.ret_type;
          const uint16_t   op_index = af.op_index;
@@ -138,14 +133,13 @@ namespace eosio { namespace vm {
                                    el.is_a<f64_const_t>() && ret_type == types::f64,
                              wasm_interpreter_exception, "wrong return type");
          }
-         if (_as.size() > 2) {
+         if (_as.size() > 0) {
             _state.current_offset     = af.offset;
             _state.pc                 = af.pc;
             _state.code_index         = af.index;
             _last_op_index = _as.peek().op_index;
 
          } else {
-            std::cout << "Exiting loc " << _state.exiting_loc.first << " : " << _state.exiting_loc.second << "\n";
             set_exiting_op(_state.exiting_loc);
             _state.pc = 0;
             _state.current_offset = 0;
@@ -155,7 +149,6 @@ namespace eosio { namespace vm {
          if (ret_type)
             push_operand(el);
       }
-      inline control_stack_elem  pop_label() { return _cs.pop(); }
       inline operand_stack_elem  pop_operand() { return _os.pop(); }
       inline operand_stack_elem& peek_operand(size_t i = 0) { return _os.peek(i); }
       inline operand_stack_elem  get_global(uint32_t index) {
@@ -239,13 +232,11 @@ namespace eosio { namespace vm {
       inline void     exit(std::error_code err = std::error_code()) {
          _error_code = err;
          clear_exiting_op(_state.exiting_loc);
-         std::cout << "Exiting at " << _state.code_index << " : " << _state.pc+1 << " ...\n";
-         _state.exiting_loc = { _state.code_index, _state.pc+1 };
+         _state.exiting_loc = { _state.code_index, (_state.pc+1)-_state.current_offset };
          set_exiting_op(_state.exiting_loc);
       }
 
       inline void reset() {
-      
          _linear_memory = _wasm_alloc->get_base_ptr<char>();
          if (_mod.memories.size()) {
             grow_linear_memory(_mod.memories[0].limits.initial - _wasm_alloc->get_current_page());
@@ -264,6 +255,9 @@ namespace eosio { namespace vm {
                _mod.globals[i].current = _mod.globals[i].init;
          }
          _state = execution_state{};
+         _os.eat(_state.os_index);
+         _as.eat(_state.as_index);
+
       }
       
       inline void set_exiting_op( const std::pair<uint32_t, uint32_t>& exiting_loc ) {
@@ -322,7 +316,6 @@ namespace eosio { namespace vm {
          _state.exiting_loc      = {0, 0};
          _state.as_index         = _as.size();
          _state.os_index         = _os.size();
-         _state.cs_index         = _cs.size();
 
          if(auto fn = _mod.code[_state.code_index].jit_code) {
             const func_type& ft = _mod.get_function_type(func_index);
@@ -366,7 +359,6 @@ namespace eosio { namespace vm {
          _state = saved_state;
          set_exiting_op( _state.exiting_loc );
          _os.eat(_state.os_index);
-         _cs.eat(_state.cs_index);
          _as.eat(_state.as_index);
          return ret;
       }
@@ -545,7 +537,6 @@ namespace eosio { namespace vm {
       char*                           _linear_memory    = nullptr;
       module&                         _mod;
       wasm_allocator*                 _wasm_alloc;
-      control_stack                   _cs = { _base_allocator };
       operand_stack                   _os = { _base_allocator };
       call_stack                      _as = { _base_allocator };
       registered_host_functions<Host> _rhf;
