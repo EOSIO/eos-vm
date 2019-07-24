@@ -110,7 +110,6 @@ namespace eosio { namespace vm {
             _last_op_index = _as.peek().op_index;
 
          } else {
-            std::cout << "exiting at " << _state.exiting_loc.first << " : " << _state.exiting_loc.second << "\n";
             set_exiting_op(_state.exiting_loc);
             _state.pc = 0;
             _state.current_offset = 0;
@@ -203,7 +202,6 @@ namespace eosio { namespace vm {
       inline void     exit(std::error_code err = std::error_code()) {
          _error_code = err;
          clear_exiting_op(_state.exiting_loc);
-         std::cout << "Exiting at " << _state.code_index << " : " << _state.pc+1 << " ...\n";
          _state.exiting_loc = { _state.code_index, _state.pc+1 };
          set_exiting_op(_state.exiting_loc);
       }

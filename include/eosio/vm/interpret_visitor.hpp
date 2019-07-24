@@ -75,8 +75,6 @@ namespace eosio { namespace vm {
       }
       [[gnu::always_inline]] inline void operator()(const call_indirect_t& op) {
          const auto& index = context.pop_operand().to_ui32();
-	 std::cout << "call_indirect " << index << "\n";
-	 std::cout << "AS size " << context.call_depth() << "\n";
          context.call(context.table_elem(index));
       }
       [[gnu::always_inline]] inline void operator()(const drop_t& op) {
