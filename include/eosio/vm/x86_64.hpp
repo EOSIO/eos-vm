@@ -27,7 +27,7 @@ namespace eosio { namespace vm {
       machine_code_writer(jit_allocator& alloc, std::size_t source_bytes, uint32_t funcnum, module& mod, bool is_exported) :
          _mod(mod),
          _allocator(alloc),
-         _ft(mod.get_function_type(funcnum)) {
+         _ft(mod.types[mod.functions[funcnum]]) {
          code = _allocator.alloc(source_bytes * 32 + 128); // FIXME: Guess at upper bound on function size
          start_function(code, funcnum);
       }
@@ -177,19 +177,33 @@ namespace eosio { namespace vm {
 
       void emit_call(const func_type& ft, uint32_t funcnum) {
          if(is_host_function(funcnum)) {
-            call_host_function(ft, funcnum);
+            // mov $funcnum, %edx
+            emit_bytes(0xba);
+            emit_operand32(funcnum);
+            // pushq %rdi
+            emit_bytes(0x57);
+            // pushq %rsi
+            emit_bytes(0x56);
+            // lea 16(%rsp), %rsi
+            emit_bytes(0x48, 0x8d, 0x74, 0x24, 0x10);
+            // movabsq $call_host_function, %rax
+            emit_bytes(0x48, 0xb8);
+            emit_operand_ptr(&call_host_function);
+            // callq *%rax
+            emit_bytes(0xff, 0xd0);
+            // popq %rsi
+            emit_bytes(0x5e);
+            // popq %rdi
+            emit_bytes(0x5f);
+            // addq ft.param_types.size()*8, %rsp
+            emit_multipop(ft.param_types.size());
+            if(ft.return_count != 0)
+               // pushq %rax
+               emit_bytes(0x50);
          } else {
             // callq TARGET
             emit_bytes(0xe8);
             void * branch = emit_branch_target32();
-#if 0
-            // movabsq TARGET, %rax
-            emit_bytes(0x48, 0xb8);
-            void * branch = code;
-            emit_operand64(3735928559u);
-            // callq %rax
-            emit_bytes(0xff, 0xd0);
-#endif
             emit_multipop(ft.param_types.size());
             register_call(branch, funcnum);
             if(ft.return_count != 0)
@@ -232,12 +246,18 @@ namespace eosio { namespace vm {
          emit_bytes(0x48, 0x01, 0xd1);
          // movl (%rcx), %ecx // function type
          emit_bytes(0x8b, 0x09);
-         // cmp functypeidx, %ecx // FIXME: What if there are duplicate types.
+         // cmp functypeidx, %ecx
          emit_bytes(0x81, 0xf9);
          emit_operand32(functypeidx);
          // jne ERROR
          emit_bytes(0x0f, 0x85);
          emit_branch_target32();
+         // sub $num_imported_functions, %eax
+         emit_bytes(0x81, 0xe8);
+         emit_operand32(_mod.get_imported_functions_size());
+         // jb IMPORTED
+         emit_bytes(0x0f, 0x8c);
+         void * imported = emit_branch_target32();
          // imul sizeof(function_body), %rax, %rax
          static_assert(sizeof(function_body) < 256);
          emit_bytes(0x48, 0x6b, 0xc0, sizeof(function_body));
@@ -250,7 +270,33 @@ namespace eosio { namespace vm {
          emit_bytes(0x48, 0x8b, 0x00);
          // callq *%rax
          emit_bytes(0xff, 0xd0);
-
+         // jmp DONE
+         emit_bytes(0xe9);
+         void * done = emit_branch_target32();
+         // IMPORTED:
+         fix_branch(imported, code);
+         // add $num_imported_functions, %eax
+         emit_bytes(0x81, 0xc0);
+         emit_operand32(_mod.get_imported_functions_size());
+         // mov %eax, %edx
+         emit_bytes(0x89, 0xc2);
+         // pushq %rdi
+         emit_bytes(0x57);
+         // pushq %rsi
+         emit_bytes(0x56);
+         // lea 16(%rsp), %rsi
+         emit_bytes(0x48, 0x8d, 0x74, 0x24, 0x10);
+         // movabsq $call_host_function, %rax
+         emit_bytes(0x48, 0xb8);
+         emit_operand_ptr(&call_host_function);
+         // callq *%rax
+         emit_bytes(0xff, 0xd0);
+         // popq %rsi
+         emit_bytes(0x5e);
+         // popq %rdi
+         emit_bytes(0x5f);
+         // DONE:
+         fix_branch(done, code);
          emit_multipop(ft.param_types.size());
          if(ft.return_count != 0)
             // pushq %rax
@@ -1642,13 +1688,10 @@ namespace eosio { namespace vm {
          // FIXME: implement the handler
       }
 
-      bool is_host_function(uint32_t funcnum) { return false; }
-      void call_host_function(const func_type& ft, uint32_t funcnum) {}
+      bool is_host_function(uint32_t funcnum) { return funcnum < _mod.get_imported_functions_size(); }
 
-      template<auto F>
-      static uint64_t host_function_wrapper(Context* context /*rdi*/, void* stack /*rsi*/) {
-         // unpack args
-         // call
+     static native_value call_host_function(Context* context /*rdi*/, native_value* stack /*rsi*/, uint32_t idx /*edx*/) {
+         return context->call_host_function(stack, idx);
       }
 
       static uint32_t current_memory(Context* context /*rdi*/) {

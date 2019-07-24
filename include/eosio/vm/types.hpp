@@ -212,9 +212,13 @@ namespace eosio { namespace vm {
             type_aliases[i] = j;
          }
 
-         fast_functions.resize(functions.size());
+         uint32_t imported_functions_size = get_imported_functions_size();
+         fast_functions.resize(functions.size() + imported_functions_size);
+         for (uint32_t i = 0; i < imported_functions_size; ++i) {
+            fast_functions[i] = type_aliases[imports[i].type.func_t];
+         }
          for (uint32_t i = 0; i < functions.size(); ++i) {
-            fast_functions[i] = type_aliases[functions[i]];
+            fast_functions[i + imported_functions_size] = type_aliases[functions[i]];
          }
       }
    };

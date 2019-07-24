@@ -37,6 +37,35 @@ namespace eosio { namespace vm {
 
       inline int32_t current_linear_memory() const { return _wasm_alloc->get_current_page(); }
 
+      inline native_value call_host_function(native_value* stack, uint32_t index) {
+         const auto& ft = _mod.get_function_type(index);
+         uint32_t num_params = ft.param_types.size();
+         uint32_t original_operands = current_operands_index();
+         for(uint32_t i = 0; i < ft.param_types.size(); ++i) {
+            switch(ft.param_types[i]) {
+             case i32: push_operand(i32_const_t{stack[num_params - i - 1].i32}); break;
+             case i64: push_operand(i64_const_t{stack[num_params - i - 1].i64}); break;
+             case f32: push_operand(f32_const_t{stack[num_params - i - 1].f32}); break;
+             case f64: push_operand(f64_const_t{stack[num_params - i - 1].f64}); break;
+             default: assert(!"Unexpected type in param_types.");
+            }
+         }
+         _rhf(_state.host, *this, _mod.import_functions[index]);
+         native_value result{uint32_t{0}};
+         if(ft.return_count) {
+            operand_stack_elem el = pop_operand();
+            switch(ft.return_type) {
+             case i32: result = el.to_ui32(); break;
+             case i64: result = el.to_ui64(); break;
+             case f32: result = el.to_f32(); break;
+             case f64: result = el.to_f64(); break;
+             default: assert(!"Unexpected function return type.");
+            }
+         }
+         assert(current_operands_index() == original_operands);
+         return result;
+      }
+
       inline void call(uint32_t index) {
          // TODO validate index is valid
          if (index < _mod.get_imported_functions_size()) {
