@@ -202,7 +202,7 @@ namespace eosio { namespace vm {
       inline void     exit(std::error_code err = std::error_code()) {
          _error_code = err;
          clear_exiting_op(_state.exiting_loc);
-         _state.exiting_loc = { _state.code_index, _state.pc+1 };
+         _state.exiting_loc = { _state.code_index, (_state.pc+1)-_state.current_offset };
          set_exiting_op(_state.exiting_loc);
       }
 
