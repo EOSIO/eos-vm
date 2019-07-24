@@ -30,7 +30,7 @@ link_libraries(Threads::Threads)
 # ##################################################################################################
 include(CMakeDependentOption)
 option(ENABLE_SOFTFLOAT "enable the backend to use deterministic software floating point operations"
-	OFF)
+	ON)
 option(ENABLE_INSTALL "enable this library to be installed" ON)
 option(ENABLE_MEMORY_OPS_ALIGNMENT "enable the backend to obey alignment hints" OFF)
 option(ENABLE_TOOLS "enable building of tools" ON)
