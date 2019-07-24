@@ -4,6 +4,9 @@
 option(ENABLE_TESTS "enable building of unit tests, spec tests." ON)
 cmake_dependent_option(ENABLE_FUZZ_TESTS "enable fuzz testing" OFF "ENABLE_TESTS" ON)
 
+set(Boost_USE_STATIC_LIBS TRUE)
+find_package(Boost COMPONENTS unit_test_framework REQUIRED)
+
 configure_file(wasm_config.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/wasm_config.hpp)
 include_directories(${CMAKE_SOURCE_DIR}/external/Catch2/single_include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
@@ -14,8 +17,6 @@ endif()
 
 enable_testing()
 
-#file(GLOB UNIT_TESTS "i32_tests.cpp" "i64_tests.cpp" "f32_tests.cpp" "spec_tests.cpp" "varint_tests.cpp" "variant_tests.cpp" )
-
 # ##############
 # disable catch2 from installing it's own signal handlers
 # ##############
@@ -24,12 +25,24 @@ add_definitions(-DCATCH_CONFIG_NO_POSIX_SIGNALS)
 # ##############
 # define spec tests
 # ##############
-file(GLOB SPEC_TESTS "spec_tests/*.cpp" )
+#file(GLOB SPEC_TESTS "spec_tests/*.cpp" )
+file(GLOB SPEC_TESTS "spec/*.cpp" )
 add_executable( eos_vm_spec_tests main.cpp ${SPEC_TESTS} )
 target_link_libraries( eos_vm_spec_tests eos-vm Catch2::Catch2 )
 
+target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_SOURCE_DIR}/tests )
 target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_SOURCE_DIR}/include )
+target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_BINARY_DIR}/tests/spec )
 
-add_executable( spec_test_generator ${CMAKE_CURRENT_SOURCE_DIR}/spec_tests/spec_test_generator/spec_test_generator.cpp )
+add_executable(unit_tests main.cpp 
+	                  varint_tests.cpp 
+			  host_functions_tests.cpp 
+			  signals_tests.cpp 
+			  watchdog_tests.cpp)
+target_link_libraries(unit_tests eos-vm Catch2::Catch2)
+
+add_executable( spec_test_generator ${CMAKE_CURRENT_SOURCE_DIR}/spec_test_generator/spec_test_generator.cpp )
 
 catch_discover_tests( eos_vm_spec_tests )
+
+add_test(NAME unit_tests COMMAND unit_tests)

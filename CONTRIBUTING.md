@@ -72,7 +72,7 @@ To get it out of the way:
 
 ### Submitting Pull Requests
 
-Pull requests are awesome. If you're looking to raise a PR for something which doesn't have an open issue, please think carefully about [raising an issue](#reporting-an-issue) which your PR can close, especially if you're fixing a bug. This makes it more likely that there will be enough information available for your PR to be properly tested and merged.
+*Not yet licensed as OSS and not ready for PRs.* Please [raise an issue](#reporting-an-issue) for now, especially if you find a bug. Later, this makes it more likely that there will be enough information available for later PRs to be properly investigated, tested, and merged.
 
 ### Testing and Quality Assurance
 

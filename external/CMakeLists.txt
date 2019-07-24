@@ -1,1 +1,7 @@
+include(GNUInstallDirs)
 include(softfloat.cmake)
+install(TARGETS softfloat
+	LIBRARY
+	   DESTINATION ${CMAKE_INSTALL_LIBDIR}
+	PUBLIC_HEADER
+	   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
