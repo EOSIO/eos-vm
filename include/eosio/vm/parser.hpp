@@ -216,7 +216,7 @@ namespace eosio { namespace vm {
       void parse_function_body(wasm_code_ptr& code, function_body& fb, std::size_t idx) {
          const auto&         fn_type   = _mod->types.at(_mod->functions.at(idx));
 
-         const auto&         body_size = parse_varuint32(code);
+         fb.size   = parse_varuint32(code);
          const auto&         before    = code.offset();
          const auto&         local_cnt = parse_varuint32(code);
          _current_function_index++;
@@ -229,14 +229,20 @@ namespace eosio { namespace vm {
          fb.locals = std::move(locals);
 
          // -1 is 'end' 0xb byte and one extra slot for an exiting instruction to be held during execution, this is used to drive the pc past normal execution
-         size_t            bytes = (body_size - (code.offset() - before));
+         fb.size -= code.offset() - before;
+         /*
          decltype(fb.code) _code = { _allocator, bytes };
          wasm_code_ptr     fb_code(code.raw(), bytes);
+         */
+         _function_bodies.emplace_back(code.raw(), bytes);
+         code += fb.size;
+         EOS_WB_ASSERT(*code++ == 0x0B, wasm_parse_exception, "failed parsing function body, expected 'end'");
+         /*
          parse_function_body_code(fb_code, bytes, _code, fn_type);
          code += bytes - 1;
-         EOS_WB_ASSERT(*code++ == 0x0B, wasm_parse_exception, "failed parsing function body, expected 'end'");
          _code[_code.size() - 1] = fend_t{};
          fb.code                 = std::move(_code);
+         */
       }
 
       // The control stack holds either address of the target of the
@@ -252,7 +258,10 @@ namespace eosio { namespace vm {
          std::variant<uint32_t, std::vector<uint32_t*>> relocations;
       };
 
-      void parse_function_body_code(wasm_code_ptr& code, size_t bounds, guarded_vector<opcode>& fb, const func_type& ft) {
+      void parse_function_body_code(wasm_code_ptr& code, size_t bounds, function_body& body, const func_type& ft) {
+         guarded_vector<opcode> fb{_allocator, 0};
+         body.code = _allocator->template alloc<opcode>(bounds);
+         fb.set(body.code, body.size);
          size_t op_index       = 0;
 
          // Initialize the control stack with the current function as the sole element
@@ -292,13 +301,24 @@ namespace eosio { namespace vm {
          };
          
          auto parse_br_table = [&](wasm_code_ptr& code, br_table_t& bt) {
-            size_t                   table_size = parse_varuint32(code);
-            guarded_vector<br_table_t::elem_t> br_tab{ _allocator, table_size + 1 };
+            size_t table_size = parse_varuint32(code);
+            // set a pseudo op to push the pc over the data
+            uint32_t offset = static_cast<uint32_t>(((table_size * sizeof(br_table_t::elem_t))/sizeof(opcode))+1);
+            fb[op_index++] = br_table_data_t{offset+1};
+            // memory is after the br_table_data opcode `fb[op_index+1]`
+            bt.table = reinterpret_cast<br_table_t::elem_t*>(&fb[op_index]);
+
+            op_index += offset;
+
+            // canary to throw if we have overbounded our allocated memory
+            fb[op_index] = error_t{};
+
+            /* to ensure that memory is allocated linearly and more compactly to allow for fast program counter operation and smaller footprint,
+             * "inlining" these allocations are the best way in terms of efficiency, not the best in terms of ickyness.
+             */
             for (size_t i = 0; i < table_size + 1; i++) {
-               auto& elem = br_tab.at(i);
-               handle_branch_target(parse_varuint32(code), &elem.pc, &elem.stack_pop);
+               handle_branch_target(parse_varuint32(code), &bt.table[i].pc, &bt.table[i].stack_pop);
             }
-            bt.table          = br_tab.raw();
             bt.size           = table_size;
          };
 
@@ -717,7 +737,8 @@ namespace eosio { namespace vm {
                case opcodes::error: fb[op_index++] = error_t{}; break;
             }
          }
-         fb.resize(op_index + 1);
+         //fb.resize(op_index + 1);
+         body.size = op_index + 1;
       }
 
       void parse_data_segment(wasm_code_ptr& code, data_segment& ds) {
@@ -804,6 +825,11 @@ namespace eosio { namespace vm {
                                 vec<typename std::enable_if_t<id == section_id::code_section, function_body>>& elems) {
          parse_section_impl(code, elems,
                             [&](wasm_code_ptr& code, function_body& fb, std::size_t idx) { parse_function_body(code, fb, idx); });
+         elems      = vec<Elem>{ _allocator, count };
+         for (size_t i = 0; i < _function_bodies.size(); i++) { 
+            parse_function_body_code(_function_bodies[i], _mod.code[i].size, _mod.code[i], _mod->types.at(_mod->functions.at(idx))); 
+            _mod.code[i].code[_mod.code[i].size - 1] = fend_t{};
+         }
       }
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                                code,
@@ -830,5 +856,6 @@ namespace eosio { namespace vm {
       module*             _mod; // non-owning weak pointer
       int64_t             _current_function_index = -1;
       std::set<uint32_t>  _export_indices;
+      std::vector<wasm_code_ptr>  _function_bodies;
    };
 }} // namespace eosio::vm

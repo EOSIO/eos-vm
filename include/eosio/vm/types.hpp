@@ -15,6 +15,7 @@
 #include <limits>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 namespace eosio { namespace vm {
    enum types { i32 = 0x7f, i64 = 0x7e, f32 = 0x7d, f64 = 0x7c, anyfunc = 0x70, func = 0x60, pseudo = 0x40, ret_void };
@@ -115,9 +116,10 @@ namespace eosio { namespace vm {
    };
 
    struct function_body {
-      uint32_t                    body_size;
+      uint32_t                    size;
       guarded_vector<local_entry> locals;
-      guarded_vector<opcode>      code;
+      opcode*                     code;
+      //guarded_vector<opcode>      code;
    };
 
    struct data_segment {
@@ -125,6 +127,32 @@ namespace eosio { namespace vm {
       init_expr               offset;
       guarded_vector<uint8_t> data;
    };
+   /*
+   template <typename T, typename Alloc>
+   class code_vector {
+      public:
+         constexpr code_vector(Alloc& alloc, uint32_t size=0) : allocator(alloc) {
+            indices = { alloc, size };
+         }
+         uint32_t size()const { return indices.size(); }
+         void new_element(uint32_t size) {
+            if (element_index < 1) {
+               indices[element_index++] = 0;
+            }
+            indices[element_index++] = indices[element_index-1]+size;
+            allocator.template alloc<opcode>
+         }
+         opcode* operator[](uint32_t index) {
+            return code + indices[index];
+         }
+      private:
+         std::unordered_map<uint32_t, uint32_t> indices_transform;
+         guarded_vector<uint32> indices;
+         uint32_t element_index = 0;
+         opcode* code = nullptr;
+         Alloc& allocator;
+   };
+   */
 
    using wasm_code     = std::vector<uint8_t>;
    using wasm_code_ptr = guarded_ptr<uint8_t>;

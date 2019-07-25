@@ -6,7 +6,6 @@
 #include <string>
 
 namespace eosio { namespace vm {
-   
    template <typename T, typename Allocator> 
    class managed_vector {
       public:
@@ -36,6 +35,8 @@ namespace eosio { namespace vm {
                T* ptr = _allocator->template alloc<T>( size );
                if (_size == 0)
                  _data = ptr;
+            } else {
+               _allocator->template reclaim<T>( _size - size );
             }
             _size = size;
          }

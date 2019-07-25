@@ -196,7 +196,7 @@ namespace eosio { namespace vm {
       inline uint32_t get_pc() const { return _state.pc; }
       inline void     set_pc(uint32_t pc) { _state.pc = pc; }
       inline void     set_relative_pc(uint32_t pc) { _state.pc = _state.current_offset + pc; }
-      inline void     inc_pc() { _state.pc++; }
+      inline void     inc_pc(uint32_t offset=1) { _state.pc += offset; }
       inline uint32_t get_code_index() const { return _state.code_index; }
       inline uint32_t get_code_offset() const { return _state.pc - _state.current_offset; }
       inline void     exit(std::error_code err = std::error_code()) {

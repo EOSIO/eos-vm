@@ -70,7 +70,15 @@ namespace eosio { namespace vm {
          _offset = aligned;
          return ptr;
       }
-
+      /* different semantics than free,
+       * the memory is simply reset and assumes that allocations where sequential to use
+       * reclaim
+       */
+      template <typename T>
+      void reclaim(size_t size=0) {
+         EOS_WB_ASSERT( _offset - size >= 0, wasm_bad_alloc, "reclaimed too much memory" );
+         _offset -= size;
+      }
       void free() { EOS_WB_ASSERT(false, wasm_bad_alloc, "unimplemented"); }
 
       void reset() { _offset = 0; }

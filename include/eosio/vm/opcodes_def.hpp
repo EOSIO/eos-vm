@@ -23,9 +23,9 @@
 #define CALL_OPS(opcode_macro)                  \
    opcode_macro(call, 0x10)                     \
    opcode_macro(call_indirect, 0x11)            \
-   opcode_macro(padding_call_0, 0x12)           \
-   opcode_macro(padding_call_1, 0x13)           \
-   opcode_macro(padding_call_2, 0x14)           \
+   opcode_macro(call_imm, 0x12)                 \
+   opcode_macro(call_indirect_imm, 0x13)        \
+   opcode_macro(br_table_data, 0x14)            \
    opcode_macro(padding_call_3, 0x15)           \
    opcode_macro(padding_call_4, 0x16)           \
    opcode_macro(padding_call_5, 0x17)           \

@@ -63,6 +63,10 @@ namespace eosio { namespace vm {
             context.inc_pc();
          }
       }
+
+      [[gnu::always_inline]] inline void operator()(const br_table_data_t& op) {
+         context.inc_pc(op.index);
+      }
       [[gnu::always_inline]] inline void operator()(const br_table_t& op) {
          const auto& in = context.pop_operand().to_ui32();
          const auto& entry = op.table[std::min(in, op.size)]; 
