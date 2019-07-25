@@ -10,6 +10,7 @@
 namespace eosio { namespace vm {
 
    inline thread_local std::atomic<sigjmp_buf*> signal_dest = ATOMIC_VAR_INIT(nullptr);
+   inline thread_local std::exception_ptr saved_exception{nullptr};
    template<int Sig>
    inline struct sigaction prev_signal_handler;
 
@@ -42,6 +43,23 @@ namespace eosio { namespace vm {
             }
          }
       }
+   }
+
+   // only valid inside invoke_with_signal_handler.
+   // This is a workaround for the fact that it
+   // is currently unsafe to throw an exception through
+   // a jit frame.
+   [[noreturn]] inline void throw_() {
+      saved_exception = std::current_exception();
+      sigjmp_buf* dest = std::atomic_load(&signal_dest);
+      siglongjmp(*dest, -1);
+   }
+
+   template<typename E>
+   [[noreturn]] inline void throw_(E&& e) {
+      saved_exception = std::make_exception_ptr(static_cast<E&&>(e));
+      sigjmp_buf* dest = std::atomic_load(&signal_dest);
+      siglongjmp(*dest, -1);
    }
 
    inline void setup_signal_handler_impl() {
@@ -101,10 +119,16 @@ namespace eosio { namespace vm {
             throw;
          }
       } else {
-        if (old_signal_handler) {
+         if (old_signal_handler) {
             std::atomic_store(&signal_dest, old_signal_handler);
          }
-         e(sig);
+         if (sig == -1) {
+            std::exception_ptr exception = std::move(saved_exception);
+            saved_exception = nullptr;
+            std::rethrow_exception(exception);
+         } else {
+            e(sig);
+         }
       }
    }
 

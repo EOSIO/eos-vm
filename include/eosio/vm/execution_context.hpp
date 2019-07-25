@@ -230,10 +230,9 @@ namespace eosio { namespace vm {
       inline uint32_t get_code_index() const { return _state.code_index; }
       inline uint32_t get_code_offset() const { return _state.pc - _state.current_offset; }
       inline void     exit(std::error_code err = std::error_code()) {
+         // FIXME: system_error?
          _error_code = err;
-         clear_exiting_op(_state.exiting_loc);
-         _state.exiting_loc = { _state.code_index, (_state.pc+1)-_state.current_offset };
-         set_exiting_op(_state.exiting_loc);
+         throw wasm_exit_exception{"Exiting"};
       }
 
       inline void reset() {
@@ -317,18 +316,32 @@ namespace eosio { namespace vm {
          _state.as_index         = _as.size();
          _state.os_index         = _os.size();
 
+         auto cleanup = [&]() {
+            clear_exiting_op( _state.exiting_loc );
+            _state = saved_state;
+            set_exiting_op( _state.exiting_loc );
+            _os.eat(_state.os_index);
+            _as.eat(_state.as_index);
+         };
+         struct guard {
+            ~guard() {
+               _cleanup();
+            }
+            decltype(cleanup)& _cleanup;
+         };
+         guard g{cleanup};
+
          if(auto fn = _mod.code[_state.code_index].jit_code) {
             const func_type& ft = _mod.get_function_type(func_index);
             native_value result;
 
-            vm::invoke_with_signal_handler([&]() {
-               result = machine_code_writer<execution_context>::invoke(fn, this, _linear_memory, args...);
-            }, &handle_signal);
-
-            // revert the state back to original calling context
-            clear_exiting_op( _state.exiting_loc );
-            _state = saved_state;
-            set_exiting_op( _state.exiting_loc );
+            try {
+               vm::invoke_with_signal_handler([&]() {
+                  result = machine_code_writer<execution_context>::invoke(fn, this, _linear_memory, args...);
+               }, &handle_signal);
+            } catch(wasm_exit_exception&) {
+               return {};
+            }
 
             if(!ft.return_count)
                return {};
@@ -345,22 +358,19 @@ namespace eosio { namespace vm {
          type_check(_mod.types[_mod.functions[func_index - _mod.import_functions.size()]]);
          setup_locals(func_index);
 
-         vm::invoke_with_signal_handler([&]() {
-            execute(visitor);
-         }, &handle_signal);
-
-         std::optional<operand_stack_elem> ret;
-         if (_mod.get_function_type(func_index).return_count) {
-            ret = pop_operand();
+         try {
+            vm::invoke_with_signal_handler([&]() {
+               execute(visitor);
+            }, &handle_signal);
+         } catch(wasm_exit_exception&) {
+            return {};
          }
 
-         // revert the state back to original calling context
-         clear_exiting_op( _state.exiting_loc );
-         _state = saved_state;
-         set_exiting_op( _state.exiting_loc );
-         _os.eat(_state.os_index);
-         _as.eat(_state.as_index);
-         return ret;
+         if (_mod.get_function_type(func_index).return_count) {
+            return pop_operand();
+         } else {
+            return {};
+         }
       }
 
       inline void jump(uint32_t pop_info, uint32_t new_pc) {

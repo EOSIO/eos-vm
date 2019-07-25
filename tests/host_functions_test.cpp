@@ -4,66 +4,79 @@
 #include <cstdlib>
 #include <fstream>
 #include <string>
+#include <catch2/catch.hpp>
 
-#include <boost/test/unit_test.hpp>
-#include <boost/test/framework.hpp>
-
-#include <eosio/wasm_backend/leb128.hpp>
-#include <eosio/wasm_backend/wasm_interpreter.hpp>
-#include <eosio/wasm_backend/types.hpp>
-#include <eosio/wasm_backend/opcodes.hpp>
-#include <eosio/wasm_backend/parser.hpp>
-#include <eosio/wasm_backend/constants.hpp>
-#include <eosio/wasm_backend/sections.hpp>
-//#include <eosio/wasm_backend/disassembly_visitor.hpp>
-//#include <eosio/wasm_backend/interpret_visitor.hpp>
+#include <eosio/vm/leb128.hpp>
+#include <eosio/vm/backend.hpp>
+#include <eosio/vm/types.hpp>
+#include <eosio/vm/opcodes.hpp>
+#include <eosio/vm/parser.hpp>
+#include <eosio/vm/constants.hpp>
+#include <eosio/vm/sections.hpp>
+//#include <eosio/vm/disassembly_visitor.hpp>
+//#include <eosio/vm/interpret_visitor.hpp>
 
 using namespace eosio;
-using namespace eosio::wasm_backend;
+using namespace eosio::vm;
 
-BOOST_AUTO_TEST_SUITE(host_functions_tests)
-BOOST_AUTO_TEST_CASE(host_functions_test) { 
-   try {  
-      {
-         /*
-         memory_manager::set_memory_limits( 32*1024*1024 );
-         binary_parser bp;
-         module mod;
-         wasm_code code = read_wasm( "test.wasm" );
-         wasm_code_ptr code_ptr(code.data(), 0);
-         bp.parse_module( code, mod );
+struct my_host_functions {
+   static int test(int value) { return value + 42; }
+};
 
-         struct test {
-            void hello() { std::cout << "hello\n"; }
-            static void hello2() { std::cout << "Hello2\n"; }
-            static void func() { std::cout << "func\n"; }
-         };
+extern wasm_allocator wa;
 
-         test t;
-         registered_member_function<test, &test::hello, decltype("hello"_hfn)> rf;
-         std::invoke(rf.function, t);
+TEST_CASE( "Testing host functions", "[host_functions_test]" ) {
+   my_host_functions host;
+   registered_function<my_host_functions, std::nullptr_t, &my_host_functions::test>("host", "test");
 
-         registered_function<&test::hello2, decltype("hello2"_hfn)> rf2;
-         std::invoke(rf2.function);
+   using backend_t = backend<my_host_functions>;
 
-         registered_function<&test::func, decltype("eosio_assert"_hfn)> rf3;
+   auto code = backend_t::read_wasm( "host.wasm" );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
 
-         using rhf = registered_host_functions<decltype(rf), decltype(rf2), decltype(rf3)>;
-         rhf::resolve(mod);
-         execution_context ec(mod);
-         interpret_visitor v(ec);
-         uint32_t index = mod.get_exported_function("apply");
-         int i = 0;
-         while (ec.executing()) {
-         for (uint32_t i=0; i < mod.code[index].code.size(); i++) {
-            ec.set_pc(i);
-            std::visit(v, mod.code[index].code[i]);
-         }
-         std::cout << v.dbg_output.str() << '\n';
-         */
-      }
-
-   } FC_LOG_AND_RETHROW() 
+   bkend.initialize();
+   CHECK(bkend.call_with_return(&host, "env", "test", UINT32_C(5))->to_i32() == 49);
+   CHECK(bkend.call_with_return(&host, "env", "test.indirect", UINT32_C(5), UINT32_C(0))->to_i32() == 47);
+   CHECK(bkend.call_with_return(&host, "env", "test.indirect", UINT32_C(5), UINT32_C(1))->to_i32() == 49);
 }
-BOOST_AUTO_TEST_SUITE_END()
+
+struct test_exception {};
+
+struct host_functions_throw {
+   static int test(int) { throw test_exception{}; }
+};
+
+TEST_CASE( "Testing throwing host functions", "[host_functions_throw_test]" ) {
+   host_functions_throw host;
+   registered_function<host_functions_throw, std::nullptr_t, &host_functions_throw::test>("host", "test");
+
+   using backend_t = backend<host_functions_throw>;
+
+   auto code = backend_t::read_wasm( "host.wasm" );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+
+   bkend.initialize();
+   CHECK_THROWS_AS(bkend.call(&host, "env", "test", UINT32_C(2)), test_exception);
+}
+
+struct host_functions_exit {
+   execution_context<host_functions_exit> * context;
+   int test(int) { context->exit(); return 0; }
+};
+
+TEST_CASE( "Testing exiting host functions", "[host_functions_exit_test]" ) {
+   registered_function<host_functions_exit, host_functions_exit, &host_functions_exit::test>("host", "test");
+
+   using backend_t = backend<host_functions_exit>;
+
+   auto code = backend_t::read_wasm( "host.wasm" );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+   host_functions_exit host{&bkend.get_context()};
+
+   bkend.initialize();
+   CHECK(!bkend.call_with_return(&host, "env", "test", UINT32_C(2)));
+}
 

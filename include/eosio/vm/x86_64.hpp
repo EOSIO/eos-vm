@@ -186,11 +186,18 @@ namespace eosio { namespace vm {
             emit_bytes(0x56);
             // lea 16(%rsp), %rsi
             emit_bytes(0x48, 0x8d, 0x74, 0x24, 0x10);
+            // mov %rsp, rcx; andq $-16, %rsp; push rcx; push %rcx
+            emit_bytes(0x48, 0x89, 0xe1);
+            emit_bytes(0x48, 0x83, 0xe4, 0xf0);
+            emit_bytes(0x51);
+            emit_bytes(0x51);
             // movabsq $call_host_function, %rax
             emit_bytes(0x48, 0xb8);
             emit_operand_ptr(&call_host_function);
             // callq *%rax
             emit_bytes(0xff, 0xd0);
+            // mov (%rsp), %rsp
+            emit_bytes(0x48, 0x8b, 0x24, 0x24);
             // popq %rsi
             emit_bytes(0x5e);
             // popq %rdi
@@ -1690,8 +1697,14 @@ namespace eosio { namespace vm {
 
       bool is_host_function(uint32_t funcnum) { return funcnum < _mod.get_imported_functions_size(); }
 
-     static native_value call_host_function(Context* context /*rdi*/, native_value* stack /*rsi*/, uint32_t idx /*edx*/) {
-         return context->call_host_function(stack, idx);
+      static native_value call_host_function(Context* context /*rdi*/, native_value* stack /*rsi*/, uint32_t idx /*edx*/) {
+         // It's currently unsafe to throw through a jit frame, because we don't set up
+         // the exception tables for them.
+         try {
+            return context->call_host_function(stack, idx);
+         } catch(...) {
+            vm::throw_();
+         }
       }
 
       static uint32_t current_memory(Context* context /*rdi*/) {
