@@ -81,7 +81,6 @@ namespace eosio { namespace vm {
                default: EOS_WB_ASSERT(false, wasm_parse_exception, "error invalid section id");
             }
          }
-         _code_alloc.make_executable();
       }
 
       inline uint32_t parse_magic(wasm_code_ptr& code) {
@@ -217,7 +216,7 @@ namespace eosio { namespace vm {
          EOS_WB_ASSERT((*code++) == opcodes::end, wasm_parse_exception, "no end op found");
       }
 
-      void parse_function_body(wasm_code_ptr& code, function_body& fb, std::size_t idx) {
+      void parse_function_body(wasm_code_ptr& code, function_body& fb, std::size_t idx, Writer& code_writer) {
          const auto&         fn_type   = _mod->types.at(_mod->functions.at(idx));
 
          const auto&         body_size = parse_varuint32(code);
@@ -234,11 +233,10 @@ namespace eosio { namespace vm {
 
          // -1 is 'end' 0xb byte and one extra slot for an exiting instruction to be held during execution, this is used to drive the pc past normal execution
          size_t            bytes = (body_size - (code.offset() - before));
-         Writer            code_writer(Writer::choose_alloc(_allocator, _code_alloc), bytes, idx, *_mod, _export_indices.count(_current_function_index));
          wasm_code_ptr     fb_code(code.raw(), bytes);
-         code_writer.emit_prologue(fn_type, locals);
+         code_writer.emit_prologue(fn_type, locals, idx);
          parse_function_body_code(fb_code, bytes, code_writer, fn_type);
-         code_writer.emit_epilogue(fn_type, locals);
+         code_writer.emit_epilogue(fn_type, locals, idx);
          code += bytes - 1;
          EOS_WB_ASSERT(*code++ == 0x0B, wasm_parse_exception, "failed parsing function body, expected 'end'");
          code_writer.finalize(fb);
@@ -752,8 +750,9 @@ namespace eosio { namespace vm {
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                                 code,
                                 vec<typename std::enable_if_t<id == section_id::code_section, function_body>>& elems) {
+         Writer code_writer(_allocator, code.bounds() - code.offset(), *_mod);
          parse_section_impl(code, elems,
-                            [&](wasm_code_ptr& code, function_body& fb, std::size_t idx) { parse_function_body(code, fb, idx); });
+                            [&](wasm_code_ptr& code, function_body& fb, std::size_t idx) { parse_function_body(code, fb, idx, code_writer); });
       }
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                                code,
@@ -777,7 +776,6 @@ namespace eosio { namespace vm {
 
     private:
       growable_allocator& _allocator;
-      jit_allocator       _code_alloc;
       module*             _mod; // non-owning weak pointer
       int64_t             _current_function_index = -1;
       std::set<uint32_t>  _export_indices;

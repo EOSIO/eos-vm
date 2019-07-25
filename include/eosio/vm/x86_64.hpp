@@ -23,16 +23,18 @@ namespace eosio { namespace vm {
    template<typename Context>
    class machine_code_writer {
     public:
-      static jit_allocator& choose_alloc(growable_allocator&, jit_allocator& alloc) { return alloc; }
-      machine_code_writer(jit_allocator& alloc, std::size_t source_bytes, uint32_t funcnum, module& mod, bool is_exported) :
+      machine_code_writer(growable_allocator& alloc, std::size_t source_bytes, module& mod) :
          _mod(mod),
-         _allocator(alloc),
-         _ft(mod.types[mod.functions[funcnum]]) {
-         code = _allocator.alloc(source_bytes * 32 + 128); // FIXME: Guess at upper bound on function size
-         start_function(code, funcnum);
+         // FIXME: Guess at upper bound on function size.  This should be an upper bound
+         // except for the prologue and epilogue, but is not as tight as it could be.
+         _allocator{source_bytes * 64} {
+         code = _allocator.alloc();
       }
+      ~machine_code_writer() { _allocator.make_executable(); }
 
-      void emit_prologue(const func_type& ft, const guarded_vector<local_entry>& locals) {
+      void emit_prologue(const func_type& ft, const guarded_vector<local_entry>& locals, uint32_t funcnum) {
+         _ft = &_mod.types[_mod.functions[funcnum]];
+         start_function(code, funcnum);
          // pushq RBP
          emit_bytes(0x55);
          // movq RSP, RBP
@@ -45,7 +47,7 @@ namespace eosio { namespace vm {
                emit_bytes(0x50);
          }
       }
-      void emit_epilogue(const func_type& ft, const guarded_vector<local_entry>& locals) {
+      void emit_epilogue(const func_type& ft, const guarded_vector<local_entry>& locals, uint32_t funcnum) {
          if(ft.return_count != 0) {
             // pop RAX
             emit_bytes(0x58);
@@ -151,13 +153,8 @@ namespace eosio { namespace vm {
          return { this };
       }
 
-      // HACK: Don't use global variables
-      static auto& call_singleton() {
-         static std::vector<std::variant<std::vector<void*>, void*>> functions;
-         return functions;
-      }
-      static void register_call(void* ptr, uint32_t funcnum) {
-         auto& vec = call_singleton();
+      void register_call(void* ptr, uint32_t funcnum) {
+         auto& vec = _function_relocations;
          if(funcnum >= vec.size()) vec.resize(funcnum + 1);
          if(void** addr = std::get_if<void*>(&vec[funcnum])) {
             fix_branch(ptr, *addr);
@@ -165,9 +162,8 @@ namespace eosio { namespace vm {
             std::get<std::vector<void*>>(vec[funcnum]).push_back(ptr);
          }
       }
-      static void start_function(void* func_start, uint32_t funcnum) {
-         auto& vec = call_singleton();
-         if(funcnum == 0) vec.clear();
+      void start_function(void* func_start, uint32_t funcnum) {
+         auto& vec = _function_relocations;
          if(funcnum >= vec.size()) vec.resize(funcnum + 1);
          for(void* branch : std::get<std::vector<void*>>(vec[funcnum])) {
             fix_branch(branch, func_start);
@@ -341,46 +337,46 @@ namespace eosio { namespace vm {
          //   local1
          //   ...
          //   localN
-         if (local_idx < _ft.param_types.size()) {
+         if (local_idx < _ft->param_types.size()) {
             // mov 8*(local_idx)(%RBP), RAX
             emit_bytes(0x48, 0x8b, 0x85);
-            emit_operand32(8 * (_ft.param_types.size() - local_idx + 1));
+            emit_operand32(8 * (_ft->param_types.size() - local_idx + 1));
             // push RAX
             emit_bytes(0x50);
          } else {
             // mov -8*(local_idx+1)(%RBP), RAX
             emit_bytes(0x48, 0x8b, 0x85);
-            emit_operand32(-8 * (local_idx - _ft.param_types.size() + 1));
+            emit_operand32(-8 * (local_idx - _ft->param_types.size() + 1));
             // push RAX
             emit_bytes(0x50);
          }
       }
 
       void emit_set_local(uint32_t local_idx) {
-         if (local_idx < _ft.param_types.size()) {
+         if (local_idx < _ft->param_types.size()) {
             // pop RAX
             emit_bytes(0x58);
             // mov RAX, -8*local_idx(EBP)
             emit_bytes(0x48, 0x89, 0x85);
-            emit_operand32(8 * (_ft.param_types.size() - local_idx + 1));
+            emit_operand32(8 * (_ft->param_types.size() - local_idx + 1));
          } else {
             // pop RAX
             emit_bytes(0x58);
             // mov RAX, -8*local_idx(EBP)
             emit_bytes(0x48, 0x89, 0x85);
-            emit_operand32(-8 * (local_idx - _ft.param_types.size() + 1));
+            emit_operand32(-8 * (local_idx - _ft->param_types.size() + 1));
          }
       }
 
       void emit_tee_local(uint32_t local_idx) {
-         if (local_idx < _ft.param_types.size()) {
+         if (local_idx < _ft->param_types.size()) {
             // pop RAX
             emit_bytes(0x58);
             // push RAX
             emit_bytes(0x50);
             // mov RAX, -8*local_idx(EBP)
             emit_bytes(0x48, 0x89, 0x85);
-            emit_operand32(8 * (_ft.param_types.size() - local_idx + 1));
+            emit_operand32(8 * (_ft->param_types.size() - local_idx + 1));
          } else {
             // pop RAX
             emit_bytes(0x58);
@@ -388,7 +384,7 @@ namespace eosio { namespace vm {
             emit_bytes(0x50);
             // mov RAX, -8*local_idx(EBP)
             emit_bytes(0x48, 0x89, 0x85);
-            emit_operand32(-8 * (local_idx - _ft.param_types.size() + 1));
+            emit_operand32(-8 * (local_idx - _ft->param_types.size() + 1));
          }
       }
 
@@ -1432,9 +1428,11 @@ namespace eosio { namespace vm {
     private:
 
       module& _mod;
-      jit_allocator& _allocator;
-      const func_type& _ft;
+      jit_allocator _allocator;
+      const func_type* _ft;
       unsigned char * code;
+      std::vector<std::variant<std::vector<void*>, void*>> _function_relocations;
+
       void emit_byte(uint8_t val) { *code++ = val; }
       void emit_bytes() {}
       template<class... T>

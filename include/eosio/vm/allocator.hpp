@@ -12,6 +12,7 @@
 #include <vector>
 
 #include <sys/mman.h>
+#include <unistd.h>
 
 namespace eosio { namespace vm {
    class bounded_allocator {
@@ -110,24 +111,30 @@ namespace eosio { namespace vm {
    };
 
     class jit_allocator {
-     private:
-       uint8_t* raw;
-       uint8_t* pos;
      public:
-       jit_allocator() : raw((uint8_t*)mmap(NULL, 1024 * 2014, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0)) {
-          pos = raw;
-       }
-       uint8_t* alloc(std::size_t size) {
-          // FIXME: allocate more pages on demand
-          return pos;
+       explicit jit_allocator(std::size_t size)
+         : _size(round_to_page(size)),
+           _raw((uint8_t*)mmap(NULL, _size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0)),
+           _pos(_raw)
+       {}
+       uint8_t* alloc() {
+          return _pos;
        }
        uint8_t* setpos(uint8_t* newpos) {
-          uint8_t* oldpos = pos;
-          pos = newpos;
+          uint8_t* oldpos = _pos;
+          _pos = newpos;
           return oldpos;
        }
        void make_executable() {
-          mprotect(raw, 1024 * 1024, PROT_EXEC);
+          mprotect(_raw, round_to_page(_pos - _raw), PROT_EXEC);
+       }
+     private:
+       std::size_t _size;
+       uint8_t* _raw;
+       uint8_t* _pos;
+       static std::size_t round_to_page(std::size_t size) {
+          std::size_t pagesize = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
+          return (size + pagesize - 1) / pagesize * pagesize;
        }
     };
 
