@@ -1,20 +1,8 @@
-#include <algorithm>
-#include <vector>
-#include <iterator>
-#include <cstdlib>
-#include <fstream>
-#include <string>
+#include <cstdint>
 #include <catch2/catch.hpp>
 
-#include <eosio/vm/leb128.hpp>
 #include <eosio/vm/backend.hpp>
-#include <eosio/vm/types.hpp>
-#include <eosio/vm/opcodes.hpp>
-#include <eosio/vm/parser.hpp>
-#include <eosio/vm/constants.hpp>
-#include <eosio/vm/sections.hpp>
-//#include <eosio/vm/disassembly_visitor.hpp>
-//#include <eosio/vm/interpret_visitor.hpp>
+#include "wasm_config.hpp"
 
 using namespace eosio;
 using namespace eosio::vm;
@@ -31,7 +19,7 @@ TEST_CASE( "Testing host functions", "[host_functions_test]" ) {
 
    using backend_t = backend<my_host_functions>;
 
-   auto code = backend_t::read_wasm( "host.wasm" );
+   auto code = backend_t::read_wasm( host_wasm );
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
 
@@ -53,7 +41,7 @@ TEST_CASE( "Testing throwing host functions", "[host_functions_throw_test]" ) {
 
    using backend_t = backend<host_functions_throw>;
 
-   auto code = backend_t::read_wasm( "host.wasm" );
+   auto code = backend_t::read_wasm( host_wasm );
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
 
@@ -71,7 +59,7 @@ TEST_CASE( "Testing exiting host functions", "[host_functions_exit_test]" ) {
 
    using backend_t = backend<host_functions_exit>;
 
-   auto code = backend_t::read_wasm( "host.wasm" );
+   auto code = backend_t::read_wasm( host_wasm );
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    host_functions_exit host{&bkend.get_context()};
