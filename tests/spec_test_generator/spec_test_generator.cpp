@@ -34,8 +34,6 @@ string generate_test_call(picojson::object obj, string expected_t, string expect
 
    ss << "\"" << obj["field"].to_str() << "\"";
 
-   size_t i         = 0;
-   size_t args_size = obj["args"].get<picojson::array>().size();
    for (picojson::value argv : obj["args"].get<picojson::array>()) {
       ss << ", ";
       picojson::object arg = argv.get<picojson::object>();
@@ -72,8 +70,6 @@ string generate_trap_call(picojson::object obj) {
    ss << "bkend(nullptr, \"env\", ";
    ss << "\"" << obj["field"].to_str() << "\"";
 
-   size_t i         = 0;
-   size_t args_size = obj["args"].get<picojson::array>().size();
    for (picojson::value argv : obj["args"].get<picojson::array>()) {
       ss << ", ";
       picojson::object arg = argv.get<picojson::object>();
@@ -96,8 +92,6 @@ string generate_call(picojson::object obj) {
    ss << "bkend(nullptr, \"env\", ";
    ss << "\"" << obj["field"].to_str() << "\"";
 
-   size_t i         = 0;
-   size_t args_size = obj["args"].get<picojson::array>().size();
    for (picojson::value argv : obj["args"].get<picojson::array>()) {
       ss << ", ";
       picojson::object arg = argv.get<picojson::object>();
@@ -113,6 +107,7 @@ string generate_call(picojson::object obj) {
    ss << ")";
    return ss.str();
 }
+
 void generate_tests(const map<string, vector<picojson::object>>& mappings) {
    stringstream unit_tests;
    string       exp_t, exp_v;
@@ -180,7 +175,7 @@ int main(int argc, char** argv) {
 
    map<string, vector<picojson::object>> test_mappings;
    const picojson::value::object&        obj = v.get<picojson::object>();
-   for (picojson::value::object::const_iterator i = obj.begin(); i != obj.end(); i++)
+   for (picojson::value::object::const_iterator i = obj.begin(); i != obj.end(); i++) {
       if (i->first == "commands") {
          for (const auto& o : i->second.get<picojson::array>()) {
             picojson::object obj = o.get<picojson::object>();
@@ -195,6 +190,7 @@ int main(int argc, char** argv) {
             test_mappings[test_suite_name].push_back(obj);
          }
       }
+   }
 
    generate_tests(test_mappings);
 }
