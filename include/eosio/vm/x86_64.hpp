@@ -1734,7 +1734,7 @@ namespace eosio { namespace vm {
       template<int Count>
       static native_value invoke_impl(native_value* data, fn_type fun, void* context, void* linear_memory) {
          static_assert(sizeof(native_value) == 8, "8-bytes expected for native_value");
-         native_value result;
+         native_value result = {0u};
          int count = Count;
          asm volatile(
             "sub $16, %%rsp; "
@@ -1755,8 +1755,8 @@ namespace eosio { namespace vm {
             "add %[StackOffset], %%rsp; "
             "ldmxcsr 8(%%rsp); "
             "add $16, %%rsp; "
-            : [result] "=a" (result), [count] "+r" (count) // output
-            : [data] "r" (data), [count] "r" (count), [fun] "r" (fun),
+            : [result] "+a" (result), [count] "+r" (count) // output
+            : [result] "a" (result), [data] "r" (data), [count] "r" (count), [fun] "r" (fun),
               [context] "D" (context), [linear_memory] "S" (linear_memory),
               [StackOffset] "n" (Count*8) // input
             : "memory", "cc" // clobber
