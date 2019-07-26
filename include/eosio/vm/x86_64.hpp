@@ -390,7 +390,7 @@ namespace eosio { namespace vm {
 
       void emit_get_global(uint32_t globalidx) {
          auto& gl = _mod.globals[globalidx];
-         void *ptr = &gl.init.value;
+         void *ptr = &gl.current.value;
          switch(gl.type.content_type) {
           case types::i32:
           case types::f32:
@@ -416,7 +416,7 @@ namespace eosio { namespace vm {
       }
       void emit_set_global(uint32_t globalidx) {
          auto& gl = _mod.globals[globalidx];
-         void *ptr = &gl.init.value;
+         void *ptr = &gl.current.value;
          // popq %rcx
          emit_bytes(0x59);
          // movabsq $ptr, %rax
