@@ -32,6 +32,7 @@ TEST_CASE( "Testing host functions", "[host_functions_test]" ) {
    CHECK(bkend.call_with_return(&host, "env", "test.indirect", UINT32_C(5), UINT32_C(1))->to_i32() == 210);
    CHECK(bkend.call_with_return(&host, "env", "test.indirect", UINT32_C(5), UINT32_C(2))->to_i32() == 49);
    CHECK_THROWS_AS(bkend.call(&host, "env", "test.indirect", UINT32_C(5), UINT32_C(3)), std::exception);
+   CHECK(bkend.call_with_return(&host, "env", "test.local-call", UINT32_C(5))->to_i32() == 147);
 }
 
 struct test_exception {};

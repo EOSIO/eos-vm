@@ -67,7 +67,7 @@ namespace eosio { namespace vm {
          // movabsq &on_unreachable, %rax
          emit_bytes(0x48, 0xb8);
          emit_operand_ptr(&on_unreachable);
-         // call %rax
+         // callq *%rax
          emit_bytes(0xff, 0xd0);
       }
       void emit_nop() {}
@@ -208,7 +208,7 @@ namespace eosio { namespace vm {
             emit_bytes(0xe8);
             void * branch = emit_branch_target32();
             emit_multipop(ft.param_types.size());
-            register_call(branch, funcnum);
+            register_call(branch, funcnum - _mod.get_imported_functions_size());
             if(ft.return_count != 0)
                // pushq %rax
                emit_bytes(0x50);
