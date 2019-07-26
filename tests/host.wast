@@ -3,8 +3,9 @@
 (module
   (type $ret-i32 (func (param i32) (result i32)))
   (func $host.test (import "host" "test") (param i32) (result i32))
+  (func $host.test2 (import "host" "test2") (param i32) (result i32))
   (memory 1)
-  (table 2 2 anyfunc)
+  (table 3 3 anyfunc)
   (func $local.test (export "test") (param i32) (result i32)
     (get_local 0)
     (call $host.test)
@@ -16,5 +17,5 @@
     (get_local 1)
     (call_indirect (type $ret-i32))
   )
-  (elem (i32.const 0) 0 1)
+  (elem (i32.const 0) 0 1 2)
 )

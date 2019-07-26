@@ -226,8 +226,8 @@ namespace eosio { namespace vm {
          // cmp $size, %rax
          emit_bytes(0x48, 0x3d);
          emit_operand32(table.size());
-         // ja ERROR
-         emit_bytes(0x0f, 0x87);
+         // jae ERROR
+         emit_bytes(0x0f, 0x83);
          emit_branch_target32();
          // shl $2, %rax
          emit_bytes(0x48, 0xc1, 0xe0, 0x02);
