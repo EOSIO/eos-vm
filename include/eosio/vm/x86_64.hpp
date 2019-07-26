@@ -233,7 +233,7 @@ namespace eosio { namespace vm {
          emit_bytes(0x48, 0xc1, 0xe0, 0x02);
          // movabsq $table, %rdx
          emit_bytes(0x48, 0xba);
-         emit_operand_ptr(&table[0]);
+         emit_operand_ptr(table.raw());
          // add %rdx, %rax
          emit_bytes(0x48, 0x01, 0xd0);
          // movl (%rax), %eax // function index
