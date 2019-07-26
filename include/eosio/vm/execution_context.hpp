@@ -52,13 +52,15 @@ namespace eosio { namespace vm {
          }
          _rhf(_state.host, *this, _mod.import_functions[index]);
          native_value result{uint32_t{0}};
+         // guarantee that the junk bits are zero, to avoid problems.
+         auto set_result = [&result](auto val) { std::memcpy(&result, &val, sizeof(val)); };
          if(ft.return_count) {
             operand_stack_elem el = pop_operand();
             switch(ft.return_type) {
-             case i32: result = el.to_ui32(); break;
-             case i64: result = el.to_ui64(); break;
-             case f32: result = el.to_f32(); break;
-             case f64: result = el.to_f64(); break;
+             case i32: set_result(el.to_ui32()); break;
+             case i64: set_result(el.to_ui64()); break;
+             case f32: set_result(el.to_f32()); break;
+             case f64: set_result(el.to_f64()); break;
              default: assert(!"Unexpected function return type.");
             }
          }
