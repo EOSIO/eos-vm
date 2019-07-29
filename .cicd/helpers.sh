@@ -1,14 +1,13 @@
-DRYRUN=${DRYRUN:-false}
-VERBOSE=${VERBOSE:-true}
-export PROJECT_NAME="eos-vm"
-export IMAGE_TAG=${IMAGE_TAG:-"ubuntu-18.04"}
+export IMAGE_TAG=${IMAGE_TAG:-'ubuntu-18.04'}
 
-function execute() {
+function execute()
+{
   $VERBOSE && echo "--- Executing: $@"
   $DRYRUN || "$@"
 }
 
-function determine-hash() {
+function determine-hash()
+{
     # Determine the sha1 hash of all dockerfiles in the .cicd directory.
     [[ -z $1 ]] && echo "Please provide the files to be hashed (wildcards supported)" && exit 1
     echo "Obtaining Hash of files from $1..."
@@ -24,4 +23,4 @@ function determine-hash() {
 }
 
 determine-hash ".cicd/${IMAGE_TAG}.dockerfile"
-export FULL_TAG="eosio/producer:${PROJECT_NAME}-$HASHED_IMAGE_TAG"
+export FULL_TAG="eosio/producer:eos-vm-$HASHED_IMAGE_TAG"

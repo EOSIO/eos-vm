@@ -19,11 +19,11 @@ RUN echo 'set(OPT_PATH @)' > $DCMAKE_TOOLCHAIN_FILE \
 
 CMD bash -c "cd /workdir && \
 ccache -s && \
-echo '=== Updating Submodules' && \
+echo '+++ :git: Updating Submodules' && \
 git submodule update --init --recursive && \
-echo '=== BUILDING $PROJECT_NAME' && \
+echo '+++ :hammer: Building eos-vm' && \
 mkdir -p build && cd build && \
 mv /$DCMAKE_TOOLCHAIN_FILE . && \
 cmake -DCMAKE_TOOLCHAIN_FILE=$DCMAKE_TOOLCHAIN_FILE -DENABLE_TESTS=ON .. && \
 make -j$(getconf _NPROCESSORS_ONLN) && \
-echo '=== COMPLETE'"
+echo '+++ :white_check_mark: Done!'"
