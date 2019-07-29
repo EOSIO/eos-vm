@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -eo pipefail
+. ./.cicd/docker-hash.sh
 
 function execute()
 {
