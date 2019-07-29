@@ -5,6 +5,7 @@ env:
   VERBOSE: true
 
 steps:
+  - wait
 
   - label: ":webhook: Trigger Travis CI Build"
     command: |
