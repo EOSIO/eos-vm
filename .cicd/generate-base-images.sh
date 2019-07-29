@@ -13,5 +13,4 @@ else # if we cannot pull the image, we build and push it first
     cd ./.cicd
     docker build -t $FULL_TAG -f ./${IMAGE_TAG}.dockerfile .
     docker push $FULL_TAG
-    cd ..
 fi
