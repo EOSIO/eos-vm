@@ -1,17 +1,12 @@
-env:
-  BUILD_TIMEOUT: 120
-  TEST_TIMEOUT: 60
-  TIMEOUT: 120
-  VERBOSE: true
-
 steps:
   - wait
 
   - label: ":webhook: Trigger Travis CI Build"
     command: |
-      . ./.cicd/travis-trigger.sh
+      . ./.cicd/trigger-travis.sh
     agents:
       queue: "automation-basic-builder-fleet"
+    timeout: ${TIMEOUT:-2}
 
   - trigger: "eos-vm-base-images-beta"
     label: ":docker: Docker - Ensure Base Images Exist"
@@ -28,5 +23,5 @@ steps:
       - docker#v3.2.0:
           debug: $DEBUG
           image: "eosio/producer:eos-vm-ubuntu-18.04-910b4e4a97a4ee8d45f304528d536d9c4425238a"
-    timeout: $BUILD_TIMEOUT
+    timeout: ${TIMEOUT:-10}
     skip: $SKIP_UBUNTU_18
