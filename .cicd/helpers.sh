@@ -1,11 +1,5 @@
 export IMAGE_TAG=${IMAGE_TAG:-'ubuntu-18.04'}
 
-function execute()
-{
-  $VERBOSE && echo "--- Executing: $@"
-  $DRYRUN || "$@"
-}
-
 function determine-hash()
 {
     # Determine the sha1 hash of all dockerfiles in the .cicd directory.
