@@ -112,11 +112,31 @@ namespace eosio { namespace vm {
 
     class jit_allocator {
      public:
+       jit_allocator() : _size(0), _raw(nullptr), _pos(nullptr) {}
        explicit jit_allocator(std::size_t size)
          : _size(round_to_page(size)),
            _raw((uint8_t*)mmap(NULL, _size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0)),
            _pos(_raw)
        {}
+       ~jit_allocator() {
+          if(_raw)
+             munmap(_raw, _size);
+       }
+       jit_allocator(jit_allocator&& other)
+         : _size{other._size},
+           _raw{other._raw},
+           _pos{other._pos}
+       {
+          other._size = 0;
+          other._raw = nullptr;
+          other._pos = nullptr;
+       }
+       jit_allocator& operator=(jit_allocator&& other) {
+          std::swap(_size, other._size);
+          std::swap(_raw, other._raw);
+          std::swap(_pos, other._pos);
+          return *this;
+       }
        uint8_t* alloc() {
           return _pos;
        }

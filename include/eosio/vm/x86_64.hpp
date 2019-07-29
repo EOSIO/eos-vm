@@ -24,13 +24,13 @@ namespace eosio { namespace vm {
    class machine_code_writer {
     public:
       machine_code_writer(growable_allocator& alloc, std::size_t source_bytes, module& mod) :
-         _mod(mod),
+         _mod(mod) {
          // FIXME: Guess at upper bound on function size.  This should be an upper bound
          // except for the prologue and epilogue, but is not as tight as it could be.
-         _allocator{source_bytes * 64} {
-         code = _allocator.alloc();
+         _mod.j_alloc = jit_allocator{source_bytes * 64};
+         code = _mod.j_alloc.alloc();
       }
-      ~machine_code_writer() { _allocator.make_executable(); }
+      ~machine_code_writer() { _mod.j_alloc.make_executable(); }
 
       void emit_prologue(const func_type& ft, const guarded_vector<local_entry>& locals, uint32_t funcnum) {
          _ft = &_mod.types[_mod.functions[funcnum]];
@@ -1416,7 +1416,7 @@ namespace eosio { namespace vm {
 
       using fn_type = native_value(*)(void* context, void* memory);
       void finalize(function_body& body) {
-         body.jit_code = reinterpret_cast<fn_type>(_allocator.setpos(code));
+         body.jit_code = reinterpret_cast<fn_type>(_mod.j_alloc.setpos(code));
       }
 
       template<typename... Args>
@@ -1428,7 +1428,6 @@ namespace eosio { namespace vm {
     private:
 
       module& _mod;
-      jit_allocator _allocator;
       const func_type* _ft;
       unsigned char * code;
       std::vector<std::variant<std::vector<void*>, void*>> _function_relocations;
