@@ -23,15 +23,6 @@ function determine-hash() {
     export HASHED_IMAGE_TAG="${IMAGE_TAG}-${DETERMINED_HASH}"
 }
 
-function generate_docker_image() {
-    # If we cannot pull the image, we build and push it first.
-    docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_PASSWORD
-    cd ./.cicd
-    docker build -t $FULL_TAG -f ./${IMAGE_TAG}.dockerfile .
-    docker push $FULL_TAG
-    cd -
-}
-
 function docker_tag_exists() {
     ORG_REPO=$(echo $1 | cut -d: -f1)
     TAG=$(echo $1 | cut -d: -f2)
