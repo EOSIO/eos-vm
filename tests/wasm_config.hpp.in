@@ -1030,4 +1030,5 @@ namespace eosio { namespace vm {
    static constexpr auto float_exprs_93_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/float_exprs.93.wasm";
    static constexpr auto float_exprs_94_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/float_exprs.94.wasm";
    static constexpr auto float_exprs_95_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/float_exprs.95.wasm";
+   static constexpr auto loop_0_wasm             = "${CMAKE_SOURCE_DIR}/tests/wasms/loop.0.wasm";
 }} // ns eosio::vm
