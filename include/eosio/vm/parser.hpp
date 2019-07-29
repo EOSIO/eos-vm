@@ -253,6 +253,7 @@ namespace eosio { namespace vm {
       struct pc_element_t {
          uint32_t operand_depth;
          uint32_t expected_result;
+         uint32_t label_result;
          bool is_unreachable;
          std::variant<label_t, std::vector<branch_t>> relocations;
       };
@@ -262,6 +263,7 @@ namespace eosio { namespace vm {
          uint32_t operand_depth = 0;
          std::vector<pc_element_t> pc_stack{{
                operand_depth,
+               ft.return_count?ft.return_type:static_cast<uint32_t>(types::pseudo),
                ft.return_count?ft.return_type:static_cast<uint32_t>(types::pseudo),
                false,
                std::vector<branch_t>{}}};
@@ -285,7 +287,7 @@ namespace eosio { namespace vm {
             EOS_WB_ASSERT(label < pc_stack.size(), wasm_parse_exception, "invalid label");
             pc_element_t& branch_target = pc_stack[pc_stack.size() - label - 1];
             uint32_t result = operand_depth - branch_target.operand_depth;
-            if(branch_target.expected_result != types::pseudo) {
+            if(branch_target.label_result != types::pseudo) {
                // FIXME: Reusing the high bit imposes an additional constraint
                // on the maximum depth of the operand stack.  This isn't an
                // actual problem right now, because the stack is hard-coded
@@ -353,6 +355,7 @@ namespace eosio { namespace vm {
          while (code.offset() < bounds) {
             EOS_WB_ASSERT(pc_stack.size() <= constants::max_nested_structures, wasm_parse_exception,
                           "nested structures validation failure");
+
             switch (*code++) {
                case opcodes::unreachable: code_writer.emit_unreachable(); start_unreachable(); break;
                case opcodes::nop: code_writer.emit_nop(); break;
@@ -368,21 +371,21 @@ namespace eosio { namespace vm {
                } break;
                case opcodes::block: {
                   uint32_t expected_result = *code++;
-                  pc_stack.push_back({operand_depth, expected_result, is_in_unreachable, std::vector<branch_t>{}});
+                  pc_stack.push_back({operand_depth, expected_result, expected_result, is_in_unreachable, std::vector<branch_t>{}});
                   code_writer.emit_block();
                   start_reachable();
                } break;
                case opcodes::loop: {
                   uint32_t expected_result = *code++;
                   auto pos = code_writer.emit_loop();
-                  pc_stack.push_back({operand_depth, expected_result, is_in_unreachable, pos});
+                  pc_stack.push_back({operand_depth, expected_result, types::pseudo, is_in_unreachable, pos});
                   start_reachable();
                } break;
                case opcodes::if_: {
                   uint32_t expected_result = *code++;
                   auto branch = code_writer.emit_if();
                   pop_operand();
-                  pc_stack.push_back({operand_depth, expected_result, is_in_unreachable, std::vector{branch}});
+                  pc_stack.push_back({operand_depth, expected_result, expected_result, is_in_unreachable, std::vector{branch}});
                   start_reachable();
                } break;
                case opcodes::else_: {
