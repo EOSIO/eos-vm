@@ -13,14 +13,14 @@ steps:
       queue: "automation-eos-builder-fleet"
 
   - trigger: "eos-vm-base-images-beta"
-    label: ":docker: Ensure base images exist"
+    label: ":docker: Docker - Ensure Base Images Exist"
     build:
       commit: "${BUILDKITE_COMMIT}"
       branch: "${BUILDKITE_BRANCH}"
 
   - wait
 
-  - label: ":ubuntu: [Ubuntu] 18.04 Build"
+  - label: ":ubuntu: Ubuntu 18.04 - Build"
     agents:
       queue: "automation-eos-builder-fleet"
     plugins:
