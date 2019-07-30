@@ -8,9 +8,6 @@ function execute()
   "$@"
 }
 
-export TRAVIS_REPO_SLUG="test"
-export ORG="test"
-
 if [[ $TRAVIS_REPO_SLUG == $ORG ]]; then
   echo "travis_repo_slug == $TRAVIS_REPO_SLUG"
   echo "org == $ORG"
