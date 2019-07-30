@@ -17,8 +17,6 @@ endif()
 
 enable_testing()
 
-#file(GLOB UNIT_TESTS "i32_tests.cpp" "i64_tests.cpp" "f32_tests.cpp" "spec_tests.cpp" "varint_tests.cpp" "variant_tests.cpp" )
-
 # ##############
 # disable catch2 from installing it's own signal handlers
 # ##############
@@ -36,15 +34,15 @@ target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_SOURCE_DIR}/tests )
 target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_SOURCE_DIR}/include )
 target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_BINARY_DIR}/tests/spec )
 
-add_executable(unit_tests main.cpp varint_tests.cpp signals_tests.cpp host_functions_test.cpp)
+add_executable(unit_tests main.cpp 
+	                  varint_tests.cpp 
+			  host_functions_tests.cpp 
+			  signals_tests.cpp 
+			  watchdog_tests.cpp)
 target_link_libraries(unit_tests eos-vm Catch2::Catch2)
 
-add_executable( spec_test_generator ${CMAKE_CURRENT_SOURCE_DIR}/spec_tests/spec_test_generator/spec_test_generator.cpp )
+add_executable( spec_test_generator ${CMAKE_CURRENT_SOURCE_DIR}/spec_test_generator/spec_test_generator.cpp )
 
 catch_discover_tests( eos_vm_spec_tests )
 
-add_executable( watchdog_tests watchdog_tests.cpp )
-target_include_directories( watchdog_tests PUBLIC ${CMAKE_SOURCE_DIR}/include ${Boost_INCLUDE_DIR})
-target_link_libraries( watchdog_tests )
-
-add_test(NAME watchdog_tests COMMAND watchdog_tests)
+add_test(NAME unit_tests COMMAND unit_tests)
