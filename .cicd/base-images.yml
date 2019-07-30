@@ -9,7 +9,7 @@ steps:
     timeout: $BUILD_TIMEOUT
     skip: $SKIP_AMAZON_LINUX_2
 
-  - label: ":aws: CentOS 7.6 - Build"
+  - label: ":centos: CentOS 7.6 - Build"
     command:
       - ".cicd/generate-base-images.sh centos-7.6"
     agents:
