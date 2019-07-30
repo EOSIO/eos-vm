@@ -28,9 +28,9 @@ steps:
   - label: ":darwin: macOS 10.14 - Build & Test"
     command:
       - "brew install git cmake"
-      - "git clone $BUILDKITE_REPO eos-vm && cd eos && git checkout $BUILDKITE_COMMIT && git submodule update --init --recursive"
-      - "cd eos && mkdir -p build && cd build && cmake .."
-      - "cd eos/build && make -j$(getconf _NPROCESSORS_ONLN)"
+      - "git clone $BUILDKITE_REPO eos-vm && cd eos-vm && git checkout $BUILDKITE_COMMIT && git submodule update --init --recursive"
+      - "cd eos-vm && mkdir -p build && cd build && cmake .."
+      - "cd eos-vm/build && make -j$(getconf _NPROCESSORS_ONLN)"
     plugins:
       - chef/anka#v0.5.1:
           no-volume: true
