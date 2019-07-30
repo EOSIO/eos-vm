@@ -10,6 +10,11 @@ matrix:
   - os: linux
     dist: xenial
     services: docker
+  - os: linux
+    dist: xenial
+    services: docker
+    env:
+      - IMAGE_TAG='ubuntu-16.04'
 script:
 - "./.cicd/travis-build.sh"
 notifications:
