@@ -2,8 +2,7 @@
 set -eo pipefail
 . ./.cicd/docker-hash.sh
 
-function execute()
-{
+function execute() {
   echo "$@"
   "$@"
 }
