@@ -1,4 +1,4 @@
-FROM centos:7
+FROM centos:7.6.1810
 ENV DCMAKE_TOOLCHAIN_FILE clang.make
 # install dependencies
 RUN yum update -y && yum install -y git sudo tar bzip2 make gcc gcc-c++ doxygen
