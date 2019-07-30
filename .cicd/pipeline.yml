@@ -1,29 +1,28 @@
 steps:
   - wait
 
-  # - label: ":webhook: Trigger Travis CI Build"
-  #   command: |
-  #     . ./.cicd/trigger-travis.sh
-  #   agents:
-  #     queue: "automation-basic-builder-fleet"
-  #   timeout: ${TIMEOUT:-2}
+  - label: ":webhook: Trigger Travis CI Build"
+    command: |
+      . ./.cicd/trigger-travis.sh
+    agents:
+      queue: "automation-basic-builder-fleet"
+    timeout: ${TIMEOUT:-2}
 
-  # - trigger: "eos-vm-base-images-beta"
-  #   label: ":docker: Docker - Ensure Base Images Exist"
-  #   build:
-  #     commit: "${BUILDKITE_COMMIT}"
-  #     branch: "${BUILDKITE_BRANCH}"
-  # - wait
-  # - label: ":ubuntu: Ubuntu 18.04 - Build"
-  #   agents:
-  #     queue: "automation-eos-builder-fleet"
-  #   plugins:
-  #     - docker#v3.2.0:
-  #         debug: $DEBUG
-  #         image: "eosio/producer:eos-vm-ubuntu-18.04-910b4e4a97a4ee8d45f304528d536d9c4425238a"
-  #   timeout: ${TIMEOUT:-10}
-  #   skip: $SKIP_UBUNTU_18
-
+  - trigger: "eos-vm-base-images-beta"
+    label: ":docker: Docker - Ensure Base Images Exist"
+    build:
+      commit: "${BUILDKITE_COMMIT}"
+      branch: "${BUILDKITE_BRANCH}"
+  - wait
+  - label: ":ubuntu: Ubuntu 18.04 - Build"
+    agents:
+      queue: "automation-eos-builder-fleet"
+    plugins:
+      - docker#v3.2.0:
+          debug: $DEBUG
+          image: "eosio/producer:eos-vm-ubuntu-18.04-910b4e4a97a4ee8d45f304528d536d9c4425238a"
+    timeout: ${TIMEOUT:-10}
+    skip: $SKIP_UBUNTU_18
 
   - label: ":darwin: macOS 10.14 - Build & Test"
     command:
