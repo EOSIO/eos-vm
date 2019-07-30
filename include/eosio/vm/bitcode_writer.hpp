@@ -21,8 +21,7 @@ namespace eosio { namespace vm {
       static growable_allocator& choose_alloc(growable_allocator& alloc, jit_allocator&) { return alloc; }
       explicit bitcode_writer(growable_allocator& alloc, std::size_t source_bytes, std::size_t /*idx*/, module& /*mod*/, bool is_exported) :
          _allocator(alloc),
-         fb(alloc, source_bytes),
-         _is_exported(is_exported) {}
+         fb(alloc, source_bytes) {}
       void emit_unreachable() { fb[op_index++] = unreachable_t{}; };
       void emit_nop() { fb[op_index++] = nop_t{}; }
       uint32_t emit_end() { return op_index; }
@@ -285,7 +284,6 @@ namespace eosio { namespace vm {
       growable_allocator& _allocator;
       std::size_t op_index = 0;
       guarded_vector<opcode> fb;
-      bool _is_exported;
    };
 
 }}
