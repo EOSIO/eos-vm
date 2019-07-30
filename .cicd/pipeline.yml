@@ -20,7 +20,7 @@ steps:
     agents:
       queue: "automation-eos-builder-fleet"
     plugins:
-      - docker#v3.2.0:
+      - docker#v3.3.0:
           debug: $DEBUG
           image: "eosio/producer:eos-vm-amazonlinux-2-aa01fa0c01d137352a24ede1bf4e5650ea511ffa"
     timeout: ${TIMEOUT:-10}
@@ -30,7 +30,7 @@ steps:
     agents:
       queue: "automation-eos-builder-fleet"
     plugins:
-      - docker#v3.2.0:
+      - docker#v3.3.0:
           debug: $DEBUG
           image: "eosio/producer:eos-vm-ubuntu-18.04-910b4e4a97a4ee8d45f304528d536d9c4425238a"
     timeout: ${TIMEOUT:-10}
