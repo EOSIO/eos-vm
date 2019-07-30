@@ -1,4 +1,4 @@
-export IMAGE_TAG=${IMAGE_TAG:-'ubuntu-18.04'}
+export IMAGE_TAG=${IMAGE_TAG:-$1}
 
 function determine-hash()
 {
