@@ -4,26 +4,16 @@ git:
 cache:
   ccache: true
   directories:
-    - $HOME/Library/Caches/Homebrew
+  - "$HOME/Library/Caches/Homebrew"
 matrix:
   include:
-    - os: linux
-      dist: xenial
-      services: docker
-      env:
-        - IMAGE_TAG='ubuntu-18.04'
-    # - os: linux
-    #   dist: xenial
-    #   services: docker
-    #   env:
-    #     - IMAGE_TAG='ubuntu-16.04'
-    # - os: linux
-    #   dist: xenial
-    #   services: docker
-    #   env:
-    #     - IMAGE_TAG='amazonlinux-2'
+  - os: linux
+    dist: xenial
+    services: docker
+    env:
+    - IMAGE_TAG='ubuntu-18.04'
 script:
 - "./.cicd/travis-build.sh"
-# notifications:
-#   webhooks:
-#     secure: n0VHgAzeIqcnitJBX+UMdrnbUZQ3Nh/CvVj2I4E5FhjoolzM0pRmnPQ4h6BQ/QwTdGPh1AbitDDDGRCSGtZH2erp9OFv+gePZyaRN/+h0Q3Ak8hwfqr7UoEUcJuPFA6S42TduCs6Kn+1XnL5g2OZYAmlS9+H7MvjUqFloa0YL/F8RJ4rvXVtMsHbC6bKXSBwVROU8G4rq8zNnNShL91i5xakhywfLkhgmRM/xuL4I+7+5LXJwOvnQMQnyL55NdREmvvwJqjHNBPvjTe1Rm2xQpC5+gxW2ZaqtjuulwY/IJgWWhUlJhrZTiBpf6v3camqdFxAjA+7fGDiZNXGe4xgZuEojj++2oM6orGhGc58Pr015lxGgcLF7d7+sqINCEnTVtleSC7czsnkcpONVOyi9BW2Gyxjaf2EN09/XH3QzH093WkOeEhREwMUo7Xa2ugu/svnqp890FTgGftUY0dJkOP8v3y+sU9DQ9/CwcsRIzFBfoZFOL0OySM9+nH4Ervkf5z8n1ikGHjE6xv63P1nV7SmrTjnIGgJ60xYFtPgV0ELBmy4cbVF86Jcr8KrTPhna3wgXX80g8UOgZlVIUOErvhJWxThW6wz2PO07QU5Y+caz0zrL2c7AuXXn5BQjtMPBSIomOybgFyrP0Yf6qKBXTV4Y3qEpiYa/PkZvxUsT6U=
+env:
+  global:
+    secure: mEXHJVYcb+Un3rI4ojm474a3AwzTjtpv8QJm4u2OGovHbCb7pVTBcqwBPeYTVJBLSVQuWvmzDO/FUks2q5BcFYSN2zPBXAxvcLaHVNAX0RWCvLURLgsRj/ihqWQT46iSrXPnqlwpFl0ITiqfJZq0opKNArAOLKj+Y5s+yD7sEMP67BIZfuT9P8K1ehUif40+5r7tmMA3vIX91+mMbkfbGMSo9MW6N8OHDMpgd5L//itgHyBrsLIepszqEnW+0/hM65YQ35akIUz3ppvfK/Xdpl1E7qhs4FQjoDbyMzpPy/jJVK3wsaFN8zGUA6Qsb0KHbEAc95j3VfehSiz7ecYj7VL5q0L1CYJOELKPXnq9EZ4ZNQ04+RNyg1fu0rhUtt6VN3tIj+9kUeDx2B0zXfYu43f/YXwmzv78w147aqt3/qmqT1uWyFI99TY0ZNGU0ymjHvMepiqcwY3mUPcxOg5A97ROPn7sXEYUjjrGgMFpuvbgW9Wzv/XDYM68pij3yoxYK38vPGkWgY6WT49TT4oxOTaGt6PO1Bto2kbiCXGPO8eKahw/8bUo8JS4ThbMNy7gFa8Atl/LUgJiAiiQ9+zD9M5F03JQKfIbi9dmyc6lqCNNiwUEkZLY9Z4DM8kSFYS5Sux4EtiG2hL6t31qJaStZOd4xjm+7lrPDWQ7NtGrik0=
