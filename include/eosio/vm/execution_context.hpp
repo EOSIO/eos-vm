@@ -21,7 +21,7 @@ namespace eosio { namespace vm {
          uint32_t     total_so_far = 0;
          for (int i = _mod.get_imported_functions_size(); i < _mod.function_sizes.size(); i++) {
             _mod.function_sizes[i] = total_so_far;
-            total_so_far += _mod.code[i - import_size].code.size();
+            total_so_far += _mod.code[i - import_size].size;
          }
       }
 
@@ -232,12 +232,12 @@ namespace eosio { namespace vm {
       
       inline void set_exiting_op( const std::pair<uint32_t, uint32_t>& exiting_loc ) {
          if (exiting_loc.first != -1 && exiting_loc.second != -1)
-            _mod.code.at(exiting_loc.first).code.at(exiting_loc.second).set_exiting_which();
+            _mod.code.at(exiting_loc.first).code[exiting_loc.second].set_exiting_which();
       }
 
       inline void clear_exiting_op( const std::pair<uint32_t, uint32_t>& exiting_loc ) {
          if (exiting_loc.first != -1 && exiting_loc.second != -1)
-            _mod.code.at(exiting_loc.first).code.at(exiting_loc.second).clear_exiting_which();
+            _mod.code.at(exiting_loc.first).code[exiting_loc.second].clear_exiting_which();
       }
 
       inline std::error_code get_error_code() const { return _error_code; }
@@ -365,7 +365,7 @@ namespace eosio { namespace vm {
 #define CREATE_EXITING_TABLE_ENTRY(NAME, CODE) &&ev_label_exiting_##NAME,
 #define CREATE_LABEL(NAME, CODE)                                                                                  \
       ev_label_##NAME : visitor(ev_variant->template get<eosio::vm::NAME##_t>());                                 \
-      ev_variant = &_mod.code.at_no_check(_state.code_index).code.at_no_check(_state.pc - _state.current_offset); \
+      ev_variant = &_mod.code.at_no_check(_state.code_index).code[_state.pc - _state.current_offset]; \
       goto* dispatch_table[ev_variant->index()];
 #define CREATE_EXITING_LABEL(NAME, CODE)                                                  \
       ev_label_exiting_##NAME :  \
@@ -412,7 +412,7 @@ namespace eosio { namespace vm {
             ERROR_OPS(CREATE_EXITING_TABLE_ENTRY)
             &&__ev_last
          };
-         auto* ev_variant = &_mod.code.at_no_check(_state.code_index).code.at_no_check(_state.pc - _state.current_offset);
+         auto* ev_variant = &_mod.code.at_no_check(_state.code_index).code[_state.pc - _state.current_offset];
          goto *dispatch_table[ev_variant->index()];
          while (1) {
              CONTROL_FLOW_OPS(CREATE_LABEL);

@@ -234,8 +234,9 @@ namespace eosio { namespace vm {
          decltype(fb.code) _code = { _allocator, bytes };
          wasm_code_ptr     fb_code(code.raw(), bytes);
          */
-         _function_bodies.emplace_back(code.raw(), bytes);
+         _function_bodies.emplace_back(code.raw(), fb.size);
          code += fb.size;
+	 std::cout << "Code " << (uint32_t*)code.raw() << " size " << fb.size << "\n";
          EOS_WB_ASSERT(*code++ == 0x0B, wasm_parse_exception, "failed parsing function body, expected 'end'");
          /*
          parse_function_body_code(fb_code, bytes, _code, fn_type);
@@ -260,7 +261,7 @@ namespace eosio { namespace vm {
 
       void parse_function_body_code(wasm_code_ptr& code, size_t bounds, function_body& body, const func_type& ft) {
          guarded_vector<opcode> fb{_allocator, 0};
-         body.code = _allocator->template alloc<opcode>(bounds);
+         body.code = _allocator.template alloc<opcode>(bounds);
          fb.set(body.code, body.size);
          size_t op_index       = 0;
 
@@ -825,10 +826,9 @@ namespace eosio { namespace vm {
                                 vec<typename std::enable_if_t<id == section_id::code_section, function_body>>& elems) {
          parse_section_impl(code, elems,
                             [&](wasm_code_ptr& code, function_body& fb, std::size_t idx) { parse_function_body(code, fb, idx); });
-         elems      = vec<Elem>{ _allocator, count };
          for (size_t i = 0; i < _function_bodies.size(); i++) { 
-            parse_function_body_code(_function_bodies[i], _mod.code[i].size, _mod.code[i], _mod->types.at(_mod->functions.at(idx))); 
-            _mod.code[i].code[_mod.code[i].size - 1] = fend_t{};
+            parse_function_body_code(_function_bodies[i], _mod->code[i].size, _mod->code[i], _mod->types.at(_mod->functions.at(i))); 
+            _mod->code[i].code[_mod->code[i].size - 1] = fend_t{};
          }
       }
       template <uint8_t id>
