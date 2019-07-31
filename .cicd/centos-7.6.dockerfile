@@ -14,7 +14,7 @@ RUN curl -LO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
     cd .. && \
     rm -f cmake-3.13.2.tar.gz
 # build clang
-COPY ./.cicd/build-clang.sh /
+COPY ./build-clang.sh /
 RUN /build-clang.sh
 # build llvm
 RUN git clone --depth 1 --single-branch --branch release_40 https://github.com/llvm-mirror/llvm.git llvm && \
