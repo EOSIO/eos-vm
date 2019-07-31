@@ -1,5 +1,6 @@
 #!/bin/bash
 set -eo pipefail
+. ./.cicd/execute.sh
 . ./.cicd/docker-hash.sh
 # look for Docker image
 echo "+++ :mag_right: Looking for $FULL_TAG"
@@ -10,8 +11,9 @@ EXISTS=$(curl -s -H "Authorization: Bearer $(curl -sSL "https://auth.docker.io/t
 if [[ $EXISTS =~ '404 page not found' || $EXISTS =~ 'manifest unknown' ]]; then # if we cannot pull the image, we build and push it first
     docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_PASSWORD
     cd ./.cicd
-    docker build -t $FULL_TAG -f ./${IMAGE_TAG}.dockerfile .
-    docker push $FULL_TAG
+    execute pwd
+    execute docker build -t $FULL_TAG -f ./${IMAGE_TAG}.dockerfile .
+    execute docker push $FULL_TAG
 else
     echo "$FULL_TAG already exists."
 fi
