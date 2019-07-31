@@ -154,7 +154,8 @@ namespace eosio { namespace vm {
       else if constexpr (std::is_floating_point_v<T> && sizeof(T) == 8)
          return f64_const_t{ static_cast<double>(res) };
       else if constexpr (std::is_pointer_v<T>)
-         return i32_const_t{ static_cast<uint32_t>(reinterpret_cast<const char*>(res) - alloc->template get_base_ptr<char>()) };
+         return i32_const_t{ static_cast<uint32_t>(reinterpret_cast<uintptr_t>(res) -
+                                                   reinterpret_cast<uintptr_t>(alloc->template get_base_ptr<char>())) };
       else
          return detail::resolve_result(wasm_type_converter<T>::to_wasm(static_cast<T&&>(res)), alloc);
    }
@@ -187,7 +188,7 @@ namespace eosio { namespace vm {
          return types::f32;
       else if constexpr (std::is_floating_point_v<T> && sizeof(T) == 8)
          return types::f64;
-      else if (std::is_pointer_v<T> || std::is_reference_v<T>)
+      else if constexpr (std::is_pointer_v<T> || std::is_reference_v<T>)
          return types::i32;
       else
          return vm::to_wasm_type<typename detail::get_wasm_type<T>::type>();
@@ -236,13 +237,13 @@ namespace eosio { namespace vm {
                R res = std::invoke(F, detail::get_value<typename std::tuple_element<Is, Args>::type>(
                                             walloc, std::move(os.get_back(i - Is)))...);
                os.trim(sizeof...(Is));
-               os.push(detail::resolve_result(std::move(res), walloc));
+               os.push(detail::resolve_result(static_cast<R&&>(res), walloc));
             } else {
                R res = std::invoke(F, construct_derived<Cls2, Cls>::value(*self),
                                    detail::get_value<typename std::tuple_element<Is, Args>::type>(
                                          walloc, std::move(os.get_back(i - Is)))...);
                os.trim(sizeof...(Is));
-               os.push(detail::resolve_result(std::move(res), walloc));
+               os.push(detail::resolve_result(static_cast<R&&>(res), walloc));
             }
          } else {
             if constexpr (std::is_same_v<Cls2, std::nullptr_t>) {
