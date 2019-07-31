@@ -1,7 +1,9 @@
 FROM centos:7.6.1810
 ENV DCMAKE_TOOLCHAIN_FILE clang.make
 # install dependencies
-RUN yum update -y && yum install -y git sudo tar bzip2 make gcc gcc-c++ doxygen
+RUN yum update -y && yum install -y git sudo tar bzip2 make gcc gcc-c++ doxygen centos-release-scl && yum install -y devtoolset-8-gcc
+# configure terminal to use new gcc included with dev tools
+RUN echo '' >> ~/.bashrc && echo '### gcc ###' >> ~/.bashrc && echo 'export PATH="/opt/rh/devtoolset-8/root/usr/bin:$PATH"' >> ~/.bashrc
 # build cmake
 RUN curl -LO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
     tar -xzf cmake-3.13.2.tar.gz && \
@@ -21,7 +23,7 @@ RUN mkdir -p /root/tmp && cd /root/tmp && git clone --single-branch --branch rel
     cd ../ && git clone --single-branch --branch release_80 https://git.llvm.org/git/libcxxabi.git && cd libcxxabi && git checkout d7338a4 && \
     cd ../ && git clone --single-branch --branch release_80 https://git.llvm.org/git/libunwind.git && cd libunwind && git checkout 57f6739 && \
     cd ../ && git clone --single-branch --branch release_80 https://git.llvm.org/git/compiler-rt.git && cd compiler-rt && git checkout 5bc7979 && \
-    cd ../ && cd /root/tmp/clang8 && mkdir build && cd build && \
+    cd /root/tmp/clang8 && mkdir build && cd build && \
     cmake -G 'Unix Makefiles' -DCMAKE_INSTALL_PREFIX='/usr/local' -DLLVM_BUILD_EXTERNAL_COMPILER_RT=ON -DLLVM_BUILD_LLVM_DYLIB=ON -DLLVM_ENABLE_LIBCXX=ON -DLLVM_ENABLE_RTTI=ON -DLLVM_INCLUDE_DOCS=OFF -DLLVM_OPTIMIZED_TABLEGEN=ON -DLLVM_TARGETS_TO_BUILD=all -DCMAKE_BUILD_TYPE=Release .. && \
     make -j$(nproc) && \
     make install && \
