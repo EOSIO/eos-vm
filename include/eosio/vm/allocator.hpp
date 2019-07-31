@@ -142,9 +142,9 @@ namespace eosio { namespace vm {
          page = 0;
       }
       void reset(uint32_t new_pages) {
-	 memset(raw, '\0', page_size*page); // zero the memory
-	 // no need to mprotect if the size hasn't changed
-	 if (new_pages != page)
+         memset(raw, '\0', page_size * page); // zero the memory
+         // no need to mprotect if the size hasn't changed
+         if (new_pages != page)
             mprotect(raw, page_size * page, PROT_NONE); // protect the entire region of memory
          page = 0;
       }
