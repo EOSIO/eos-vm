@@ -3,10 +3,10 @@ ENV DCMAKE_TOOLCHAIN_FILE clang.make
 # install dependencies
 RUN yum update -y && \
     yum install -y --enablerepo=extras centos-release-scl && \
-    yum install -y --enablerepo=extras devtoolset-8 && \
+    yum install -y --enablerepo=extras devtoolset-7 && \
     yum install -y --enablerepo=extras git sudo tar bzip2 make doxygen
 # build cmake
-RUN source /opt/rh/devtoolset-8/enable && \
+RUN source /opt/rh/devtoolset-7/enable && \
     curl -LO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
     tar -xzf cmake-3.13.2.tar.gz && \
     cd cmake-3.13.2 && \
@@ -15,7 +15,7 @@ RUN source /opt/rh/devtoolset-8/enable && \
     make install && \
     rm -f /cmake-3.13.2.tar.gz && rm -rf /cmake-3.13.2
 # build clang
-RUN source /opt/rh/devtoolset-8/enable && \
+RUN source /opt/rh/devtoolset-7/enable && \
     git clone --single-branch --branch release_80 https://git.llvm.org/git/llvm.git clang8 && cd clang8 && git checkout 18e41dc && \
     cd tools && git clone --single-branch --branch release_80 https://git.llvm.org/git/lld.git && cd lld && git checkout d60a035 && \
     cd ../ && git clone --single-branch --branch release_80 https://git.llvm.org/git/polly.git && cd polly && git checkout 1bc06e5 && \
