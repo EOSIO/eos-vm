@@ -6,8 +6,8 @@ cache:
   directories:
   - "$HOME/Library/Caches/Homebrew"
 matrix:
+  if: fork = true
   include:
-    if: fork = true
     os: linux
     dist: xenial
     services: docker
