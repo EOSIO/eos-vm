@@ -3,7 +3,7 @@ ENV DCMAKE_TOOLCHAIN_FILE clang.make
 # install dependencies
 RUN yum update -y && \
     yum install -y --enablerepo=extras centos-release-scl && \
-    yum install -y --enablerepo=extras devtoolset-8-gcc && \
+    yum install -y --enablerepo=extras devtoolset-8 && \
     yum install -y --enablerepo=extras git sudo tar bzip2 make doxygen
 # build cmake
 RUN source /opt/rh/devtoolset-8/enable && \
