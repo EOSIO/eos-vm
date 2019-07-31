@@ -3,7 +3,8 @@ ENV DCMAKE_TOOLCHAIN_FILE clang.make
 # install dependencies
 RUN yum update -y && yum install -y --enablerepo=extras git sudo tar bzip2 make doxygen centos-release-scl && yum install -y --enablerepo=extras devtoolset-8-gcc
 # build cmake
-RUN curl -LO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
+RUN source /opt/rh/devtoolset-8/enable && \
+    curl -LO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
     tar -xzf cmake-3.13.2.tar.gz && \
     cd cmake-3.13.2 && \
     ./bootstrap --prefix=/usr/local && \
