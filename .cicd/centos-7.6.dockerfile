@@ -2,8 +2,6 @@ FROM centos:7.6.1810
 ENV DCMAKE_TOOLCHAIN_FILE clang.make
 # install dependencies
 RUN yum update -y && yum install -y --enablerepo=extras git sudo tar bzip2 make gcc gcc-c++ doxygen centos-release-scl && yum install -y --enablerepo=extras devtoolset-8-gcc
-# configure terminal to use new gcc included with dev tools
-RUN echo '' >> ~/.bashrc && echo '### gcc ###' >> ~/.bashrc && echo 'export PATH="/opt/rh/devtoolset-8/root/usr/bin:$PATH"' >> ~/.bashrc
 # build cmake
 RUN curl -LO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
     tar -xzf cmake-3.13.2.tar.gz && \
