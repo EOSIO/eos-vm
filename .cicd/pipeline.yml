@@ -2,8 +2,7 @@ steps:
   - wait
 
   - label: ":webhook: Trigger Travis CI Build"
-    command: |
-      . ./.cicd/trigger-travis.sh
+    command: ". ./.cicd/trigger-travis.sh"
     agents:
       queue: "automation-basic-builder-fleet"
     timeout: ${TIMEOUT:-2}
