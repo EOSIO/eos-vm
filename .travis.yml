@@ -7,13 +7,14 @@ cache:
   - "$HOME/Library/Caches/Homebrew"
 matrix:
   include:
-  - os: linux
+    if: fork = true
+    os: linux
     dist: xenial
     services: docker
     env:
     - IMAGE_TAG='ubuntu-18.04'
 script:
 - "./.cicd/travis-build.sh"
-env:
-  global:
-    secure: pVEWl7chHX4rjz8sfKTMJ1xY56kUKkzMsWJKq7S0GBEc81C3obS9qlq9nQr3DxyeLiDjnnnhJcaEYLD8mGHYapGC4ellsTpTO1l+8UeTuhMZTcJvE6BpzCNva4OyoThP7w3kmw/SCAXSdmcJns/PlKhmqjlg/6FcW85Nnbz0QZ4wNiaQA//QwLUIbPE1CUqzupesRUmicWor3HIdB4+EO1uCnb2lO3p1tUlEg8zuHl856HZ7BjPqB7o/LfGeofFbdDXharV5mJnIP6/o3UxfVbjcR0WkhnD27Wf0QWc3IiUt8wv1dN8ay39TEhcmiba62b9D1yVz01jneuxIf4x2OJ+o+IRDNmivn+gtUPOODJHABJ8n4xiCslGoa25r3FDQj6JxCWaPa/8fj7FbbxHh0+PZm81s0KxUB/d6CqXBirk8wvkFEDHrx/A1UXX6EtGltnGiM7lm7yCfZfbhbz4qxflT/2aChFzRWCHXAwenunN1I7tO9h9HiwGPpvJDuP1uo8dh1sV7wpVARxMy04JWx6y/A6tI6Ksny5JSdCKu/MNOlhL+DApYVJuyWPqw5naDVTfdjMCRz3f6W2IkR0aj0xgdUw9S15K0ILMBB2FUjMHSngpmYGxYTROjqoj4n8IwiQ5Urb+sBsXZfOmNq1qKpFH3xcNw9U/GTAdOc+hM+vk=
+# notifications:
+#   webhooks:
+#     secure: n0VHgAzeIqcnitJBX+UMdrnbUZQ3Nh/CvVj2I4E5FhjoolzM0pRmnPQ4h6BQ/QwTdGPh1AbitDDDGRCSGtZH2erp9OFv+gePZyaRN/+h0Q3Ak8hwfqr7UoEUcJuPFA6S42TduCs6Kn+1XnL5g2OZYAmlS9+H7MvjUqFloa0YL/F8RJ4rvXVtMsHbC6bKXSBwVROU8G4rq8zNnNShL91i5xakhywfLkhgmRM/xuL4I+7+5LXJwOvnQMQnyL55NdREmvvwJqjHNBPvjTe1Rm2xQpC5+gxW2ZaqtjuulwY/IJgWWhUlJhrZTiBpf6v3camqdFxAjA+7fGDiZNXGe4xgZuEojj++2oM6orGhGc58Pr015lxGgcLF7d7+sqINCEnTVtleSC7czsnkcpONVOyi9BW2Gyxjaf2EN09/XH3QzH093WkOeEhREwMUo7Xa2ugu/svnqp890FTgGftUY0dJkOP8v3y+sU9DQ9/CwcsRIzFBfoZFOL0OySM9+nH4Ervkf5z8n1ikGHjE6xv63P1nV7SmrTjnIGgJ60xYFtPgV0ELBmy4cbVF86Jcr8KrTPhna3wgXX80g8UOgZlVIUOErvhJWxThW6wz2PO07QU5Y+caz0zrL2c7AuXXn5BQjtMPBSIomOybgFyrP0Yf6qKBXTV4Y3qEpiYa/PkZvxUsT6U=
