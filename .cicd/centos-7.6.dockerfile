@@ -1,19 +1,21 @@
 FROM centos:7.6.1810
 ENV DCMAKE_TOOLCHAIN_FILE clang.make
 # install dependencies
-RUN yum update -y && yum install -y --enablerepo=extras git sudo tar bzip2 make doxygen centos-release-scl && yum install -y --enablerepo=extras devtoolset-8-gcc
+RUN yum update -y && \
+    yum install -y --enablerepo=extras git sudo tar bzip2 make doxygen centos-release-scl && \
+    yum install -y --enablerepo=extras devtoolset-8-gcc
 # build cmake
 RUN source /opt/rh/devtoolset-8/enable && \
     curl -LO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
     tar -xzf cmake-3.13.2.tar.gz && \
     cd cmake-3.13.2 && \
     ./bootstrap --prefix=/usr/local && \
-    make -j$(nproc) && \
+    make -j $(getconf _NPROCESSORS_ONLN) && \
     make install && \
-    cd .. && \
-    rm -f cmake-3.13.2.tar.gz
+    rm -f /cmake-3.13.2.tar.gz
 # build clang
-RUN source /opt/rh/devtoolset-8/enable && mkdir -p /root/tmp && cd /root/tmp && git clone --single-branch --branch release_80 https://git.llvm.org/git/llvm.git clang8 && cd clang8 && git checkout 18e41dc && \
+RUN source /opt/rh/devtoolset-8/enable && \
+    mkdir -p /root/tmp && cd /root/tmp && git clone --single-branch --branch release_80 https://git.llvm.org/git/llvm.git clang8 && cd clang8 && git checkout 18e41dc && \
     cd tools && git clone --single-branch --branch release_80 https://git.llvm.org/git/lld.git && cd lld && git checkout d60a035 && \
     cd ../ && git clone --single-branch --branch release_80 https://git.llvm.org/git/polly.git && cd polly && git checkout 1bc06e5 && \
     cd ../ && git clone --single-branch --branch release_80 https://git.llvm.org/git/clang.git clang && cd clang && git checkout a03da8b && \
@@ -22,16 +24,16 @@ RUN source /opt/rh/devtoolset-8/enable && mkdir -p /root/tmp && cd /root/tmp && 
     cd ../ && git clone --single-branch --branch release_80 https://git.llvm.org/git/libcxxabi.git && cd libcxxabi && git checkout d7338a4 && \
     cd ../ && git clone --single-branch --branch release_80 https://git.llvm.org/git/libunwind.git && cd libunwind && git checkout 57f6739 && \
     cd ../ && git clone --single-branch --branch release_80 https://git.llvm.org/git/compiler-rt.git && cd compiler-rt && git checkout 5bc7979 && \
-    cd /root/tmp/clang8 && mkdir build && cd build && \
+    mkdir /root/tmp/clang8/build && cd /root/tmp/clang8/build && \
     cmake -G 'Unix Makefiles' -DCMAKE_INSTALL_PREFIX='/usr/local' -DLLVM_BUILD_EXTERNAL_COMPILER_RT=ON -DLLVM_BUILD_LLVM_DYLIB=ON -DLLVM_ENABLE_LIBCXX=ON -DLLVM_ENABLE_RTTI=ON -DLLVM_INCLUDE_DOCS=OFF -DLLVM_OPTIMIZED_TABLEGEN=ON -DLLVM_TARGETS_TO_BUILD=all -DCMAKE_BUILD_TYPE=Release .. && \
-    make -j$(nproc) && \
+    make -j $(getconf _NPROCESSORS_ONLN) && \
     make install && \
-    cd / && rm -rf /root/tmp/clang8
+    rm -rf /root/tmp/clang8
 # build llvm
 RUN git clone --depth 1 --single-branch --branch release_40 https://github.com/llvm-mirror/llvm.git llvm && \
     cd llvm && mkdir build && cd build && \
     cmake -G 'Unix Makefiles' -DLLVM_TARGETS_TO_BUILD=host -DLLVM_BUILD_TOOLS=false -DLLVM_ENABLE_RTTI=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local .. && \
-    make -j$(nproc) && \
+    make -j $(getconf _NPROCESSORS_ONLN) && \
     make install
 # ccache
 RUN curl -LO http://download-ib01.fedoraproject.org/pub/epel/7/x86_64/Packages/c/ccache-3.3.4-1.el7.x86_64.rpm && \
@@ -57,5 +59,5 @@ CMD bash -c "cd /workdir && \
     mkdir -p build && cd build && \
     mv /$DCMAKE_TOOLCHAIN_FILE . && \
     cmake -DCMAKE_TOOLCHAIN_FILE=$DCMAKE_TOOLCHAIN_FILE -DENABLE_TESTS=ON .. && \
-    make -j$(getconf _NPROCESSORS_ONLN) && \
+    make -j $(getconf _NPROCESSORS_ONLN) && \
     echo '+++ :white_check_mark: Done!'"
