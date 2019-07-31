@@ -186,6 +186,11 @@ namespace eosio { namespace vm {
       inline uint32_t get_functions_size() const { return code.size(); }
       inline uint32_t get_functions_total() const { return get_imported_functions_size() + get_functions_size(); }
 
+      inline auto& get_opcode(uint32_t pc) const {
+         std::cout << "CODE PTR " << ((opcode*)&code[0].code[0]) << "\n";
+         return ((opcode*)&code[0].code[0])[pc];
+      }
+
       auto& get_function_type(uint32_t index) const {
          if (index < get_imported_functions_size())
             return types[imports[index].type.func_t];

@@ -228,22 +228,11 @@ namespace eosio { namespace vm {
          }
          fb.locals = std::move(locals);
 
-         // -1 is 'end' 0xb byte and one extra slot for an exiting instruction to be held during execution, this is used to drive the pc past normal execution
          fb.size -= code.offset() - before;
-         /*
-         decltype(fb.code) _code = { _allocator, bytes };
-         wasm_code_ptr     fb_code(code.raw(), bytes);
-         */
          _function_bodies.emplace_back(code.raw(), fb.size);
-         code += fb.size;
-	 std::cout << "Code " << (uint32_t*)code.raw() << " size " << fb.size << "\n";
+         
+         code += fb.size-1;
          EOS_WB_ASSERT(*code++ == 0x0B, wasm_parse_exception, "failed parsing function body, expected 'end'");
-         /*
-         parse_function_body_code(fb_code, bytes, _code, fn_type);
-         code += bytes - 1;
-         _code[_code.size() - 1] = fend_t{};
-         fb.code                 = std::move(_code);
-         */
       }
 
       // The control stack holds either address of the target of the
@@ -262,14 +251,14 @@ namespace eosio { namespace vm {
       void parse_function_body_code(wasm_code_ptr& code, size_t bounds, function_body& body, const func_type& ft) {
          guarded_vector<opcode> fb{_allocator, 0};
          body.code = _allocator.template alloc<opcode>(bounds);
-         fb.set(body.code, body.size);
+         fb.set(body.code, body.size, 0);
          size_t op_index       = 0;
 
          // Initialize the control stack with the current function as the sole element
          uint32_t operand_depth = 0;
          std::vector<pc_element_t> pc_stack{{
                operand_depth,
-               ft.return_count?ft.return_type:static_cast<uint32_t>(types::pseudo),
+               ft.return_count ? ft.return_type : static_cast<uint32_t>(types::pseudo),
                false,
                std::vector<uint32_t*>{}}};
 
@@ -738,7 +727,7 @@ namespace eosio { namespace vm {
                case opcodes::error: fb[op_index++] = error_t{}; break;
             }
          }
-         //fb.resize(op_index + 1);
+         _allocator.template reclaim<opcode>(body.size - (op_index+1));
          body.size = op_index + 1;
       }
 

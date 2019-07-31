@@ -86,8 +86,9 @@ namespace eosio { namespace vm {
       inline void           push_call(uint32_t index) {
          const auto& ftype = _mod.get_function_type(index);
          _last_op_index    = _os.size() - ftype.param_types.size();
-         _as.push(activation_frame{ _state.pc + 1, _state.current_offset, _state.code_index, static_cast<uint16_t>(_last_op_index),
-                                    ftype.return_type });
+         _as.push(activation_frame{ _state.pc2 + 1, static_cast<uint16_t>(_last_op_index), ftype.return_type });
+         //_as.push(activation_frame{ _state.pc + 1, _state.current_offset, _state.code_index, static_cast<uint16_t>(_last_op_index),
+         //                           ftype.return_type });
       }
 
       inline void apply_pop_call() {
@@ -105,13 +106,13 @@ namespace eosio { namespace vm {
          }
          if (_as.size() > 0) {
             _state.current_offset     = af.offset;
-            _state.pc                 = af.pc;
+            _state.pc2                = af.pc;
             _state.code_index         = af.index;
             _last_op_index = _as.peek().op_index;
 
          } else {
             set_exiting_op(_state.exiting_loc);
-            _state.pc = 0;
+            _state.pc2 = 0;
             _state.current_offset = 0;
             _state.code_index = 0;
          }
@@ -193,16 +194,17 @@ namespace eosio { namespace vm {
          }
       }
 
-      inline uint32_t get_pc() const { return _state.pc; }
-      inline void     set_pc(uint32_t pc) { _state.pc = pc; }
-      inline void     set_relative_pc(uint32_t pc) { _state.pc = _state.current_offset + pc; }
-      inline void     inc_pc(uint32_t offset=1) { _state.pc += offset; }
+      inline uint32_t get_pc() const { return _state.pc2; }
+      inline void     set_pc(uint32_t pc) { _state.pc2 = pc; }
+      inline void     set_relative_pc(uint32_t pc) { _state.pc2 = pc; }
+      inline void     inc_pc(uint32_t offset=1) { _state.pc2 += offset; }
       inline uint32_t get_code_index() const { return _state.code_index; }
-      inline uint32_t get_code_offset() const { return _state.pc - _state.current_offset; }
+      //inline uint32_t get_code_offset() const { return _state.pc2 - _state.current_offset; }
       inline void     exit(std::error_code err = std::error_code()) {
          _error_code = err;
          clear_exiting_op(_state.exiting_loc);
-         _state.exiting_loc = { _state.code_index, (_state.pc+1)-_state.current_offset };
+         _state.exiting_loc = _state.pc2+1;
+         //_state.exiting_loc = { _state.code_index, (_state.pc2+1)-_state.current_offset };
          set_exiting_op(_state.exiting_loc);
       }
 
@@ -230,13 +232,13 @@ namespace eosio { namespace vm {
 
       }
       
-      inline void set_exiting_op( const std::pair<uint32_t, uint32_t>& exiting_loc ) {
-         if (exiting_loc.first != -1 && exiting_loc.second != -1)
+      inline void set_exiting_op( uint32_t exiting_loc ) {
+         if (exiting_loc != -1)
             _mod.code.at(exiting_loc.first).code[exiting_loc.second].set_exiting_which();
       }
 
-      inline void clear_exiting_op( const std::pair<uint32_t, uint32_t>& exiting_loc ) {
-         if (exiting_loc.first != -1 && exiting_loc.second != -1)
+      inline void clear_exiting_op( uint32_t exiting_loc ) {
+         if (exiting_loc != -1)
             _mod.code.at(exiting_loc.first).code[exiting_loc.second].clear_exiting_which();
       }
 
@@ -276,8 +278,8 @@ namespace eosio { namespace vm {
          _state.current_function = func_index;
          _state.code_index       = func_index - _mod.import_functions.size();
          _state.current_offset   = _mod.function_sizes[_state.current_function];
-         _state.pc               = _state.current_offset;
-         _state.exiting_loc      = {0, 0};
+         _state.pc2              = _state.current_offset;
+         _state.exiting_loc      = 0;
          _state.as_index         = _as.size();
          _state.os_index         = _os.size();
 
@@ -315,7 +317,7 @@ namespace eosio { namespace vm {
       }
 
       inline void jump(uint32_t pop_info, uint32_t new_pc) {
-         _state.pc = _state.current_offset + new_pc;
+         _state.pc2 = new_pc;
          if ((pop_info & 0x80000000u)) {
             const auto& op = pop_operand();
             eat_operands(_os.size() - ((pop_info & 0x7FFFFFFFu) - 1));
@@ -365,7 +367,7 @@ namespace eosio { namespace vm {
 #define CREATE_EXITING_TABLE_ENTRY(NAME, CODE) &&ev_label_exiting_##NAME,
 #define CREATE_LABEL(NAME, CODE)                                                                                  \
       ev_label_##NAME : visitor(ev_variant->template get<eosio::vm::NAME##_t>());                                 \
-      ev_variant = &_mod.code.at_no_check(_state.code_index).code[_state.pc - _state.current_offset]; \
+      ev_variant = &_mod.code.at_no_check(_state.code_index).code[_state.pc2 - _state.current_offset]; \
       goto* dispatch_table[ev_variant->index()];
 #define CREATE_EXITING_LABEL(NAME, CODE)                                                  \
       ev_label_exiting_##NAME :  \
@@ -412,7 +414,7 @@ namespace eosio { namespace vm {
             ERROR_OPS(CREATE_EXITING_TABLE_ENTRY)
             &&__ev_last
          };
-         auto* ev_variant = &_mod.code.at_no_check(_state.code_index).code[_state.pc - _state.current_offset];
+         auto* ev_variant = &_mod.code.at_no_check(_state.code_index).code[_state.pc2 - _state.current_offset];
          goto *dispatch_table[ev_variant->index()];
          while (1) {
              CONTROL_FLOW_OPS(CREATE_LABEL);
@@ -457,13 +459,13 @@ namespace eosio { namespace vm {
       struct execution_state {
          Host* host                                = nullptr;
          uint32_t current_function                 = 0;
-         std::pair<int64_t, int64_t> exiting_loc = {-1,-1};
-	 uint32_t as_index         = 0;
-	 uint32_t cs_index         = 0;
-	 uint32_t os_index         = 0;
+         int32_t  exiting_loc = -1;
+         uint32_t as_index         = 0;
+         uint32_t cs_index         = 0;
+         uint32_t os_index         = 0;
          uint32_t code_index       = 0;
          uint32_t current_offset   = 0;
-         uint32_t pc               = 0;
+         uint32_t pc2              = 0;
          bool     initialized      = false;
       };
 

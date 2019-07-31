@@ -80,7 +80,7 @@ namespace eosio { namespace vm {
          constexpr inline T& operator[] (size_t i) const { return at(i); }
          constexpr inline T* raw() const { return _data; }
          constexpr inline size_t size() const { return _size; }
-         constexpr inline void set( T* data, size_t size ) { _size = size; _data = data; _index = size-1; }
+         constexpr inline void set( T* data, size_t size, size_t index=-1 ) { _size = size; _data = data; _index = index == -1 ? size - 1 : index; }
          constexpr inline void copy( T* data, size_t size ) {
            resize(size);
            for (int i=0; i < size; i++)
