@@ -14,7 +14,7 @@ RUN curl -LO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
     cd .. && \
     rm -f cmake-3.13.2.tar.gz
 # build clang
-RUN bash -c "scl enable devtoolset-8 bash && echo '$ gcc --version' && gcc --version && mkdir -p /root/tmp && cd /root/tmp && git clone --single-branch --branch release_80 https://git.llvm.org/git/llvm.git clang8 && cd clang8 && git checkout 18e41dc && \
+RUN source /opt/rh/devtoolset-8/enable && echo '$ gcc --version' && gcc --version && mkdir -p /root/tmp && cd /root/tmp && git clone --single-branch --branch release_80 https://git.llvm.org/git/llvm.git clang8 && cd clang8 && git checkout 18e41dc && \
     cd tools && git clone --single-branch --branch release_80 https://git.llvm.org/git/lld.git && cd lld && git checkout d60a035 && \
     cd ../ && git clone --single-branch --branch release_80 https://git.llvm.org/git/polly.git && cd polly && git checkout 1bc06e5 && \
     cd ../ && git clone --single-branch --branch release_80 https://git.llvm.org/git/clang.git clang && cd clang && git checkout a03da8b && \
@@ -27,7 +27,7 @@ RUN bash -c "scl enable devtoolset-8 bash && echo '$ gcc --version' && gcc --ver
     cmake -G 'Unix Makefiles' -DCMAKE_INSTALL_PREFIX='/usr/local' -DLLVM_BUILD_EXTERNAL_COMPILER_RT=ON -DLLVM_BUILD_LLVM_DYLIB=ON -DLLVM_ENABLE_LIBCXX=ON -DLLVM_ENABLE_RTTI=ON -DLLVM_INCLUDE_DOCS=OFF -DLLVM_OPTIMIZED_TABLEGEN=ON -DLLVM_TARGETS_TO_BUILD=all -DCMAKE_BUILD_TYPE=Release .. && \
     make -j$(nproc) && \
     make install && \
-    cd / && rm -rf /root/tmp/clang8"
+    cd / && rm -rf /root/tmp/clang8
 # build llvm
 RUN git clone --depth 1 --single-branch --branch release_40 https://github.com/llvm-mirror/llvm.git llvm && \
     cd llvm && mkdir build && cd build && \
