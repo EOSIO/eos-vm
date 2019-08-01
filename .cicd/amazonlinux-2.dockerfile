@@ -29,15 +29,6 @@ RUN mkdir -p /root/tmp && cd /root/tmp && \
     make -j$(nproc) && \
     make install && \
     rm -rf /root/tmp/clang8
-# Build appropriate version of LLVM.
-RUN git clone --depth 1 --single-branch --branch release_40 https://github.com/llvm-mirror/llvm.git llvm && \
-    cd llvm && \
-    mkdir build && \
-    cd build && \
-    cmake -G 'Unix Makefiles' -DLLVM_TARGETS_TO_BUILD=host -DLLVM_BUILD_TOOLS=false -DLLVM_ENABLE_RTTI=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local .. && \
-    make -j$(nproc) && \
-    make install && \
-    cd /
 # CCACHE
 RUN curl -LO http://download-ib01.fedoraproject.org/pub/epel/7/x86_64/Packages/c/ccache-3.3.4-1.el7.x86_64.rpm && \
     yum install -y ccache-3.3.4-1.el7.x86_64.rpm
