@@ -15,7 +15,7 @@ extern wasm_allocator wa;
 using backend_t = backend<std::nullptr_t>;
 
 TEST_CASE( "Testing wasm <br_if_0_wasm>", "[br_if_0_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( br_if_0_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "br_if.0.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);

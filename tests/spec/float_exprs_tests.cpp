@@ -15,7 +15,7 @@ extern wasm_allocator wa;
 using backend_t = backend<std::nullptr_t>;
 
 TEST_CASE( "Testing wasm <float_exprs_0_wasm>", "[float_exprs_0_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_0_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.0.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -27,8 +27,26 @@ TEST_CASE( "Testing wasm <float_exprs_0_wasm>", "[float_exprs_0_wasm_tests]" ) {
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_contraction", bit_cast<double>(UINT64_C(9554523352352050493)), bit_cast<double>(UINT64_C(18042841594766434431)), bit_cast<double>(UINT64_C(4368037109959396445)))->to_f64()) == UINT64_C(4544162191519938727));
 }
 
+TEST_CASE( "Testing wasm <float_exprs_1_wasm>", "[float_exprs_1_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.1.wasm");
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+   bkend.initialize(nullptr);
+
+   CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fma", bit_cast<float>(UINT32_C(2111029761)), bit_cast<float>(UINT32_C(879215268)), bit_cast<float>(UINT32_C(1967953261)))->to_f32()) == UINT32_C(1968345878));
+   CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fma", bit_cast<float>(UINT32_C(838240978)), bit_cast<float>(UINT32_C(2796592697)), bit_cast<float>(UINT32_C(329493464)))->to_f32()) == UINT32_C(2569667420));
+   CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fma", bit_cast<float>(UINT32_C(1381446097)), bit_cast<float>(UINT32_C(962187981)), bit_cast<float>(UINT32_C(1155576972)))->to_f32()) == UINT32_C(1278680110));
+   CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fma", bit_cast<float>(UINT32_C(999635965)), bit_cast<float>(UINT32_C(3403528619)), bit_cast<float>(UINT32_C(3222888213)))->to_f32()) == UINT32_C(3338748778));
+   CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fma", bit_cast<float>(UINT32_C(2123679707)), bit_cast<float>(UINT32_C(2625733638)), bit_cast<float>(UINT32_C(3500197619)))->to_f32()) == UINT32_C(3684076259));
+   CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fma", bit_cast<double>(UINT64_C(7118716943724900052)), bit_cast<double>(UINT64_C(6546073043412611735)), bit_cast<double>(UINT64_C(18275705786238687882)))->to_f64()) == UINT64_C(9054581441422375136));
+   CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fma", bit_cast<double>(UINT64_C(7984371788751700236)), bit_cast<double>(UINT64_C(4021745400549737956)), bit_cast<double>(UINT64_C(7188568268293775252)))->to_f64()) == UINT64_C(7398962198428541884));
+   CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fma", bit_cast<double>(UINT64_C(1362668175782178275)), bit_cast<double>(UINT64_C(18385570095786966502)), bit_cast<double>(UINT64_C(5677031731722859914)))->to_f64()) == UINT64_C(15141616602947129037));
+   CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fma", bit_cast<double>(UINT64_C(12093403956019835987)), bit_cast<double>(UINT64_C(15826077508588652458)), bit_cast<double>(UINT64_C(4856562394320338043)))->to_f64()) == UINT64_C(4867219230351674394));
+   CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fma", bit_cast<double>(UINT64_C(4843589256781277081)), bit_cast<double>(UINT64_C(7695653093478086834)), bit_cast<double>(UINT64_C(16938438850771988744)))->to_f64()) == UINT64_C(7932313162666085329));
+}
+
 TEST_CASE( "Testing wasm <float_exprs_10_wasm>", "[float_exprs_10_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_10_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.10.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -36,7 +54,7 @@ TEST_CASE( "Testing wasm <float_exprs_10_wasm>", "[float_exprs_10_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_11_wasm>", "[float_exprs_11_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_11_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.11.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -44,7 +62,7 @@ TEST_CASE( "Testing wasm <float_exprs_11_wasm>", "[float_exprs_11_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_12_wasm>", "[float_exprs_12_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_12_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.12.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -54,7 +72,7 @@ TEST_CASE( "Testing wasm <float_exprs_12_wasm>", "[float_exprs_12_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_13_wasm>", "[float_exprs_13_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_13_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.13.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -64,7 +82,7 @@ TEST_CASE( "Testing wasm <float_exprs_13_wasm>", "[float_exprs_13_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_14_wasm>", "[float_exprs_14_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_14_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.14.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -72,7 +90,7 @@ TEST_CASE( "Testing wasm <float_exprs_14_wasm>", "[float_exprs_14_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_15_wasm>", "[float_exprs_15_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_15_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.15.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -80,7 +98,7 @@ TEST_CASE( "Testing wasm <float_exprs_15_wasm>", "[float_exprs_15_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_16_wasm>", "[float_exprs_16_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_16_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.16.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -98,7 +116,7 @@ TEST_CASE( "Testing wasm <float_exprs_16_wasm>", "[float_exprs_16_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_17_wasm>", "[float_exprs_17_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_17_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.17.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -116,7 +134,7 @@ TEST_CASE( "Testing wasm <float_exprs_17_wasm>", "[float_exprs_17_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_18_wasm>", "[float_exprs_18_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_18_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.18.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -134,7 +152,7 @@ TEST_CASE( "Testing wasm <float_exprs_18_wasm>", "[float_exprs_18_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_19_wasm>", "[float_exprs_19_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_19_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.19.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -151,26 +169,18 @@ TEST_CASE( "Testing wasm <float_exprs_19_wasm>", "[float_exprs_19_wasm_tests]" )
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_regroup_div_mul", bit_cast<double>(UINT64_C(1912002771029783751)), bit_cast<double>(UINT64_C(655387110450354003)), bit_cast<double>(UINT64_C(10060746190138762841)))->to_f64()) == UINT64_C(10953754119023888080));
 }
 
-TEST_CASE( "Testing wasm <float_exprs_1_wasm>", "[float_exprs_1_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_1_wasm );
+TEST_CASE( "Testing wasm <float_exprs_2_wasm>", "[float_exprs_2_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.2.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
 
-   CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fma", bit_cast<float>(UINT32_C(2111029761)), bit_cast<float>(UINT32_C(879215268)), bit_cast<float>(UINT32_C(1967953261)))->to_f32()) == UINT32_C(1968345878));
-   CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fma", bit_cast<float>(UINT32_C(838240978)), bit_cast<float>(UINT32_C(2796592697)), bit_cast<float>(UINT32_C(329493464)))->to_f32()) == UINT32_C(2569667420));
-   CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fma", bit_cast<float>(UINT32_C(1381446097)), bit_cast<float>(UINT32_C(962187981)), bit_cast<float>(UINT32_C(1155576972)))->to_f32()) == UINT32_C(1278680110));
-   CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fma", bit_cast<float>(UINT32_C(999635965)), bit_cast<float>(UINT32_C(3403528619)), bit_cast<float>(UINT32_C(3222888213)))->to_f32()) == UINT32_C(3338748778));
-   CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fma", bit_cast<float>(UINT32_C(2123679707)), bit_cast<float>(UINT32_C(2625733638)), bit_cast<float>(UINT32_C(3500197619)))->to_f32()) == UINT32_C(3684076259));
-   CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fma", bit_cast<double>(UINT64_C(7118716943724900052)), bit_cast<double>(UINT64_C(6546073043412611735)), bit_cast<double>(UINT64_C(18275705786238687882)))->to_f64()) == UINT64_C(9054581441422375136));
-   CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fma", bit_cast<double>(UINT64_C(7984371788751700236)), bit_cast<double>(UINT64_C(4021745400549737956)), bit_cast<double>(UINT64_C(7188568268293775252)))->to_f64()) == UINT64_C(7398962198428541884));
-   CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fma", bit_cast<double>(UINT64_C(1362668175782178275)), bit_cast<double>(UINT64_C(18385570095786966502)), bit_cast<double>(UINT64_C(5677031731722859914)))->to_f64()) == UINT64_C(15141616602947129037));
-   CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fma", bit_cast<double>(UINT64_C(12093403956019835987)), bit_cast<double>(UINT64_C(15826077508588652458)), bit_cast<double>(UINT64_C(4856562394320338043)))->to_f64()) == UINT64_C(4867219230351674394));
-   CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fma", bit_cast<double>(UINT64_C(4843589256781277081)), bit_cast<double>(UINT64_C(7695653093478086834)), bit_cast<double>(UINT64_C(16938438850771988744)))->to_f64()) == UINT64_C(7932313162666085329));
+   CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_add_zero", bit_cast<float>(UINT32_C(2147483648)))->to_f32()) == UINT32_C(0));
+   CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_add_zero", bit_cast<double>(UINT64_C(9223372036854775808)))->to_f64()) == UINT64_C(0));
 }
 
 TEST_CASE( "Testing wasm <float_exprs_20_wasm>", "[float_exprs_20_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_20_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.20.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -188,7 +198,7 @@ TEST_CASE( "Testing wasm <float_exprs_20_wasm>", "[float_exprs_20_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_21_wasm>", "[float_exprs_21_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_21_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.21.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -206,7 +216,7 @@ TEST_CASE( "Testing wasm <float_exprs_21_wasm>", "[float_exprs_21_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_22_wasm>", "[float_exprs_22_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_22_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.22.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -224,7 +234,7 @@ TEST_CASE( "Testing wasm <float_exprs_22_wasm>", "[float_exprs_22_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_23_wasm>", "[float_exprs_23_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_23_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.23.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -240,7 +250,7 @@ TEST_CASE( "Testing wasm <float_exprs_23_wasm>", "[float_exprs_23_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_24_wasm>", "[float_exprs_24_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_24_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.24.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -256,7 +266,7 @@ TEST_CASE( "Testing wasm <float_exprs_24_wasm>", "[float_exprs_24_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_25_wasm>", "[float_exprs_25_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_25_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.25.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -274,7 +284,7 @@ TEST_CASE( "Testing wasm <float_exprs_25_wasm>", "[float_exprs_25_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_26_wasm>", "[float_exprs_26_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_26_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.26.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -287,7 +297,7 @@ TEST_CASE( "Testing wasm <float_exprs_26_wasm>", "[float_exprs_26_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_27_wasm>", "[float_exprs_27_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_27_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.27.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -305,7 +315,7 @@ TEST_CASE( "Testing wasm <float_exprs_27_wasm>", "[float_exprs_27_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_28_wasm>", "[float_exprs_28_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_28_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.28.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -318,7 +328,7 @@ TEST_CASE( "Testing wasm <float_exprs_28_wasm>", "[float_exprs_28_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_29_wasm>", "[float_exprs_29_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_29_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.29.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -337,18 +347,18 @@ TEST_CASE( "Testing wasm <float_exprs_29_wasm>", "[float_exprs_29_wasm_tests]" )
    CHECK(bkend.call_with_return(nullptr, "env", "i64.no_fold_f64_u", UINT64_C(17293822569102705664))->to_ui64() == UINT32_C(17293822569102704640));
 }
 
-TEST_CASE( "Testing wasm <float_exprs_2_wasm>", "[float_exprs_2_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_2_wasm );
+TEST_CASE( "Testing wasm <float_exprs_3_wasm>", "[float_exprs_3_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.3.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
 
-   CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_add_zero", bit_cast<float>(UINT32_C(2147483648)))->to_f32()) == UINT32_C(0));
-   CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_add_zero", bit_cast<double>(UINT64_C(9223372036854775808)))->to_f64()) == UINT64_C(0));
+   CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_zero_sub", bit_cast<float>(UINT32_C(0)))->to_f32()) == UINT32_C(0));
+   CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_zero_sub", bit_cast<double>(UINT64_C(0)))->to_f64()) == UINT64_C(0));
 }
 
 TEST_CASE( "Testing wasm <float_exprs_30_wasm>", "[float_exprs_30_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_30_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.30.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -366,7 +376,7 @@ TEST_CASE( "Testing wasm <float_exprs_30_wasm>", "[float_exprs_30_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_31_wasm>", "[float_exprs_31_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_31_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.31.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -384,7 +394,7 @@ TEST_CASE( "Testing wasm <float_exprs_31_wasm>", "[float_exprs_31_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_32_wasm>", "[float_exprs_32_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_32_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.32.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -402,7 +412,7 @@ TEST_CASE( "Testing wasm <float_exprs_32_wasm>", "[float_exprs_32_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_33_wasm>", "[float_exprs_33_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_33_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.33.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -420,7 +430,7 @@ TEST_CASE( "Testing wasm <float_exprs_33_wasm>", "[float_exprs_33_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_34_wasm>", "[float_exprs_34_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_34_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.34.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -430,7 +440,7 @@ TEST_CASE( "Testing wasm <float_exprs_34_wasm>", "[float_exprs_34_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_35_wasm>", "[float_exprs_35_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_35_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.35.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -443,7 +453,7 @@ TEST_CASE( "Testing wasm <float_exprs_35_wasm>", "[float_exprs_35_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_36_wasm>", "[float_exprs_36_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_36_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.36.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -463,7 +473,7 @@ TEST_CASE( "Testing wasm <float_exprs_36_wasm>", "[float_exprs_36_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_37_wasm>", "[float_exprs_37_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_37_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.37.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -481,7 +491,7 @@ TEST_CASE( "Testing wasm <float_exprs_37_wasm>", "[float_exprs_37_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_38_wasm>", "[float_exprs_38_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_38_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.38.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -494,7 +504,7 @@ TEST_CASE( "Testing wasm <float_exprs_38_wasm>", "[float_exprs_38_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_39_wasm>", "[float_exprs_39_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_39_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.39.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -533,18 +543,16 @@ TEST_CASE( "Testing wasm <float_exprs_39_wasm>", "[float_exprs_39_wasm_tests]" )
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.i64.no_fold_trunc_u_convert_u", bit_cast<double>(UINT64_C(13826050856027422720)))->to_f64()) == UINT64_C(0));
 }
 
-TEST_CASE( "Testing wasm <float_exprs_3_wasm>", "[float_exprs_3_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_3_wasm );
+TEST_CASE( "Testing wasm <float_exprs_4_wasm>", "[float_exprs_4_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.4.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
 
-   CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_zero_sub", bit_cast<float>(UINT32_C(0)))->to_f32()) == UINT32_C(0));
-   CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_zero_sub", bit_cast<double>(UINT64_C(0)))->to_f64()) == UINT64_C(0));
 }
 
 TEST_CASE( "Testing wasm <float_exprs_40_wasm>", "[float_exprs_40_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_40_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.40.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -565,7 +573,7 @@ bkend(nullptr, "env", "run", UINT32_C(16), bit_cast<float>(UINT32_C(1077936128))
 }
 
 TEST_CASE( "Testing wasm <float_exprs_41_wasm>", "[float_exprs_41_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_41_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.41.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -586,7 +594,7 @@ bkend(nullptr, "env", "run", UINT32_C(32), bit_cast<double>(UINT64_C(46139378182
 }
 
 TEST_CASE( "Testing wasm <float_exprs_42_wasm>", "[float_exprs_42_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_42_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.42.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -626,7 +634,7 @@ TEST_CASE( "Testing wasm <float_exprs_42_wasm>", "[float_exprs_42_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_43_wasm>", "[float_exprs_43_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_43_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.43.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -666,7 +674,7 @@ TEST_CASE( "Testing wasm <float_exprs_43_wasm>", "[float_exprs_43_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_44_wasm>", "[float_exprs_44_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_44_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.44.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -706,7 +714,7 @@ TEST_CASE( "Testing wasm <float_exprs_44_wasm>", "[float_exprs_44_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_45_wasm>", "[float_exprs_45_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_45_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.45.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -746,7 +754,7 @@ TEST_CASE( "Testing wasm <float_exprs_45_wasm>", "[float_exprs_45_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_46_wasm>", "[float_exprs_46_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_46_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.46.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -786,7 +794,7 @@ TEST_CASE( "Testing wasm <float_exprs_46_wasm>", "[float_exprs_46_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_47_wasm>", "[float_exprs_47_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_47_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.47.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -796,7 +804,7 @@ TEST_CASE( "Testing wasm <float_exprs_47_wasm>", "[float_exprs_47_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_48_wasm>", "[float_exprs_48_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_48_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.48.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -805,7 +813,7 @@ TEST_CASE( "Testing wasm <float_exprs_48_wasm>", "[float_exprs_48_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_49_wasm>", "[float_exprs_49_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_49_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.49.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -813,16 +821,22 @@ TEST_CASE( "Testing wasm <float_exprs_49_wasm>", "[float_exprs_49_wasm_tests]" )
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "calculate")->to_f64()) == UINT64_C(13870293918930799763));
 }
 
-TEST_CASE( "Testing wasm <float_exprs_4_wasm>", "[float_exprs_4_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_4_wasm );
+TEST_CASE( "Testing wasm <float_exprs_5_wasm>", "[float_exprs_5_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.5.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
 
+   CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_mul_zero", bit_cast<float>(UINT32_C(2147483648)))->to_f32()) == UINT32_C(2147483648));
+   CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_mul_zero", bit_cast<float>(UINT32_C(3212836864)))->to_f32()) == UINT32_C(2147483648));
+   CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_mul_zero", bit_cast<float>(UINT32_C(3221225472)))->to_f32()) == UINT32_C(2147483648));
+   CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_mul_zero", bit_cast<double>(UINT64_C(9223372036854775808)))->to_f64()) == UINT64_C(9223372036854775808));
+   CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_mul_zero", bit_cast<double>(UINT64_C(13830554455654793216)))->to_f64()) == UINT64_C(9223372036854775808));
+   CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_mul_zero", bit_cast<double>(UINT64_C(13835058055282163712)))->to_f64()) == UINT64_C(9223372036854775808));
 }
 
 TEST_CASE( "Testing wasm <float_exprs_50_wasm>", "[float_exprs_50_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_50_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.50.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -831,7 +845,7 @@ TEST_CASE( "Testing wasm <float_exprs_50_wasm>", "[float_exprs_50_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_51_wasm>", "[float_exprs_51_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_51_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.51.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -840,7 +854,7 @@ TEST_CASE( "Testing wasm <float_exprs_51_wasm>", "[float_exprs_51_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_52_wasm>", "[float_exprs_52_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_52_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.52.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -849,7 +863,7 @@ TEST_CASE( "Testing wasm <float_exprs_52_wasm>", "[float_exprs_52_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_53_wasm>", "[float_exprs_53_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_53_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.53.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -860,7 +874,7 @@ TEST_CASE( "Testing wasm <float_exprs_53_wasm>", "[float_exprs_53_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_54_wasm>", "[float_exprs_54_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_54_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.54.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -869,7 +883,7 @@ TEST_CASE( "Testing wasm <float_exprs_54_wasm>", "[float_exprs_54_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_55_wasm>", "[float_exprs_55_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_55_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.55.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -879,7 +893,7 @@ TEST_CASE( "Testing wasm <float_exprs_55_wasm>", "[float_exprs_55_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_56_wasm>", "[float_exprs_56_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_56_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.56.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -905,7 +919,7 @@ TEST_CASE( "Testing wasm <float_exprs_56_wasm>", "[float_exprs_56_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_57_wasm>", "[float_exprs_57_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_57_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.57.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -923,7 +937,7 @@ TEST_CASE( "Testing wasm <float_exprs_57_wasm>", "[float_exprs_57_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_58_wasm>", "[float_exprs_58_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_58_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.58.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -941,7 +955,7 @@ TEST_CASE( "Testing wasm <float_exprs_58_wasm>", "[float_exprs_58_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_59_wasm>", "[float_exprs_59_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_59_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.59.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -953,22 +967,16 @@ TEST_CASE( "Testing wasm <float_exprs_59_wasm>", "[float_exprs_59_wasm_tests]" )
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.load", UINT32_C(44))->to_f32()) == UINT32_C(2147483649));
 }
 
-TEST_CASE( "Testing wasm <float_exprs_5_wasm>", "[float_exprs_5_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_5_wasm );
+TEST_CASE( "Testing wasm <float_exprs_6_wasm>", "[float_exprs_6_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.6.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
 
-   CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_mul_zero", bit_cast<float>(UINT32_C(2147483648)))->to_f32()) == UINT32_C(2147483648));
-   CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_mul_zero", bit_cast<float>(UINT32_C(3212836864)))->to_f32()) == UINT32_C(2147483648));
-   CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_mul_zero", bit_cast<float>(UINT32_C(3221225472)))->to_f32()) == UINT32_C(2147483648));
-   CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_mul_zero", bit_cast<double>(UINT64_C(9223372036854775808)))->to_f64()) == UINT64_C(9223372036854775808));
-   CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_mul_zero", bit_cast<double>(UINT64_C(13830554455654793216)))->to_f64()) == UINT64_C(9223372036854775808));
-   CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_mul_zero", bit_cast<double>(UINT64_C(13835058055282163712)))->to_f64()) == UINT64_C(9223372036854775808));
 }
 
 TEST_CASE( "Testing wasm <float_exprs_60_wasm>", "[float_exprs_60_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_60_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.60.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -981,7 +989,7 @@ TEST_CASE( "Testing wasm <float_exprs_60_wasm>", "[float_exprs_60_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_61_wasm>", "[float_exprs_61_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_61_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.61.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -991,7 +999,7 @@ TEST_CASE( "Testing wasm <float_exprs_61_wasm>", "[float_exprs_61_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_62_wasm>", "[float_exprs_62_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_62_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.62.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1001,7 +1009,7 @@ TEST_CASE( "Testing wasm <float_exprs_62_wasm>", "[float_exprs_62_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_63_wasm>", "[float_exprs_63_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_63_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.63.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1017,7 +1025,7 @@ TEST_CASE( "Testing wasm <float_exprs_63_wasm>", "[float_exprs_63_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_64_wasm>", "[float_exprs_64_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_64_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.64.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1033,7 +1041,7 @@ TEST_CASE( "Testing wasm <float_exprs_64_wasm>", "[float_exprs_64_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_65_wasm>", "[float_exprs_65_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_65_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.65.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1049,7 +1057,7 @@ TEST_CASE( "Testing wasm <float_exprs_65_wasm>", "[float_exprs_65_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_66_wasm>", "[float_exprs_66_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_66_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.66.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1061,7 +1069,7 @@ TEST_CASE( "Testing wasm <float_exprs_66_wasm>", "[float_exprs_66_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_67_wasm>", "[float_exprs_67_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_67_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.67.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1079,7 +1087,7 @@ TEST_CASE( "Testing wasm <float_exprs_67_wasm>", "[float_exprs_67_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_68_wasm>", "[float_exprs_68_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_68_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.68.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1097,7 +1105,7 @@ TEST_CASE( "Testing wasm <float_exprs_68_wasm>", "[float_exprs_68_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_69_wasm>", "[float_exprs_69_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_69_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.69.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1114,8 +1122,8 @@ TEST_CASE( "Testing wasm <float_exprs_69_wasm>", "[float_exprs_69_wasm_tests]" )
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_mul_divs", bit_cast<double>(UINT64_C(4529089342618677929)), bit_cast<double>(UINT64_C(3361245300043094097)), bit_cast<double>(UINT64_C(1815899012046749567)), bit_cast<double>(UINT64_C(15418396504351552390)))->to_f64()) == UINT64_C(10619033301585441215));
 }
 
-TEST_CASE( "Testing wasm <float_exprs_6_wasm>", "[float_exprs_6_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_6_wasm );
+TEST_CASE( "Testing wasm <float_exprs_7_wasm>", "[float_exprs_7_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.7.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1123,7 +1131,7 @@ TEST_CASE( "Testing wasm <float_exprs_6_wasm>", "[float_exprs_6_wasm_tests]" ) {
 }
 
 TEST_CASE( "Testing wasm <float_exprs_70_wasm>", "[float_exprs_70_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_70_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.70.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1141,7 +1149,7 @@ TEST_CASE( "Testing wasm <float_exprs_70_wasm>", "[float_exprs_70_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_71_wasm>", "[float_exprs_71_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_71_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.71.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1159,7 +1167,7 @@ TEST_CASE( "Testing wasm <float_exprs_71_wasm>", "[float_exprs_71_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_72_wasm>", "[float_exprs_72_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_72_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.72.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1175,7 +1183,7 @@ TEST_CASE( "Testing wasm <float_exprs_72_wasm>", "[float_exprs_72_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_73_wasm>", "[float_exprs_73_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_73_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.73.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1191,7 +1199,7 @@ TEST_CASE( "Testing wasm <float_exprs_73_wasm>", "[float_exprs_73_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_74_wasm>", "[float_exprs_74_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_74_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.74.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1209,7 +1217,7 @@ TEST_CASE( "Testing wasm <float_exprs_74_wasm>", "[float_exprs_74_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_75_wasm>", "[float_exprs_75_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_75_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.75.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1219,7 +1227,7 @@ TEST_CASE( "Testing wasm <float_exprs_75_wasm>", "[float_exprs_75_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_76_wasm>", "[float_exprs_76_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_76_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.76.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1240,7 +1248,7 @@ TEST_CASE( "Testing wasm <float_exprs_76_wasm>", "[float_exprs_76_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_77_wasm>", "[float_exprs_77_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_77_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.77.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1250,7 +1258,7 @@ TEST_CASE( "Testing wasm <float_exprs_77_wasm>", "[float_exprs_77_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_78_wasm>", "[float_exprs_78_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_78_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.78.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1260,7 +1268,7 @@ TEST_CASE( "Testing wasm <float_exprs_78_wasm>", "[float_exprs_78_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_79_wasm>", "[float_exprs_79_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_79_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.79.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1281,8 +1289,8 @@ TEST_CASE( "Testing wasm <float_exprs_79_wasm>", "[float_exprs_79_wasm_tests]" )
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.xkcd_better_sqrt_5", bit_cast<double>(UINT64_C(4623507967449235456)), bit_cast<double>(UINT64_C(4616189618054758400)), bit_cast<double>(UINT64_C(4614256656552045848)), bit_cast<double>(UINT64_C(4627448617123184640)))->to_f64()) == UINT64_C(4612217595876713891));
 }
 
-TEST_CASE( "Testing wasm <float_exprs_7_wasm>", "[float_exprs_7_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_7_wasm );
+TEST_CASE( "Testing wasm <float_exprs_8_wasm>", "[float_exprs_8_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.8.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1290,7 +1298,7 @@ TEST_CASE( "Testing wasm <float_exprs_7_wasm>", "[float_exprs_7_wasm_tests]" ) {
 }
 
 TEST_CASE( "Testing wasm <float_exprs_80_wasm>", "[float_exprs_80_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_80_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.80.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1300,7 +1308,7 @@ TEST_CASE( "Testing wasm <float_exprs_80_wasm>", "[float_exprs_80_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_81_wasm>", "[float_exprs_81_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_81_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.81.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1310,7 +1318,7 @@ TEST_CASE( "Testing wasm <float_exprs_81_wasm>", "[float_exprs_81_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_82_wasm>", "[float_exprs_82_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_82_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.82.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1322,7 +1330,7 @@ TEST_CASE( "Testing wasm <float_exprs_82_wasm>", "[float_exprs_82_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_83_wasm>", "[float_exprs_83_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_83_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.83.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1338,7 +1346,7 @@ TEST_CASE( "Testing wasm <float_exprs_83_wasm>", "[float_exprs_83_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_84_wasm>", "[float_exprs_84_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_84_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.84.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1348,7 +1356,7 @@ TEST_CASE( "Testing wasm <float_exprs_84_wasm>", "[float_exprs_84_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_85_wasm>", "[float_exprs_85_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_85_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.85.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1358,7 +1366,7 @@ TEST_CASE( "Testing wasm <float_exprs_85_wasm>", "[float_exprs_85_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_86_wasm>", "[float_exprs_86_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_86_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.86.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1374,7 +1382,7 @@ TEST_CASE( "Testing wasm <float_exprs_86_wasm>", "[float_exprs_86_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_87_wasm>", "[float_exprs_87_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_87_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.87.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1415,7 +1423,7 @@ TEST_CASE( "Testing wasm <float_exprs_87_wasm>", "[float_exprs_87_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_88_wasm>", "[float_exprs_88_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_88_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.88.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1425,7 +1433,7 @@ TEST_CASE( "Testing wasm <float_exprs_88_wasm>", "[float_exprs_88_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_89_wasm>", "[float_exprs_89_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_89_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.89.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1438,8 +1446,8 @@ TEST_CASE( "Testing wasm <float_exprs_89_wasm>", "[float_exprs_89_wasm_tests]" )
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.contract2fma", bit_cast<double>(UINT64_C(4608083138725491507)), bit_cast<double>(UINT64_C(4608083138725491507)))->to_f64()) == UINT64_C(0));
 }
 
-TEST_CASE( "Testing wasm <float_exprs_8_wasm>", "[float_exprs_8_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_8_wasm );
+TEST_CASE( "Testing wasm <float_exprs_9_wasm>", "[float_exprs_9_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.9.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1447,7 +1455,7 @@ TEST_CASE( "Testing wasm <float_exprs_8_wasm>", "[float_exprs_8_wasm_tests]" ) {
 }
 
 TEST_CASE( "Testing wasm <float_exprs_90_wasm>", "[float_exprs_90_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_90_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.90.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1457,7 +1465,7 @@ TEST_CASE( "Testing wasm <float_exprs_90_wasm>", "[float_exprs_90_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_91_wasm>", "[float_exprs_91_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_91_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.91.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1467,7 +1475,7 @@ TEST_CASE( "Testing wasm <float_exprs_91_wasm>", "[float_exprs_91_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_92_wasm>", "[float_exprs_92_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_92_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.92.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1487,7 +1495,7 @@ TEST_CASE( "Testing wasm <float_exprs_92_wasm>", "[float_exprs_92_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_93_wasm>", "[float_exprs_93_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_93_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.93.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1496,7 +1504,7 @@ TEST_CASE( "Testing wasm <float_exprs_93_wasm>", "[float_exprs_93_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_94_wasm>", "[float_exprs_94_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_94_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.94.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -1506,20 +1514,12 @@ TEST_CASE( "Testing wasm <float_exprs_94_wasm>", "[float_exprs_94_wasm_tests]" )
 }
 
 TEST_CASE( "Testing wasm <float_exprs_95_wasm>", "[float_exprs_95_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_95_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_exprs.95.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
 
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_conditional_inc", bit_cast<float>(UINT32_C(2147483648)), bit_cast<float>(UINT32_C(3212836864)))->to_f32()) == UINT32_C(2147483648));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_conditional_inc", bit_cast<double>(UINT64_C(9223372036854775808)), bit_cast<double>(UINT64_C(13830554455654793216)))->to_f64()) == UINT64_C(9223372036854775808));
-}
-
-TEST_CASE( "Testing wasm <float_exprs_9_wasm>", "[float_exprs_9_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( float_exprs_9_wasm );
-   backend_t bkend( code );
-   bkend.set_wasm_allocator( &wa );
-   bkend.initialize(nullptr);
-
 }
 

@@ -1232,6 +1232,7 @@ void generate_tests(const map<string, vector<picojson::object>>& mappings) {
    };
 
    for (const auto& [tsn_file, cmds] : mappings) {
+      if(tsn_file.empty()) continue;
       auto tsn = tsn_file;
       std::replace(tsn.begin(), tsn.end(), '.', '_');
       unit_tests << "TEST_CASE( \"Testing wasm <" << tsn << ">\", \"[" << tsn << "_tests]\" ) {\n";
