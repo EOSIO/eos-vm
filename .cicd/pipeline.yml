@@ -12,7 +12,7 @@ steps:
     build:
       commit: "${BUILDKITE_COMMIT}"
       branch: "${BUILDKITE_BRANCH}"
-
+      
   - wait
 
   - label: ":aws: Amazon_Linux 2 - Build"
@@ -54,3 +54,23 @@ steps:
           image: "eosio/producer:eos-vm-ubuntu-18.04-910b4e4a97a4ee8d45f304528d536d9c4425238a"
     timeout: ${TIMEOUT:-10}
     skip: $SKIP_UBUNTU_18
+
+  - label: ":darwin: macOS 10.14 - Build & Test"
+    command:
+      - "brew install git cmake boost"
+      - "git clone $BUILDKITE_REPO eos-vm && cd eos-vm && git submodule update --init --recursive"
+      - "cd eos-vm && mkdir -p build && cd build && cmake .."
+      - "cd eos-vm/build && make -j$(getconf _NPROCESSORS_ONLN)"
+    plugins:
+      - chef/anka#v0.5.1:
+          no-volume: true
+          inherit-environment-vars: true
+          vm-name: 10.14.4_6C_14G_40G
+          vm-registry-tag: "clean::cicd::git-ssh::nas::brew::buildkite-agent"
+          modify-cpu: 12
+          modify-ram: 24
+          always-pull: true
+          debug: true
+          wait-network: true
+    agents:
+      - "queue=mac-anka-large-node-fleet"
