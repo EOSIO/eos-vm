@@ -25,5 +25,6 @@ echo '+++ :hammer: Building eos-vm' && \
 mkdir -p build && cd build && \
 mv /$DCMAKE_TOOLCHAIN_FILE . && \
 cmake -DCMAKE_TOOLCHAIN_FILE=$DCMAKE_TOOLCHAIN_FILE -DENABLE_TESTS=ON .. && \
-make -j$(getconf _NPROCESSORS_ONLN) && \
+echo Building with -j$JOBS && \
+make -j$JOBS && \
 echo '+++ :white_check_mark: Done!'"
