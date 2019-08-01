@@ -3,15 +3,14 @@ ENV DCMAKE_TOOLCHAIN_FILE clang.make
 # YUM dependencies.
 RUN yum update -y && \
     yum install -y git sudo tar bzip2 make gcc gcc-c++ doxygen
-# Build appropriate version of CMake.
+# build cmake
 RUN curl -LO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
     tar -xzf cmake-3.13.2.tar.gz && \
     cd cmake-3.13.2 && \
     ./bootstrap --prefix=/usr/local && \
-    make -j$(nproc) && \
+    make -j $(nproc) && \
     make install && \
-    cd .. && \
-    rm -f cmake-3.13.2.tar.gz
+    rm -f /cmake-3.13.2.tar.gz && rm -rf /cmake-3.13.2
 # Build appropriate version of Clang.
 RUN mkdir -p /root/tmp && cd /root/tmp && \
     git clone --single-branch --branch release_80 https://git.llvm.org/git/llvm.git clang8 && cd clang8 && git checkout 18e41dc && \
