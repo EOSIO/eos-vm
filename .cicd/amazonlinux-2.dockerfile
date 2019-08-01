@@ -28,12 +28,5 @@ RUN git clone --single-branch --branch release_80 https://git.llvm.org/git/llvm.
 # CCACHE
 RUN curl -LO http://download-ib01.fedoraproject.org/pub/epel/7/x86_64/Packages/c/ccache-3.3.4-1.el7.x86_64.rpm && \
     yum install -y ccache-3.3.4-1.el7.x86_64.rpm
-CMD bash -c "cd /workdir && \
-    ccache -s && \
-    echo '+++ :git: Updating Submodules' && \
-    git submodule update --init --recursive && \
-    echo '+++ :hammer: Building eos-vm' && \
-    mkdir -p build && cd build && \
-    cmake -DCMAKE_TOOLCHAIN_FILE=/workdir/.cicd/clang.make -DENABLE_TESTS=ON .. && \
-    make -j$(getconf _NPROCESSORS_ONLN) && \
-    echo '+++ :white_check_mark: Done!'"
+# container entrypoint
+CMD /workdir/.cicd/entrypoint.sh
