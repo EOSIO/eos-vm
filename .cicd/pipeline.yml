@@ -1,18 +1,21 @@
 steps:
   - wait
 
-  - label: ":webhook: Trigger Travis CI Build"
-    command: ". ./.cicd/trigger-travis.sh"
-    agents:
-      queue: "automation-basic-builder-fleet"
-    timeout: ${TIMEOUT:-2}
 
   - trigger: "eos-vm-base-images-beta"
     label: ":docker: Docker - Ensure Base Images Exist"
     build:
       commit: "${BUILDKITE_COMMIT}"
       branch: "${BUILDKITE_BRANCH}"
-      
+
+  - wait
+
+  - label: ":webhook: Trigger Travis CI Build"
+    command: ". ./.cicd/trigger-travis.sh"
+    agents:
+      queue: "automation-basic-builder-fleet"
+    timeout: ${TIMEOUT:-2}
+
   - wait
 
   - label: ":aws: Amazon_Linux 2 - Build"
@@ -21,7 +24,7 @@ steps:
     plugins:
       - docker#v3.3.0:
           debug: $DEBUG
-          image: "eosio/producer:eos-vm-amazonlinux-2-63e818cb623e802d26101fb47d6c0b0e1cf5ddef"
+          image: "eosio/producer:eos-vm-amazonlinux-2-836e971bfff8b0790c3db1b7b3f2fde6c1e6252e"
           environment:
             - "JOBS"
     timeout: ${TIMEOUT:-10}
@@ -45,7 +48,7 @@ steps:
     plugins:
       - docker#v3.3.0:
           debug: $DEBUG
-          image: "eosio/producer:eos-vm-ubuntu-16.04-652bfca060ffe0f01701dcadc4a92f2d1ff1651c"
+          image: "eosio/producer:eos-vm-ubuntu-16.04-eddb1977f7cd08fb44562d416e2227a82e83efbf"
           environment:
             - "JOBS"
     timeout: ${TIMEOUT:-10}
@@ -57,7 +60,7 @@ steps:
     plugins:
       - docker#v3.3.0:
           debug: $DEBUG
-          image: "eosio/producer:eos-vm-ubuntu-18.04-910b4e4a97a4ee8d45f304528d536d9c4425238a"
+          image: "eosio/producer:eos-vm-ubuntu-18.04-36c60f87c5386aabb170a89498ee77e3e65a0087"
           environment:
             - "JOBS"
     timeout: ${TIMEOUT:-10}
