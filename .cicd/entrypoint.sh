@@ -1,6 +1,6 @@
 #!/bin/bash
 cd /workdir
-.cicd/execute.sh
+. ./.cicd/execute.sh
 echo '+++ :git: Updating Submodules'
 execute git submodule update --init --recursive
 echo '+++ :hammer: Building eos-vm'
