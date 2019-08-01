@@ -116,25 +116,41 @@ string write_function(string function_name, vector<tuple<string, string>> params
    return out.str();
 }
 
-string write_function_call(string function_name, vector<tuple<string, string>> params, tuple<string, string> expected_return, int var_index) {
+string write_function_call(string function_name, vector<tuple<string, string>> params, tuple<string, string> expected_return,
+                           int var_index, int param_index_offset) {
    stringstream out;
    auto [return_type, return_val] = expected_return;
 
-   // if return_type is float or double,
-   // generate local var and reinterpret cast.
-   bool needs_local_var = false;
-   if (return_val != "null") {
-      needs_local_var = c_type(return_type) != "void";
-   }
-
-   string cast = "";
+   string return_cast = "";
    stringstream func_call;
 
-   if (needs_local_var) {
+   if (params.size() > 0) {
+      int param_index = 0;
+      for (auto p = params.begin(); p != params.end(); p++) {
+         auto [type, value] = *p;
+         if (type == "f32") {
+            out << "      " << "int32_t " << "y" << param_index << param_index_offset << " = " << value << ";\n";
+            param_index++;
+         }
+         else if (type == "f64") {
+            out << "      " << "int64_t " << "y" << param_index << param_index_offset << " = " << value << ";\n";
+            param_index++;
+         }
+      }
+   }
+
+   bool needs_local_return = false;
+   if (return_val != "null") {
+      needs_local_return = c_type(return_type) != "void";
+   }
+
+   // if return_type is float or double,
+   // generate local var and reinterpret cast.
+   if (needs_local_return) {
       if (return_type == "f32") {
-         cast = "*(uint32_t*)&";
+         return_cast = "*(uint32_t*)&";
       } else if (return_type == "f64") {
-         cast = "*(uint64_t*)&";
+         return_cast = "*(uint64_t*)&";
       }
 
       func_call << "   " << "   " << c_type(return_type) << " " << "x" << var_index << " = ";
@@ -142,30 +158,48 @@ string write_function_call(string function_name, vector<tuple<string, string>> p
 
    func_call << function_name << "(";
 
+
    if (params.size() > 0) {
+      int param_index = 0;
       for (auto p = params.begin(); p != params.end() - 1; p++) {
-         auto [_t, value] = *p;
-         func_call << value << ", ";
+         auto [type, value] = *p;
+         if (type == "f32") {
+            func_call << "*(float*)&" << "y" << param_index << param_index_offset << ", ";
+         }
+         else if (type == "f64") {
+            func_call << "*(double*)&" << "y" << param_index << param_index_offset << ", ";
+         } else {
+            func_call << "(" << c_type(type) << ") " << value << ", ";
+         }
+         param_index++;
       }
 
-      auto [_t, value] = *(params.end() - 1);
-      func_call << value;
+      auto [type, value] = *(params.end() - 1);
+      if (type == "f32") {
+         func_call << "*(float*)&" << "y" << param_index << param_index_offset;
+      }
+      else if (type == "f64") {
+         func_call << "*(double*)&" << "y" << param_index << param_index_offset;
+      }
+      else {
+         func_call << value;
+      }
    }
    func_call << ");";
 
-   if (needs_local_var) {
+   if (needs_local_return) {
       out << func_call.str() << "\n";
    }
 
    if (return_val != "" && return_val != "null") {
       out << "   " << "   " << "eosio::check(";
-      if (needs_local_var) {
-         out << cast << "x" << var_index;
+      if (needs_local_return) {
+         out << return_cast << "x" << var_index;
       } else {
          out << func_call.str();
       }
       out << " == ";
-      out << return_val;
+      out << "(" << c_type(return_type) << ")" << return_val;
       out << ", " << "\"" << function_name << " fail\"";
       out << ");\n\n";
    } else {
@@ -195,14 +229,13 @@ string generate_functions(picojson::object test, bool call, int var_index) {
    auto expecteds = test["expected"].get<picojson::array>();
    for (auto e: expecteds) {
       auto expect = e.get<picojson::object>();
-
       string type = expect["type"].to_str();
       string value = expect["value"].to_str();
       expected_return = make_tuple(type, value);
    }
 
    if (call) {
-      return write_function_call(function_name, params, expected_return, var_index);
+      return write_function_call(function_name, params, expected_return, var_index, var_index);
    } else {
       return write_function(function_name, params, expected_return);
    }
@@ -248,7 +281,11 @@ int main(int argc, char** argv) {
             }
             if (obj["type"].to_str() == "assert_return" ||
                 // obj["type"].to_str() == "action" || TODO: add back in once I fix the compilation problems associated with it
-                obj["type"].to_str() == "assert_trap") {
+                obj["type"].to_str() == "assert_exhaustion" ||  // TODO: What to do about these?
+                obj["type"].to_str() == "assert_return_canonical_nan" ||  // TODO: What to do about these?
+                obj["type"].to_str() == "assert_return_arithmetic_nan" ||  // TODO: What to do about these?
+                obj["type"].to_str() == "assert_exhaustion" ||  // TODO: What to do about these?
+                obj["type"].to_str() == "assert_trap") {  // TODO: What to do about these?
                file_func_mappings[filename].push_back(obj);
             }
          }
