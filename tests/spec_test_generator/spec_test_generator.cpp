@@ -1231,11 +1231,11 @@ void generate_tests(const map<string, vector<picojson::object>>& mappings) {
       exp_v = obj["value"].to_str();
    };
 
-   for (const auto& [tsn, cmds] : mappings) {
-      auto tsn_id = tsn;
-      std::replace(tsn_id.begin(), tsn_id.end(), '-', '_');
+   for (const auto& [tsn_file, cmds] : mappings) {
+      auto tsn = tsn_file;
+      std::replace(tsn.begin(), tsn.end(), '.', '_');
       unit_tests << "TEST_CASE( \"Testing wasm <" << tsn << ">\", \"[" << tsn << "_tests]\" ) {\n";
-      unit_tests << "   " << test_preamble_0 << tsn_id << " );\n";
+      unit_tests << "   " << test_preamble_0 << "std::string(wasm_directory) + \"" <<  tsn_file << "\");\n";
       unit_tests << "   " << test_preamble_1 << "\n\n";
 
       for (picojson::object cmd : cmds) {
@@ -1295,10 +1295,6 @@ int main(int argc, char** argv) {
             picojson::object obj = o.get<picojson::object>();
             if (obj["type"].to_str() == "module") {
                test_suite_name = obj["filename"].to_str();
-               [&]() {
-                  for (int i = 0; i <= test_suite_name.size(); i++)
-                     test_suite_name[i] = test_suite_name[i] == '.' ? '_' : test_suite_name[i];
-               }();
                test_mappings[test_suite_name] = {};
             }
             test_mappings[test_suite_name].push_back(obj);

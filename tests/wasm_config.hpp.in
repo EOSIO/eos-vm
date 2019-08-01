@@ -1,6 +1,7 @@
 #pragma once
 
 namespace eosio { namespace vm {
+   static constexpr auto wasm_directory = "${CMAKE_SOURCE_DIR}/tests/wasms/";
    static constexpr auto address_0_wasm           = "${CMAKE_SOURCE_DIR}/tests/wasms/address.0.wasm";
    static constexpr auto address_1_wasm           = "${CMAKE_SOURCE_DIR}/tests/wasms/address.1.wasm";
    static constexpr auto address_2_wasm           = "${CMAKE_SOURCE_DIR}/tests/wasms/address.2.wasm";
