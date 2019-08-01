@@ -199,12 +199,12 @@ namespace eosio { namespace vm {
             case opcodes::i32_const: ie.value.i32 = parse_varint32(code); break;
             case opcodes::i64_const: ie.value.i64 = parse_varint64(code); break;
             case opcodes::f32_const:
-               ie.value.i32 = *code.raw();
-               code += sizeof(uint32_t);
+               std::memcpy(&ie.value.f32, code.raw(), sizeof(float));
+               code += sizeof(float);
                break;
             case opcodes::f64_const:
-               ie.value.i64 = *code.raw();
-               code += sizeof(uint64_t);
+               std::memcpy(&ie.value.f64, code.raw(), sizeof(double));
+               code += sizeof(double);
                break;
             default:
                EOS_WB_ASSERT(false, wasm_parse_exception,
