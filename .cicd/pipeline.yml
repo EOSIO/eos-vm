@@ -2,8 +2,7 @@ steps:
   - wait
 
   - label: ":webhook: Trigger Travis CI Build"
-    command: |
-      . ./.cicd/trigger-travis.sh
+    command: ". ./.cicd/trigger-travis.sh"
     agents:
       queue: "automation-basic-builder-fleet"
     timeout: ${TIMEOUT:-2}
@@ -22,9 +21,19 @@ steps:
     plugins:
       - docker#v3.3.0:
           debug: $DEBUG
-          image: "eosio/producer:eos-vm-amazonlinux-2-aa01fa0c01d137352a24ede1bf4e5650ea511ffa"
+          image: "eosio/producer:eos-vm-amazonlinux-2-63e818cb623e802d26101fb47d6c0b0e1cf5ddef"
     timeout: ${TIMEOUT:-10}
-    skip: $SKIP_UBUNTU_18
+    skip: $SKIP_AMAZON_LINUX_2
+
+  - label: ":centos: CentOS 7.6 - Build"
+    agents:
+      queue: "automation-eos-builder-fleet"
+    plugins:
+      - docker#v3.3.0:
+          debug: $DEBUG
+          image: "eosio/producer:eos-vm-centos-7.6-b2395f2a78cf42fd8ef2b453e002130eb388423f"
+    timeout: ${TIMEOUT:-10}
+    skip: $SKIP_CENTOS_7
 
   - label: ":ubuntu: Ubuntu 16.04 - Build"
     agents:
@@ -49,7 +58,7 @@ steps:
   - label: ":darwin: macOS 10.14 - Build & Test"
     command:
       - "brew install git cmake boost"
-      - "git clone $BUILDKITE_REPO eos-vm -b develop && cd eos-vm && git submodule update --init --recursive"
+      - "git clone $BUILDKITE_REPO eos-vm && cd eos-vm && git submodule update --init --recursive"
       - "cd eos-vm && mkdir -p build && cd build && cmake .."
       - "cd eos-vm/build && make -j$(getconf _NPROCESSORS_ONLN)"
     plugins:

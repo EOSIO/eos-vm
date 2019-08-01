@@ -1,12 +1,7 @@
 #!/usr/bin/env bash
 set -eo pipefail
+. ./.cicd/execute.sh
 . ./.cicd/docker-hash.sh
-
-function execute() {
-  echo "$@"
-  "$@"
-}
-
 if [[ "$(uname)" == Darwin ]]; then
   ccache -s
   mkdir -p build && cd build && cmake ..
