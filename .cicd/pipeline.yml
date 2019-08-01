@@ -25,6 +25,16 @@ steps:
     timeout: ${TIMEOUT:-10}
     skip: $SKIP_AMAZON_LINUX_2
 
+  - label: ":centos: CentOS 7.6 - Build"
+    agents:
+      queue: "automation-eos-builder-fleet"
+    plugins:
+      - docker#v3.3.0:
+          debug: $DEBUG
+          image: "eosio/producer:eos-vm-centos-7.6-b2395f2a78cf42fd8ef2b453e002130eb388423f"
+    timeout: ${TIMEOUT:-10}
+    skip: $SKIP_CENTOS_7
+
   - label: ":ubuntu: Ubuntu 16.04 - Build"
     agents:
       queue: "automation-eos-builder-fleet"
