@@ -1,4 +1,4 @@
-FROM amazonlinux:2
+FROM amazonlinux:2.0.20190508
 
 ENV DCMAKE_TOOLCHAIN_FILE clang.make
 
