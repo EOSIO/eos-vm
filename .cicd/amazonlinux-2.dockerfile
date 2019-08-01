@@ -1,5 +1,5 @@
 FROM amazonlinux:2.0.20190508
-# YUM dependencies.
+# install dependencies
 RUN yum update -y && \
     yum install -y git sudo tar bzip2 make gcc gcc-c++ doxygen
 # build cmake
@@ -25,7 +25,7 @@ RUN git clone --single-branch --branch release_80 https://git.llvm.org/git/llvm.
     make -j $(nproc) && \
     make install && \
     rm -rf /clang8
-# CCACHE
+# ccache
 RUN curl -LO http://download-ib01.fedoraproject.org/pub/epel/7/x86_64/Packages/c/ccache-3.3.4-1.el7.x86_64.rpm && \
     yum install -y ccache-3.3.4-1.el7.x86_64.rpm
 # container entrypoint
