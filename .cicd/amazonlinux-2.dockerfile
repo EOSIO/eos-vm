@@ -1,11 +1,8 @@
 FROM amazonlinux:2.0.20190508
-
 ENV DCMAKE_TOOLCHAIN_FILE clang.make
-
 # YUM dependencies.
 RUN yum update -y && \
     yum install -y git sudo tar bzip2 make gcc gcc-c++ doxygen
-
 # Build appropriate version of CMake.
 RUN curl -LO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
     tar -xzf cmake-3.13.2.tar.gz && \
@@ -15,7 +12,6 @@ RUN curl -LO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
     make install && \
     cd .. && \
     rm -f cmake-3.13.2.tar.gz
-
 # Build appropriate version of Clang.
 RUN mkdir -p /root/tmp && cd /root/tmp && \
     git clone --single-branch --branch release_80 https://git.llvm.org/git/llvm.git clang8 && cd clang8 && git checkout 18e41dc && \
@@ -33,7 +29,6 @@ RUN mkdir -p /root/tmp && cd /root/tmp && \
     make -j$(nproc) && \
     make install && \
     rm -rf /root/tmp/clang8
-
 # Build appropriate version of LLVM.
 RUN git clone --depth 1 --single-branch --branch release_40 https://github.com/llvm-mirror/llvm.git llvm && \
     cd llvm && \
@@ -43,11 +38,9 @@ RUN git clone --depth 1 --single-branch --branch release_40 https://github.com/l
     make -j$(nproc) && \
     make install && \
     cd /
-  
 # CCACHE
 RUN curl -LO http://download-ib01.fedoraproject.org/pub/epel/7/x86_64/Packages/c/ccache-3.3.4-1.el7.x86_64.rpm && \
     yum install -y ccache-3.3.4-1.el7.x86_64.rpm
-
 # Setup clang file to use in cmake
 RUN echo 'set(OPT_PATH @)' > $DCMAKE_TOOLCHAIN_FILE && \
     echo 'set(CMAKE_C_COMPILER_WORKS 1)' >> $DCMAKE_TOOLCHAIN_FILE && \
@@ -60,7 +53,6 @@ RUN echo 'set(OPT_PATH @)' > $DCMAKE_TOOLCHAIN_FILE && \
     echo 'set(CMAKE_SHARED_LINKER_FLAGS_INIT "-stdlib=libc++ -nostdlib++")' >> $DCMAKE_TOOLCHAIN_FILE && \
     echo 'set(CMAKE_MODULE_LINKER_FLAGS_INIT "-stdlib=libc++ -nostdlib++")' >> $DCMAKE_TOOLCHAIN_FILE && \
     echo 'set(CMAKE_CXX_STANDARD_LIBRARIES "/usr/local/lib/libc++.a /usr/local/lib/libc++abi.a")' >> $DCMAKE_TOOLCHAIN_FILE
-
 CMD bash -c "cd /workdir && \
     ccache -s && \
     echo '+++ :git: Updating Submodules' && \
