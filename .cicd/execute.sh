@@ -1,6 +1,6 @@
 #!/bin/bash
 function execute()
 {
-  echo "$ $@"
+  echo "--- $ $@"
   "$@"
 }
