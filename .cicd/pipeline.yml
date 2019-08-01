@@ -2,8 +2,7 @@ steps:
   - wait
 
   - label: ":webhook: Trigger Travis CI Build"
-    command: |
-      . ./.cicd/trigger-travis.sh
+    command: ". ./.cicd/trigger-travis.sh"
     agents:
       queue: "automation-basic-builder-fleet"
     timeout: ${TIMEOUT:-2}
@@ -24,7 +23,17 @@ steps:
           debug: $DEBUG
           image: "eosio/producer:eos-vm-amazonlinux-2-63e818cb623e802d26101fb47d6c0b0e1cf5ddef"
     timeout: ${TIMEOUT:-10}
-    skip: $SKIP_UBUNTU_18
+    skip: $SKIP_AMAZON_LINUX_2
+
+  - label: ":centos: CentOS 7.6 - Build"
+    agents:
+      queue: "automation-eos-builder-fleet"
+    plugins:
+      - docker#v3.3.0:
+          debug: $DEBUG
+          image: "eosio/producer:eos-vm-centos-7.6-b2395f2a78cf42fd8ef2b453e002130eb388423f"
+    timeout: ${TIMEOUT:-10}
+    skip: $SKIP_CENTOS_7
 
   - label: ":ubuntu: Ubuntu 16.04 - Build"
     agents:
