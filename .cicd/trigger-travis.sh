@@ -2,7 +2,7 @@
 set -eo pipefail
 echo '+++ :gear: Configuring Travis CI Build'
 [[ -z $TRIGGER_TRAVIS_API_KEY ]] && (echo '+++ :no_entry: ERROR: Travis CI API key not found!' && exit 1)
-TRAVIS_MESSAGE="$BUILDKITE_MESSAGE - $(echo $BUILDKITE_BUILD_URL | grep -oe 'buildkite.*')"
+export TRAVIS_MESSAGE="$BUILDKITE_MESSAGE - $(echo $BUILDKITE_BUILD_URL | grep -oe 'buildkite.*')"
 [[ -z $BODY ]] && BODY="$(jq -nc '{"request":{"branch":env.BUILDKITE_BRANCH,"message":env.TRAVIS_MESSAGE}}')"
 echo 'Configuration:'
 echo "$BODY" | jq
