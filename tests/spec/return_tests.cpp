@@ -14,8 +14,8 @@ using namespace eosio::vm;
 extern wasm_allocator wa;
 using backend_t = backend<std::nullptr_t>;
 
-TEST_CASE( "Testing wasm <br_0_wasm>", "[br_0_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( std::string(wasm_directory) + "br.0.wasm");
+TEST_CASE( "Testing wasm <return_0_wasm>", "[return_0_wasm_tests]" ) {
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "return.0.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -28,6 +28,12 @@ TEST_CASE( "Testing wasm <br_0_wasm>", "[br_0_wasm_tests]" ) {
    CHECK(bkend.call_with_return(nullptr, "env", "type-i64-value")->to_ui64() == UINT32_C(2));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "type-f32-value")->to_f32()) == UINT32_C(1077936128));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "type-f64-value")->to_f64()) == UINT64_C(4616189618054758400));
+   CHECK(!bkend.call_with_return(nullptr, "env", "nullary"));
+   CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "unary")->to_f64()) == UINT64_C(4613937818241073152));
+   CHECK(bkend.call_with_return(nullptr, "env", "as-func-first")->to_ui32() == UINT32_C(1));
+   CHECK(bkend.call_with_return(nullptr, "env", "as-func-mid")->to_ui32() == UINT32_C(2));
+   CHECK(!bkend.call_with_return(nullptr, "env", "as-func-last"));
+   CHECK(bkend.call_with_return(nullptr, "env", "as-func-value")->to_ui32() == UINT32_C(3));
    CHECK(!bkend.call_with_return(nullptr, "env", "as-block-first"));
    CHECK(!bkend.call_with_return(nullptr, "env", "as-block-mid"));
    CHECK(!bkend.call_with_return(nullptr, "env", "as-block-last"));
@@ -39,7 +45,7 @@ TEST_CASE( "Testing wasm <br_0_wasm>", "[br_0_wasm_tests]" ) {
    CHECK(!bkend.call_with_return(nullptr, "env", "as-br_if-cond"));
    CHECK(bkend.call_with_return(nullptr, "env", "as-br_if-value")->to_ui32() == UINT32_C(8));
    CHECK(bkend.call_with_return(nullptr, "env", "as-br_if-value-cond")->to_ui32() == UINT32_C(9));
-   CHECK(!bkend.call_with_return(nullptr, "env", "as-br_table-index"));
+   CHECK(bkend.call_with_return(nullptr, "env", "as-br_table-index")->to_ui64() == UINT32_C(9));
    CHECK(bkend.call_with_return(nullptr, "env", "as-br_table-value")->to_ui32() == UINT32_C(10));
    CHECK(bkend.call_with_return(nullptr, "env", "as-br_table-value-index")->to_ui32() == UINT32_C(11));
    CHECK(bkend.call_with_return(nullptr, "env", "as-return-value")->to_ui64() == UINT32_C(7));
@@ -77,11 +83,5 @@ TEST_CASE( "Testing wasm <br_0_wasm>", "[br_0_wasm_tests]" ) {
    CHECK(bkend.call_with_return(nullptr, "env", "as-compare-right")->to_ui32() == UINT32_C(42));
    CHECK(bkend.call_with_return(nullptr, "env", "as-convert-operand")->to_ui32() == UINT32_C(41));
    CHECK(bkend.call_with_return(nullptr, "env", "as-memory.grow-size")->to_ui32() == UINT32_C(40));
-   CHECK(bkend.call_with_return(nullptr, "env", "nested-block-value")->to_ui32() == UINT32_C(9));
-   CHECK(bkend.call_with_return(nullptr, "env", "nested-br-value")->to_ui32() == UINT32_C(9));
-   CHECK(bkend.call_with_return(nullptr, "env", "nested-br_if-value")->to_ui32() == UINT32_C(9));
-   CHECK(bkend.call_with_return(nullptr, "env", "nested-br_if-value-cond")->to_ui32() == UINT32_C(9));
-   CHECK(bkend.call_with_return(nullptr, "env", "nested-br_table-value")->to_ui32() == UINT32_C(9));
-   CHECK(bkend.call_with_return(nullptr, "env", "nested-br_table-value-index")->to_ui32() == UINT32_C(9));
 }
 

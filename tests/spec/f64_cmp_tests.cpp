@@ -15,7 +15,7 @@ extern wasm_allocator wa;
 using backend_t = backend<std::nullptr_t>;
 
 TEST_CASE( "Testing wasm <f64_cmp_0_wasm>", "[f64_cmp_0_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( f64_cmp_0_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "f64_cmp.0.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);

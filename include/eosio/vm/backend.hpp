@@ -31,8 +31,8 @@ namespace eosio { namespace vm {
       }
 
       inline backend& initialize(Host* host=nullptr) { 
-         _walloc->reset(); 
-	      _ctx.reset();
+         _walloc->reset(_mod.memories.size()?_mod.memories[0].limits.initial:0);
+         _ctx.reset();
          _ctx.execute_start(host, interpret_visitor(_ctx));
 	      return *this;
       }
@@ -41,7 +41,8 @@ namespace eosio { namespace vm {
       inline bool call_indirect(Host* host, uint32_t func_index, Args... args) {
          try {
             if constexpr (eos_vm_debug) {
-               _ctx.execute_func_table(host, debug_visitor(_ctx), func_index, args...);
+               //_ctx.execute_func_table(host, debug_visitor(_ctx), func_index, args...);
+               _ctx.execute_func_table(host, interpret_visitor(_ctx), func_index, args...);
             } else {
                _ctx.execute_func_table(host, interpret_visitor(_ctx), func_index, args...);
             }
@@ -56,7 +57,8 @@ namespace eosio { namespace vm {
       inline bool call(Host* host, uint32_t func_index, Args... args) {
          try {
             if constexpr (eos_vm_debug) {
-               _ctx.execute(host, debug_visitor(_ctx), func_index, args...);
+               //_ctx.execute(host, debug_visitor(_ctx), func_index, args...);
+               _ctx.execute(host, interpret_visitor(_ctx), func_index, args...);
             } else {
                _ctx.execute(host, interpret_visitor(_ctx), func_index, args...);
             }
@@ -71,7 +73,8 @@ namespace eosio { namespace vm {
       inline bool call(Host* host, const std::string_view& mod, const std::string_view& func, Args... args) {
          try {
             if constexpr (eos_vm_debug) {
-               _ctx.execute(host, debug_visitor(_ctx), func, args...);
+               //_ctx.execute(host, debug_visitor(_ctx), func, args...);
+               _ctx.execute(host, interpret_visitor(_ctx), func, args...);
             } else {
                _ctx.execute(host, interpret_visitor(_ctx), func, args...);
             }
@@ -87,7 +90,8 @@ namespace eosio { namespace vm {
                                    Args... args) {
          try {
             if constexpr (eos_vm_debug) {
-               return _ctx.execute(host, debug_visitor(_ctx), func, args...);
+               //return _ctx.execute(host, debug_visitor(_ctx), func, args...);
+               return _ctx.execute(host, interpret_visitor(_ctx), func, args...);
             } else {
                return _ctx.execute(host, interpret_visitor(_ctx), func, args...);
             }
