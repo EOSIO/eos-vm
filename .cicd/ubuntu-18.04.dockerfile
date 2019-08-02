@@ -1,10 +1,7 @@
 FROM ubuntu:18.04
-
 ENV DCMAKE_TOOLCHAIN_FILE clang.make
-
 RUN apt update && \
     apt install -y git cmake clang-8 libc++-8* libc++abi-8* ccache
-
 # Setup clang file to use in cmake
 RUN echo 'set(OPT_PATH @)' > $DCMAKE_TOOLCHAIN_FILE && \
     echo 'set(CMAKE_C_COMPILER_WORKS 1)' >> $DCMAKE_TOOLCHAIN_FILE && \
@@ -17,7 +14,6 @@ RUN echo 'set(OPT_PATH @)' > $DCMAKE_TOOLCHAIN_FILE && \
     echo 'set(CMAKE_SHARED_LINKER_FLAGS_INIT "-stdlib=libc++ -nostdlib++")' >> $DCMAKE_TOOLCHAIN_FILE && \
     echo 'set(CMAKE_MODULE_LINKER_FLAGS_INIT "-stdlib=libc++ -nostdlib++")' >> $DCMAKE_TOOLCHAIN_FILE && \
     echo 'set(CMAKE_CXX_STANDARD_LIBRARIES "/usr/lib/llvm-8/lib/libc++.a /usr/lib/llvm-8/lib/libc++abi.a")' >> $DCMAKE_TOOLCHAIN_FILE
-
 CMD bash -c "cd /workdir && \
     ccache -s && \
     echo '+++ :git: Updating Submodules' && \
