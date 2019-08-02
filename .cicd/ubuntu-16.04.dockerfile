@@ -22,12 +22,4 @@ RUN mkdir -p /root/tmp && cd /root/tmp && git clone --single-branch --branch rel
     cd ../ && git clone --single-branch --branch release_80 https://git.llvm.org/git/compiler-rt.git && cd compiler-rt && git checkout 5bc7979 && cd ../ && cd /root/tmp/clang8 && \
     mkdir build && cd build && cmake -G 'Unix Makefiles' -DCMAKE_INSTALL_PREFIX='/usr/local' -DLLVM_BUILD_EXTERNAL_COMPILER_RT=ON -DLLVM_BUILD_LLVM_DYLIB=ON -DLLVM_ENABLE_LIBCXX=ON -DLLVM_ENABLE_RTTI=ON -DLLVM_INCLUDE_DOCS=OFF -DLLVM_OPTIMIZED_TABLEGEN=ON -DLLVM_TARGETS_TO_BUILD=all -DCMAKE_BUILD_TYPE=Release .. && \
     make -j$(nproc) && make install && cd / && rm -rf /root/tmp/clang8
-CMD bash -c "cd /workdir && \
-    ccache -s && \
-    echo '+++ :git: Updating Submodules' && \
-    git submodule update --init --recursive && \
-    echo '+++ :hammer: Building eos-vm' && \
-    mkdir -p build && cd build && \
-    cmake -DCMAKE_TOOLCHAIN_FILE=/workdir/.cicd/clang.make -DENABLE_TESTS=ON .. && \
-    make -j$(getconf _NPROCESSORS_ONLN) && \
-    echo '+++ :white_check_mark: Done!'"
+CMD /workdir/.cicd/entrypoint.sh
