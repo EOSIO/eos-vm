@@ -276,12 +276,12 @@ def write_merged_wasm(generated_wasm, test_wasm):
     for t in test_wasm.tables:
         out += t + '\n'
 
-    # TODO:
-    # How to handle memory? There can only be one
-    for m in generated_wasm.memory:
-        out += m + '\n'
-    #for m in test_wasm.memory:
-        #out += m + '\n'
+    if len(test_wasm.memory) > 0:
+        for m in test_wasm.memory:
+            out += m + '\n'
+    else:
+        for m in generated_wasm.memory:
+            out += m + '\n'
 
     for g in generated_wasm.global_vars:
         out += g + '\n'
