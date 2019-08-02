@@ -165,13 +165,14 @@ string write_function_call(string function_name, vector<tuple<string, string>> p
          auto [type, value] = *p;
          if (type == "f32") {
             func_call << "*(float*)&" << "y" << param_index << param_index_offset << ", ";
+            param_index++;
          }
          else if (type == "f64") {
             func_call << "*(double*)&" << "y" << param_index << param_index_offset << ", ";
+            param_index++;
          } else {
             func_call << "(" << c_type(type) << ") " << value << ", ";
          }
-         param_index++;
       }
 
       auto [type, value] = *(params.end() - 1);
@@ -280,12 +281,12 @@ int main(int argc, char** argv) {
                filename = obj["filename"].to_str();
             }
             if (obj["type"].to_str() == "assert_return" ||
-                // obj["type"].to_str() == "action" || TODO: add back in once I fix the compilation problems associated with it
-                obj["type"].to_str() == "assert_exhaustion" ||  // TODO: What to do about these?
-                obj["type"].to_str() == "assert_return_canonical_nan" ||  // TODO: What to do about these?
-                obj["type"].to_str() == "assert_return_arithmetic_nan" ||  // TODO: What to do about these?
-                obj["type"].to_str() == "assert_exhaustion" ||  // TODO: What to do about these?
-                obj["type"].to_str() == "assert_trap") {  // TODO: What to do about these?
+                obj["type"].to_str() == "action" ||
+                obj["type"].to_str() == "assert_exhaustion" ||
+                obj["type"].to_str() == "assert_return_canonical_nan" ||
+                obj["type"].to_str() == "assert_return_arithmetic_nan" ||
+                obj["type"].to_str() == "assert_exhaustion" ||
+                obj["type"].to_str() == "assert_trap") {
                file_func_mappings[filename].push_back(obj);
             }
          }
