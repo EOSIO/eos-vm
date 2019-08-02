@@ -131,39 +131,73 @@ namespace eosio { namespace vm {
          }
       }
 
-      // FIXME This just does a linear search.
+      // Generate a binary search.
       struct br_table_generator {
          void* emit_case(uint32_t depth_change) {
-            // cmp i, %eax
-            _this->emit_bytes(0x3d);
-            _this->emit_operand32(_i++);
-            if (depth_change == 0u || depth_change == 0x80000000u) {
-               // je TARGET
-               _this->emit_bytes(0x0f, 0x84);
-               return _this->emit_branch_target32();
-            } else {
-               // jne NEXT
-               _this->emit_bytes(0x0f, 0x85);
-               void* internal_branch = _this->code;
-               _this->emit_operand32(0);
-               _this->emit_multipop(depth_change);
-               // jmp TARGET
-               _this->emit_bytes(0xe9);
-               void* branch = _this->emit_branch_target32();
-               _this->fix_branch(internal_branch, _this->code);
-               return branch;
+            while(true) {
+               assert(!stack.empty() && "The parser is supposed to handle the number of elements in br_table.");
+               auto [min, max, label] = stack.back();
+               stack.pop_back();
+               if (label) {
+                  fix_branch(label, _this->code);
+               }
+               if (max - min > 1) {
+                  // Emit a comparison to the midpoint of the current range
+                  uint32_t mid = min + (max - min)/2;
+                  // cmp i, %mid
+                  _this->emit_bytes(0x3d);
+                  _this->emit_operand32(mid);
+                  // jae MID
+                  _this->emit_bytes(0x0f, 0x83);
+                  void* mid_label = _this->emit_branch_target32();
+                  stack.push_back({mid,max,mid_label});
+                  stack.push_back({min,mid,nullptr});
+               } else {
+                  assert(min == _i);
+                  _i++;
+                  if (depth_change == 0u || depth_change == 0x80000001u) {
+                     if(label) {
+                        return label;
+                     } else {
+                        // jmp TARGET
+                        _this->emit_bytes(0xe9);
+                        return _this->emit_branch_target32();
+                     }
+                  } else {
+                     // jne NEXT
+                    _this->emit_multipop(depth_change);
+                    // jmp TARGET
+                    _this->emit_bytes(0xe9);
+                    return _this->emit_branch_target32();
+                  }
+               }
             }
+
          }
          void* emit_default(uint32_t depth_change) {
-            return _this->emit_br(depth_change);
+            void* result = emit_case(depth_change);
+            assert(stack.empty() && "unexpected default.");
+            return result;
          }
          machine_code_writer * _this;
          int _i = 0;
+         struct stack_item {
+            uint32_t min;
+            uint32_t max;
+            void* branch_target = nullptr;
+         };
+         // stores a stack of ranges to be handled.
+         // the ranges are strictly contiguous and non-ovelapping, with
+         // the lower values at the back.
+         std::vector<stack_item> stack;
       };
       br_table_generator emit_br_table(uint32_t table_size) {
          // pop %rax
          emit_bytes(0x58);
-         return { this };
+         // Increase the size by one to account for the default.
+         // The current algorithm handles this correctly, without
+         // any special cases.
+         return { this, 0, { {0, table_size+1, nullptr} } };
       }
 
       void register_call(void* ptr, uint32_t funcnum) {
