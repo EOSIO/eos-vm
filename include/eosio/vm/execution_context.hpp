@@ -27,7 +27,8 @@ namespace eosio { namespace vm {
 
       inline int32_t grow_linear_memory(int32_t pages) {
          const int32_t sz = _wasm_alloc->get_current_page();
-         if (pages < 0 || !_mod.memories.size() || (_mod.memories[0].limits.flags && (_mod.memories[0].limits.maximum < sz + pages)))
+         if (pages < 0 || !_mod.memories.size() || max_pages < sz + pages ||
+             (_mod.memories[0].limits.flags && (_mod.memories[0].limits.maximum < sz + pages)))
             return -1;
          _wasm_alloc->alloc<char>(pages);
          return sz;
