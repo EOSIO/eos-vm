@@ -64,11 +64,18 @@ namespace eosio { namespace vm {
       }
       
       void emit_unreachable() {
+         // mov %rsp, rcx; andq $-16, %rsp; push rcx; push %rcx
+         emit_bytes(0x48, 0x89, 0xe1);
+         emit_bytes(0x48, 0x83, 0xe4, 0xf0);
+         emit_bytes(0x51);
+         emit_bytes(0x51);
          // movabsq &on_unreachable, %rax
          emit_bytes(0x48, 0xb8);
          emit_operand_ptr(&on_unreachable);
          // callq *%rax
          emit_bytes(0xff, 0xd0);
+         // mov (%rsp), %rsp
+         emit_bytes(0x48, 0x8b, 0x24, 0x24);
       }
       void emit_nop() {}
       void* emit_end() { return code; }
@@ -289,11 +296,18 @@ namespace eosio { namespace vm {
          emit_bytes(0x56);
          // lea 16(%rsp), %rsi
          emit_bytes(0x48, 0x8d, 0x74, 0x24, 0x10);
+         // mov %rsp, rcx; andq $-16, %rsp; push rcx; push %rcx
+         emit_bytes(0x48, 0x89, 0xe1);
+         emit_bytes(0x48, 0x83, 0xe4, 0xf0);
+         emit_bytes(0x51);
+         emit_bytes(0x51);
          // movabsq $call_host_function, %rax
          emit_bytes(0x48, 0xb8);
          emit_operand_ptr(&call_host_function);
          // callq *%rax
          emit_bytes(0xff, 0xd0);
+         // mov (%rsp), %rsp
+         emit_bytes(0x48, 0x8b, 0x24, 0x24);
          // popq %rsi
          emit_bytes(0x5e);
          // popq %rdi
@@ -1820,7 +1834,7 @@ namespace eosio { namespace vm {
          return context->grow_linear_memory(pages);
       }
 
-      static void on_unreachable() { throw wasm_interpreter_exception{ "unreachable" }; }
+      static void on_unreachable() { vm::throw_(wasm_interpreter_exception{ "unreachable" }); }
 
       template<typename T>
       static native_value transform_arg(T value) {
