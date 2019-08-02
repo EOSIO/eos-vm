@@ -8,6 +8,5 @@ mkdir build
 execute cd /workdir/build
 execute ccache -s
 execute cmake -DCMAKE_TOOLCHAIN_FILE=/workdir/.cicd/clang.make -DENABLE_TESTS=ON ..
-echo Building with -j$JOBS
 execute make -j$JOBS
 echo '+++ :white_check_mark: Done!'
