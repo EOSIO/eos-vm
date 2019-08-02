@@ -28,8 +28,6 @@ RUN mkdir -p /root/tmp && cd /root/tmp && git clone --single-branch --branch rel
     mkdir build && cd build && cmake -G 'Unix Makefiles' -DCMAKE_INSTALL_PREFIX='/usr/local' -DLLVM_BUILD_EXTERNAL_COMPILER_RT=ON -DLLVM_BUILD_LLVM_DYLIB=ON -DLLVM_ENABLE_LIBCXX=ON -DLLVM_ENABLE_RTTI=ON -DLLVM_INCLUDE_DOCS=OFF -DLLVM_OPTIMIZED_TABLEGEN=ON -DLLVM_TARGETS_TO_BUILD=all -DCMAKE_BUILD_TYPE=Release .. && \
     make -j$(nproc) && make install && cd / && rm -rf /root/tmp/clang8
 
-#COPY ./docker/pinned_toolchain.cmake /tmp/pinned_toolchain.cmake
-
 # # Build appropriate version of LLVM.
 RUN git clone --depth 1 --single-branch --branch release_40 https://github.com/llvm-mirror/llvm.git llvm && \
     cd llvm && \
