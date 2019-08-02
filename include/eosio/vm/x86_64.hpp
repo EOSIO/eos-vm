@@ -137,16 +137,22 @@ namespace eosio { namespace vm {
             // cmp i, %eax
             _this->emit_bytes(0x3d);
             _this->emit_operand32(_i++);
-            // jne NEXT
-            _this->emit_bytes(0x0f, 0x85);
-            void* internal_branch = _this->code;
-            _this->emit_operand32(0);
-            _this->emit_multipop(depth_change);
-            // jmp TARGET
-            _this->emit_bytes(0xe9);
-            void* branch = _this->emit_branch_target32();
-            _this->fix_branch(internal_branch, _this->code);
-            return branch;
+            if (depth_change == 0u || depth_change == 0x80000000u) {
+               // je TARGET
+               _this->emit_bytes(0x0f, 0x84);
+               return _this->emit_branch_target32();
+            } else {
+               // jne NEXT
+               _this->emit_bytes(0x0f, 0x85);
+               void* internal_branch = _this->code;
+               _this->emit_operand32(0);
+               _this->emit_multipop(depth_change);
+               // jmp TARGET
+               _this->emit_bytes(0xe9);
+               void* branch = _this->emit_branch_target32();
+               _this->fix_branch(internal_branch, _this->code);
+               return branch;
+            }
          }
          void* emit_default(uint32_t depth_change) {
             return _this->emit_br(depth_change);
