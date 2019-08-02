@@ -1,5 +1,4 @@
 FROM ubuntu:16.04
-ENV DCMAKE_TOOLCHAIN_FILE clang.make
 RUN apt update && apt install -y build-essential git automake python2.7 \
     python2.7-dev python3 python3-dev curl ccache
 # Build appropriate version of CMake.
@@ -23,25 +22,12 @@ RUN mkdir -p /root/tmp && cd /root/tmp && git clone --single-branch --branch rel
     cd ../ && git clone --single-branch --branch release_80 https://git.llvm.org/git/compiler-rt.git && cd compiler-rt && git checkout 5bc7979 && cd ../ && cd /root/tmp/clang8 && \
     mkdir build && cd build && cmake -G 'Unix Makefiles' -DCMAKE_INSTALL_PREFIX='/usr/local' -DLLVM_BUILD_EXTERNAL_COMPILER_RT=ON -DLLVM_BUILD_LLVM_DYLIB=ON -DLLVM_ENABLE_LIBCXX=ON -DLLVM_ENABLE_RTTI=ON -DLLVM_INCLUDE_DOCS=OFF -DLLVM_OPTIMIZED_TABLEGEN=ON -DLLVM_TARGETS_TO_BUILD=all -DCMAKE_BUILD_TYPE=Release .. && \
     make -j$(nproc) && make install && cd / && rm -rf /root/tmp/clang8
-# Setup clang file to use in cmake
-RUN echo 'set(OPT_PATH @)' > $DCMAKE_TOOLCHAIN_FILE && \
-    echo 'set(CMAKE_C_COMPILER_WORKS 1)' >> $DCMAKE_TOOLCHAIN_FILE && \
-    echo 'set(CMAKE_CXX_COMPILER_WORKS 1)' >> $DCMAKE_TOOLCHAIN_FILE && \
-    echo 'set(CMAKE_C_COMPILER /usr/local/bin/clang)' >> $DCMAKE_TOOLCHAIN_FILE && \
-    echo 'set(CMAKE_CXX_COMPILER /usr/local/bin/clang++)' >> $DCMAKE_TOOLCHAIN_FILE && \
-    echo 'set(CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES /usr/local/include/c++/v1 /usr/local/include /usr/include)' >> $DCMAKE_TOOLCHAIN_FILE && \
-    echo 'set(CMAKE_CXX_FLAGS_INIT "-nostdinc++")' >> $DCMAKE_TOOLCHAIN_FILE && \
-    echo 'set(CMAKE_EXE_LINKER_FLAGS_INIT "-stdlib=libc++ -nostdlib++")' >> $DCMAKE_TOOLCHAIN_FILE && \
-    echo 'set(CMAKE_SHARED_LINKER_FLAGS_INIT "-std=c++11 -stdlib=libc++ -nostdlib++")' >> $DCMAKE_TOOLCHAIN_FILE && \
-    echo 'set(CMAKE_MODULE_LINKER_FLAGS_INIT "-std=c++11 -stdlib=libc++ -nostdlib++")' >> $DCMAKE_TOOLCHAIN_FILE && \
-    echo 'set(CMAKE_CXX_STANDARD_LIBRARIES "/usr/local/lib/libc++.a /usr/local/lib/libc++abi.a")' >> $DCMAKE_TOOLCHAIN_FILE
 CMD bash -c "cd /workdir && \
     ccache -s && \
     echo '+++ :git: Updating Submodules' && \
     git submodule update --init --recursive && \
     echo '+++ :hammer: Building eos-vm' && \
     mkdir -p build && cd build && \
-    mv /$DCMAKE_TOOLCHAIN_FILE . && \
-    cmake -DCMAKE_TOOLCHAIN_FILE=$DCMAKE_TOOLCHAIN_FILE -DENABLE_TESTS=ON .. && \
+    cmake -DCMAKE_TOOLCHAIN_FILE=/workdir/.cicd/clang.make -DENABLE_TESTS=ON .. && \
     make -j$(getconf _NPROCESSORS_ONLN) && \
     echo '+++ :white_check_mark: Done!'"
