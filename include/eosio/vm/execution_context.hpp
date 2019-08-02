@@ -51,8 +51,8 @@ namespace eosio { namespace vm {
             setup_locals(index);
             const uint32_t& pc = _mod.function_sizes[index];
             set_pc(pc);
-            _state.current_offset = pc;
-            _state.code_index     = index - _mod.get_imported_functions_size();
+            //_state.current_offset = pc;
+            //_state.code_index     = index - _mod.get_imported_functions_size();
          }
       }
 
@@ -105,16 +105,16 @@ namespace eosio { namespace vm {
                              wasm_interpreter_exception, "wrong return type");
          }
          if (_as.size() > 0) {
-            _state.current_offset     = af.offset;
+            //_state.current_offset     = af.offset;
             _state.pc2                = af.pc;
-            _state.code_index         = af.index;
+            //_state.code_index         = af.index;
             _last_op_index = _as.peek().op_index;
 
          } else {
             set_exiting_op(_state.exiting_loc);
             _state.pc2 = 0;
-            _state.current_offset = 0;
-            _state.code_index = 0;
+            //_state.current_offset = 0;
+            //_state.code_index = 0;
          }
          eat_operands(op_index);
          if (ret_type)
@@ -234,12 +234,12 @@ namespace eosio { namespace vm {
       
       inline void set_exiting_op( uint32_t exiting_loc ) {
          if (exiting_loc != -1)
-            _mod.code.at(exiting_loc.first).code[exiting_loc.second].set_exiting_which();
+            _mod.get_opcode(exiting_loc).set_exiting_which();
       }
 
       inline void clear_exiting_op( uint32_t exiting_loc ) {
          if (exiting_loc != -1)
-            _mod.code.at(exiting_loc.first).code[exiting_loc.second].clear_exiting_which();
+            _mod.get_opcode(exiting_loc).clear_exiting_which();
       }
 
       inline std::error_code get_error_code() const { return _error_code; }
@@ -276,9 +276,9 @@ namespace eosio { namespace vm {
 
          _state.host             = host;
          _state.current_function = func_index;
-         _state.code_index       = func_index - _mod.import_functions.size();
-         _state.current_offset   = _mod.function_sizes[_state.current_function];
-         _state.pc2              = _state.current_offset;
+         //_state.code_index       = func_index - _mod.import_functions.size();
+         //_state.current_offset   = _mod.function_sizes[_state.current_function];
+         _state.pc2              = _mod.function_sizes[func_index];
          _state.exiting_loc      = 0;
          _state.as_index         = _as.size();
          _state.os_index         = _os.size();
@@ -352,7 +352,6 @@ namespace eosio { namespace vm {
          const auto& fn = _mod.code[index - _mod.get_imported_functions_size()];
          for (int i = 0; i < fn.locals.size(); i++) {
             for (int j = 0; j < fn.locals[i].count; j++)
-               // computed g
                switch (fn.locals[i].type) {
                   case types::i32: push_operand(i32_const_t{ (uint32_t)0 }); break;
                   case types::i64: push_operand(i64_const_t{ (uint64_t)0 }); break;
@@ -367,7 +366,8 @@ namespace eosio { namespace vm {
 #define CREATE_EXITING_TABLE_ENTRY(NAME, CODE) &&ev_label_exiting_##NAME,
 #define CREATE_LABEL(NAME, CODE)                                                                                  \
       ev_label_##NAME : visitor(ev_variant->template get<eosio::vm::NAME##_t>());                                 \
-      ev_variant = &_mod.code.at_no_check(_state.code_index).code[_state.pc2 - _state.current_offset]; \
+      ev_variant = &_mod.get_opcode(_state.pc2); \
+      std::cout << "PC " << _state.pc2 << "\n"; \
       goto* dispatch_table[ev_variant->index()];
 #define CREATE_EXITING_LABEL(NAME, CODE)                                                  \
       ev_label_exiting_##NAME :  \
@@ -414,7 +414,7 @@ namespace eosio { namespace vm {
             ERROR_OPS(CREATE_EXITING_TABLE_ENTRY)
             &&__ev_last
          };
-         auto* ev_variant = &_mod.code.at_no_check(_state.code_index).code[_state.pc2 - _state.current_offset];
+         auto* ev_variant = &_mod.get_opcode(_state.pc2);
          goto *dispatch_table[ev_variant->index()];
          while (1) {
              CONTROL_FLOW_OPS(CREATE_LABEL);
@@ -463,8 +463,6 @@ namespace eosio { namespace vm {
          uint32_t as_index         = 0;
          uint32_t cs_index         = 0;
          uint32_t os_index         = 0;
-         uint32_t code_index       = 0;
-         uint32_t current_offset   = 0;
          uint32_t pc2              = 0;
          bool     initialized      = false;
       };

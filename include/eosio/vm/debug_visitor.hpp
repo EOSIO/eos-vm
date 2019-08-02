@@ -55,5 +55,7 @@ struct debug_visitor2 {
    SYNTHETIC_OPS(DBG2_VISIT)
    ERROR_OPS(DBG2_VISIT)
 };
+#undef DBG_VISIT
+#undef DBG2_VISIT
 
 }} // ns eosio::wasm_backend

@@ -187,7 +187,6 @@ namespace eosio { namespace vm {
       inline uint32_t get_functions_total() const { return get_imported_functions_size() + get_functions_size(); }
 
       inline auto& get_opcode(uint32_t pc) const {
-         std::cout << "CODE PTR " << ((opcode*)&code[0].code[0]) << "\n";
          return ((opcode*)&code[0].code[0])[pc];
       }
 
