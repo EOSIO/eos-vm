@@ -19,7 +19,6 @@ namespace eosio { namespace vm {
    // - The base of memory is stored in rsi
    //
    // - FIXME: Factor the machine instructions into a separate assembler class.
-   // - FIXME: The top level entry point needs to set the floating point state
    template<typename Context>
    class machine_code_writer {
     public:
@@ -267,7 +266,6 @@ namespace eosio { namespace vm {
          void * functions = &_mod.fast_functions[0];
          void * code_with_offset = &_mod.code[0].jit_code;
          functypeidx = _mod.type_aliases[functypeidx];
-         // FIXME: handle imported functions.
          // pop %rax
          emit_bytes(0x58);
          // cmp $size, %rax
@@ -1371,7 +1369,7 @@ namespace eosio { namespace vm {
          emit_operand64(0x8000000000000000);
          // xorq %rax, %rcx
          emit_bytes(0x48, 0x31, 0xc1);
-         // cvttss2siq %xmm0, %rax // FIXME: check for < 0 here
+         // cvttss2siq %xmm0, %rax
          emit_bytes(0xf3, 0x48, 0x0f, 0x2c, 0xc0);
          // xor %rdx, %rdx
          emit_bytes(0x48, 0x31, 0xd2);
@@ -1642,7 +1640,6 @@ namespace eosio { namespace vm {
       void emit_load_impl(uint32_t offset, T... loadop) {
          // pop %rax
          emit_bytes(0x58);
-          // FIXME: offset should not be sign-extended
          if (offset & 0x80000000) {
             // mov $offset, %ecx
             emit_bytes(0xb9);
