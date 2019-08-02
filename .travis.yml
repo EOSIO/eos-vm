@@ -4,6 +4,7 @@ git:
 cache:
   ccache: true
   directories: $HOME/Library/Caches/Homebrew
+if: fork = true
 matrix:
   include:
     - os: linux
@@ -26,6 +27,14 @@ matrix:
       services: docker
       env:
         - IMAGE_TAG='ubuntu-18.04'
+    - os: osx
+      osx_image: xcode10.2
+      addons:
+        homebrew:
+          update: true
+          packages:
+            - boost@1.70
+            - ccache
 script: "./.cicd/travis-build.sh"
 notifications:
   webhooks:
