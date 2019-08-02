@@ -23,15 +23,6 @@ RUN mkdir -p /root/tmp && cd /root/tmp && git clone --single-branch --branch rel
     cd ../ && git clone --single-branch --branch release_80 https://git.llvm.org/git/compiler-rt.git && cd compiler-rt && git checkout 5bc7979 && cd ../ && cd /root/tmp/clang8 && \
     mkdir build && cd build && cmake -G 'Unix Makefiles' -DCMAKE_INSTALL_PREFIX='/usr/local' -DLLVM_BUILD_EXTERNAL_COMPILER_RT=ON -DLLVM_BUILD_LLVM_DYLIB=ON -DLLVM_ENABLE_LIBCXX=ON -DLLVM_ENABLE_RTTI=ON -DLLVM_INCLUDE_DOCS=OFF -DLLVM_OPTIMIZED_TABLEGEN=ON -DLLVM_TARGETS_TO_BUILD=all -DCMAKE_BUILD_TYPE=Release .. && \
     make -j$(nproc) && make install && cd / && rm -rf /root/tmp/clang8
-# # Build appropriate version of LLVM.
-RUN git clone --depth 1 --single-branch --branch release_40 https://github.com/llvm-mirror/llvm.git llvm && \
-    cd llvm && \
-    mkdir build && \
-    cd build && \
-    cmake -DLLVM_TARGETS_TO_BUILD=host -DLLVM_BUILD_TOOLS=false -DLLVM_ENABLE_RTTI=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local .. && \
-    make -j$(nproc) && \
-    make install && \
-    cd /
 # Setup clang file to use in cmake
 RUN echo 'set(OPT_PATH @)' > $DCMAKE_TOOLCHAIN_FILE && \
     echo 'set(CMAKE_C_COMPILER_WORKS 1)' >> $DCMAKE_TOOLCHAIN_FILE && \
