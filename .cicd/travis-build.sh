@@ -5,7 +5,8 @@ set -eo pipefail
 if [[ "$(uname)" == Darwin ]]; then
   ccache -s
   mkdir -p build && cd build && cmake ..
-  make -j$(getconf _NPROCESSORS_ONLN)
+  echo "Building with -j$JOBS"
+  make -j$JOBS
 else # linux
-  execute docker run --rm -v $(pwd):/workdir -v /usr/lib/ccache -v $HOME/.ccache:/opt/.ccache -e CCACHE_DIR=/opt/.ccache $FULL_TAG
+  execute docker run --rm -v $(pwd):/workdir -v /usr/lib/ccache -v $HOME/.ccache:/opt/.ccache -e JOBS -e CCACHE_DIR=/opt/.ccache $FULL_TAG
 fi
