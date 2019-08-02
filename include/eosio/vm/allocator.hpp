@@ -141,8 +141,11 @@ namespace eosio { namespace vm {
          raw  = (char*)mmap(NULL, max_memory, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
          page = 0;
       }
-      void reset() {
-         mprotect(raw, page_size * page, PROT_NONE);
+      void reset(uint32_t new_pages) {
+         memset(raw, '\0', page_size * page); // zero the memory
+         // no need to mprotect if the size hasn't changed
+         if (new_pages != page)
+            mprotect(raw, page_size * page, PROT_NONE); // protect the entire region of memory
          page = 0;
       }
       template <typename T>
