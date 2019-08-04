@@ -2,6 +2,7 @@
 set -eo pipefail
 . ./.cicd/execute.sh
 . ./.cicd/docker-hash.sh
+export JOBS="$(getconf _NPROCESSORS_ONLN)"
 if [[ "$(uname)" == Darwin ]]; then
 	mkdir build
 	cd build
