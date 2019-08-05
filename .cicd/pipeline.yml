@@ -4,7 +4,7 @@ steps:
     command: 
       - "git clone $BUILDKITE_REPO workdir && cd workdir && git submodule update --init --recursive"
       - pwd && ls -la
-      - "cd workdir && bash .cicd/entrypoint.sh"
+      - "cd workdir && bash ./.cicd/travis-build.sh"
     agents: 
       queue: "automation-eos-builder-fleet"
     timeout: ${TIMEOUT:-10}
