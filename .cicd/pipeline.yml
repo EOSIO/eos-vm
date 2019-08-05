@@ -52,7 +52,7 @@ steps:
     plugins:
       - docker#v3.3.0:
           debug: $DEBUG
-          image: "eosio/producer:eos-vm-ubuntu-18.04-bd78cc96ce24726f9ffea8ff88718ce9fb3e7eba"
+          image: "eosio/producer:eos-vm-ubuntu-18.04-9878c7c416d93dfe81c122e8383aec82137758a5"
           environment:
             - "JOBS"
     timeout: ${TIMEOUT:-10}
