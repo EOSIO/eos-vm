@@ -66,7 +66,7 @@ steps:
     command:
       - "git clone $BUILDKITE_REPO eos-vm && cd eos-vm && git submodule update --init --recursive"
       - "cd eos && buildkite-agent artifact download build.tar.gz . --step ':darwin: macOS 10.14 - Build' && tar -xzf build.tar.gz"
-      - "cd eos/build && ctest -j$(getconf _NPROCESSORS_ONLN) -V --output-on-failure -T Test"
+      - "cd eos/build && if ${ENABLE_TESTS:-true}; then ctest -j$(getconf _NPROCESSORS_ONLN) -V --output-on-failure -T Test; fi"
     plugins:
       - chef/anka#v0.5.1:
           no-volume: true
