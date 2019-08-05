@@ -1,78 +1,86 @@
 steps:
-  - wait
-
-
-  - trigger: "eos-vm-base-images-beta"
-    label: ":docker: Docker - Ensure Base Images Exist"
-    build:
-      commit: "${BUILDKITE_COMMIT}"
-      branch: "${BUILDKITE_BRANCH}"
-
-  - wait
 
   - label: ":aws: Amazon_Linux 2 - Build"
-    agents:
+    command: 
+      - "git clone $BUILDKITE_REPO workdir && cd workdir && git submodule update --init --recursive"
+      - pwd && ls -la
+      - "cd workdir && bash .cicd/entrypoint.sh"
+    agents: 
       queue: "automation-eos-builder-fleet"
-    plugins:
-      - docker#v3.3.0:
-          debug: $DEBUG
-          image: "eosio/producer:eos-vm-amazonlinux-2-223f4c6d49e75c04cac442f261e18cda379a463a"
-          environment:
-            - "JOBS"
     timeout: ${TIMEOUT:-10}
     skip: $SKIP_AMAZON_LINUX_2
 
-  - label: ":centos: CentOS 7.6 - Build"
-    agents:
-      queue: "automation-eos-builder-fleet"
-    plugins:
-      - docker#v3.3.0:
-          debug: $DEBUG
-          image: "eosio/producer:eos-vm-centos-7.6-b2395f2a78cf42fd8ef2b453e002130eb388423f"
-          environment:
-            - "JOBS"
-    timeout: ${TIMEOUT:-10}
-    skip: $SKIP_CENTOS_7
+  # - trigger: "eos-vm-base-images-beta"
+  #   label: ":docker: Docker - Ensure Base Images Exist"
+  #   build:
+  #     commit: "${BUILDKITE_COMMIT}"
+  #     branch: "${BUILDKITE_BRANCH}"
 
-  - label: ":ubuntu: Ubuntu 16.04 - Build"
-    agents:
-      queue: "automation-eos-builder-fleet"
-    plugins:
-      - docker#v3.3.0:
-          debug: $DEBUG
-          image: "eosio/producer:eos-vm-ubuntu-16.04-320e500c1821d9a5e0030715b1d8c56190429d53"
-          environment:
-            - "JOBS"
-    timeout: ${TIMEOUT:-10}
-    skip: $SKIP_UBUNTU_16
+  # - wait
 
-  - label: ":ubuntu: Ubuntu 18.04 - Build"
-    agents:
-      queue: "automation-eos-builder-fleet"
-    plugins:
-      - docker#v3.3.0:
-          debug: $DEBUG
-          image: "eosio/producer:eos-vm-ubuntu-18.04-bd78cc96ce24726f9ffea8ff88718ce9fb3e7eba"
-          environment:
-            - "JOBS"
-    timeout: ${TIMEOUT:-10}
-    skip: $SKIP_UBUNTU_18
+  # - label: ":aws: Amazon_Linux 2 - Build"
+  #   agents:
+  #     queue: "automation-eos-builder-fleet"
+  #   plugins:
+  #     - docker#v3.3.0:
+  #         debug: $DEBUG
+  #         image: "eosio/producer:eos-vm-amazonlinux-2-223f4c6d49e75c04cac442f261e18cda379a463a"
+  #         environment:
+  #           - "JOBS"
+  #   timeout: ${TIMEOUT:-10}
+  #   skip: $SKIP_AMAZON_LINUX_2
 
-  - label: ":darwin: macOS 10.14 - Build & Test"
-    command:
-      - "brew install git cmake boost"
-      - "git clone $BUILDKITE_REPO eos-vm && cd eos-vm && git submodule update --init --recursive"
-      - "cd eos-vm && mkdir -p build && cd build && cmake .."
-      - "cd eos-vm/build && make -j$(getconf _NPROCESSORS_ONLN)"
-    plugins:
-      - chef/anka#v0.5.1:
-          no-volume: true
-          inherit-environment-vars: true
-          vm-name: 10.14.4_6C_14G_40G
-          vm-registry-tag: "clean::cicd::git-ssh::nas::brew::buildkite-agent"
-          modify-cpu: 12
-          modify-ram: 24
-          always-pull: true
-          debug: true
-          wait-network: true
-    agents: "queue=mac-anka-large-node-fleet"
+  # - label: ":centos: CentOS 7.6 - Build"
+  #   agents:
+  #     queue: "automation-eos-builder-fleet"
+  #   plugins:
+  #     - docker#v3.3.0:
+  #         debug: $DEBUG
+  #         image: "eosio/producer:eos-vm-centos-7.6-b2395f2a78cf42fd8ef2b453e002130eb388423f"
+  #         environment:
+  #           - "JOBS"
+  #   timeout: ${TIMEOUT:-10}
+  #   skip: $SKIP_CENTOS_7
+
+  # - label: ":ubuntu: Ubuntu 16.04 - Build"
+  #   agents:
+  #     queue: "automation-eos-builder-fleet"
+  #   plugins:
+  #     - docker#v3.3.0:
+  #         debug: $DEBUG
+  #         image: "eosio/producer:eos-vm-ubuntu-16.04-320e500c1821d9a5e0030715b1d8c56190429d53"
+  #         environment:
+  #           - "JOBS"
+  #   timeout: ${TIMEOUT:-10}
+  #   skip: $SKIP_UBUNTU_16
+
+  # - label: ":ubuntu: Ubuntu 18.04 - Build"
+  #   agents:
+  #     queue: "automation-eos-builder-fleet"
+  #   plugins:
+  #     - docker#v3.3.0:
+  #         debug: $DEBUG
+  #         image: "eosio/producer:eos-vm-ubuntu-18.04-bd78cc96ce24726f9ffea8ff88718ce9fb3e7eba"
+  #         environment:
+  #           - "JOBS"
+  #   timeout: ${TIMEOUT:-10}
+  #   skip: $SKIP_UBUNTU_18
+
+  # - label: ":darwin: macOS 10.14 - Build & Test"
+  #   command:
+  #     - "brew install git cmake boost"
+  #     - "git clone $BUILDKITE_REPO eos-vm && cd eos-vm && git submodule update --init --recursive"
+  #     - "cd eos-vm && mkdir -p build && cd build && cmake .."
+  #     - "cd eos-vm/build && make -j$(getconf _NPROCESSORS_ONLN)"
+  #   plugins:
+  #     - chef/anka#v0.5.1:
+  #         no-volume: true
+  #         inherit-environment-vars: true
+  #         vm-name: 10.14.4_6C_14G_40G
+  #         vm-registry-tag: "clean::cicd::git-ssh::nas::brew::buildkite-agent"
+  #         modify-cpu: 12
+  #         modify-ram: 24
+  #         always-pull: true
+  #         debug: true
+  #         wait-network: true
+  #   agents: "queue=mac-anka-large-node-fleet"
