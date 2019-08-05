@@ -16,7 +16,7 @@ steps:
     plugins:
       - docker#v3.3.0:
           debug: $DEBUG
-          image: "eosio/producer:eos-vm-amazonlinux-2-223f4c6d49e75c04cac442f261e18cda379a463a"
+          image: "eosio/producer:eos-vm-amazonlinux-2-bc2d28ac91f12f2a060d4f2a99be42b42ead9407"
           environment:
             - "JOBS"
     timeout: ${TIMEOUT:-10}
@@ -28,7 +28,7 @@ steps:
     plugins:
       - docker#v3.3.0:
           debug: $DEBUG
-          image: "eosio/producer:eos-vm-centos-7.6-b2395f2a78cf42fd8ef2b453e002130eb388423f"
+          image: "eosio/producer:eos-vm-centos-7.6-0c836b92be8ea120286d27c454b335e632f4bbcb"
           environment:
             - "JOBS"
     timeout: ${TIMEOUT:-10}
@@ -40,7 +40,7 @@ steps:
     plugins:
       - docker#v3.3.0:
           debug: $DEBUG
-          image: "eosio/producer:eos-vm-ubuntu-16.04-320e500c1821d9a5e0030715b1d8c56190429d53"
+          image: "eosio/producer:eos-vm-ubuntu-16.04-0a0c967bef0a6430396fd27a01f5d2842863bd34"
           environment:
             - "JOBS"
     timeout: ${TIMEOUT:-10}
@@ -52,7 +52,7 @@ steps:
     plugins:
       - docker#v3.3.0:
           debug: $DEBUG
-          image: "eosio/producer:eos-vm-ubuntu-18.04-9878c7c416d93dfe81c122e8383aec82137758a5"
+          image: "eosio/producer:eos-vm-ubuntu-18.04-1563cdba467af26690d15076ab574bb20b2aa8ce"
           environment:
             - "JOBS"
     timeout: ${TIMEOUT:-10}
