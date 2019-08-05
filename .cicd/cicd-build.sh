@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -eo pipefail
-. ./.cicd/execute.sh
-. ./.cicd/docker-hash.sh
-
+. ./.cicd/helpers/general.sh
+. ./$HELPERS_DIR/execute.sh
+. ./$HELPERS_DIR/docker-hash.sh
 if [[ $TRAVIS ]]; then
   export JOBS="$(getconf _NPROCESSORS_ONLN)"
   if [[ "$(uname)" == Darwin ]]; then
