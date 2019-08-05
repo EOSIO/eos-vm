@@ -78,6 +78,8 @@ steps:
           wait-network: true
     agents: "queue=mac-anka-large-node-fleet"
 
+  - wait
+
   - label: ":darwin: macOS 10.14 - Tests"
     command:
       - "git clone $BUILDKITE_REPO eos-vm && cd eos-vm && git submodule update --init --recursive"
