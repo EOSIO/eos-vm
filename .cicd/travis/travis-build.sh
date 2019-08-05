@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -eo pipefail
 . ../helpers/general.sh
-. ./$HELPER_DIR/execute.sh
-. ./$HELPER_DIR/docker-hash.sh
+. ./$HELPERS_DIR/execute.sh
+. ./$HELPERS_DIR/docker-hash.sh
 cd $ROOT_DIR
 if [[ "$(uname)" == Darwin ]]; then
 	mkdir build

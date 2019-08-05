@@ -2,7 +2,7 @@
 set -eo pipefail
 cd /workdir
 . ./.cicd/helpers/general.sh
-. ./$HELPER_DIR/execute.sh
+. ./$HELPERS_DIR/execute.sh
 echo '+++ :hammer: Building eos-vm'
 mkdir -p build
 execute cd /workdir/build
