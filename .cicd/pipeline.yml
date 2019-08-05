@@ -2,10 +2,10 @@ steps:
 
   - label: ":aws: Amazon_Linux 2 - Build"
     command: 
-      - pwd && ls -la
+      # - pwd && ls -la
       # - "git clone $BUILDKITE_REPO workdir && cd workdir && git checkout $BUILDKITE_BRANCH && git submodule update --init --recursive"
       # - "pwd && ls -la"
-      # - "bash ./.cicd/travis-build.sh"
+      - "bash ./.cicd/travis-build.sh"
     agents: 
       queue: "automation-eos-builder-fleet"
     timeout: ${TIMEOUT:-10}
