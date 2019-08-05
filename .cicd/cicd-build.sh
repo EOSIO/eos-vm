@@ -15,6 +15,7 @@ if [[ $TRAVIS ]]; then
   fi
 elif [[ $BUILDKITE ]]; then
   echo "This build is running on Buildkite."
+  execute ./.cicd/generate-base-images.sh
   execute docker run --rm -v $(pwd):/workdir -e JOBS $FULL_TAG
 else
   echo "Shouldn't get here."
