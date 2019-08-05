@@ -1,7 +1,6 @@
 export IMAGE_TAG=${IMAGE_TAG:-$1}
 
-function determine-hash()
-{
+function determine-hash() {
     # determine the sha1 hash of all dockerfiles in the .cicd directory
     [[ -z $1 ]] && echo "Please provide the files to be hashed (wildcards supported)" && exit 1
     echo "Obtaining Hash of files from $1..."
@@ -16,5 +15,5 @@ function determine-hash()
     export HASHED_IMAGE_TAG="${IMAGE_TAG}-${DETERMINED_HASH}"
 }
 
-determine-hash ".cicd/${IMAGE_TAG}.dockerfile"
+determine-hash "$CICD_DIR/docker/${IMAGE_TAG}.dockerfile"
 export FULL_TAG="eosio/producer:eos-vm-$HASHED_IMAGE_TAG"

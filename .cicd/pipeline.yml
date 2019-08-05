@@ -16,7 +16,7 @@ steps:
     plugins:
       - docker#v3.3.0:
           debug: $DEBUG
-          image: "eosio/producer:eos-vm-amazonlinux-2-223f4c6d49e75c04cac442f261e18cda379a463a"
+          image: "eosio/producer:eos-vm-amazonlinux-2-bc2d28ac91f12f2a060d4f2a99be42b42ead9407"
           environment:
             - "JOBS"
     timeout: ${TIMEOUT:-10}
@@ -28,7 +28,7 @@ steps:
     plugins:
       - docker#v3.3.0:
           debug: $DEBUG
-          image: "eosio/producer:eos-vm-centos-7.6-b2395f2a78cf42fd8ef2b453e002130eb388423f"
+          image: "eosio/producer:eos-vm-centos-7.6-0c836b92be8ea120286d27c454b335e632f4bbcb"
           environment:
             - "JOBS"
     timeout: ${TIMEOUT:-10}
@@ -40,7 +40,7 @@ steps:
     plugins:
       - docker#v3.3.0:
           debug: $DEBUG
-          image: "eosio/producer:eos-vm-ubuntu-16.04-320e500c1821d9a5e0030715b1d8c56190429d53"
+          image: "eosio/producer:eos-vm-ubuntu-16.04-0a0c967bef0a6430396fd27a01f5d2842863bd34"
           environment:
             - "JOBS"
     timeout: ${TIMEOUT:-10}
@@ -52,18 +52,19 @@ steps:
     plugins:
       - docker#v3.3.0:
           debug: $DEBUG
-          image: "eosio/producer:eos-vm-ubuntu-18.04-bd78cc96ce24726f9ffea8ff88718ce9fb3e7eba"
+          image: "eosio/producer:eos-vm-ubuntu-18.04-1563cdba467af26690d15076ab574bb20b2aa8ce"
           environment:
             - "JOBS"
     timeout: ${TIMEOUT:-10}
     skip: $SKIP_UBUNTU_18
 
-  - label: ":darwin: macOS 10.14 - Build & Test"
+  - label: ":darwin: macOS 10.14 - Build"
     command:
       - "brew install git cmake boost"
       - "git clone $BUILDKITE_REPO eos-vm && cd eos-vm && git submodule update --init --recursive"
       - "cd eos-vm && mkdir -p build && cd build && cmake .."
       - "cd eos-vm/build && make -j$(getconf _NPROCESSORS_ONLN)"
+      - "tar -pczf build.tar.gz build && buildkite-agent artifact upload build.tar.gz"
     plugins:
       - chef/anka#v0.5.1:
           no-volume: true
@@ -76,3 +77,23 @@ steps:
           debug: true
           wait-network: true
     agents: "queue=mac-anka-large-node-fleet"
+
+  - wait
+
+  - label: ":darwin: macOS 10.14 - Tests"
+    command:
+      - "git clone $BUILDKITE_REPO eos-vm && cd eos-vm && git submodule update --init --recursive"
+      - "cd eos && buildkite-agent artifact download build.tar.gz . --step ':darwin: macOS 10.14 - Build' && tar -xzf build.tar.gz"
+      - "cd eos/build && ctest -j$(getconf _NPROCESSORS_ONLN) -V --output-on-failure -T Test"
+    plugins:
+      - chef/anka#v0.5.1:
+          no-volume: true
+          inherit-environment-vars: true
+          vm-name: 10.14.4_6C_14G_40G
+          vm-registry-tag: "clean::cicd::git-ssh::nas::brew::buildkite-agent"
+          modify-cpu: 12
+          modify-ram: 24
+          always-pull: true
+          debug: true
+          wait-network: true
+    agents: "queue=mac-anka-node-fleet"
