@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -eo pipefail
-. ./helpers/general.sh
+. ./.cicd/helpers/general.sh
 . ./$HELPER_DIR/execute.sh
 . ./$HELPER_DIR/docker-hash.sh
 # look for Docker image
