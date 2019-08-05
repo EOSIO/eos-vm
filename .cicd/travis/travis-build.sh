@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -eo pipefail
-. ../helpers/general.sh
+pwd
+. ./.cicd/helpers/general.sh
 . ./$HELPERS_DIR/execute.sh
 . ./$HELPERS_DIR/docker-hash.sh
 cd $ROOT_DIR
