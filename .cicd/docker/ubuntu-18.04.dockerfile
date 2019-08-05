@@ -12,4 +12,4 @@ RUN curl -LO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
     rm -f /cmake-3.13.2.tar.gz && rm -rf /cmake-3.13.2
 
 # container entrypoint
-CMD /workdir/.cicd/entrypoint.sh
+CMD /workdir/.cicd/docker/entrypoint.sh
