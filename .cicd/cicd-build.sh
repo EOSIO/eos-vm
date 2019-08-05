@@ -19,4 +19,5 @@ elif [[ $BUILDKITE ]]; then
   execute docker run --rm -v $(pwd):/workdir -e JOBS $FULL_TAG
 else
   echo "Shouldn't get here."
+  exit 1
 fi  
