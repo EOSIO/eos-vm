@@ -28,6 +28,11 @@ namespace eosio { namespace vm {
          // except for the prologue and epilogue, but is not as tight as it could be.
          _mod.j_alloc = jit_allocator{source_bytes * 64};
          code = _mod.j_alloc.alloc();
+         // always emit these functions
+         fpe_handler = emit_error_handler(&on_fp_error);
+         call_indirect_handler = emit_error_handler(&on_call_indirect_error);
+         type_error_handler = emit_error_handler(&on_type_error);
+         _mod.j_alloc.setpos(code);
       }
       ~machine_code_writer() { _mod.j_alloc.make_executable(); }
 
@@ -61,7 +66,7 @@ namespace eosio { namespace vm {
          // retq
          emit_bytes(0xc3);
       }
-      
+
       void emit_unreachable() {
          // mov %rsp, rcx; andq $-16, %rsp; push rcx; push %rcx
          emit_bytes(0x48, 0x89, 0xe1);
@@ -273,7 +278,7 @@ namespace eosio { namespace vm {
          emit_operand32(table.size());
          // jae ERROR
          emit_bytes(0x0f, 0x83);
-         emit_branch_target32();
+         fix_branch(emit_branch_target32(), call_indirect_handler);
          // shl $2, %rax
          emit_bytes(0x48, 0xc1, 0xe0, 0x02);
          // movabsq $table, %rdx
@@ -299,7 +304,7 @@ namespace eosio { namespace vm {
          emit_operand32(functypeidx);
          // jne ERROR
          emit_bytes(0x0f, 0x85);
-         emit_branch_target32();
+         fix_branch(emit_branch_target32(), type_error_handler);
          // sub $num_imported_functions, %eax
          emit_bytes(0x81, 0xe8);
          emit_operand32(_mod.get_imported_functions_size());
@@ -1308,8 +1313,7 @@ namespace eosio { namespace vm {
          emit_bytes(0x85, 0xc0);
          // jnz FP_ERROR_HANDLER
          emit_bytes(0x0f, 0x85);
-         void * addr = emit_branch_target32();
-         // FIXME: adjust branch
+         fix_branch(emit_branch_target32(), fpe_handler);
       }
       void emit_i32_trunc_s_f64() {
          // cvttsd2si 8(%rsp), %eax
@@ -1329,8 +1333,7 @@ namespace eosio { namespace vm {
          emit_bytes(0x85, 0xc0);
          // jnz FP_ERROR_HANDLER
          emit_bytes(0x0f, 0x85);
-         void * addr = emit_branch_target32();
-         // FIXME: adjust branch
+         fix_branch(emit_branch_target32(), fpe_handler);
       }
 
       void emit_i64_extend_s_i32() {
@@ -1385,7 +1388,7 @@ namespace eosio { namespace vm {
          emit_bytes(0x48, 0x0f, 0xba, 0xe2, 0x3f);
          // jc FP_ERROR_HANDLER
          emit_bytes(0x0f, 0x82);
-         void * target = emit_branch_target32();
+         fix_branch(emit_branch_target32(), fpe_handler);
       }
       void emit_i64_trunc_s_f64() {
          // cvttsd2si (%rsp), %rax
@@ -1430,7 +1433,7 @@ namespace eosio { namespace vm {
          emit_bytes(0x48, 0x0f, 0xba, 0xe2, 0x3f);
          // jc FP_ERROR_HANDLER
          emit_bytes(0x0f, 0x82);
-         void * target = emit_branch_target32();
+         fix_branch(fpe_handler, emit_branch_target32());
       }
 
       void emit_f32_convert_s_i32() {
@@ -1591,6 +1594,9 @@ namespace eosio { namespace vm {
       const func_type* _ft;
       unsigned char * code;
       std::vector<std::variant<std::vector<void*>, void*>> _function_relocations;
+      void* fpe_handler;
+      void* call_indirect_handler;
+      void* type_error_handler;
 
       void emit_byte(uint8_t val) { *code++ = val; }
       void emit_bytes() {}
@@ -1847,8 +1853,19 @@ namespace eosio { namespace vm {
          emit_bytes(0xf6, 0xc1, 0x01);
          // jnz FP_ERROR_HANDLER
          emit_bytes(0x0f, 0x85);
-         void * handler = emit_branch_target32();
-         // FIXME: implement the handler
+         fix_branch(emit_branch_target32(), fpe_handler);
+      }
+
+      void* emit_error_handler(void (*handler)()) {
+         void* result = code;
+         // andq $-16, %rsp;
+         emit_bytes(0x48, 0x83, 0xe4, 0xf0);
+         // movabsq &on_unreachable, %rax
+         emit_bytes(0x48, 0xb8);
+         emit_operand_ptr(handler);
+         // callq *%rax
+         emit_bytes(0xff, 0xd0);
+         return result;
       }
 
       bool is_host_function(uint32_t funcnum) { return funcnum < _mod.get_imported_functions_size(); }
@@ -1872,6 +1889,9 @@ namespace eosio { namespace vm {
       }
 
       static void on_unreachable() { vm::throw_(wasm_interpreter_exception{ "unreachable" }); }
+      static void on_fp_error() { vm::throw_(wasm_interpreter_exception{ "floating point error" }); }
+      static void on_call_indirect_error() { vm::throw_(wasm_interpreter_exception{ "call_indirect out of range" }); }
+      static void on_type_error() { vm::throw_(wasm_interpreter_exception{ "call_indirect incorrect function type" }); }
 
       template<typename T>
       static native_value transform_arg(T value) {
