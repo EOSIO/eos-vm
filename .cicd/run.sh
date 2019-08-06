@@ -16,7 +16,7 @@ if [[ $(uname) == Darwin ]]; then
 else # Linux
 
     . ./$HELPERS_DIR/docker.sh
-    . ./$HELPERS_DIR/docker-hash.sh 'ubuntu-18.04'
+    . ./$HELPERS_DIR/docker-hash.sh
     
     # Generate Base Images
     execute ./.cicd/generate-base-images.sh
