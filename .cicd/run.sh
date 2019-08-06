@@ -42,7 +42,7 @@ else # Linux
     fi
 
     # Docker Run
-    docker-run "$COMMANDS"
+    docker-run "pwd && ls -laht && $COMMANDS"
 
 fi
 
