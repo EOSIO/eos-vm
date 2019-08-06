@@ -3,15 +3,15 @@ set -eo pipefail
 . ./.cicd/helpers/general.sh
 . ./$HELPERS_DIR/execute.sh
 
-cd $ROOT_DIR
-
 if [[ $(uname) == Darwin ]]; then
 
+    cd $ROOT_DIR
     ccache -s
     mkdir -p build
     cd build
     execute cmake ..
     execute make -j$JOBS
+    cd ..
     
 else # Linux
 
@@ -43,7 +43,6 @@ fi
 
 # Buildkite Artifacts
 if [[ $BUILDKITE ]]; then
-    cd $ROOT_DIR
     execute tar -pczf build.tar.gz build
     execute buildkite-agent artifact upload build.tar.gz
 fi
