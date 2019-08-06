@@ -1,8 +1,11 @@
 function get_envs() {
-    evars=""
-    for e in $(printenv | awk -F= '{print $1}'); do
-        evars+="-e $e "
-    done
+    if [[ -f $BUILDKITE_ENV_FILE ]]; then
+        evars=""
+        while read -r var; do
+            evars="$evars --env ${var%%=*}"
+            echo $evars
+        done < "$BUILDKITE_ENV_FILE"
+    fi
 }
 
 
