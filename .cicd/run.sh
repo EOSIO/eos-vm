@@ -14,7 +14,7 @@ if [[ $(uname) == Darwin ]]; then
     cd ..
     
 else # Linux
-
+    echo $ROOT_DIR
     . ./$HELPERS_DIR/docker.sh
     . ./$HELPERS_DIR/docker-hash.sh
     
@@ -22,7 +22,7 @@ else # Linux
     execute ./.cicd/generate-base-images.sh
 
     COMMANDS="echo 'Please provide COMMANDS to run' && exit 1"
-    BUILD_COMMANDS="cmake -DCMAKE_TOOLCHAIN_FILE=/workdir/.cicd/helpers/clang.make -DENABLE_TESTS=ON .. && make -j$JOBS"
+    BUILD_COMMANDS="mkdir -p build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=/workdir/.cicd/helpers/clang.make -DENABLE_TESTS=ON .. && make -j$JOBS"
     TEST_COMMANDS="ctest -j$JOBS -V --output-on-failure -T Test"
 
     # Docker Run Arguments
