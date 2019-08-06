@@ -1,4 +1,4 @@
 function execute() {
-  echo "--- $ $@"
+  echo "--- Executing: $@"
   "$@"
 }
