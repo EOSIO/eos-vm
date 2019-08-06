@@ -11,5 +11,5 @@ function get_envs() {
 
 function docker-run() {
     get_envs
-    execute eval docker run $ARGS $evars $FULL_TAG bash -c \"$@\"
+    execute eval docker run $ARGS $evars $FULL_TAG bash -c "$@"
 }
