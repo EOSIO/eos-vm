@@ -1,4 +1,4 @@
-function get_envs() {
+function get-envs() {
     if [[ -f $BUILDKITE_ENV_FILE ]]; then
         evars=""
         while read -r var; do
@@ -7,8 +7,11 @@ function get_envs() {
     fi
 }
 
-
 function docker-run() {
-    get_envs
+    get-envs
     execute eval docker run $ARGS $evars $FULL_TAG bash -c \"$@\"
+}
+
+function append-to-commands() {
+    [[ ! -z $COMMANDS ]] && export COMMANDS="$COMMANDS && $@" || export COMMANDS="$@"
 }
