@@ -10,6 +10,7 @@ RUN curl -LO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
     make -j $(nproc) && \
     make install && \
     rm -f /cmake-3.13.2.tar.gz && rm -rf /cmake-3.13.2
+    
 # build clang
 RUN git clone --single-branch --branch release_80 https://git.llvm.org/git/llvm.git clang8 && cd clang8 && git checkout 18e41dc && \
     cd tools && git clone --single-branch --branch release_80 https://git.llvm.org/git/lld.git && cd lld && git checkout d60a035 && \
@@ -26,4 +27,4 @@ RUN git clone --single-branch --branch release_80 https://git.llvm.org/git/llvm.
     make install && \
     rm -rf /clang8
 # container entrypoint
-CMD /workdir/.cicd/entrypoint.sh
+CMD /workdir/.cicd/docker/entrypoint.sh

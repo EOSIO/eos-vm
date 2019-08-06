@@ -13,6 +13,7 @@ RUN source /opt/rh/devtoolset-7/enable && \
     make -j $(nproc) && \
     make install && \
     rm -f /cmake-3.13.2.tar.gz && rm -rf /cmake-3.13.2
+
 # build clang
 RUN source /opt/rh/devtoolset-7/enable && \
     git clone --single-branch --branch release_80 https://git.llvm.org/git/llvm.git clang8 && cd clang8 && git checkout 18e41dc && \
