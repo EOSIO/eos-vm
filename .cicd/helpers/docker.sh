@@ -3,7 +3,6 @@ function get_envs() {
         evars=""
         while read -r var; do
             evars="$evars --env ${var%%=*}"
-            echo $evars
         done < "$BUILDKITE_ENV_FILE"
     fi
 }
