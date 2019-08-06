@@ -26,5 +26,4 @@ RUN git clone --single-branch --branch release_80 https://git.llvm.org/git/llvm.
     make install && \
     rm -rf /clang8
 
-# container entrypoint
-CMD /workdir/.cicd/docker/entrypoint.sh
+CMD echo "Please provide commmands to run..."
