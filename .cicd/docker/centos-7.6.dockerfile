@@ -14,6 +14,14 @@ RUN source /opt/rh/devtoolset-7/enable && \
     make install && \
     rm -f /cmake-3.13.2.tar.gz && rm -rf /cmake-3.13.2
 
+RUN curl -LO https://dl.bintray.com/boostorg/release/1.70.0/source/boost_1_70_0.tar.bz2 \
+  && tar -xjf boost_1_70_0.tar.bz2 \
+  && cd boost_1_70_0 \
+  && ./bootstrap.sh --prefix=/usr/local \
+  && ./b2 --with-iostreams --with-date_time --with-filesystem --with-system --with-program_options --with-chrono --with-test -j$(nproc) install \
+  && cd .. \
+  && rm -f boost_1_70_0.tar.bz2  
+  
 # build clang
 RUN source /opt/rh/devtoolset-7/enable && \
     git clone --single-branch --branch release_80 https://git.llvm.org/git/llvm.git clang8 && cd clang8 && git checkout 18e41dc && \

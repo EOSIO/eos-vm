@@ -11,6 +11,14 @@ RUN curl -LO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
     make install && \
     rm -f /cmake-3.13.2.tar.gz && rm -rf /cmake-3.13.2
 
+RUN curl -LO https://dl.bintray.com/boostorg/release/1.70.0/source/boost_1_70_0.tar.bz2 \
+  && tar -xjf boost_1_70_0.tar.bz2 \
+  && cd boost_1_70_0 \
+  && ./bootstrap.sh --prefix=/usr/local \
+  && ./b2 --with-iostreams --with-date_time --with-filesystem --with-system --with-program_options --with-chrono --with-test -j$(nproc) install \
+  && cd .. \
+  && rm -f boost_1_70_0.tar.bz2  
+
 RUN git clone --single-branch --branch release_80 https://git.llvm.org/git/llvm.git clang8 && cd clang8 && git checkout 18e41dc && \
     cd tools && git clone --single-branch --branch release_80 https://git.llvm.org/git/lld.git && cd lld && git checkout d60a035 && \
     cd ../ && git clone --single-branch --branch release_80 https://git.llvm.org/git/polly.git && cd polly && git checkout 1bc06e5 && \
