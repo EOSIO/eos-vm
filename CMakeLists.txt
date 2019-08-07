@@ -87,6 +87,20 @@ if(ENABLE_TESTS)
    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/Catch2)
    include(external/Catch2/contrib/Catch.cmake)
    add_subdirectory(tests)
+   include(ExternalProject)
+   ExternalProject_Add(
+      eos_vm_test_wasms
+      GIT_REPOSITORY "git@github.com:eosio/eos-vm-test-wasms.git"
+      SOURCE_DIR ${CMAKE_BINARY_DIR}/wasms
+      BINARY_DIR ${CMAKE_BINARY_DIR}/wasms
+      BUILD_ALWAYS 0
+      BUILD_COMMAND ""
+      TEST_COMMAND ""
+      INSTALL_COMMAND ""
+      UPDATE_COMMAND ""
+      PATCH_COMMAND ""
+      CONFIGURE_COMMAND ""
+   )
 endif()
 
 # ##################################################################################################
