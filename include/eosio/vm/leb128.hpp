@@ -153,7 +153,6 @@ namespace eosio { namespace vm {
       private:
          template <typename T>
          inline constexpr void _from(T v) {
-            bool is_neg = v < 0;
             bytes_used = 0;
             #pragma unroll
             for (; bytes_used < bytes_needed<N>(); bytes_used++) {

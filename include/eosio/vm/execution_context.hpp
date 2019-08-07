@@ -40,7 +40,9 @@ namespace eosio { namespace vm {
       inline native_value call_host_function(native_value* stack, uint32_t index) {
          const auto& ft = _mod.get_function_type(index);
          uint32_t num_params = ft.param_types.size();
+#ifndef NDEBUG
          uint32_t original_operands = current_operands_index();
+#endif
          for(uint32_t i = 0; i < ft.param_types.size(); ++i) {
             switch(ft.param_types[i]) {
              case i32: push_operand(i32_const_t{stack[num_params - i - 1].i32}); break;
