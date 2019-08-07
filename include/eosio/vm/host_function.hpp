@@ -19,6 +19,12 @@ namespace eosio { namespace vm {
    template <typename Derived, typename Base>
    struct construct_derived {
       static auto value(Base& base) { return Derived(base); }
+      typedef Base type;
+   };
+
+   template <typename Derived>
+   struct construct_derived<Derived, nullptr_t> {
+      static nullptr_t value(nullptr_t) { return nullptr; }
    };
 
    // Workaround for compiler bug handling C++g17 auto template parameters.
@@ -228,34 +234,52 @@ namespace eosio { namespace vm {
       return ptr.get();
    }
 
+   template <auto F, typename Derived, typename Host>
+   auto maybe_bind_host(Host* host) {
+      if constexpr (!std::is_same_v<std::decay_t<Derived>, nullptr_t>)
+         return std::bind(F, construct_derived<Derived, Host>::value(*host));
+      else
+         return std::forward<decltype(F)>(F);
+   }
+   
+   // RAII type for handling results
+   template <typename Res, typename Walloc, size_t TrimAmt>
+   struct invoke_result_wrapper {
+      invoke_result_wrapper(Res&& res, operand_stack& os, Walloc* walloc) : result(std::move(res)), os(os), walloc(walloc) {}
+      ~invoke_result_wrapper() {
+         os.trim(TrimAmt);
+         os.push(detail::resolve_result(static_cast<Res&&>(result), walloc));
+      }
+      Res&& result;
+      operand_stack& os;
+      Walloc* walloc;
+   };
+   template <typename Walloc, size_t TrimAmt>
+   struct invoke_result_wrapper<void, Walloc, TrimAmt> {
+      invoke_result_wrapper(operand_stack& os, Walloc* walloc) : os(os) {}
+      ~invoke_result_wrapper() {
+         os.trim(TrimAmt);
+      }
+      operand_stack& os;
+   };
+
+   template <typename Res, typename Walloc, size_t TrimAmt>
+   auto wrap_invoke(Walloc* walloc, operand_stack& os, Res&& res=Res()) {
+      if constexpr (std::is_same_v<typename Res::type, void>)
+         return invoke_result_wrapper<void, Walloc, TrimAmt>(os, walloc);
+      else
+         return invoke_result_wrapper<Res, Walloc, TrimAmt>(std::forward<Res>(res), os, walloc);
+   }
+
    template <typename WAlloc, typename Cls, typename Cls2, auto F, typename R, typename Args, size_t... Is>
    auto create_function(std::index_sequence<Is...>) {
       return std::function<void(Cls*, WAlloc*, operand_stack&)>{ [](Cls* self, WAlloc* walloc, operand_stack& os) {
          size_t i = sizeof...(Is) - 1;
-         if constexpr (!std::is_same_v<R, void>) {
-            if constexpr (std::is_same_v<Cls2, std::nullptr_t>) {
-               R res = std::invoke(F, detail::get_value<typename std::tuple_element<Is, Args>::type>(
-                                            walloc, std::move(os.get_back(i - Is)))...);
-               os.trim(sizeof...(Is));
-               os.push(detail::resolve_result(static_cast<R&&>(res), walloc));
-            } else {
-               R res = std::invoke(F, construct_derived<Cls2, Cls>::value(*self),
-                                   detail::get_value<typename std::tuple_element<Is, Args>::type>(
-                                         walloc, std::move(os.get_back(i - Is)))...);
-               os.trim(sizeof...(Is));
-               os.push(detail::resolve_result(static_cast<R&&>(res), walloc));
-            }
-         } else {
-            if constexpr (std::is_same_v<Cls2, std::nullptr_t>) {
-               std::invoke(F, detail::get_value<typename std::tuple_element<Is, Args>::type>(
-                                    walloc, std::move(os.get_back(i - Is)))...);
-            } else {
-               std::invoke(F, construct_derived<Cls2, Cls>::value(*self),
-                           detail::get_value<typename std::tuple_element<Is, Args>::type>(
-                                 walloc, std::move(os.get_back(i - Is)))...);
-            }
-            os.trim(sizeof...(Is));
-         }
+         using invoke_res_t = std::invoke_result<decltype(F), typename std::tuple_element<Is, Args>::type...>;
+         wrap_invoke<invoke_res_t, WAlloc, sizeof...(Is)>(
+               walloc, os, std::invoke(maybe_bind_host<F, Cls2, Cls>(self), 
+                       detail::get_value<typename std::tuple_element<Is, Args>::type>(
+                           walloc, std::move(os.get_back(i - Is)))...));
       } };
    }
 
