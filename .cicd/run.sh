@@ -21,8 +21,8 @@ else # Linux
     # Generate Base Images
     execute ./.cicd/generate-base-images.sh
 
-    mkdir -p $ROOT_DIR/build
-    git clone git@github.com:EOSIO/eos-vm-test-wasms.git $ROOT_DIR/build/wasms # support for private wasm repo (contact Bucky)
+    execute mkdir -p $ROOT_DIR/build
+    execute git clone git@github.com:EOSIO/eos-vm-test-wasms.git $ROOT_DIR/build/wasms # support for private wasm repo (contact Bucky)
 
     BUILD_COMMANDS="cd /workdir/build && cmake -DCMAKE_TOOLCHAIN_FILE=/workdir/.cicd/helpers/clang.make -DENABLE_TESTS=ON .. && make -j$JOBS"
     TEST_COMMANDS="cd /workdir/build && ctest -j$JOBS -V --output-on-failure -T Test"
