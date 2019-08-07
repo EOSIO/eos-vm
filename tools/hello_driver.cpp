@@ -51,12 +51,10 @@ int main(int argc, char** argv) {
    // finally register memset
    rhf_t::add<nullptr_t, &example_host_methods::memset, wasm_allocator>("env", "memset");
 
-   watchdog<std::chrono::nanoseconds> wd;
-   wd.set_duration(std::chrono::seconds(3));
+   watchdog wd{std::chrono::seconds(3)};
    try {
       // Instaniate a new backend using the wasm provided.
       backend_t bkend(hello_wasm);
-      wd.set_callback([&]() { bkend.get_context().exit(); });
 
       // Point the backend to the allocator you want it to use.
       bkend.set_wasm_allocator(&wa);
