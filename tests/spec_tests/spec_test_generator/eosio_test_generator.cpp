@@ -14,6 +14,8 @@ const string extern_c =  "extern \"C\" {\n";
 const string apply_func = "   void apply(uint64_t, uint64_t, uint64_t) {\n";
 
 map<string, bool> func_already_written;
+map<string, int> func_name_to_index;
+int func_index = 0;
 
 void write_file(ofstream& file, string funcs, string func_calls) {
    stringstream out;
@@ -25,6 +27,22 @@ void write_file(ofstream& file, string funcs, string func_calls) {
    out << apply_func;
    out << func_calls;
    out << "   }\n";
+   out << "}\n";
+
+   file << out.str();
+   out.str("");
+}
+
+void write_map_file(ofstream& file) {
+   stringstream out;
+
+   out << "{\n";
+   auto last = prev(func_name_to_index.end(), 1);
+   for (auto it = func_name_to_index.begin(); it != last; ++it) {
+      out << "  \"" << it->first << "\"" << " : " << it->second << "," << "\n";
+   }
+   auto it = func_name_to_index.rbegin();
+   out << "  \"" << it->first << "\"" << " : " << it->second << "\n";
    out << "}\n";
 
    file << out.str();
@@ -85,6 +103,8 @@ string write_function(string function_name, vector<tuple<string, string>> params
    if (check_exists(function_name, params, expected_return)) {
       return "";
    }
+   func_name_to_index[function_name] = func_index;
+   ++func_index;
 
    auto [return_type, return_val] = expected_return;
    out << "   " << c_type(return_type) << " ";
@@ -294,24 +314,31 @@ int main(int argc, char** argv) {
    }
 
    for (const auto& f : file_func_mappings) {
-      ofstream ofs;
+      ofstream ofs_cpp;
+      ofstream ofs_map;
+
       stringstream funcs;
       stringstream func_calls;
 
       int pos = f.first.find_last_of('.');
-      string out_file = f.first.substr(0, pos) + ".cpp";
+      string out_file_cpp = f.first.substr(0, pos) + ".cpp";
+      string out_file_map = f.first.substr(0, pos) + ".map";
 
-      ofs.open(out_file, ofstream::out);
+      ofs_cpp.open(out_file_cpp, ofstream::out);
+      ofs_map.open(out_file_map, ofstream::out);
 
       func_already_written.clear();
+      func_name_to_index.clear();
+
       int var_index = 0;
       func_index = 0;
       for (const auto& ff : f.second) {
          funcs << generate_functions(ff, false, var_index);
          func_calls << generate_functions(ff, true, var_index);
-         var_index++;
+         ++var_index;
       }
 
-      write_file(ofs, funcs.str(), func_calls.str());
+      write_file(ofs_cpp, funcs.str(), func_calls.str());
+      write_map_file(ofs_map);
    }
 }
