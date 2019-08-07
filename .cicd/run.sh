@@ -28,9 +28,9 @@ else # Linux
     ARGS=${ARGS:-"--rm -v $(pwd):/workdir"}
     # Docker Commands
     if [[ $BUILDKITE ]]; then
+        append-to-commands "mkdir -p ~/.ssh && ssh-keyscan github.com >> ~/.ssh/known_hosts" # support for private wasm repo (contact Bucky)
         [[ $ENABLE_BUILD ]] && append-to-commands $BUILD_COMMANDS
         [[ $ENABLE_TEST ]] && append-to-commands $TEST_COMMANDS
-        append-to-commands "mkdir -p ~/.ssh && ssh-keyscan github.com >> ~/.ssh/known_hosts" # support for private wasm repo (contact Bucky)
     elif [[ $TRAVIS ]]; then
         ARGS="$ARGS -v /usr/lib/ccache -v $HOME/.ccache:/opt/.ccache -e JOBS -e CCACHE_DIR=/opt/.ccache"
         COMMANDS="ccache -s && $BUILD_COMMANDS && $TEST_COMMANDS"
