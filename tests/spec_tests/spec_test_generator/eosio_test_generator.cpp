@@ -305,6 +305,7 @@ int main(int argc, char** argv) {
 
       func_already_written.clear();
       int var_index = 0;
+      func_index = 0;
       for (const auto& ff : f.second) {
          funcs << generate_functions(ff, false, var_index);
          func_calls << generate_functions(ff, true, var_index);
