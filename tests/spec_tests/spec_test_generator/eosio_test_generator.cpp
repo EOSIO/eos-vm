@@ -10,16 +10,16 @@
 using namespace std;
 
 const string include_eosio = "#include <eosio/eosio.hpp>\n\n";
-const string extern_c =  "extern \"C\" {\n";
-const string apply_func = "   void apply(uint64_t, uint64_t, uint64_t) {\n";
+const string extern_c      = "extern \"C\" {\n";
+const string apply_func    = "   void apply(uint64_t, uint64_t, uint64_t) {\n";
 
 map<string, bool> func_already_written;
-map<string, int> func_name_to_index;
-int func_index = 0;
+map<string, int>  func_name_to_index;
+int               func_index = 0;
 
 void write_file(ofstream& file, string funcs, string func_calls) {
    stringstream out;
-   string end_brace = "}";
+   string       end_brace = "}";
 
    out << include_eosio;
    out << extern_c;
@@ -39,10 +39,13 @@ void write_map_file(ofstream& file) {
    out << "{\n";
    auto last = prev(func_name_to_index.end(), 1);
    for (auto it = func_name_to_index.begin(); it != last; ++it) {
-      out << "  \"" << it->first << "\"" << " : " << it->second << "," << "\n";
+      out << "  \"" << it->first << "\""
+          << " : " << it->second << ","
+          << "\n";
    }
    auto it = func_name_to_index.rbegin();
-   out << "  \"" << it->first << "\"" << " : " << it->second << "\n";
+   out << "  \"" << it->first << "\""
+       << " : " << it->second << "\n";
    out << "}\n";
 
    file << out.str();
@@ -52,7 +55,11 @@ void write_map_file(ofstream& file) {
 string normalize(string val) {
    string ret_val = val;
    for (int i = 0; i <= val.size(); i++) {
-      ret_val[i] = val[i] == '-' || val[i] == '.' ? '_' : val[i];
+      if (val[i] == '-' || val[i] == '.') {
+         ret_val[i] = '_';
+      } else {
+         ret_val[i] = val[i];
+      }
    }
 
    return ret_val;
@@ -62,14 +69,11 @@ string c_type(string wasm_type) {
    string c_type = "";
    if (wasm_type == "i32") {
       c_type = "int32_t";
-   }
-   else if (wasm_type == "i64") {
+   } else if (wasm_type == "i64") {
       c_type = "int64_t";
-   }
-   else if (wasm_type == "f32") {
+   } else if (wasm_type == "f32") {
       c_type = "float";
-   }
-   else if (wasm_type == "f64") {
+   } else if (wasm_type == "f64") {
       c_type = "double";
    } else {
       c_type = "void";
@@ -94,10 +98,10 @@ bool check_exists(string function_name, vector<tuple<string, string>> params, tu
    } else {
       return true;
    }
-
 }
 
-string write_function(string function_name, vector<tuple<string, string>> params, tuple<string, string> expected_return) {
+string write_function(string function_name, vector<tuple<string, string>> params,
+                      tuple<string, string> expected_return) {
    stringstream out;
 
    if (check_exists(function_name, params, expected_return)) {
@@ -124,24 +128,26 @@ string write_function(string function_name, vector<tuple<string, string>> params
    out << ") {\n";
 
    if (return_type == "i32" || return_type == "i64") {
-      out << "   " << "   return 0;";
-   }
-   else if (return_type == "f32" || return_type == "f64") {
-      out << "   " << "   return 0.0f;";
+      out << "   "
+          << "   return 0;";
+   } else if (return_type == "f32" || return_type == "f64") {
+      out << "   "
+          << "   return 0.0f;";
    } else {
-      out << "   " << "   return;";
+      out << "   "
+          << "   return;";
    }
 
    out << "\n   }\n\n";
    return out.str();
 }
 
-string write_function_call(string function_name, vector<tuple<string, string>> params, tuple<string, string> expected_return,
-                           int var_index, int param_index_offset) {
+string write_function_call(string function_name, vector<tuple<string, string>> params,
+                           tuple<string, string> expected_return, int var_index, int param_index_offset) {
    stringstream out;
    auto [return_type, return_val] = expected_return;
 
-   string return_cast = "";
+   string       return_cast = "";
    stringstream func_call;
 
    if (params.size() > 0) {
@@ -149,11 +155,14 @@ string write_function_call(string function_name, vector<tuple<string, string>> p
       for (auto p = params.begin(); p != params.end(); p++) {
          auto [type, value] = *p;
          if (type == "f32") {
-            out << "      " << "int32_t " << "y" << param_index << param_index_offset << " = " << value << ";\n";
+            out << "      "
+                << "int32_t "
+                << "y" << param_index << param_index_offset << " = " << value << ";\n";
             param_index++;
-         }
-         else if (type == "f64") {
-            out << "      " << "int64_t " << "y" << param_index << param_index_offset << " = " << value << ";\n";
+         } else if (type == "f64") {
+            out << "      "
+                << "int64_t "
+                << "y" << param_index << param_index_offset << " = " << value << ";\n";
             param_index++;
          }
       }
@@ -173,22 +182,24 @@ string write_function_call(string function_name, vector<tuple<string, string>> p
          return_cast = "*(uint64_t*)&";
       }
 
-      func_call << "   " << "   " << c_type(return_type) << " " << "x" << var_index << " = ";
+      func_call << "   "
+                << "   " << c_type(return_type) << " "
+                << "x" << var_index << " = ";
    }
 
    func_call << function_name << "(";
-
 
    if (params.size() > 0) {
       int param_index = 0;
       for (auto p = params.begin(); p != params.end() - 1; p++) {
          auto [type, value] = *p;
          if (type == "f32") {
-            func_call << "*(float*)&" << "y" << param_index << param_index_offset << ", ";
+            func_call << "*(float*)&"
+                      << "y" << param_index << param_index_offset << ", ";
             param_index++;
-         }
-         else if (type == "f64") {
-            func_call << "*(double*)&" << "y" << param_index << param_index_offset << ", ";
+         } else if (type == "f64") {
+            func_call << "*(double*)&"
+                      << "y" << param_index << param_index_offset << ", ";
             param_index++;
          } else {
             func_call << "(" << c_type(type) << ") " << value << ", ";
@@ -197,12 +208,12 @@ string write_function_call(string function_name, vector<tuple<string, string>> p
 
       auto [type, value] = *(params.end() - 1);
       if (type == "f32") {
-         func_call << "*(float*)&" << "y" << param_index << param_index_offset;
-      }
-      else if (type == "f64") {
-         func_call << "*(double*)&" << "y" << param_index << param_index_offset;
-      }
-      else {
+         func_call << "*(float*)&"
+                   << "y" << param_index << param_index_offset;
+      } else if (type == "f64") {
+         func_call << "*(double*)&"
+                   << "y" << param_index << param_index_offset;
+      } else {
          func_call << value;
       }
    }
@@ -213,7 +224,9 @@ string write_function_call(string function_name, vector<tuple<string, string>> p
    }
 
    if (return_val != "" && return_val != "null") {
-      out << "   " << "   " << "eosio::check(";
+      out << "   "
+          << "   "
+          << "eosio::check(";
       if (needs_local_return) {
          out << return_cast << "x" << var_index;
       } else {
@@ -221,37 +234,39 @@ string write_function_call(string function_name, vector<tuple<string, string>> p
       }
       out << " == ";
       out << "(" << c_type(return_type) << ")" << return_val;
-      out << ", " << "\"" << function_name << " fail\"";
+      out << ", "
+          << "\"" << function_name << " fail\"";
       out << ");\n\n";
    } else {
       // If there's no expected return, just call the function to prove it doesn't blow up.
-      out << "   " << "   " << func_call.str() << "\n\n";
+      out << "   "
+          << "   " << func_call.str() << "\n\n";
    }
    return out.str();
 }
 
 string generate_functions(picojson::object test, bool call, int var_index) {
    vector<tuple<string, string>> params = {};
-   tuple<string, string> expected_return;
+   tuple<string, string>         expected_return;
 
-   auto action_obj = test["action"].get<picojson::object>();
+   auto   action_obj    = test["action"].get<picojson::object>();
    string function_name = action_obj["field"].to_str();
-   function_name = "_" + normalize(function_name);
+   function_name        = "_" + normalize(function_name);
 
    auto args = action_obj["args"].get<picojson::array>();
    for (auto a : args) {
       auto arg = a.get<picojson::object>();
 
-      string type = arg["type"].to_str();
+      string type  = arg["type"].to_str();
       string value = arg["value"].to_str();
       params.push_back(make_tuple(type, value));
    }
 
    auto expecteds = test["expected"].get<picojson::array>();
-   for (auto e: expecteds) {
-      auto expect = e.get<picojson::object>();
-      string type = expect["type"].to_str();
-      string value = expect["value"].to_str();
+   for (auto e : expecteds) {
+      auto   expect   = e.get<picojson::object>();
+      string type     = expect["type"].to_str();
+      string value    = expect["value"].to_str();
       expected_return = make_tuple(type, value);
    }
 
@@ -271,18 +286,16 @@ void usage(const char* name) {
 int main(int argc, char** argv) {
    ifstream     ifs;
    stringstream ss;
-   if(argc != 2 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
-      usage(argc?argv[0]:"eosio_test_generator");
+   if (argc != 2 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
+      usage(argc ? argv[0] : "eosio_test_generator");
    }
    ifs.open(argv[1]);
-   if(!ifs) {
+   if (!ifs) {
       std::cerr << "Cannot open file: " << argv[1] << std::endl;
       return EXIT_FAILURE;
    }
    string s;
-   while (getline(ifs, s)) {
-      ss << s;
-   }
+   while (getline(ifs, s)) { ss << s; }
    ifs.close();
 
    picojson::value v;
@@ -290,7 +303,7 @@ int main(int argc, char** argv) {
    string test_suite_name;
 
    map<string, vector<picojson::object>> file_func_mappings;
-   const auto& o = v.get<picojson::object>();
+   const auto&                           o = v.get<picojson::object>();
 
    string filename = "";
    for (auto i = o.begin(); i != o.end(); i++) {
@@ -300,12 +313,9 @@ int main(int argc, char** argv) {
             if (obj["type"].to_str() == "module") {
                filename = obj["filename"].to_str();
             }
-            if (obj["type"].to_str() == "assert_return" ||
-                obj["type"].to_str() == "action" ||
-                obj["type"].to_str() == "assert_exhaustion" ||
-                obj["type"].to_str() == "assert_return_canonical_nan" ||
-                obj["type"].to_str() == "assert_return_arithmetic_nan" ||
-                obj["type"].to_str() == "assert_exhaustion" ||
+            if (obj["type"].to_str() == "assert_return" || obj["type"].to_str() == "action" ||
+                obj["type"].to_str() == "assert_exhaustion" || obj["type"].to_str() == "assert_return_canonical_nan" ||
+                obj["type"].to_str() == "assert_return_arithmetic_nan" || obj["type"].to_str() == "assert_exhaustion" ||
                 obj["type"].to_str() == "assert_trap") {
                file_func_mappings[filename].push_back(obj);
             }
@@ -320,7 +330,7 @@ int main(int argc, char** argv) {
       stringstream funcs;
       stringstream func_calls;
 
-      int pos = f.first.find_last_of('.');
+      int    pos          = f.first.find_last_of('.');
       string out_file_cpp = f.first.substr(0, pos) + ".cpp";
       string out_file_map = f.first.substr(0, pos) + ".map";
 
@@ -331,7 +341,7 @@ int main(int argc, char** argv) {
       func_name_to_index.clear();
 
       int var_index = 0;
-      func_index = 0;
+      func_index    = 0;
       for (const auto& ff : f.second) {
          funcs << generate_functions(ff, false, var_index);
          func_calls << generate_functions(ff, true, var_index);
