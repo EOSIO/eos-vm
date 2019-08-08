@@ -3,6 +3,8 @@ set -eo pipefail
 . ./.cicd/helpers/general.sh
 . ./$HELPERS_DIR/execute.sh
 
+echo $ENABLE_BUILD
+
 execute mkdir -p $ROOT_DIR/build
 
 if [[ $(uname) == Darwin ]]; then
