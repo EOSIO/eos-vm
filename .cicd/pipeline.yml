@@ -6,7 +6,7 @@ steps:
       - "tar -pczf build.tar.gz build && buildkite-agent artifact upload build.tar.gz"
     env:
       IMAGE_TAG: "amazonlinux-2"
-      ENABLE_BUILD: ${ENABLE_BUILD:-true}
+      ENABLE_BUILD: true
     agents: 
       queue: "automation-eos-builder-fleet"
     timeout: ${TIMEOUT:-10}
@@ -75,7 +75,7 @@ steps:
       - "bash ./.cicd/run.sh"
     env:
       IMAGE_TAG: "amazonlinux-2"
-      ENABLE_TEST: true
+      ENABLE_TEST: ${ENABLE_TEST:-true}
     agents: 
       queue: "automation-eos-builder-fleet"
     timeout: ${TIMEOUT:-10}
