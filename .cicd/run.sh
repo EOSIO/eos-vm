@@ -3,22 +3,21 @@ set -eo pipefail
 . ./.cicd/helpers/general.sh
 . ./$HELPERS_DIR/execute.sh
 if [[ $(uname) == Darwin ]]; then
-
+    MAC_BUILD="cmake -DCMAKE_BUILD_TYPE=Release .. && make -j$JOBS"
+    MAC_TEST="ctest -j$JOBS --output-on-failure -T Test"
     cd $ROOT_DIR
     ccache -s
     mkdir -p build
     cd build
     if [[ $BUILDKITE ]]; then
         if [[ $ENABLE_BUILD ]]; then
-            execute cmake ..
-            execute make -j$JOBS
+            execute $MAC_BUILD
         elif [[ $ENABLE_TEST ]]; then
-            execute ctest -j$JOBS --output-on-failure -T Test
+            execute $MAC_TEST
         fi
     elif [[ $TRAVIS ]]; then
-        execute cmake ..
-        execute make -j$JOBS
-        #execute ctest -j$JOBS --output-on-failure -T Test
+        execute $MAC_BUILD
+        #execute $MAC_TEST
     fi
 
 else # Linux
