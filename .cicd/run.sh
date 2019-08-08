@@ -13,12 +13,12 @@ if [[ $(uname) == Darwin ]]; then
             execute cmake ..
             execute make -j$JOBS
         elif [[ $ENABLE_TEST ]]; then
-            execute ctest -j$JOBS -V --output-on-failure -T Test
+            execute ctest -j$JOBS --output-on-failure -T Test
         fi
     elif [[ $TRAVIS ]]; then
         execute cmake ..
         execute make -j$JOBS
-        #execute ctest -j$JOBS -V --output-on-failure -T Test
+        #execute ctest -j$JOBS --output-on-failure -T Test
     fi
 
 else # Linux
@@ -29,7 +29,7 @@ else # Linux
     execute mkdir -p $ROOT_DIR/build
 
     BUILD_COMMANDS="cd /workdir/build && cmake -DCMAKE_TOOLCHAIN_FILE=/workdir/.cicd/helpers/clang.make -DENABLE_TESTS=ON .. && make -j$JOBS"
-    TEST_COMMANDS="cd /workdir/build && ctest -j$JOBS -V --output-on-failure -T Test"
+    TEST_COMMANDS="cd /workdir/build && ctest -j$JOBS --output-on-failure -T Test"
 
     # Docker Run Arguments
     ARGS=${ARGS:-"--rm -v $(pwd):/workdir"}
