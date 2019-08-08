@@ -4,9 +4,6 @@
 option(ENABLE_TESTS "enable building of unit tests, spec tests." ON)
 cmake_dependent_option(ENABLE_FUZZ_TESTS "enable fuzz testing" OFF "ENABLE_TESTS" ON)
 
-set(Boost_USE_STATIC_LIBS TRUE)
-find_package(Boost COMPONENTS unit_test_framework REQUIRED)
-
 configure_file(wasm_config.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/wasm_config.hpp)
 include_directories(${CMAKE_SOURCE_DIR}/external/Catch2/single_include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
