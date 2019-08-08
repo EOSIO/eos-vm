@@ -34,7 +34,6 @@ matrix:
         homebrew:
           update: true
           packages:
-            - boost@1.70
             - ccache
 script: "./.cicd/run.sh"
 notifications:
