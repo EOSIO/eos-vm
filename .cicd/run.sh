@@ -6,6 +6,7 @@ set -eo pipefail
 execute mkdir -p $ROOT_DIR/build
 
 if [[ $(uname) == Darwin ]]; then
+
     MAC_CMAKE="cmake -DCMAKE_BUILD_TYPE=Release .."
     MAC_MAKE="make -j$JOBS"
     MAC_TEST="ctest -j$JOBS --output-on-failure -T Test"
@@ -31,7 +32,7 @@ else # Linux
     . ./$HELPERS_DIR/docker.sh
     . ./$HELPERS_DIR/docker-hash.sh
 
-    BUILD_COMMANDS="cd /workdir/build && cmake -DCMAKE_TOOLCHAIN_FILE=/workdir/.cicd/helpers/clang.make -DENABLE_TESTS=ON .. && make -j$JOBS"
+    BUILD_COMMANDS="cd /workdir/build && cmake -DCMAKE_TOOLCHAIN_FILE=/workdir/.cicd/helpers/clang.make -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=Release .. && make -j$JOBS"
     TEST_COMMANDS="cd /workdir/build && ctest -j$JOBS --output-on-failure -T Test"
 
     # Docker Run Arguments
