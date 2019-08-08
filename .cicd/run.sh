@@ -5,13 +5,19 @@ set -eo pipefail
 
 if [[ $(uname) == Darwin ]]; then
 
-    cd $ROOT_DIR
-    ccache -s
-    mkdir -p build
-    cd build
-    execute cmake ..
-    execute make -j$JOBS
-    cd ..
+    if [[ $ENABLE_BUILD ]]; then
+        cd $ROOT_DIR
+        ccache -s
+        mkdir -p build
+        cd build
+        execute cmake ..
+        execute make -j$JOBS
+        cd ..
+    elif [[ $ENABLE_TEST ]]; then
+        ccache -s
+        cd build
+        execute ctest -j$JOBS -V --output-on-failure -T Test
+    fi
     
 else # Linux
 
