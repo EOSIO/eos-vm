@@ -20,7 +20,7 @@ if [[ $(uname) == Darwin ]]; then
             execute $MAC_TEST
         fi
     elif [[ $TRAVIS ]]; then
-        execute mkdir $ROOT_DIR/build/wasms
+        execute mkdir -p wasms
         execute $MAC_CMAKE
         execute $MAC_MAKE
         #execute $MAC_TEST
