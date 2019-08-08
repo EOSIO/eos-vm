@@ -26,15 +26,17 @@ if [[ $(uname) == Darwin ]]; then
 else # Linux
 
     MOUNTED_DIR='/workdir'
+    ARGS=${ARGS:-"--rm -v $(pwd):/workdir"}
 
-    . ./$HELPERS_DIR/docker.sh
+    function append-to-commands() {
+        [[ ! -z $COMMANDS ]] && export COMMANDS="$COMMANDS && $@" || export COMMANDS="$@"
+    }
+
     . ./$HELPERS_DIR/docker-hash.sh
 
     BUILD_COMMANDS="cd $MOUNTED_DIR/build && cmake -DCMAKE_TOOLCHAIN_FILE=$MOUNTED_DIR/.cicd/helpers/clang.make -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=Release .. && make -j$JOBS"
     TEST_COMMANDS="cd $MOUNTED_DIR/build && ctest -j$JOBS --output-on-failure -T Test"
 
-    # Docker Run Arguments
-    ARGS=${ARGS:-"--rm -v $(pwd):/workdir"}
     # Docker Commands
     if [[ $BUILDKITE == true ]]; then
         # Generate Base Images
@@ -48,7 +50,15 @@ else # Linux
         COMMANDS="ccache -s && $BUILD_COMMANDS"
     fi
 
-    # Docker Run
-    docker-run $COMMANDS
+    # Load BUILDKITE Environment Variables for use in docker run
+    if [[ -f $BUILDKITE_ENV_FILE ]]; then
+        evars=""
+        while read -r var; do
+            evars="$evars --env ${var%%=*}"
+        done < "$BUILDKITE_ENV_FILE"
+    fi
+    
+    # Docker Run with all of the commands we've prepped
+    execute eval docker run $ARGS $evars $FULL_TAG bash -c \"$COMMANDS\"
 
 fi
