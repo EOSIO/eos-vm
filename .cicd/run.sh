@@ -8,7 +8,7 @@ execute mkdir -p $BUILD_DIR
 if [[ $(uname) == Darwin ]]; then
 
     MAC_TEST="ctest -j$JOBS --output-on-failure -T Test"
-    
+
     cd $BUILD_DIR
     execute ccache -s
     if [[ $ENABLE_BUILD == true ]] || [[ $TRAVIS == true ]]; then
@@ -20,7 +20,6 @@ if [[ $(uname) == Darwin ]]; then
         [[ $ENABLE_TEST == true ]] && execute $MAC_TEST
     elif [[ $TRAVIS == true ]]; then
         execute mkdir -p wasms
-        #execute $MAC_TEST
     fi
 
 else # Linux
