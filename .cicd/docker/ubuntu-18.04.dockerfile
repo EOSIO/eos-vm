@@ -2,7 +2,7 @@ FROM ubuntu:18.04
 # install dependencies
 RUN apt-get update && \
     apt-get install -y build-essential git automake python2.7 python2.7-dev python3 python3-dev curl ccache
-
+# build cmake
 RUN curl -LO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
     tar -xzf cmake-3.13.2.tar.gz && \
     cd cmake-3.13.2 && \
@@ -10,7 +10,7 @@ RUN curl -LO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
     make -j $(nproc) && \
     make install && \
     rm -f /cmake-3.13.2.tar.gz && rm -rf /cmake-3.13.2
-
+# build clang
 RUN git clone --single-branch --branch release_80 https://git.llvm.org/git/llvm.git clang8 && cd clang8 && git checkout 18e41dc && \
     cd tools && git clone --single-branch --branch release_80 https://git.llvm.org/git/lld.git && cd lld && git checkout d60a035 && \
     cd ../ && git clone --single-branch --branch release_80 https://git.llvm.org/git/polly.git && cd polly && git checkout 1bc06e5 && \
@@ -25,5 +25,3 @@ RUN git clone --single-branch --branch release_80 https://git.llvm.org/git/llvm.
     make -j $(nproc) && \
     make install && \
     rm -rf /clang8
-
-CMD echo "Please provide commmands to run..."
