@@ -40,7 +40,6 @@ else # Linux
         [[ $ENABLE_BUILD ]] && append-to-commands $BUILD_COMMANDS
         [[ $ENABLE_TEST ]] && append-to-commands $TEST_COMMANDS
     elif [[ $TRAVIS ]]; then
-        echo HERE
         execute mkdir $ROOT_DIR/build/wasms
         ARGS="$ARGS -v /usr/lib/ccache -v $HOME/.ccache:/opt/.ccache -e JOBS -e CCACHE_DIR=/opt/.ccache"
         COMMANDS="ccache -s && $BUILD_COMMANDS"
