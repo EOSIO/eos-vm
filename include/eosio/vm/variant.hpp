@@ -10,6 +10,7 @@
 #include <tuple>
 #include <type_traits>
 #include <variant>
+#include <functional>
 
 namespace eosio { namespace vm {
 
