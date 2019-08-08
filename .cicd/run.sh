@@ -2,13 +2,15 @@
 set -eo pipefail
 . ./.cicd/helpers/general.sh
 . ./$HELPERS_DIR/execute.sh
+
+execute mkdir -p $ROOT_DIR/build
+
 if [[ $(uname) == Darwin ]]; then
     MAC_CMAKE="cmake -DCMAKE_BUILD_TYPE=Release .."
     MAC_MAKE="make -j$JOBS"
     MAC_TEST="ctest -j$JOBS --output-on-failure -T Test"
     cd $ROOT_DIR
     ccache -s
-    mkdir -p build
     cd build
     if [[ $BUILDKITE ]]; then
         if [[ $ENABLE_BUILD ]]; then
@@ -18,6 +20,7 @@ if [[ $(uname) == Darwin ]]; then
             execute $MAC_TEST
         fi
     elif [[ $TRAVIS ]]; then
+        execute mkdir $ROOT_DIR/build/wasms
         execute $MAC_CMAKE
         execute $MAC_MAKE
         #execute $MAC_TEST
@@ -27,8 +30,6 @@ else # Linux
 
     . ./$HELPERS_DIR/docker.sh
     . ./$HELPERS_DIR/docker-hash.sh
-
-    execute mkdir -p $ROOT_DIR/build
 
     BUILD_COMMANDS="cd /workdir/build && cmake -DCMAKE_TOOLCHAIN_FILE=/workdir/.cicd/helpers/clang.make -DENABLE_TESTS=ON .. && make -j$JOBS"
     TEST_COMMANDS="cd /workdir/build && ctest -j$JOBS --output-on-failure -T Test"
