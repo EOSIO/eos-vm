@@ -1143,8 +1143,6 @@ string generate_test_call(picojson::object obj, string expected_t, string expect
 
    ss << "\"" << obj["field"].to_str() << "\"";
 
-   size_t i         = 0;
-   size_t args_size = obj["args"].get<picojson::array>().size();
    for (picojson::value argv : obj["args"].get<picojson::array>()) {
       ss << ", ";
       picojson::object arg = argv.get<picojson::object>();
@@ -1181,8 +1179,6 @@ string generate_trap_call(picojson::object obj) {
    ss << "bkend(nullptr, \"env\", ";
    ss << "\"" << obj["field"].to_str() << "\"";
 
-   size_t i         = 0;
-   size_t args_size = obj["args"].get<picojson::array>().size();
    for (picojson::value argv : obj["args"].get<picojson::array>()) {
       ss << ", ";
       picojson::object arg = argv.get<picojson::object>();
@@ -1205,8 +1201,6 @@ string generate_call(picojson::object obj) {
    ss << "bkend(nullptr, \"env\", ";
    ss << "\"" << obj["field"].to_str() << "\"";
 
-   size_t i         = 0;
-   size_t args_size = obj["args"].get<picojson::array>().size();
    for (picojson::value argv : obj["args"].get<picojson::array>()) {
       ss << ", ";
       picojson::object arg = argv.get<picojson::object>();

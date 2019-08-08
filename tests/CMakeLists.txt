@@ -61,9 +61,9 @@ endforeach()
 add_executable( eos_vm_spec_tests main.cpp ${SPEC_TESTS} )
 target_link_libraries( eos_vm_spec_tests eos-vm Catch2::Catch2 )
 
-target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_SOURCE_DIR}/tests )
-target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_SOURCE_DIR}/include )
-target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_BINARY_DIR}/tests/spec )
+target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} )
+target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include )
+target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/spec )
 
 add_executable(unit_tests main.cpp 
 	                  varint_tests.cpp 

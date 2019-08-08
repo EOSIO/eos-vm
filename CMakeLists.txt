@@ -103,7 +103,7 @@ if(ENABLE_INSTALL)
                DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
                COMPONENT Headers)
 
-   install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/eosio
+   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/eosio
       DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 endif()
 
