@@ -3,8 +3,6 @@ set -eo pipefail
 . ./.cicd/helpers/general.sh
 . ./$HELPERS_DIR/execute.sh
 
-echo $ENABLE_BUILD
-
 execute mkdir -p $ROOT_DIR/build
 
 if [[ $(uname) == Darwin ]]; then
@@ -15,13 +13,13 @@ if [[ $(uname) == Darwin ]]; then
     ccache -s
     cd build
     if [[ $BUILDKITE ]]; then
-        if [[ $ENABLE_BUILD ]]; then
+        if [[ $ENABLE_BUILD == true ]]; then
             execute $MAC_CMAKE
             execute $MAC_MAKE
         elif [[ $ENABLE_TEST ]]; then
             execute $MAC_TEST
         fi
-    elif [[ $TRAVIS ]]; then
+    elif [[ $TRAVIS == true ]]; then
         execute mkdir -p wasms
         execute $MAC_CMAKE
         execute $MAC_MAKE
@@ -43,9 +41,9 @@ else # Linux
         # Generate Base Images
         execute ./.cicd/generate-base-images.sh
         [[ ! -d $ROOT_DIR/build/wasms ]] && execute git clone git@github.com:EOSIO/eos-vm-test-wasms.git $ROOT_DIR/build/wasms # support for private wasm repo (contact Bucky)
-        [[ $ENABLE_BUILD ]] && append-to-commands $BUILD_COMMANDS
-        [[ $ENABLE_TEST ]] && append-to-commands $TEST_COMMANDS
-    elif [[ $TRAVIS ]]; then
+        [[ $ENABLE_BUILD == true ]] && append-to-commands $BUILD_COMMANDS
+        [[ $ENABLE_TEST == true ]] && append-to-commands $TEST_COMMANDS
+    elif [[ $TRAVIS == true ]]; then
         execute mkdir $ROOT_DIR/build/wasms
         ARGS="$ARGS -v /usr/lib/ccache -v $HOME/.ccache:/opt/.ccache -e JOBS -e CCACHE_DIR=/opt/.ccache"
         COMMANDS="ccache -s && $BUILD_COMMANDS"
