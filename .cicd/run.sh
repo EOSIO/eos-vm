@@ -35,7 +35,7 @@ else # Linux
         [[ $ENABLE_TEST ]] && append-to-commands $TEST_COMMANDS
     elif [[ $TRAVIS ]]; then
         ARGS="$ARGS -v /usr/lib/ccache -v $HOME/.ccache:/opt/.ccache -e JOBS -e CCACHE_DIR=/opt/.ccache"
-        COMMANDS="ccache -s && $BUILD_COMMANDS && $TEST_COMMANDS"
+        COMMANDS="ccache -s && $BUILD_COMMANDS"
     fi
 
     # Docker Run
