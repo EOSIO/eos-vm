@@ -60,8 +60,8 @@ steps:
           inherit-environment-vars: true
           vm-name: 10.14.4_6C_14G_40G
           vm-registry-tag: "clean::cicd::git-ssh::nas::brew::buildkite-agent"
-          modify-cpu: 11
-          modify-ram: 22
+          modify-cpu: 12
+          modify-ram: 24
           always-pull: true
           debug: true
           wait-network: true
