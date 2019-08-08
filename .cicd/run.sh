@@ -13,11 +13,11 @@ if [[ $(uname) == Darwin ]]; then
     cd $ROOT_DIR
     ccache -s
     cd build
-    if [[ $BUILDKITE ]]; then
+    if [[ $BUILDKITE == true ]]; then
         if [[ $ENABLE_BUILD == true ]]; then
             execute $MAC_CMAKE
             execute $MAC_MAKE
-        elif [[ $ENABLE_TEST ]]; then
+        elif [[ $ENABLE_TEST == true ]]; then
             execute $MAC_TEST
         fi
     elif [[ $TRAVIS == true ]]; then
@@ -38,7 +38,7 @@ else # Linux
     # Docker Run Arguments
     ARGS=${ARGS:-"--rm -v $(pwd):/workdir"}
     # Docker Commands
-    if [[ $BUILDKITE ]]; then
+    if [[ $BUILDKITE == true ]]; then
         # Generate Base Images
         execute ./.cicd/generate-base-images.sh
         [[ ! -d $ROOT_DIR/build/wasms ]] && execute git clone git@github.com:EOSIO/eos-vm-test-wasms.git $ROOT_DIR/build/wasms # support for private wasm repo (contact Bucky)
