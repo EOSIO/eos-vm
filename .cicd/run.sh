@@ -28,7 +28,6 @@ else # Linux
     execute ./.cicd/generate-base-images.sh
 
     execute mkdir -p $ROOT_DIR/build
-    [[ ! -d $ROOT_DIR/build/wasms ]] && execute git clone git@github.com:EOSIO/eos-vm-test-wasms.git $ROOT_DIR/build/wasms # support for private wasm repo (contact Bucky)
 
     BUILD_COMMANDS="cd /workdir/build && cmake -DCMAKE_TOOLCHAIN_FILE=/workdir/.cicd/helpers/clang.make -DENABLE_TESTS=ON .. && make -j$JOBS"
     TEST_COMMANDS="cd /workdir/build && ctest -j$JOBS -V --output-on-failure -T Test"
@@ -37,6 +36,7 @@ else # Linux
     ARGS=${ARGS:-"--rm -v $(pwd):/workdir"}
     # Docker Commands
     if [[ $BUILDKITE ]]; then
+        [[ ! -d $ROOT_DIR/build/wasms ]] && execute git clone git@github.com:EOSIO/eos-vm-test-wasms.git $ROOT_DIR/build/wasms # support for private wasm repo (contact Bucky)
         [[ $ENABLE_BUILD ]] && append-to-commands $BUILD_COMMANDS
         [[ $ENABLE_TEST ]] && append-to-commands $TEST_COMMANDS
     elif [[ $TRAVIS ]]; then
