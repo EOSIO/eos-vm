@@ -7,13 +7,13 @@ execute mkdir -p $BUILD_DIR
 
 if [[ $(uname) == Darwin ]]; then
 
-    MAC_CMAKE="cmake -DCMAKE_BUILD_TYPE=Release .."
-    MAC_MAKE="make -j$JOBS"
     MAC_TEST="ctest -j$JOBS --output-on-failure -T Test"
+    
     cd $BUILD_DIR
     execute ccache -s
     if [[ $ENABLE_BUILD == true ]] || [[ $TRAVIS == true ]]; then
-        execute $MAC_CMAKE
+        execute "cmake -DCMAKE_BUILD_TYPE=Release .."
+        execute "make -j$JOBS"
         execute $MAC_MAKE
     fi
     if [[ $BUILDKITE == true ]]; then
