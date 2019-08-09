@@ -32,6 +32,7 @@ int main(int argc, char** argv) {
 
       // Point the backend to the allocator you want it to use.
       bkend.set_wasm_allocator( &wa );
+      bkend.initialize();
 
       // Execute any exported functions provided by the wasm.
       bkend.execute_all(wd);
