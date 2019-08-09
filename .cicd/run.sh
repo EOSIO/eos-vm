@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 set -eo pipefail
 . ./.cicd/helpers/general.sh
-. ./$HELPERS_DIR/execute.sh
+. ./.cicd/helpers/execute.sh
 
 execute mkdir -p $BUILD_DIR
 
-if [[ $(uname) == Darwin ]]; then
+if [[ $(uname) == 'Darwin' ]]; then
 
     MAC_TEST="ctest -j$JOBS --output-on-failure -T Test"
 
     cd $BUILD_DIR
     execute ccache -s
     if [[ $ENABLE_BUILD == true ]] || [[ $TRAVIS == true ]]; then
-        execute "cmake -DCMAKE_BUILD_TYPE=Release .."
-        execute "make -j$JOBS"
+        execute cmake -DCMAKE_BUILD_TYPE=Release ..
+        execute make -j$JOBS
     fi
     if [[ $BUILDKITE == true ]]; then
         [[ $ENABLE_TEST == true ]] && execute $MAC_TEST
