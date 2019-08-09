@@ -12,13 +12,14 @@ if [[ $(uname) == Darwin ]]; then
     cd $BUILD_DIR
     execute ccache -s
     if [[ $ENABLE_BUILD == true ]] || [[ $TRAVIS == true ]]; then
+        [[ $TRAVIS == true ]] && execute mkdir -p wasms # Travis doesn't have git access to clone the private repo (Temporary)
         execute cmake -DCMAKE_BUILD_TYPE=Release ..
         execute make -j$JOBS
     fi
     if [[ $BUILDKITE == true ]]; then
         [[ $ENABLE_TEST == true ]] && execute $MAC_TEST || true
     elif [[ $TRAVIS == true ]]; then
-        execute mkdir -p wasms
+
     fi
 
 else # Linux
