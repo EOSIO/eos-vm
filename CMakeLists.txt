@@ -30,11 +30,12 @@ link_libraries(Threads::Threads)
 # ##################################################################################################
 include(CMakeDependentOption)
 option(ENABLE_SOFTFLOAT "enable the backend to use deterministic software floating point operations"
-	OFF)
+	ON)
+option(FULL_DEBUG_BUILD "enables stack dumping and instruction tracing" OFF)
 option(ENABLE_INSTALL "enable this library to be installed" ON)
 option(ENABLE_MEMORY_OPS_ALIGNMENT "enable the backend to obey alignment hints" OFF)
 option(ENABLE_TOOLS "enable building of tools" ON)
-option(ENABLE_TESTS "enable building of unit tests, spec tests" OFF)
+option(ENABLE_TESTS "enable building of unit tests, spec tests" ON)
 cmake_dependent_option(ENABLE_FUZZ_TESTS "enable fuzz testing" OFF "ENABLE_TESTS" ON)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/modules")
@@ -50,23 +51,30 @@ target_include_directories(eos-vm
                                      ${CMAKE_CURRENT_SOURCE_DIR}/external/outcome/single-header)
 
 # ##################################################################################################
+# Enable debugging stats for eos-vm.
+# ##################################################################################################
+if(FULL_DEBUG_BUILD)
+   target_compile_definitions(eos-vm INTERFACE -DEOS_VM_FULL_DEBUG)
+endif()
+
+# ##################################################################################################
 # Option specific build configurations.
 # ##################################################################################################
 if(ENABLE_SOFTFLOAT)
    if(NOT TARGET softfloat)
       add_subdirectory(external)
    endif()
-   add_definitions(-DEOS_VM_SOFTFLOAT)
+   target_compile_definitions(eos-vm INTERFACE -DEOS_VM_SOFTFLOAT)
    target_link_libraries(eos-vm INTERFACE softfloat)
 endif()
 
 if(NOT USE_EXISTING_BOOST)
-   add_definitions(-DEOS_VM_USE_EXTERNAL_OUTCOME)
+   target_compile_definitions(eos-vm INTERFACE -DEOS_VM_USE_EXTERNAL_OUTCOME)
    add_subdirectory(external/outcome)
 endif()
 
 if(ENABLE_MEMORY_OPS_ALIGNMENT)
-   add_definitions(-DEOS_VM_ALIGN_MEMORY_OPS)
+   target_compile_definitions(eos-vm INTERFACE -DEOS_VM_ALIGN_MEMORY_OPS)
 endif()
 
 # ##################################################################################################
@@ -84,9 +92,25 @@ if(ENABLE_TESTS)
    set(CATCH_BUILD_TESTING OFF CACHE BOOL "disable building tests")
    set(CATCH_INSTALL_DOCS OFF CACHE BOOL "disable installing docs")
    set(CATCH_INSTALL_HELPERS OFF CACHE BOOL "disable installing helpers")
-   add_subdirectory(${CMAKE_SOURCE_DIR}/external/Catch2)
+   add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/Catch2)
    include(external/Catch2/contrib/Catch.cmake)
    add_subdirectory(tests)
+   if (NOT EXISTS ${CMAKE_BINARY_DIR}/wasms)
+      include(ExternalProject)
+      ExternalProject_Add(
+         eos_vm_test_wasms
+         GIT_REPOSITORY "git@github.com:eosio/eos-vm-test-wasms.git"
+         SOURCE_DIR ${CMAKE_BINARY_DIR}/wasms
+         BINARY_DIR ${CMAKE_BINARY_DIR}/wasms
+         BUILD_ALWAYS 0
+         BUILD_COMMAND ""
+         TEST_COMMAND ""
+         INSTALL_COMMAND ""
+         UPDATE_COMMAND ""
+         PATCH_COMMAND ""
+         CONFIGURE_COMMAND ""
+      )
+   endif()
 endif()
 
 # ##################################################################################################
