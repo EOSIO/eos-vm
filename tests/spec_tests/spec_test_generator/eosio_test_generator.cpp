@@ -12,6 +12,7 @@ using namespace std;
 const string include_eosio = "#include <eosio/eosio.hpp>\n\n";
 const string extern_c      = "extern \"C\" {\n";
 const string apply_func    = "   void apply(uint64_t, uint64_t, uint64_t) {\n";
+const string mem_clear     = "      volatile uint64_t* r = (uint64_t*)0;\n      *r = 0;\n";
 
 map<string, bool> func_already_written;
 map<string, int>  func_name_to_index;
@@ -25,6 +26,7 @@ void write_file(ofstream& file, string funcs, string func_calls) {
    out << extern_c;
    out << funcs;
    out << apply_func;
+   out << mem_clear;
    out << func_calls;
    out << "   }\n";
    out << "}\n";
@@ -100,9 +102,42 @@ bool check_exists(string function_name, vector<tuple<string, string>> params, tu
    }
 }
 
-string write_function(string function_name, vector<tuple<string, string>> params,
-                      tuple<string, string> expected_return) {
+vector<tuple<string, string>> get_params(picojson::object action) {
+   vector<tuple<string, string>> params = {};
+
+   auto args = action["args"].get<picojson::array>();
+   for (auto a : args) {
+      auto arg = a.get<picojson::object>();
+
+      string type  = arg["type"].to_str();
+      string value = arg["value"].to_str();
+      params.push_back(make_tuple(type, value));
+   }
+
+   return params;
+}
+
+tuple<string, string> get_expected_return(picojson::object test) {
+   tuple<string, string>         expected_return;
+
+   auto expecteds = test["expected"].get<picojson::array>();
+   for (auto e : expecteds) {
+      auto   expect   = e.get<picojson::object>();
+      string type     = expect["type"].to_str();
+      string value    = expect["value"].to_str();
+      expected_return = make_tuple(type, value);
+   }
+
+   return expected_return;
+}
+
+string write_function(string function_name, picojson::object test) {
    stringstream out;
+
+   auto   action = test["action"].get<picojson::object>();
+
+   vector<tuple<string, string>> params = get_params(action);
+   tuple<string, string> expected_return = get_expected_return(test);
 
    if (check_exists(function_name, params, expected_return)) {
       return "";
@@ -142,14 +177,21 @@ string write_function(string function_name, vector<tuple<string, string>> params
    return out.str();
 }
 
-string write_function_call(string function_name, vector<tuple<string, string>> params,
-                           tuple<string, string> expected_return, int var_index, int param_index_offset) {
+string write_function_call(string function_name, picojson::object test, int var_index) {
    stringstream out;
+   stringstream func_call;
+   string       return_cast = "";
+
+   auto   action = test["action"].get<picojson::object>();
+   vector<tuple<string, string>> params = get_params(action);
+   tuple<string, string> expected_return = get_expected_return(test);
+
    auto [return_type, return_val] = expected_return;
 
-   string       return_cast = "";
-   stringstream func_call;
 
+   bool needs_split = var_index % 10;
+
+   int param_index_offset = var_index;
    if (params.size() > 0) {
       int param_index = 0;
       for (auto p = params.begin(); p != params.end(); p++) {
@@ -214,7 +256,7 @@ string write_function_call(string function_name, vector<tuple<string, string>> p
          func_call << "*(double*)&"
                    << "y" << param_index << param_index_offset;
       } else {
-         func_call << value;
+         func_call << "(" << c_type(type) << ")" << value;
       }
    }
    func_call << ");";
@@ -245,63 +287,13 @@ string write_function_call(string function_name, vector<tuple<string, string>> p
    return out.str();
 }
 
-string generate_functions(picojson::object test, bool call, int var_index) {
-   vector<tuple<string, string>> params = {};
-   tuple<string, string>         expected_return;
-
-   auto   action_obj    = test["action"].get<picojson::object>();
-   string function_name = action_obj["field"].to_str();
-   function_name        = "_" + normalize(function_name);
-
-   auto args = action_obj["args"].get<picojson::array>();
-   for (auto a : args) {
-      auto arg = a.get<picojson::object>();
-
-      string type  = arg["type"].to_str();
-      string value = arg["value"].to_str();
-      params.push_back(make_tuple(type, value));
-   }
-
-   auto expecteds = test["expected"].get<picojson::array>();
-   for (auto e : expecteds) {
-      auto   expect   = e.get<picojson::object>();
-      string type     = expect["type"].to_str();
-      string value    = expect["value"].to_str();
-      expected_return = make_tuple(type, value);
-   }
-
-   if (call) {
-      return write_function_call(function_name, params, expected_return, var_index, var_index);
-   } else {
-      return write_function(function_name, params, expected_return);
-   }
-}
-
 void usage(const char* name) {
    std::cerr << "Usage:\n"
              << "  " << name << " [json file created by wast2json]\n";
    std::exit(2);
 }
 
-int main(int argc, char** argv) {
-   ifstream     ifs;
-   stringstream ss;
-   if (argc != 2 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
-      usage(argc ? argv[0] : "eosio_test_generator");
-   }
-   ifs.open(argv[1]);
-   if (!ifs) {
-      std::cerr << "Cannot open file: " << argv[1] << std::endl;
-      return EXIT_FAILURE;
-   }
-   string s;
-   while (getline(ifs, s)) { ss << s; }
-   ifs.close();
-
-   picojson::value v;
-   picojson::parse(v, ss.str());
-   string test_suite_name;
-
+map<string, vector<picojson::object>> get_file_func_mappings(picojson::value v) {
    map<string, vector<picojson::object>> file_func_mappings;
    const auto&                           o = v.get<picojson::object>();
 
@@ -323,6 +315,30 @@ int main(int argc, char** argv) {
       }
    }
 
+   return file_func_mappings;
+}
+
+int main(int argc, char** argv) {
+   ifstream     ifs;
+   stringstream ss;
+   if (argc != 2 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
+      usage(argc ? argv[0] : "eosio_test_generator");
+   }
+   ifs.open(argv[1]);
+   if (!ifs) {
+      std::cerr << "Cannot open file: " << argv[1] << std::endl;
+      return EXIT_FAILURE;
+   }
+   string s;
+   while (getline(ifs, s)) { ss << s; }
+   ifs.close();
+
+   picojson::value v;
+   picojson::parse(v, ss.str());
+   string test_suite_name;
+
+   map<string, vector<picojson::object>> file_func_mappings = get_file_func_mappings(v);
+
    for (const auto& f : file_func_mappings) {
       ofstream ofs_cpp;
       ofstream ofs_map;
@@ -342,9 +358,13 @@ int main(int argc, char** argv) {
 
       int var_index = 0;
       func_index    = 0;
-      for (const auto& ff : f.second) {
-         funcs << generate_functions(ff, false, var_index);
-         func_calls << generate_functions(ff, true, var_index);
+      for (picojson::object test : f.second) {
+         auto   action = test["action"].get<picojson::object>();
+         string function_name = action["field"].to_str();
+         function_name        = "_" + normalize(function_name);
+
+         funcs << write_function(function_name, test);
+         func_calls << write_function_call(function_name, test, var_index);
          ++var_index;
       }
 
