@@ -26,7 +26,7 @@ namespace eosio { namespace vm {
    struct construct_derived<Derived, nullptr_t> {
       static nullptr_t value(nullptr_t) { return nullptr; }
    };
-
+   
    // Workaround for compiler bug handling C++g17 auto template parameters.
    // The parameter is not treated as being type-dependent in all contexts,
    // causing early evaluation of the containing expression.
@@ -103,13 +103,13 @@ namespace eosio { namespace vm {
 
    namespace detail {
 
-   template<typename T, typename U>
-   auto from_wasm_type_impl(T (*)(U)) -> U;
+   template<typename T, typename U, typename... Args>
+   auto from_wasm_type_impl(T (*)(U, Args...)) -> U;
    template<typename T>
    using from_wasm_type_impl_t = decltype(detail::from_wasm_type_impl(&wasm_type_converter<T>::from_wasm));
 
-   template<typename T, typename U>
-   auto to_wasm_type_impl(T (*)(U)) -> T;
+   template<typename T, typename U, typename... Args>
+   auto to_wasm_type_impl(T (*)(U, Args...)) -> T;
    template<typename T>
    using to_wasm_type_impl_t = decltype(detail::to_wasm_type_impl(&wasm_type_converter<T>::to_wasm));
 
@@ -170,14 +170,18 @@ namespace eosio { namespace vm {
 
    template<>
    struct wasm_type_converter<bool> {
-      static bool from_wasm(uint32_t val) { return val != 0; }
-      static uint32_t to_wasm(bool val) { return val? 1 : 0; }
+      template <typename Walloc>
+      static bool from_wasm(uint32_t val, Walloc) { return val != 0; }
+      template <typename Walloc>
+      static uint32_t to_wasm(bool val, Walloc) { return val? 1 : 0; }
    };
 
    template<typename T>
    struct wasm_type_converter<T&> {
-      static T& from_wasm(T* ptr) { return *ptr; }
-      static T* to_wasm(T& ref) { return std::addressof(ref); }
+      template <typename Walloc>
+      static T& from_wasm(T* ptr, Walloc) { return *ptr; }
+      template <typename Walloc>
+      static T* to_wasm(T& ref, Walloc) { return std::addressof(ref); }
    };
 
    template <typename T>
@@ -233,15 +237,29 @@ namespace eosio { namespace vm {
             __cxxabiv1::__cxa_demangle(mangled_name, nullptr, &len, &status), &::std::free);
       return ptr.get();
    }
+    struct maybe_void_t {
+      struct void_t {};
+      static void_t void_val;
+      inline constexpr auto operator[](void_t)const { return void_val; }
+      template <typename T>
+      inline constexpr auto operator[](T&& val)const { return std::forward<T>(val); } 
+      template <typename T>
+      inline constexpr friend auto operator, (T&& val, void_t) { return std::forward<T>(val); }
+   } maybe_void;
 
-   template <auto F, typename Derived, typename Host>
-   auto maybe_bind_host(Host* host) {
-      if constexpr (!std::is_same_v<std::decay_t<Derived>, nullptr_t>)
-         return std::bind(F, construct_derived<Derived, Host>::value(*host));
+   template <auto F, typename Derived, typename Host, typename Walloc, typename Args, size_t... Is>
+   auto invoke_with_host(Host* host, Walloc* walloc, operand_stack& os) {
+      constexpr size_t args_end = sizeof...(Is)-1;
+      if constexpr (!std::is_same_v<Derived, nullptr_t>)
+         return maybe_void[std::invoke(F, construct_derived<Derived, Host>::value(*host),
+                                 detail::get_value<std::tuple_element_t<Is, Args>>(walloc, 
+                                    std::move(os.get_back(args_end - Is)))...), maybe_void_t::void_val];
       else
-         return std::forward<decltype(F)>(F);
+         return maybe_void[std::invoke(F, 
+                                 detail::get_value<std::tuple_element_t<Is, Args>>(walloc, 
+                                    std::move(os.get_back(args_end - Is)))...), maybe_void_t::void_val];
    }
-   
+
    // RAII type for handling results
    template <typename Res, typename Walloc, size_t TrimAmt>
    struct invoke_result_wrapper {
@@ -263,23 +281,20 @@ namespace eosio { namespace vm {
       operand_stack& os;
    };
 
-   template <typename Res, typename Walloc, size_t TrimAmt>
+   template <size_t TrimAmt, typename Res, typename Walloc>
    auto wrap_invoke(Walloc* walloc, operand_stack& os, Res&& res=Res()) {
-      if constexpr (std::is_same_v<typename Res::type, void>)
+      if constexpr (std::is_same_v<Res, maybe_void_t::void_t>)
          return invoke_result_wrapper<void, Walloc, TrimAmt>(os, walloc);
       else
          return invoke_result_wrapper<Res, Walloc, TrimAmt>(std::forward<Res>(res), os, walloc);
    }
 
-   template <typename WAlloc, typename Cls, typename Cls2, auto F, typename R, typename Args, size_t... Is>
+   template <typename Walloc, typename Cls, typename Cls2, auto F, typename R, typename Args, size_t... Is>
    auto create_function(std::index_sequence<Is...>) {
-      return std::function<void(Cls*, WAlloc*, operand_stack&)>{ [](Cls* self, WAlloc* walloc, operand_stack& os) {
-         size_t i = sizeof...(Is) - 1;
-         using invoke_res_t = std::invoke_result<decltype(F), typename std::tuple_element<Is, Args>::type...>;
-         wrap_invoke<invoke_res_t, WAlloc, sizeof...(Is)>(
-               walloc, os, std::invoke(maybe_bind_host<F, Cls2, Cls>(self), 
-                       detail::get_value<typename std::tuple_element<Is, Args>::type>(
-                           walloc, std::move(os.get_back(i - Is)))...));
+      return std::function<void(Cls*, Walloc*, operand_stack&)>{ [](Cls* self, Walloc* walloc, operand_stack& os) {
+         wrap_invoke<sizeof...(Is)>(
+               walloc, os, maybe_void[invoke_with_host<F, Cls2, Cls, Walloc, Args, Is...>(
+                  self, walloc, os), maybe_void_t::void_val]);
       } };
    }
 

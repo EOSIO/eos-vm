@@ -58,6 +58,8 @@ int main(int argc, char** argv) {
 
       // Point the backend to the allocator you want it to use.
       bkend.set_wasm_allocator(&wa);
+
+      bkend.initialize();
       // Resolve the host functions indices.
       rhf_t::resolve(bkend.get_module());
 
