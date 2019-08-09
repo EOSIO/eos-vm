@@ -12,8 +12,8 @@ if [[ $(uname) == Darwin ]]; then
     cd $BUILD_DIR
     execute ccache -s
     if [[ $ENABLE_BUILD == true ]] || [[ $TRAVIS == true ]]; then
-        execute "cmake -DCMAKE_BUILD_TYPE=Release .."
-        execute "make -j$JOBS"
+        execute cmake -DCMAKE_BUILD_TYPE=Release ..
+        execute make -j$JOBS
     fi
     if [[ $BUILDKITE == true ]]; then
         [[ $ENABLE_TEST == true ]] && execute $MAC_TEST || true
