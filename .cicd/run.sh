@@ -19,7 +19,7 @@ if [[ $(uname) == Darwin ]]; then
     if [[ $BUILDKITE == true ]]; then
         [[ $ENABLE_TEST == true ]] && execute $MAC_TEST || true
     elif [[ $TRAVIS == true ]]; then
-
+        # Tests disabled until wasms repo goes public
     fi
 
 else # Linux
