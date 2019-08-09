@@ -1,23 +1,22 @@
 #!/usr/bin/env bash
 set -eo pipefail
 . ./.cicd/helpers/general.sh
-. $HELPERS_DIR/execute.sh
+. ./.cicd/helpers/execute.sh
 
 execute mkdir -p $BUILD_DIR
 
-if [[ $(uname) == 'Darwin' ]]; then
+if [[ $(uname) == Darwin ]]; then
 
     MAC_TEST="ctest -j$JOBS --output-on-failure -T Test"
 
     cd $BUILD_DIR
     execute ccache -s
     if [[ $ENABLE_BUILD == true ]] || [[ $TRAVIS == true ]]; then
-        execute cmake -DCMAKE_BUILD_TYPE=Release ..
-        execute make -j$JOBS
+        execute "cmake -DCMAKE_BUILD_TYPE=Release .."
+        execute "make -j$JOBS"
     fi
     if [[ $BUILDKITE == true ]]; then
-        echo HERE
-        [[ $ENABLE_TEST == true ]] && execute $MAC_TEST
+        [[ $ENABLE_TEST == true ]] && execute $MAC_TEST || true
     elif [[ $TRAVIS == true ]]; then
         execute mkdir -p wasms
     fi
@@ -41,8 +40,8 @@ else # Linux
         # Generate Base Images
         execute ./.cicd/generate-base-images.sh
         [[ ! -d $ROOT_DIR/build/wasms ]] && execute git clone git@github.com:EOSIO/eos-vm-test-wasms.git $ROOT_DIR/build/wasms # support for private wasm repo (contact Bucky)
-        [[ $ENABLE_BUILD == true ]] && append-to-commands $BUILD_COMMANDS
-        [[ $ENABLE_TEST == true ]] && append-to-commands $TEST_COMMANDS
+        [[ $ENABLE_BUILD == true ]] && append-to-commands $BUILD_COMMANDS || true
+        [[ $ENABLE_TEST == true ]] && append-to-commands $TEST_COMMANDS || true
     elif [[ $TRAVIS == true ]]; then
         execute mkdir $ROOT_DIR/build/wasms
         ARGS="$ARGS -v /usr/lib/ccache -v $HOME/.ccache:/opt/.ccache -e JOBS -e CCACHE_DIR=/opt/.ccache"
