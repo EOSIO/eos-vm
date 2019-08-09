@@ -1,4 +1,5 @@
 #include <eosio/vm/watchdog.hpp>
+#include <atomic>
 #include <chrono>
 
 #include <catch2/catch.hpp>
