@@ -3,7 +3,7 @@
 #include <eosio/vm/allocator.hpp>
 #include <eosio/vm/types.hpp>
 
-#include <softfloat.hpp>
+#include <eosio/vm/softfloat.hpp>
 
 namespace eosio { namespace vm {
 
@@ -795,11 +795,53 @@ namespace eosio { namespace vm {
          emit_i64_relop(0x93);
       }
 
-      // HACK:
+      template<auto F>
+      static float32_t adapt_f32_unop(float32_t arg) {
+         return ::to_softfloat32(static_cast<decltype(F)>(F)(::from_softfloat32(arg)));
+      }
+      template<auto F>
+      static float32_t adapt_f32_binop(float32_t lhs, float32_t rhs) {
+         return ::to_softfloat32(static_cast<decltype(F)>(F)(::from_softfloat32(lhs), ::from_softfloat32(rhs)));
+      }
+      template<auto F>
+      static bool adapt_f32_cmp(float32_t lhs, float32_t rhs) {
+         return static_cast<decltype(F)>(F)(::from_softfloat32(lhs), ::from_softfloat32(rhs));
+      }
+
+      template<auto F>
+      static float64_t adapt_f64_unop(float64_t arg) {
+         return ::to_softfloat64(static_cast<decltype(F)>(F)(::from_softfloat64(arg)));
+      }
+      template<auto F>
+      static float64_t adapt_f64_binop(float64_t lhs, float64_t rhs) {
+         return ::to_softfloat64(static_cast<decltype(F)>(F)(::from_softfloat64(lhs), ::from_softfloat64(rhs)));
+      }
+      template<auto F>
+      static bool adapt_f64_cmp(float64_t lhs, float64_t rhs) {
+         return static_cast<decltype(F)>(F)(::from_softfloat64(lhs), ::from_softfloat64(rhs));
+      }
+
+      // HACK: avoid linking to softfloat if we aren't using it
+      // and also avoid passing arguments in floating point registers,
+      // since softfloat uses integer registers.
       template<auto F>
       constexpr auto choose_fn() {
          if constexpr (use_softfloat) {
-            return F;
+            if constexpr (std::is_same_v<decltype(F), float(*)(float)>) {
+               return &adapt_f32_unop<F>;
+            } else if constexpr(std::is_same_v<decltype(F), float(*)(float,float)>) {
+               return &adapt_f32_binop<F>;
+            } else if constexpr(std::is_same_v<decltype(F), bool(*)(float,float)>) {
+               return &adapt_f32_cmp<F>;
+            } else if constexpr (std::is_same_v<decltype(F), double(*)(double)>) {
+               return &adapt_f64_unop<F>;
+            } else if constexpr(std::is_same_v<decltype(F), double(*)(double,double)>) {
+               return &adapt_f64_binop<F>;
+            } else if constexpr(std::is_same_v<decltype(F), bool(*)(double,double)>) {
+               return &adapt_f64_cmp<F>;
+            } else {
+               static_assert(std::is_same_v<decltype(F), void>, "Unhandled function type");
+            }
          } else {
             return nullptr;
          }
@@ -807,52 +849,52 @@ namespace eosio { namespace vm {
 
       // --------------- f32 relops ----------------------
       void emit_f32_eq() {
-         emit_f32_relop(0x00, choose_fn<&::f32_eq>(), false, false);
+         emit_f32_relop(0x00, choose_fn<&_eosio_f32_eq>(), false, false);
       }
 
       void emit_f32_ne() {
-         emit_f32_relop(0x00, choose_fn<&::f32_eq>(), false, true);
+         emit_f32_relop(0x00, choose_fn<&_eosio_f32_eq>(), false, true);
       }
 
       void emit_f32_lt() {
-         emit_f32_relop(0x01, choose_fn<&::f32_lt>(), false, false);
+         emit_f32_relop(0x01, choose_fn<&_eosio_f32_lt>(), false, false);
       }
 
       void emit_f32_gt() {
-         emit_f32_relop(0x01, choose_fn<&::f32_lt>(), true, false);
+         emit_f32_relop(0x01, choose_fn<&_eosio_f32_lt>(), true, false);
       }
 
       void emit_f32_le() {
-         emit_f32_relop(0x02, choose_fn<&::f32_le>(), false, false);
+         emit_f32_relop(0x02, choose_fn<&_eosio_f32_le>(), false, false);
       }
 
       void emit_f32_ge() {
-         emit_f32_relop(0x02, choose_fn<&::f32_le>(), true, false);
+         emit_f32_relop(0x02, choose_fn<&_eosio_f32_le>(), true, false);
       }
 
       // --------------- f64 relops ----------------------
       void emit_f64_eq() {
-         emit_f64_relop(0x00, choose_fn<&::f64_eq>(), false, false);
+         emit_f64_relop(0x00, choose_fn<&_eosio_f64_eq>(), false, false);
       }
 
       void emit_f64_ne() {
-         emit_f64_relop(0x00, choose_fn<&::f64_eq>(), false, true);
+         emit_f64_relop(0x00, choose_fn<&_eosio_f64_eq>(), false, true);
       }
 
       void emit_f64_lt() {
-         emit_f64_relop(0x01, choose_fn<&::f64_lt>(), false, false);
+         emit_f64_relop(0x01, choose_fn<&_eosio_f64_lt>(), false, false);
       }
 
       void emit_f64_gt() {
-         emit_f64_relop(0x01, choose_fn<&::f64_lt>(), true, false);
+         emit_f64_relop(0x01, choose_fn<&_eosio_f64_lt>(), true, false);
       }
 
       void emit_f64_le() {
-         emit_f64_relop(0x02, choose_fn<&::f64_le>(), false, false);
+         emit_f64_relop(0x02, choose_fn<&_eosio_f64_le>(), false, false);
       }
 
       void emit_f64_ge() {
-         emit_f64_relop(0x02, choose_fn<&::f64_le>(), true, false);
+         emit_f64_relop(0x02, choose_fn<&_eosio_f64_le>(), true, false);
       }
 
       // --------------- i32 unops ----------------------
@@ -1721,10 +1763,40 @@ namespace eosio { namespace vm {
 
       void emit_f32_relop(uint8_t opcode, bool (*softfloatfun)(float32_t, float32_t), bool switch_params, bool flip_result) {
          if constexpr (use_softfloat) {
-            // popq rsi
-            // popq rdi
-            // call softfloatfun
-            // pushq rax
+            // pushq %rdi
+            emit_bytes(0x57);
+            // pushq %rsi
+            emit_bytes(0x56);
+            if(switch_params) {
+               // movq 24(%rsp), %esi
+               emit_bytes(0x8b, 0x74, 0x24, 0x18);
+               // movq 16(%rsp), %edi
+               emit_bytes(0x8b, 0x7c, 0x24, 0x10);
+            } else {
+               // movq 16(%rsp), %esi
+               emit_bytes(0x8b, 0x74, 0x24, 0x10);
+               // movq 24(%rsp), %edi
+               emit_bytes(0x8b, 0x7c, 0x24, 0x18);
+            }
+            emit_align_stack();
+            // movabsq $softfloatfun, %rax
+            emit_bytes(0x48, 0xb8);
+            emit_operand_ptr(softfloatfun);
+            // callq *%rax
+            emit_bytes(0xff, 0xd0);
+            emit_restore_stack();
+            // popq %rsi
+            emit_bytes(0x5e);
+            // popq %rdi
+            emit_bytes(0x5f);
+            if (flip_result) {
+               // xor $0x1, %al
+               emit_bytes(0x34, 0x01);
+            }
+            // addq $8, %rsp
+            emit_bytes(0x48, 0x83, 0xc4, 0x08);
+            // movq %rax, (%rsp)
+            emit_bytes(0x48, 0x89, 0x04, 0x24);
          } else {
             // ucomiss+seta/setae is shorter but can't handle eq/ne
             if(switch_params) {
@@ -1756,10 +1828,40 @@ namespace eosio { namespace vm {
 
       void emit_f64_relop(uint8_t opcode, bool (*softfloatfun)(float64_t, float64_t), bool switch_params, bool flip_result) {
          if constexpr (use_softfloat) {
-            // popq rsi
-            // popq rdi
-            // call softfloatfun
-            // pushq rax
+            // pushq %rdi
+            emit_bytes(0x57);
+            // pushq %rsi
+            emit_bytes(0x56);
+            if(switch_params) {
+               // movq 24(%rsp), %rsi
+               emit_bytes(0x48, 0x8b, 0x74, 0x24, 0x18);
+               // movq 16(%rsp), %rdi
+               emit_bytes(0x48, 0x8b, 0x7c, 0x24, 0x10);
+            } else {
+               // movq 16(%rsp), %rsi
+               emit_bytes(0x48, 0x8b, 0x74, 0x24, 0x10);
+               // movq 24(%rsp), %rdi
+               emit_bytes(0x48, 0x8b, 0x7c, 0x24, 0x18);
+            }
+            emit_align_stack();
+            // movabsq $softfloatfun, %rax
+            emit_bytes(0x48, 0xb8);
+            emit_operand_ptr(softfloatfun);
+            // callq *%rax
+            emit_bytes(0xff, 0xd0);
+            emit_restore_stack();
+            // popq %rsi
+            emit_bytes(0x5e);
+            // popq %rdi
+            emit_bytes(0x5f);
+            if (flip_result) {
+               // xor $0x1, %al
+               emit_bytes(0x34, 0x01);
+            }
+            // addq $8, %rsp
+            emit_bytes(0x48, 0x83, 0xc4, 0x08);
+            // movq %rax, (%rsp)
+            emit_bytes(0x48, 0x89, 0x04, 0x24);
          } else {
             // ucomisd+seta/setae is shorter but can't handle eq/ne
             if(switch_params) {
@@ -1866,6 +1968,19 @@ namespace eosio { namespace vm {
          // callq *%rax
          emit_bytes(0xff, 0xd0);
          return result;
+      }
+
+      void emit_align_stack() {
+         // mov %rsp, rcx; andq $-16, %rsp; push rcx; push %rcx
+         emit_bytes(0x48, 0x89, 0xe1);
+         emit_bytes(0x48, 0x83, 0xe4, 0xf0);
+         emit_bytes(0x51);
+         emit_bytes(0x51);
+      }
+
+      void emit_restore_stack() {
+         // mov (%rsp), %rsp
+         emit_bytes(0x48, 0x8b, 0x24, 0x24);
       }
 
       bool is_host_function(uint32_t funcnum) { return funcnum < _mod.get_imported_functions_size(); }
