@@ -69,7 +69,8 @@ add_executable(unit_tests main.cpp
 	                  varint_tests.cpp 
 			  host_functions_tests.cpp 
 			  signals_tests.cpp 
-			  watchdog_tests.cpp)
+			  watchdog_tests.cpp
+                          implementation_limits_tests.cpp)
 target_link_libraries(unit_tests eos-vm Catch2::Catch2)
 
 add_executable( spec_test_generator ${CMAKE_CURRENT_SOURCE_DIR}/spec_test_generator/spec_test_generator.cpp )
