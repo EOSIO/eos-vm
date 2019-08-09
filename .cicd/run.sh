@@ -16,6 +16,7 @@ if [[ $(uname) == 'Darwin' ]]; then
         execute make -j$JOBS
     fi
     if [[ $BUILDKITE == true ]]; then
+        echo HERE
         [[ $ENABLE_TEST == true ]] && execute $MAC_TEST
     elif [[ $TRAVIS == true ]]; then
         execute mkdir -p wasms
