@@ -32,6 +32,7 @@ namespace eosio { namespace vm {
          fpe_handler = emit_error_handler(&on_fp_error);
          call_indirect_handler = emit_error_handler(&on_call_indirect_error);
          type_error_handler = emit_error_handler(&on_type_error);
+         stack_overflow_handler = emit_error_handler(&on_stack_overflow);
          _mod.j_alloc.setpos(code);
       }
       ~machine_code_writer() { _mod.j_alloc.make_executable(); }
@@ -223,6 +224,7 @@ namespace eosio { namespace vm {
       }
 
       void emit_call(const func_type& ft, uint32_t funcnum) {
+         emit_check_call_depth();
          if(is_host_function(funcnum)) {
             // mov $funcnum, %edx
             emit_bytes(0xba);
@@ -264,9 +266,11 @@ namespace eosio { namespace vm {
                // pushq %rax
                emit_bytes(0x50);
          }
+         emit_check_call_depth_end();
       }
 
       void emit_call_indirect(const func_type& ft, uint32_t functypeidx) {
+         emit_check_call_depth();
          auto& table = _mod.tables[0].table;
          void * functions = &_mod.fast_functions[0];
          void * code_with_offset = &_mod.code[0].jit_code;
@@ -361,6 +365,7 @@ namespace eosio { namespace vm {
          if(ft.return_count != 0)
             // pushq %rax
             emit_bytes(0x50);
+         emit_check_call_depth_end();
       }
 
       void emit_drop() {
@@ -1639,6 +1644,7 @@ namespace eosio { namespace vm {
       void* fpe_handler;
       void* call_indirect_handler;
       void* type_error_handler;
+      void* stack_overflow_handler;
 
       void emit_byte(uint8_t val) { *code++ = val; }
       void emit_bytes() {}
@@ -1659,6 +1665,18 @@ namespace eosio { namespace vm {
         emit_operand32(3735928555u - static_cast<uint32_t>(reinterpret_cast<uintptr_t>(code)));
         return result;
      }
+
+      void emit_check_call_depth() {
+         // decl %ebx
+         emit_bytes(0xff, 0xcb);
+         // jz stack_overflow
+         emit_bytes(0x0f, 0x84);
+         fix_branch(emit_branch_target32(), stack_overflow_handler);
+      }
+      void emit_check_call_depth_end() {
+         // incl %ebx
+         emit_bytes(0xff, 0xc3);
+      }
 
       static void unimplemented() { EOS_WB_ASSERT(false, wasm_parse_exception, "Sorry, not implemented."); }
 
@@ -2007,6 +2025,7 @@ namespace eosio { namespace vm {
       static void on_fp_error() { vm::throw_(wasm_interpreter_exception{ "floating point error" }); }
       static void on_call_indirect_error() { vm::throw_(wasm_interpreter_exception{ "call_indirect out of range" }); }
       static void on_type_error() { vm::throw_(wasm_interpreter_exception{ "call_indirect incorrect function type" }); }
+      static void on_stack_overflow() { vm::throw_(wasm_interpreter_exception{ "stack overflow" }); }
 
       template<typename T>
       static native_value transform_arg(T value) {
@@ -2029,6 +2048,7 @@ namespace eosio { namespace vm {
          static_assert(sizeof(native_value) == 8, "8-bytes expected for native_value");
          native_value result;
          int count = Count;
+         unsigned stack_check = constants::max_call_depth;
          asm volatile(
             "sub $16, %%rsp; "
             "stmxcsr 8(%%rsp); "
@@ -2051,7 +2071,7 @@ namespace eosio { namespace vm {
             : [result] "=&a" (result), [count] "+r" (count) // output
             : [data] "r" (data), [fun] "r" (fun),
               [context] "D" (context), [linear_memory] "S" (linear_memory),
-              [StackOffset] "n" (Count*8) // input
+              [StackOffset] "n" (Count*8), "b" (stack_check) // input
             : "memory", "cc" // clobber
          );
          return result;
