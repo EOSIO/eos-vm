@@ -1,15 +1,15 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -eo pipefail
 . ./.cicd/helpers/general.sh
 
-fold-execute mkdir -p $BUILD_DIR
+mkdir -p $BUILD_DIR
 
-TEST_COMMAND="fold-execute ctest -j$JOBS --output-on-failure -T Test"
+TEST_COMMAND="ctest -j$JOBS --output-on-failure -T Test"
 
 if [[ $(uname) == 'Darwin' ]]; then
 
     cd $BUILD_DIR
-    [[ $TRAVIS == true ]] && fold-execute ccache -s
+    [[ $TRAVIS == true ]] && ccache -s
     $TEST_COMMAND
 
 else # Linux
@@ -24,10 +24,10 @@ else # Linux
 
     # Docker Commands
     if [[ $BUILDKITE == true ]]; then
-        fold-execute $CICD_DIR/generate-base-images.sh
+        $CICD_DIR/generate-base-images.sh
     elif [[ $TRAVIS == true ]]; then
         ARGS="$ARGS -v /usr/lib/ccache -v $HOME/.ccache:/opt/.ccache -e JOBS -e TRAVIS -e CCACHE_DIR=/opt/.ccache"
-        COMMANDS="fold-execute ccache -s && $COMMANDS"
+        COMMANDS="ccache -s && $COMMANDS"
     fi
 
     COMMANDS="$PRE_COMMANDS && $COMMANDS"
@@ -41,6 +41,6 @@ else # Linux
     fi
     
     # Docker Run with all of the commands we've prepped
-    fold-execute eval docker run $ARGS $evars $FULL_TAG bash -c \"$COMMANDS\"
+    eval docker run $ARGS $evars $FULL_TAG bash -c \"$COMMANDS\"
 
 fi
