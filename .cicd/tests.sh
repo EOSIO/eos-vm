@@ -10,7 +10,7 @@ if [[ $(uname) == 'Darwin' ]]; then
 
     cd $BUILD_DIR
     [[ $TRAVIS == true ]] && fold-execute ccache -s
-    fold-execute $TEST_COMMAND
+    $TEST_COMMAND
 
 else # Linux
 
