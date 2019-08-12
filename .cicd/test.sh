@@ -17,13 +17,13 @@ else # Linux
     MOUNTED_DIR='/workdir'
     ARGS=${ARGS:-"--rm -v $(pwd):/workdir"}
     
-    . ./$HELPERS_DIR/docker-hash.sh
+    . $HELPERS_DIR/docker-hash.sh
 
     COMMANDS="cd $MOUNTED_DIR/build && $TEST_COMMAND"
 
     # Docker Commands
     if [[ $BUILDKITE == true ]]; then
-        execute ./.cicd/generate-base-images.sh
+        execute $CICD_DIR/generate-base-images.sh
     elif [[ $TRAVIS == true ]]; then
         ARGS="$ARGS -v /usr/lib/ccache -v $HOME/.ccache:/opt/.ccache -e JOBS -e TRAVIS -e CCACHE_DIR=/opt/.ccache"
         COMMANDS="ccache -s && $COMMANDS"
