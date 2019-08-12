@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -eo pipefail
 . ./.cicd/helpers/general.sh
-. $HELPERS_DIR/logging.sh
 
 fold-execute mkdir -p $BUILD_DIR
 
