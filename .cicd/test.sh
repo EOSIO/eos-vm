@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -eo pipefail
 . ./.cicd/helpers/general.sh
-. $HELPERS_DIR/execute.sh
 
 execute mkdir -p $BUILD_DIR
 
