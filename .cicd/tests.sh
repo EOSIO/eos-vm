@@ -24,7 +24,7 @@ else # Linux
 
     # Docker Commands
     if [[ $BUILDKITE == true ]]; then
-        execute $CICD_DIR/generate-base-images.sh
+        fold-execute $CICD_DIR/generate-base-images.sh
     elif [[ $TRAVIS == true ]]; then
         ARGS="$ARGS -v /usr/lib/ccache -v $HOME/.ccache:/opt/.ccache -e JOBS -e TRAVIS -e CCACHE_DIR=/opt/.ccache"
         COMMANDS="fold-execute ccache -s && $COMMANDS"
