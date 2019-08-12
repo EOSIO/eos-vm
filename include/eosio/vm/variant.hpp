@@ -21,35 +21,19 @@ namespace eosio { namespace vm {
    // implementation details
    namespace detail {
 
-      template <typename T, typename... Ts>
+      template <typename... Ts>
       struct max_layout_size {
-         static constexpr auto value = std::max(sizeof(T), max_layout_size<Ts...>::value);
+         static constexpr auto value = std::max({sizeof(Ts)...});
       };
 
-      template <typename T>
-      struct max_layout_size<T> {
-         static constexpr auto value = sizeof(T);
-      };
-
-      template <typename T, typename... Ts>
+      template <typename... Ts>
       struct max_alignof {
-         static constexpr auto value = std::max(alignof(T), max_layout_size<Ts...>::value);
+         static constexpr auto value = std::max({alignof(Ts)...});
       };
 
-      template <typename T>
-      struct max_alignof<T> {
-         static constexpr auto value = alignof(T);
-      };
-
-      template <typename T, typename Alternative, typename... Alternatives>
+      template <typename T, typename... Alternatives>
       struct is_valid_alternative {
-         static constexpr auto value =
-               std::is_same<T, Alternative>::value ? true : is_valid_alternative<T, Alternatives...>::value;
-      };
-
-      template <typename T, typename Alternative>
-      struct is_valid_alternative<T, Alternative> {
-         static constexpr auto value = std::is_same<T, Alternative>::value;
+         static constexpr auto value = (... + (std::is_same_v<T, Alternatives>?1:0)) != 0;
       };
 
       template <size_t N, typename T, typename Alternative, typename... Alternatives>

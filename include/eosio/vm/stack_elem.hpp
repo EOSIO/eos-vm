@@ -8,14 +8,6 @@
 #include <variant>
 
 namespace eosio { namespace vm {
-   class control_stack_elem : public std::variant<block_t, loop_t, if__t, else__t, end_t> {
-      public:
-         using std::variant<block_t, loop_t, if__t, else__t, end_t>::variant;
-         template <typename T>
-         constexpr auto& get() { return std::get<T>(*this); }
-         template <typename T>
-         constexpr auto get()const { return std::get<T>(*this); }
-   };
 
    class operand_stack_elem : public variant<i32_const_t, i64_const_t, f32_const_t, f64_const_t> {
       public:

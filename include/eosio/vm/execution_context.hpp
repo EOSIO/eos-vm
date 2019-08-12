@@ -480,7 +480,7 @@ namespace eosio { namespace vm {
       };
 
       bounded_allocator _base_allocator = {
-         (constants::max_stack_size + constants::max_call_depth + constants::max_nested_structures) * (std::max(std::max(sizeof(operand_stack_elem), sizeof(control_stack_elem)), sizeof(activation_frame)))
+         (constants::max_stack_size + constants::max_call_depth) * (std::max(sizeof(operand_stack_elem), sizeof(activation_frame)))
       };
       execution_state _state;
       uint16_t                        _last_op_index    = 0;
