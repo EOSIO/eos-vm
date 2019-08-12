@@ -31,6 +31,14 @@ namespace eosio { namespace vm {
       using type = uint32_t;
    };
 
+   // Workaround for compiler bug handling C++17 auto template parameters.
+   // The parameter is not treated as being type-dependent in all contexts,
+   // causing early evaluation of the containing expression.
+   // Tested at Apple LLVM version 10.0.1 (clang-1001.0.46.4)
+   template<class T, class U>
+   inline constexpr U&& make_dependent(U&& u) { return static_cast<U&&>(u); }
+#define AUTO_PARAM_WORKAROUND(X) make_dependent<decltype(X)>(X)
+
    template <typename... Args, size_t... Is>
    auto get_args_full(std::index_sequence<Is...>) {
       std::tuple<std::decay_t<Args>...> tup;
@@ -433,9 +441,9 @@ namespace eosio { namespace vm {
 
       template <typename Cls2, auto Func, typename WAlloc>
       static void add(const std::string& mod, const std::string& name) {
-         using deduced_full_ts                         = decltype(get_args_full(Func));
-         using deduced_ts                              = decltype(get_args(Func));
-         using res_t                                   = typename decltype(get_return_t(Func))::type;
+         using deduced_full_ts                         = decltype(get_args_full(AUTO_PARAM_WORKAROUND(Func)));
+         using deduced_ts                              = decltype(get_args(AUTO_PARAM_WORKAROUND(Func)));
+         using res_t                                   = typename decltype(get_return_t(AUTO_PARAM_WORKAROUND(Func)))::type;
          static constexpr auto is                      = std::make_index_sequence<std::tuple_size<deduced_ts>::value>();
          auto&                 current_mappings        = get_mappings<WAlloc>();
          current_mappings.named_mapping[{ mod, name }] = current_mappings.current_index++;
@@ -470,5 +478,7 @@ namespace eosio { namespace vm {
          registered_host_functions<Cls>::template add<Cls2, F, wasm_allocator>(mod, name);
       }
    };
+
+#undef AUTO_PARAM_WORKAROUND
 
 }} // namespace eosio::vm
