@@ -18,7 +18,6 @@ else # Linux
 
     . $HELPERS_DIR/docker-hash.sh
 
-    PRE_COMMANDS=". $MOUNTED_DIR/.cicd/helpers/logging.sh"
     COMMANDS="cd $MOUNTED_DIR/build && cmake -DCMAKE_TOOLCHAIN_FILE=$MOUNTED_DIR/.cicd/helpers/clang.make -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=Release .. && make -j$JOBS"
 
     # Docker Commands
@@ -28,8 +27,6 @@ else # Linux
         ARGS="$ARGS -v /usr/lib/ccache -v $HOME/.ccache:/opt/.ccache -e JOBS -e TRAVIS -e CCACHE_DIR=/opt/.ccache"
         COMMANDS="ccache -s && $COMMANDS"
     fi
-
-    COMMANDS="$PRE_COMMANDS && $COMMANDS"
 
     # Load BUILDKITE Environment Variables for use in docker run
     if [[ -f $BUILDKITE_ENV_FILE ]]; then
