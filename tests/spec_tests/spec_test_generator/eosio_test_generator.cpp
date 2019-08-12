@@ -18,16 +18,17 @@ map<string, bool> func_already_written;
 map<string, int>  func_name_to_index;
 int               func_index = 0;
 
-void write_file(ofstream& file, string funcs, string func_calls) {
+void write_file(ofstream& file, string funcs, string sub_applies, string apply) {
    stringstream out;
    string       end_brace = "}";
 
    out << include_eosio;
    out << extern_c;
    out << funcs;
+   out << sub_applies;
    out << apply_func;
    out << mem_clear;
-   out << func_calls;
+   out << apply;
    out << "   }\n";
    out << "}\n";
 
@@ -118,7 +119,7 @@ vector<tuple<string, string>> get_params(picojson::object action) {
 }
 
 tuple<string, string> get_expected_return(picojson::object test) {
-   tuple<string, string>         expected_return;
+   tuple<string, string> expected_return;
 
    auto expecteds = test["expected"].get<picojson::array>();
    for (auto e : expecteds) {
@@ -131,13 +132,13 @@ tuple<string, string> get_expected_return(picojson::object test) {
    return expected_return;
 }
 
-string write_function(string function_name, picojson::object test) {
+string write_test_function(string function_name, picojson::object test) {
    stringstream out;
 
-   auto   action = test["action"].get<picojson::object>();
+   auto action = test["action"].get<picojson::object>();
 
-   vector<tuple<string, string>> params = get_params(action);
-   tuple<string, string> expected_return = get_expected_return(test);
+   vector<tuple<string, string>> params          = get_params(action);
+   tuple<string, string>         expected_return = get_expected_return(test);
 
    if (check_exists(function_name, params, expected_return)) {
       return "";
@@ -177,19 +178,16 @@ string write_function(string function_name, picojson::object test) {
    return out.str();
 }
 
-string write_function_call(string function_name, picojson::object test, int var_index) {
+string write_test_function_call(string function_name, picojson::object test, int var_index) {
    stringstream out;
    stringstream func_call;
    string       return_cast = "";
 
-   auto   action = test["action"].get<picojson::object>();
-   vector<tuple<string, string>> params = get_params(action);
-   tuple<string, string> expected_return = get_expected_return(test);
+   auto                          action          = test["action"].get<picojson::object>();
+   vector<tuple<string, string>> params          = get_params(action);
+   tuple<string, string>         expected_return = get_expected_return(test);
 
    auto [return_type, return_val] = expected_return;
-
-
-   bool needs_split = var_index % 10;
 
    int param_index_offset = var_index;
    if (params.size() > 0) {
@@ -343,8 +341,11 @@ int main(int argc, char** argv) {
       ofstream ofs_cpp;
       ofstream ofs_map;
 
-      stringstream funcs;
-      stringstream func_calls;
+      stringstream test_funcs;
+      stringstream sub_apply_funcs;
+      stringstream apply_func;
+
+      vector<string> sub_applies;
 
       int    pos          = f.first.find_last_of('.');
       string out_file_cpp = f.first.substr(0, pos) + ".cpp";
@@ -358,17 +359,51 @@ int main(int argc, char** argv) {
 
       int var_index = 0;
       func_index    = 0;
-      for (picojson::object test : f.second) {
-         auto   action = test["action"].get<picojson::object>();
+      int mod       = 0;
+      for (auto test : f.second) {
+         auto   action        = test["action"].get<picojson::object>();
          string function_name = action["field"].to_str();
          function_name        = "_" + normalize(function_name);
 
-         funcs << write_function(function_name, test);
-         func_calls << write_function_call(function_name, test, var_index);
+         test_funcs << write_test_function(function_name, test);
+
+         mod = var_index % 10;
+         if (mod == 0) {
+            // Check var_index % 10
+            // If so, start a new "sub_apply" function.
+            // Put all function calls inside sub_apply.
+            // Then in apply, call that sub_apply function.
+            // Need closing brace (when == 0)?
+
+            string name = "sub_apply_" + to_string(var_index);
+            sub_applies.push_back(name);
+
+            sub_apply_funcs << "   void " << name << "() {\n";
+            sub_apply_funcs << write_test_function_call(function_name, test, var_index);
+
+         } else {
+            sub_apply_funcs << write_test_function_call(function_name, test, var_index);
+
+            // Adds the closing brace after every 10th function
+            if (mod == 9) {
+               sub_apply_funcs << "   }\n";
+            }
+         }
+
          ++var_index;
       }
 
-      write_file(ofs_cpp, funcs.str(), func_calls.str());
+      // Handles when the last group of functions is not exactly 10 long.
+      if (mod != 9) {
+         sub_apply_funcs << "   }\n";
+      }
+
+      for (auto sub_apply : sub_applies) {
+         apply_func << "      " << sub_apply << "();"
+                    << "\n";
+      }
+
+      write_file(ofs_cpp, test_funcs.str(), sub_apply_funcs.str(), apply_func.str());
       write_map_file(ofs_map);
    }
 }
