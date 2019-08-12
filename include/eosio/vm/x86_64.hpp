@@ -2055,24 +2055,32 @@ namespace eosio { namespace vm {
             "mov $0x1f80, %%rax; "
             "mov %%rax, (%%rsp); "
             "ldmxcsr (%%rsp); "
-            "test %[count], %[count]; "
+            "mov %[Count], %%rax; "
+            "test %%rax, %%rax; "
             "jz 2f; "
             "1: "
-            "movq (%[data]), %%rax; "
+            "movq (%[data]), %%r8; "
             "lea 8(%[data]), %[data]; "
-            "pushq %%rax; "
-            "dec %[count]; "
+            "pushq %%r8; "
+            "dec %%rax; "
             "jnz 1b; "
             "2: "
             "callq *%[fun]; "
             "add %[StackOffset], %%rsp; "
             "ldmxcsr 8(%%rsp); "
             "add $16, %%rsp; "
-            : [result] "=&a" (result), [count] "+r" (count) // output
-            : [data] "r" (data), [fun] "r" (fun),
-              [context] "D" (context), [linear_memory] "S" (linear_memory),
-              [StackOffset] "n" (Count*8), "b" (stack_check) // input
-            : "memory", "cc" // clobber
+            // Force explicit register allocation, because otherwise it's too hard to get the clobbers right.
+            : [result] "=&a" (result), // output, reused as a scratch register
+              [data] "+d" (data), [fun] "+c" (fun) // input only, but may be clobbered
+            : [context] "D" (context), [linear_memory] "S" (linear_memory),
+              [StackOffset] "n" (Count*8), [Count] "n" (Count), "b" (stack_check) // input
+            : "memory", "cc", // clobber
+              // call clobbered registers, that are not otherwise used
+              /*"rax", "rcx", "rdx", "rsi", "rdi",*/ "r8", "r9", "r10", "r11",
+              "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7",
+              "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15",
+              "mm0","mm1", "mm2", "mm3", "mm4", "mm5", "mm6", "mm6",
+              "st", "st(1)", "st(2)", "st(3)", "st(4)", "st(5)", "st(6)", "st(7)"
          );
          return result;
       }
