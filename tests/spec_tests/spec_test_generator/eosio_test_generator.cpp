@@ -11,7 +11,7 @@ using namespace std;
 
 const string include_eosio = "#include <eosio/eosio.hpp>\n\n";
 const string extern_c      = "extern \"C\" {\n";
-const string apply_func    = "   void apply(uint64_t, uint64_t, uint64_t) {\n";
+const string apply_func    = "   void apply(uint64_t, uint64_t, uint64_t test_to_run) {\n";
 const string mem_clear     = "      volatile uint64_t* r = (uint64_t*)0;\n      *r = 0;\n";
 
 map<string, bool> func_already_written;
@@ -275,7 +275,7 @@ string write_test_function_call(string function_name, picojson::object test, int
       out << " == ";
       out << "(" << c_type(return_type) << ")" << return_val;
       out << ", "
-          << "\"" << function_name << " fail\"";
+          << "\"" << function_name << " fail " << var_index << "\"";
       out << ");\n\n";
    } else {
       // If there's no expected return, just call the function to prove it doesn't blow up.
@@ -361,12 +361,20 @@ int main(int argc, char** argv) {
       func_index    = 0;
       int mod       = 0;
       for (auto test : f.second) {
+         string type_test     = test["type"].to_str(); // TODO: Use this to help with switching
          auto   action        = test["action"].get<picojson::object>();
          string function_name = action["field"].to_str();
          function_name        = "_" + normalize(function_name);
 
          test_funcs << write_test_function(function_name, test);
 
+         string name = "sub_apply_" + to_string(var_index);
+         sub_applies.push_back(name);
+         sub_apply_funcs << "   void " << name << "() {\n";
+         sub_apply_funcs << write_test_function_call(function_name, test, var_index);
+         sub_apply_funcs << "   }\n";
+
+         /*
          mod = var_index % 10;
          if (mod == 0) {
             // Check var_index % 10
@@ -389,19 +397,28 @@ int main(int argc, char** argv) {
                sub_apply_funcs << "   }\n";
             }
          }
+         */
 
          ++var_index;
       }
 
+      /*
       // Handles when the last group of functions is not exactly 10 long.
       if (mod != 9) {
          sub_apply_funcs << "   }\n";
       }
+      */
 
+      int index = 0;
+      apply_func << "      switch(test_to_run) {\n";
       for (auto sub_apply : sub_applies) {
-         apply_func << "      " << sub_apply << "();"
+         apply_func << "         case " << index << ":\n";
+         apply_func << "            " << sub_apply << "();"
                     << "\n";
+         apply_func << "            break;\n";
+         ++index;
       }
+      apply_func << "      }\n";
 
       write_file(ofs_cpp, test_funcs.str(), sub_apply_funcs.str(), apply_func.str());
       write_map_file(ofs_map);
