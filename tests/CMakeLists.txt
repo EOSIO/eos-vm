@@ -32,8 +32,9 @@ target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_SOURCE_DIR}/include
 target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_BINARY_DIR}/tests/spec )
 
 add_executable(unit_tests main.cpp 
-	                  varint_tests.cpp 
+           varint_tests.cpp 
 			  host_functions_tests.cpp 
+           reentry_tests.cpp
 			  signals_tests.cpp 
 			  watchdog_tests.cpp)
 target_link_libraries(unit_tests eos-vm Catch2::Catch2)
