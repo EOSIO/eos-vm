@@ -20,8 +20,6 @@ else # Linux
 
     COMMANDS="cd $MOUNTED_DIR/build && cmake -DCMAKE_TOOLCHAIN_FILE=$MOUNTED_DIR/.cicd/helpers/clang.make -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=Release .. && make -j$JOBS"
 
-    [[ ! -d $ROOT_DIR/build/wasms ]] && execute git clone https://github.com/EOSIO/eos-vm-test-wasms.git $ROOT_DIR/build/wasms # support for private wasm repo (contact Bucky)
-
     # Docker Commands
     if [[ $BUILDKITE == true ]]; then
         execute $CICD_DIR/generate-base-images.sh
