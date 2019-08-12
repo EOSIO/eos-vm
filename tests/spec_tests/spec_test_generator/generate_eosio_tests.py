@@ -51,6 +51,7 @@ def main(generated_wasm_file, test_wasm_file, out_wasm_file, map_file):
     generated_wasm.shift_exports()
 
     test_wasm.shift_elems()
+    test_wasm.shift_start()
     max_global = test_wasm.get_max_global()
 
     generated_wasm.shift_globals(max_global)

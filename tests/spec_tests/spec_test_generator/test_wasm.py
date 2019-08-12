@@ -4,7 +4,7 @@ from regexes import (
     CALL_REGEX, CALL_INDIRECT_REGEX,
     ELEM_REGEX, EXPORT_REGEX,
     FUNC_REGEX, GLOBAL_REGEX,
-    IMPORT_REGEX, TYPE_REGEX
+    IMPORT_REGEX, START_REGEX, TYPE_REGEX
 )
 from wasm import WASM
 
@@ -133,6 +133,17 @@ class TestWASM(WASM):
         new_call = re.sub(CALL_INDIRECT_REGEX, lambda x: f'{x.group(1)}{new_num}{x.group(3)}', line)
 
         return new_call
+
+    def shift_start(self):
+        if self.start:
+            match = re.search(START_REGEX, self.start)
+            func_num = match.group(2)
+
+            new_num = self.function_symbol_map[func_num]
+            new_start = re.sub(START_REGEX, lambda x: f'{x.group(1)}{new_num}{x.group(3)}', self.start)
+
+            self.start = new_start
+
 
     def shift_exports(self):
         def get_func_num(f):

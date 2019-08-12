@@ -60,7 +60,9 @@ class WASM(object):
             elif la_lines.peek.find('(elem ') > -1:
                 self.elems.append(peek)
                 next(la_lines)
-            # TODO: Add one for start
+            elif la_lines.peek.find('(start ') > -1:
+                self.start = peek
+                next(la_lines)
             else:
                 next(la_lines)
 
