@@ -83,11 +83,17 @@ namespace eosio { namespace vm {
       inline void           push_call(const activation_frame& el) { _as.push(el); }
       inline activation_frame     pop_call() { return _as.pop(); }
       inline uint32_t       call_depth()const { return _as.size(); }
+      template <bool Should_Exit=false>
       inline void           push_call(uint32_t index) {
          const auto& ftype = _mod.get_function_type(index);
          _last_op_index    = _os.size() - ftype.param_types.size();
-         _as.push(activation_frame{ _state.pc + 1, _state.current_offset, _state.code_index, static_cast<uint16_t>(_last_op_index),
+         if constexpr (Should_Exit) {
+            _as.push(activation_frame{ static_cast<uint32_t>(-1), static_cast<uint32_t>(-1), static_cast<uint32_t>(-1), static_cast<uint16_t>(_last_op_index),
                                     ftype.return_type });
+         } else {
+            _as.push(activation_frame{ _state.pc + 1, _state.current_offset, _state.code_index, static_cast<uint16_t>(_last_op_index),
+                                    ftype.return_type });
+         }
       }
 
       inline void apply_pop_call() {
@@ -103,17 +109,17 @@ namespace eosio { namespace vm {
                                    el.is_a<f64_const_t>() && ret_type == types::f64,
                              wasm_interpreter_exception, "wrong return type");
          }
-         if (_as.size() > 0) {
+         if (af.offset == -1 && af.pc == -1 && af.index == -1) {
+            set_exiting_op(_state.exiting_loc);
+            _state.pc = 0;
+            _state.current_offset = 0;
+            _state.code_index = 0;
+         } else {
             _state.current_offset     = af.offset;
             _state.pc                 = af.pc;
             _state.code_index         = af.index;
             _last_op_index = _as.peek().op_index;
 
-         } else {
-            set_exiting_op(_state.exiting_loc);
-            _state.pc = 0;
-            _state.current_offset = 0;
-            _state.code_index = 0;
          }
          eat_operands(op_index);
          if (ret_type)
@@ -231,13 +237,15 @@ namespace eosio { namespace vm {
       }
       
       inline void set_exiting_op( const std::pair<uint32_t, uint32_t>& exiting_loc ) {
-         if (exiting_loc.first != -1 && exiting_loc.second != -1)
+         if (exiting_loc.first != -1 && exiting_loc.second != -1) {
             _mod.code.at(exiting_loc.first).code.at(exiting_loc.second).set_exiting_which();
+         }
       }
 
       inline void clear_exiting_op( const std::pair<uint32_t, uint32_t>& exiting_loc ) {
-         if (exiting_loc.first != -1 && exiting_loc.second != -1)
+         if (exiting_loc.first != -1 && exiting_loc.second != -1) {
             _mod.code.at(exiting_loc.first).code.at(exiting_loc.second).clear_exiting_which();
+         }
       }
 
       inline std::error_code get_error_code() const { return _error_code; }
@@ -265,7 +273,9 @@ namespace eosio { namespace vm {
       inline std::optional<operand_stack_elem> execute(Host* host, Visitor&& visitor, uint32_t func_index, Args... args) {
          EOS_WB_ASSERT(func_index < std::numeric_limits<uint32_t>::max(), wasm_interpreter_exception,
                        "cannot execute function, function not found");
-         
+
+         auto last_last_op_index = _last_op_index;
+
          clear_exiting_op( _state.exiting_loc );
          // save the state of the original calling context
          execution_state saved_state = _state;
@@ -282,7 +292,7 @@ namespace eosio { namespace vm {
          _state.os_index         = _os.size();
 
          push_args(args...);
-         push_call(func_index);
+         push_call<true>(func_index);
          type_check(_mod.types[_mod.functions[func_index - _mod.import_functions.size()]]);
          setup_locals(func_index);
 
@@ -307,10 +317,12 @@ namespace eosio { namespace vm {
 
          // revert the state back to original calling context
          clear_exiting_op( _state.exiting_loc );
-         _state = saved_state;
-         set_exiting_op( _state.exiting_loc );
          _os.eat(_state.os_index);
          _as.eat(_state.as_index);
+         _state = saved_state;
+
+         _last_op_index = last_last_op_index;
+
          return ret;
       }
 
