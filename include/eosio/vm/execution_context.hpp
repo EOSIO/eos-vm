@@ -83,11 +83,17 @@ namespace eosio { namespace vm {
       inline void           push_call(const activation_frame& el) { _as.push(el); }
       inline activation_frame     pop_call() { return _as.pop(); }
       inline uint32_t       call_depth()const { return _as.size(); }
+      template <bool Should_Exit=false>
       inline void           push_call(uint32_t index) {
          const auto& ftype = _mod.get_function_type(index);
          _last_op_index    = _os.size() - ftype.param_types.size();
-         _as.push(activation_frame{ _state.pc + 1, _state.current_offset, _state.code_index, static_cast<uint16_t>(_last_op_index),
+         if constexpr (Should_Exit) {
+            _as.push(activation_frame{ static_cast<uint32_t>(-1), static_cast<uint32_t>(-1), static_cast<uint32_t>(-1), static_cast<uint16_t>(_last_op_index),
                                     ftype.return_type });
+         } else {
+            _as.push(activation_frame{ _state.pc + 1, _state.current_offset, _state.code_index, static_cast<uint16_t>(_last_op_index),
+                                    ftype.return_type });
+         }
       }
 
       inline void apply_pop_call() {
@@ -103,17 +109,17 @@ namespace eosio { namespace vm {
                                    el.is_a<f64_const_t>() && ret_type == types::f64,
                              wasm_interpreter_exception, "wrong return type");
          }
-         if (_as.size() > 0) {
+         if (af.offset == -1 && af.pc == -1 && af.index == -1) {
+            set_exiting_op(_state.exiting_loc);
+            _state.pc = 0;
+            _state.current_offset = 0;
+            _state.code_index = 0;
+         } else {
             _state.current_offset     = af.offset;
             _state.pc                 = af.pc;
             _state.code_index         = af.index;
             _last_op_index = _as.peek().op_index;
 
-         } else {
-            set_exiting_op(_state.exiting_loc);
-            _state.pc = 0;
-            _state.current_offset = 0;
-            _state.code_index = 0;
          }
          eat_operands(op_index);
          if (ret_type)
@@ -282,7 +288,7 @@ namespace eosio { namespace vm {
          _state.os_index         = _os.size();
 
          push_args(args...);
-         push_call(func_index);
+         push_call<true>(func_index);
          type_check(_mod.types[_mod.functions[func_index - _mod.import_functions.size()]]);
          setup_locals(func_index);
 
