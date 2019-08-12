@@ -18,14 +18,14 @@ else # Linux
 
     . $HELPERS_DIR/docker-hash.sh
 
-    COMMANDS="cd $MOUNTED_DIR/build && cmake -DCMAKE_TOOLCHAIN_FILE=$MOUNTED_DIR/.cicd/helpers/clang.make -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=Release .. && make -j$JOBS"
+    COMMANDS="cd $MOUNTED_DIR/build && fold-execute cmake -DCMAKE_TOOLCHAIN_FILE=$MOUNTED_DIR/.cicd/helpers/clang.make -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=Release .. && fold-execute make -j$JOBS"
 
     # Docker Commands
     if [[ $BUILDKITE == true ]]; then
         execute $CICD_DIR/generate-base-images.sh
     elif [[ $TRAVIS == true ]]; then
         ARGS="$ARGS -v /usr/lib/ccache -v $HOME/.ccache:/opt/.ccache -e JOBS -e TRAVIS -e CCACHE_DIR=/opt/.ccache"
-        COMMANDS="ccache -s && $COMMANDS"
+        COMMANDS="fold-execute ccache -s && $COMMANDS"
     fi
 
     # Load BUILDKITE Environment Variables for use in docker run
@@ -37,6 +37,6 @@ else # Linux
     fi
     
     # Docker Run with all of the commands we've prepped
-    execute eval docker run $ARGS $evars $FULL_TAG bash -c \"$COMMANDS\"
+    execute eval docker run $ARGS $evars $FULL_TAG bash -c \". $MOUNTED_DIR/.cicd/helpers/logging.sh && $COMMANDS\"
 
 fi
