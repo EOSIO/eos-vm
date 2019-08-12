@@ -22,7 +22,7 @@ namespace eosio { namespace vm {
    template<typename Context>
    class machine_code_writer {
     public:
-      machine_code_writer(growable_allocator& alloc, std::size_t source_bytes, module& mod) :
+      machine_code_writer(growable_allocator& /*alloc*/, std::size_t source_bytes, module& mod) :
          _mod(mod) {
          // FIXME: Guess at upper bound on function size.  This should be an upper bound
          // except for the prologue and epilogue, but is not as tight as it could be.
@@ -37,7 +37,7 @@ namespace eosio { namespace vm {
       }
       ~machine_code_writer() { _mod.j_alloc.make_executable(); }
 
-      void emit_prologue(const func_type& ft, const guarded_vector<local_entry>& locals, uint32_t funcnum) {
+      void emit_prologue(const func_type& /*ft*/, const guarded_vector<local_entry>& locals, uint32_t funcnum) {
          _ft = &_mod.types[_mod.functions[funcnum]];
          start_function(code, funcnum);
          // pushq RBP
@@ -52,7 +52,7 @@ namespace eosio { namespace vm {
                emit_bytes(0x50);
          }
       }
-      void emit_epilogue(const func_type& ft, const guarded_vector<local_entry>& locals, uint32_t funcnum) {
+      void emit_epilogue(const func_type& ft, const guarded_vector<local_entry>& locals, uint32_t /*funcnum*/) {
          if(ft.return_count != 0) {
             // pop RAX
             emit_bytes(0x58);
@@ -488,117 +488,117 @@ namespace eosio { namespace vm {
          emit_bytes(0x48, 0x89, 0x08);
       }
 
-      void emit_i32_load(uint32_t alignment, uint32_t offset) {
+      void emit_i32_load(uint32_t /*alignment*/, uint32_t offset) {
          // movl (RAX), EAX
          emit_load_impl(offset, 0x8b, 0x00);
       }
 
-      void emit_i64_load(uint32_t alignment, uint32_t offset) {
+      void emit_i64_load(uint32_t /*alignment*/, uint32_t offset) {
          // movq (RAX), RAX
          emit_load_impl(offset, 0x48, 0x8b, 0x00);
       }
 
-      void emit_f32_load(uint32_t alignment, uint32_t offset) {
+      void emit_f32_load(uint32_t /*alignment*/, uint32_t offset) {
          // movl (RAX), EAX
          emit_load_impl(offset, 0x8b, 0x00);
       }
 
-      void emit_f64_load(uint32_t alignment, uint32_t offset) {
+      void emit_f64_load(uint32_t /*alignment*/, uint32_t offset) {
          // movq (RAX), RAX
          emit_load_impl(offset, 0x48, 0x8b, 0x00);
       }
 
-      void emit_i32_load8_s(uint32_t alignment, uint32_t offset) {
+      void emit_i32_load8_s(uint32_t /*alignment*/, uint32_t offset) {
          // movsbl (RAX), EAX; 
          emit_load_impl(offset, 0x0F, 0xbe, 0x00);
       }
 
-      void emit_i32_load16_s(uint32_t alignment, uint32_t offset) {
+      void emit_i32_load16_s(uint32_t /*alignment*/, uint32_t offset) {
          // movswl (RAX), EAX; 
          emit_load_impl(offset, 0x0F, 0xbf, 0x00);
       }
 
-      void emit_i32_load8_u(uint32_t alignment, uint32_t offset) {
+      void emit_i32_load8_u(uint32_t /*alignment*/, uint32_t offset) {
          // movzbl (RAX), EAX; 
          emit_load_impl(offset, 0x0f, 0xb6, 0x00);
       }
 
-      void emit_i32_load16_u(uint32_t alignment, uint32_t offset) {
+      void emit_i32_load16_u(uint32_t /*alignment*/, uint32_t offset) {
          // movzwl (RAX), EAX; 
          emit_load_impl(offset, 0x0f, 0xb7, 0x00);
       }
 
-      void emit_i64_load8_s(uint32_t alignment, uint32_t offset) {
+      void emit_i64_load8_s(uint32_t /*alignment*/, uint32_t offset) {
          // movsbq (RAX), RAX; 
          emit_load_impl(offset, 0x48, 0x0F, 0xbe, 0x00);
       }
 
-      void emit_i64_load16_s(uint32_t alignment, uint32_t offset) {
+      void emit_i64_load16_s(uint32_t /*alignment*/, uint32_t offset) {
          // movswq (RAX), RAX; 
          emit_load_impl(offset, 0x48, 0x0F, 0xbf, 0x00);
       }
 
-      void emit_i64_load32_s(uint32_t alignment, uint32_t offset) {
+      void emit_i64_load32_s(uint32_t /*alignment*/, uint32_t offset) {
          // movslq (RAX), RAX
          emit_load_impl(offset, 0x48, 0x63, 0x00);
       }
 
-      void emit_i64_load8_u(uint32_t alignment, uint32_t offset) {
+      void emit_i64_load8_u(uint32_t /*alignment*/, uint32_t offset) {
          // movzbl (RAX), EAX; 
          emit_load_impl(offset, 0x0f, 0xb6, 0x00);
       }
 
-      void emit_i64_load16_u(uint32_t alignment, uint32_t offset) {
+      void emit_i64_load16_u(uint32_t /*alignment*/, uint32_t offset) {
          // movzwl (RAX), EAX; 
          emit_load_impl(offset, 0x0f, 0xb7, 0x00);
       }
 
-      void emit_i64_load32_u(uint32_t alignment, uint32_t offset) {
+     void emit_i64_load32_u(uint32_t /*alignment*/, uint32_t offset) {
          // movl (RAX), EAX
          emit_load_impl(offset, 0x8b, 0x00);
       }
 
-      void emit_i32_store(uint32_t alignment, uint32_t offset) {
+      void emit_i32_store(uint32_t /*alignment*/, uint32_t offset) {
          // movl ECX, (RAX)
          emit_store_impl(offset, 0x89, 0x08);
       }
 
-      void emit_i64_store(uint32_t alignment, uint32_t offset) {
+      void emit_i64_store(uint32_t /*alignment*/, uint32_t offset) {
          // movl ECX, (RAX)
          emit_store_impl(offset, 0x48, 0x89, 0x08);
       }
 
-      void emit_f32_store(uint32_t alignment, uint32_t offset) {
+      void emit_f32_store(uint32_t /*alignment*/, uint32_t offset) {
          // movl ECX, (RAX)
          emit_store_impl(offset, 0x89, 0x08);
       }
 
-      void emit_f64_store(uint32_t alignment, uint32_t offset) {
+      void emit_f64_store(uint32_t /*alignment*/, uint32_t offset) {
          // movl ECX, (RAX)
          emit_store_impl(offset, 0x48, 0x89, 0x08);
       }
 
-      void emit_i32_store8(uint32_t alignment, uint32_t offset) {
+      void emit_i32_store8(uint32_t /*alignment*/, uint32_t offset) {
          // movb CL, (RAX)
          emit_store_impl(offset, 0x88, 0x08);
       }
 
-      void emit_i32_store16(uint32_t alignment, uint32_t offset) {
+      void emit_i32_store16(uint32_t /*alignment*/, uint32_t offset) {
          // movb CX, (RAX)
          emit_store_impl(offset, 0x66, 0x89, 0x08);
       }
 
-      void emit_i64_store8(uint32_t alignment, uint32_t offset) {
+      void emit_i64_store8(uint32_t /*alignment*/, uint32_t offset) {
          // movb CL, (RAX)
          emit_store_impl(offset, 0x88, 0x08);
       }
 
-      void emit_i64_store16(uint32_t alignment, uint32_t offset) {
+      void emit_i64_store16(uint32_t /*alignment*/, uint32_t offset) {
          // movb CX, (RAX)
          emit_store_impl(offset, 0x66, 0x89, 0x08);
       }
 
-      void emit_i64_store32(uint32_t alignment, uint32_t offset) {
+      void emit_i64_store32(uint32_t /*alignment*/, uint32_t offset) {
          // movl ECX, (RAX)
          emit_store_impl(offset, 0x89, 0x08);
       }
@@ -2060,7 +2060,6 @@ namespace eosio { namespace vm {
       static native_value invoke_impl(native_value* data, fn_type fun, void* context, void* linear_memory) {
          static_assert(sizeof(native_value) == 8, "8-bytes expected for native_value");
          native_value result;
-         int count = Count;
          unsigned stack_check = constants::max_call_depth;
          asm volatile(
             "sub $0x90, %%rsp; " // red-zone + 16 bytes
