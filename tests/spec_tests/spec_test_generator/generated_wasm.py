@@ -130,6 +130,7 @@ class GeneratedWASM(WASM):
                         # We're calling an import so we don't need to do anything
                         func += l
                     else:
+                        print('-----', e)
                         print('Error attempting to shift calls in compiled wasm')
                         raise Exception('Error attempting to shift calls in compiled wasm.')
                 else:

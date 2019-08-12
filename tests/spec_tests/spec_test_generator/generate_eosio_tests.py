@@ -142,6 +142,11 @@ def write_merged_wasm(generated_wasm, test_wasm):
         for e in generated_wasm.elems:
             out += e + '\n'
 
+    if test_wasm.start:
+        out += test_wasm.start + '\n'
+    elif generated_wasm.start:
+        out += generated_wasm.start + '\n'
+
     out += ')\n'
     return out
 
