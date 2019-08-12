@@ -30,6 +30,8 @@ else # Linux
         COMMANDS="fold-execute ccache -s && $COMMANDS"
     fi
 
+    COMMANDS="$PRE_COMMANDS && $COMMANDS"
+
     # Load BUILDKITE Environment Variables for use in docker run
     if [[ -f $BUILDKITE_ENV_FILE ]]; then
         evars=""
@@ -38,8 +40,6 @@ else # Linux
         done < "$BUILDKITE_ENV_FILE"
     fi
     
-    COMMANDS="$PRE_COMMANDS && $COMMANDS"
-
     # Docker Run with all of the commands we've prepped
     fold-execute eval docker run $ARGS $evars $FULL_TAG bash -c \"$COMMANDS\"
 
