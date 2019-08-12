@@ -4,7 +4,7 @@ set -eo pipefail
 
 fold-execute mkdir -p $BUILD_DIR
 
-TEST_COMMAND="ctest -j$JOBS --output-on-failure -T Test"
+TEST_COMMAND="fold-execute ctest -j$JOBS --output-on-failure -T Test"
 
 if [[ $(uname) == 'Darwin' ]]; then
 
