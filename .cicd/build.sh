@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 set -eo pipefail
 . ./.cicd/helpers/general.sh
+. $HELPERS_DIR/logging.sh
 
-execute mkdir -p $BUILD_DIR
+fold-execute mkdir -p $BUILD_DIR
 
 if [[ $(uname) == 'Darwin' ]]; then
 
     cd $BUILD_DIR
-    [[ $TRAVIS == true ]] && execute ccache -s
-    execute cmake -DCMAKE_BUILD_TYPE=Release ..
-    execute make -j$JOBS
+    [[ $TRAVIS == true ]] && fold-execute ccache -s
+    fold-execute cmake -DCMAKE_BUILD_TYPE=Release ..
+    fold-execute make -j$JOBS
 
 else # Linux
 
@@ -18,11 +19,12 @@ else # Linux
 
     . $HELPERS_DIR/docker-hash.sh
 
+    PRE_COMMANDS=". $MOUNTED_DIR/.cicd/helpers/logging.sh"
     COMMANDS="cd $MOUNTED_DIR/build && fold-execute cmake -DCMAKE_TOOLCHAIN_FILE=$MOUNTED_DIR/.cicd/helpers/clang.make -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=Release .. && fold-execute make -j$JOBS"
 
     # Docker Commands
     if [[ $BUILDKITE == true ]]; then
-        execute $CICD_DIR/generate-base-images.sh
+        fold-execute $CICD_DIR/generate-base-images.sh
     elif [[ $TRAVIS == true ]]; then
         ARGS="$ARGS -v /usr/lib/ccache -v $HOME/.ccache:/opt/.ccache -e JOBS -e TRAVIS -e CCACHE_DIR=/opt/.ccache"
         COMMANDS="fold-execute ccache -s && $COMMANDS"
@@ -36,7 +38,9 @@ else # Linux
         done < "$BUILDKITE_ENV_FILE"
     fi
     
+    COMMANDS="$PRE_COMMANDS && $COMMANDS"
+    
     # Docker Run with all of the commands we've prepped
-    execute eval docker run $ARGS $evars $FULL_TAG bash -c \". $MOUNTED_DIR/.cicd/helpers/logging.sh && $COMMANDS\"
+    fold-execute eval docker run $ARGS $evars $FULL_TAG bash -c \". $MOUNTED_DIR/.cicd/helpers/logging.sh && $COMMANDS\"
 
 fi
