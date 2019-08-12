@@ -237,13 +237,17 @@ namespace eosio { namespace vm {
       }
       
       inline void set_exiting_op( const std::pair<uint32_t, uint32_t>& exiting_loc ) {
-         if (exiting_loc.first != -1 && exiting_loc.second != -1)
+         if (exiting_loc.first != -1 && exiting_loc.second != -1) {
+            // std::cout << "+ " << exiting_loc.first << " " << exiting_loc.second << "\n";
             _mod.code.at(exiting_loc.first).code.at(exiting_loc.second).set_exiting_which();
+         }
       }
 
       inline void clear_exiting_op( const std::pair<uint32_t, uint32_t>& exiting_loc ) {
-         if (exiting_loc.first != -1 && exiting_loc.second != -1)
+         if (exiting_loc.first != -1 && exiting_loc.second != -1) {
+            // std::cout << "- " << exiting_loc.first << " " << exiting_loc.second << "\n";
             _mod.code.at(exiting_loc.first).code.at(exiting_loc.second).clear_exiting_which();
+         }
       }
 
       inline std::error_code get_error_code() const { return _error_code; }
@@ -271,7 +275,11 @@ namespace eosio { namespace vm {
       inline std::optional<operand_stack_elem> execute(Host* host, Visitor&& visitor, uint32_t func_index, Args... args) {
          EOS_WB_ASSERT(func_index < std::numeric_limits<uint32_t>::max(), wasm_interpreter_exception,
                        "cannot execute function, function not found");
-         
+
+// std::cout << "<<< " << _as.size() << " " << _os.size() << " " << _last_op_index << " exiting_loc: " << _state.exiting_loc.first << " " << _state.exiting_loc.second << "\n";
+
+auto last_last_op_index = _last_op_index;
+
          clear_exiting_op( _state.exiting_loc );
          // save the state of the original calling context
          execution_state saved_state = _state;
@@ -306,17 +314,26 @@ namespace eosio { namespace vm {
             throw wasm_memory_exception{ "wasm memory out-of-bounds" };
          });
 
+// std::cout << "... " << _as.size() << " " << _os.size() << " " << _last_op_index << " exiting_loc: " << _state.exiting_loc.first << " " << _state.exiting_loc.second << "\n";
+
          std::optional<operand_stack_elem> ret;
          if (_mod.get_function_type(func_index).return_count) {
             ret = pop_operand();
          }
 
+// std::cout << "... " << _as.size() << " " << _os.size() << " " << _last_op_index << " exiting_loc: " << _state.exiting_loc.first << " " << _state.exiting_loc.second << "\n";
+
          // revert the state back to original calling context
          clear_exiting_op( _state.exiting_loc );
-         _state = saved_state;
-         set_exiting_op( _state.exiting_loc );
          _os.eat(_state.os_index);
          _as.eat(_state.as_index);
+         _state = saved_state;
+         // set_exiting_op( _state.exiting_loc );
+
+_last_op_index = last_last_op_index;
+
+// std::cout << ">>> " << _as.size() << " " << _os.size() << " " << _last_op_index << " exiting_loc: " << _state.exiting_loc.first << " " << _state.exiting_loc.second << "\n";
+
          return ret;
       }
 
