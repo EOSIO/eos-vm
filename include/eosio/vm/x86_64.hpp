@@ -2063,7 +2063,7 @@ namespace eosio { namespace vm {
          int count = Count;
          unsigned stack_check = constants::max_call_depth;
          asm volatile(
-            "sub $16, %%rsp; "
+            "sub $0x90, %%rsp; " // red-zone + 16 bytes
             "stmxcsr 8(%%rsp); "
             "mov $0x1f80, %%rax; "
             "mov %%rax, (%%rsp); "
@@ -2081,7 +2081,7 @@ namespace eosio { namespace vm {
             "callq *%[fun]; "
             "add %[StackOffset], %%rsp; "
             "ldmxcsr 8(%%rsp); "
-            "add $16, %%rsp; "
+            "add $0x90, %%rsp; "
             // Force explicit register allocation, because otherwise it's too hard to get the clobbers right.
             : [result] "=&a" (result), // output, reused as a scratch register
               [data] "+d" (data), [fun] "+c" (fun) // input only, but may be clobbered
