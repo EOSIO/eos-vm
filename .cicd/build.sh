@@ -41,6 +41,6 @@ else # Linux
     COMMANDS="$PRE_COMMANDS && $COMMANDS"
     
     # Docker Run with all of the commands we've prepped
-    fold-execute eval docker run $ARGS $evars $FULL_TAG bash -c \". $MOUNTED_DIR/.cicd/helpers/logging.sh && $COMMANDS\"
+    fold-execute eval docker run $ARGS $evars $FULL_TAG bash -c \"$COMMANDS\"
 
 fi
