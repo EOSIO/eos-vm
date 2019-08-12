@@ -5,7 +5,7 @@ import subprocess
 import sys
 
 from generated_wasm import GeneratedWASM
-from regexes import EXPORT_REGEX, FUNC_REGEX
+from regexes import DATA_REGEX, EXPORT_REGEX, FUNC_REGEX
 from test_wasm import TestWASM
 
 
@@ -60,30 +60,27 @@ def main(generated_wasm_file, test_wasm_file, out_wasm_file, map_file):
         f.write(write_merged_wasm(generated_wasm, test_wasm))
 
 
-def build_symbol_table(g_wasm, t_wasm):
-    function_symbol_table = {}
+def merge_data_section(generated_wasm, test_wasm):
+    data = []
 
-    g_funcs = []
-    t_funcs = []
+    test_wasm_zero = ''
+    for d in test_wasm.data:
+        match = re.search(DATA_REGEX, d)
+        if int(match.group(2)) != 0:
+            data.append(d)
+        else:
+            test_wasm_zero = d
+            data.append(d)
 
-    for f in g_wasm.funcs:
-        for l in f.split('\n'):
-            match = re.search(FUNC_REGEX, l)
-            if match:
-                g_funcs.append(l)
-    for e in t_wasm.exports:
-        t_funcs.append(e)
+    for d in generated_wasm.data:
+        match = re.search(DATA_REGEX, d)
+        if int(match.group(2)) != 0:
+            data.append(d)
+        else:
+            if not test_wasm_zero:
+                data.append(d)
 
-    for i in range(0, len(t_funcs)):
-        g_func = g_funcs[i]
-        t_func = t_funcs[i]
-
-        g_func_num = re.search(FUNC_REGEX, g_func).group(2)
-        t_func_num = re.search(EXPORT_REGEX, t_func).group(2)
-
-        function_symbol_table[g_func_num] = t_func_num
-
-    return function_symbol_table
+    return data
 
 
 def write_merged_wasm(generated_wasm, test_wasm):
@@ -131,9 +128,9 @@ def write_merged_wasm(generated_wasm, test_wasm):
     for e in generated_wasm.exports:
         out += e + '\n'
 
-    for d in generated_wasm.data:
-        out += d + '\n'
-    for d in test_wasm.data:
+    data = merge_data_section(generated_wasm, test_wasm)
+
+    for d in data:
         out += d + '\n'
 
     if test_wasm.tables:

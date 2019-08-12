@@ -8,3 +8,4 @@ IMPORT_REGEX = r'(\(import ")([\w]+)(" ")([\w]+)(" \(func \(;)([0-9]+)(;\) \(typ
 GLOBAL_REGEX = r'(\(global \(;)([0-9]+)(.*)'
 GET_SET_GLOBAL_REGEX = r'(\w+_global )([0-9]+)(.*)'
 START_REGEX = r'(start )([0-9]+)(.*)'
+DATA_REGEX = r'(\(data \(i32.const )([0-9]+)(.*)'
