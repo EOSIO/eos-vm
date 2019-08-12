@@ -1,7 +1,7 @@
-FROM ubuntu:16.04
+FROM amazonlinux:2.0.20190508
 # install dependencies
-RUN apt-get update && \
-    apt-get install -y build-essential git automake python2.7 python2.7-dev python3 python3-dev curl ccache
+RUN yum update -y && \
+    yum install -y git sudo tar bzip2 make gcc gcc-c++ doxygen
 # build cmake
 RUN curl -LO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
     tar -xzf cmake-3.13.2.tar.gz && \
@@ -25,5 +25,6 @@ RUN git clone --single-branch --branch release_80 https://git.llvm.org/git/llvm.
     make -j $(nproc) && \
     make install && \
     rm -rf /clang8
-# container entrypoint
-CMD /workdir/.cicd/entrypoint.sh
+# ccache
+RUN curl -LO http://download-ib01.fedoraproject.org/pub/epel/7/x86_64/Packages/c/ccache-3.3.4-1.el7.x86_64.rpm && \
+    yum install -y ccache-3.3.4-1.el7.x86_64.rpm
