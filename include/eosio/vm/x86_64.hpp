@@ -800,30 +800,43 @@ namespace eosio { namespace vm {
          emit_i64_relop(0x93);
       }
 
-      template<auto F>
-      static float32_t adapt_f32_unop(float32_t arg) {
-         return ::to_softfloat32(static_cast<decltype(F)>(F)(::from_softfloat32(arg)));
+      // Make sure that the result doesn't contain any garbage bits in rax
+      static uint64_t adapt_result(bool val) {
+         return val?1:0;
       }
-      template<auto F>
-      static float32_t adapt_f32_binop(float32_t lhs, float32_t rhs) {
-         return ::to_softfloat32(static_cast<decltype(F)>(F)(::from_softfloat32(lhs), ::from_softfloat32(rhs)));
+      static uint64_t adapt_result(float32_t val) {
+         uint64_t result = 0;
+         std::memcpy(&result, &val, sizeof(float32_t));
+         return result;
       }
-      template<auto F>
-      static bool adapt_f32_cmp(float32_t lhs, float32_t rhs) {
-         return static_cast<decltype(F)>(F)(::from_softfloat32(lhs), ::from_softfloat32(rhs));
+      static float64_t adapt_result(float64_t val) {
+         return val;
       }
 
       template<auto F>
-      static float64_t adapt_f64_unop(float64_t arg) {
+      static auto adapt_f32_unop(float32_t arg) {
+        return adapt_result(::to_softfloat32(static_cast<decltype(F)>(F)(::from_softfloat32(arg))));
+      }
+      template<auto F>
+      static auto adapt_f32_binop(float32_t lhs, float32_t rhs) {
+         return adapt_result(::to_softfloat32(static_cast<decltype(F)>(F)(::from_softfloat32(lhs), ::from_softfloat32(rhs))));
+      }
+      template<auto F>
+      static auto adapt_f32_cmp(float32_t lhs, float32_t rhs) {
+         return adapt_result(static_cast<decltype(F)>(F)(::from_softfloat32(lhs), ::from_softfloat32(rhs)));
+      }
+
+      template<auto F>
+      static auto adapt_f64_unop(float64_t arg) {
          return ::to_softfloat64(static_cast<decltype(F)>(F)(::from_softfloat64(arg)));
       }
       template<auto F>
-      static float64_t adapt_f64_binop(float64_t lhs, float64_t rhs) {
+      static auto adapt_f64_binop(float64_t lhs, float64_t rhs) {
          return ::to_softfloat64(static_cast<decltype(F)>(F)(::from_softfloat64(lhs), ::from_softfloat64(rhs)));
       }
       template<auto F>
-      static bool adapt_f64_cmp(float64_t lhs, float64_t rhs) {
-         return static_cast<decltype(F)>(F)(::from_softfloat64(lhs), ::from_softfloat64(rhs));
+      static auto adapt_f64_cmp(float64_t lhs, float64_t rhs) {
+        return adapt_result(static_cast<decltype(F)>(F)(::from_softfloat64(lhs), ::from_softfloat64(rhs)));
       }
 
       // HACK: avoid linking to softfloat if we aren't using it
@@ -1779,7 +1792,7 @@ namespace eosio { namespace vm {
          emit_bytes(0x52);
       }
 
-      void emit_f32_relop(uint8_t opcode, bool (*softfloatfun)(float32_t, float32_t), bool switch_params, bool flip_result) {
+      void emit_f32_relop(uint8_t opcode, uint64_t (*softfloatfun)(float32_t, float32_t), bool switch_params, bool flip_result) {
          if constexpr (use_softfloat) {
             // pushq %rdi
             emit_bytes(0x57);
@@ -1813,8 +1826,6 @@ namespace eosio { namespace vm {
             }
             // addq $8, %rsp
             emit_bytes(0x48, 0x83, 0xc4, 0x08);
-            // andq $1, %rax
-            emit_bytes(0x48, 0x83, 0xe0, 0x01);
             // movq %rax, (%rsp)
             emit_bytes(0x48, 0x89, 0x04, 0x24);
          } else {
@@ -1846,7 +1857,7 @@ namespace eosio { namespace vm {
          }
       }
 
-      void emit_f64_relop(uint8_t opcode, bool (*softfloatfun)(float64_t, float64_t), bool switch_params, bool flip_result) {
+      void emit_f64_relop(uint8_t opcode, uint64_t (*softfloatfun)(float64_t, float64_t), bool switch_params, bool flip_result) {
          if constexpr (use_softfloat) {
             // pushq %rdi
             emit_bytes(0x57);
