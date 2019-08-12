@@ -85,16 +85,6 @@ namespace eosio { namespace vm {
     private:
       T*     raw      = nullptr;
       size_t max_size = 0;
-      void   set_up_signals() {
-         struct sigaction sa;
-         sa.sa_sigaction = [](int sig, siginfo_t*, void*) {
-            throw stack_memory_exception{ "stack memory out-of-bounds" };
-         };
-         sigemptyset(&sa.sa_mask);
-         sa.sa_flags = SA_NODEFER | SA_SIGINFO;
-         sigaction(SIGSEGV, &sa, NULL);
-         sigaction(SIGBUS, &sa, NULL);
-      }
 
     public:
       template <typename U>
@@ -102,7 +92,6 @@ namespace eosio { namespace vm {
          munmap(raw, max_memory);
       }
       fixed_stack_allocator(size_t max_size) : max_size(max_size) {
-         // set_up_signals();
          raw = (T*)mmap(NULL, max_memory, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
          mprotect(raw, max_size * sizeof(T), PROT_READ | PROT_WRITE);
       }
@@ -113,17 +102,6 @@ namespace eosio { namespace vm {
     private:
       char*   raw       = nullptr;
       int32_t page      = 0;
-
-      void set_up_signals() {
-         struct sigaction sa;
-         sa.sa_sigaction = [](int sig, siginfo_t*, void*) {
-            throw wasm_memory_exception{ "wasm memory out-of-bounds" };
-         };
-         sigemptyset(&sa.sa_mask);
-         sa.sa_flags = SA_NODEFER | SA_SIGINFO;
-         sigaction(SIGSEGV, &sa, NULL);
-         sigaction(SIGBUS, &sa, NULL);
-      }
 
     public:
       template <typename T>
@@ -137,7 +115,6 @@ namespace eosio { namespace vm {
       }
       void free() { munmap(raw, max_memory); }
       wasm_allocator() {
-         // set_up_signals();
          raw  = (char*)mmap(NULL, max_memory, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
          page = 0;
       }
