@@ -1813,6 +1813,8 @@ namespace eosio { namespace vm {
             }
             // addq $8, %rsp
             emit_bytes(0x48, 0x83, 0xc4, 0x08);
+            // andq $1, %rax
+            emit_bytes(0x48, 0x83, 0xe0, 0x01);
             // movq %rax, (%rsp)
             emit_bytes(0x48, 0x89, 0x04, 0x24);
          } else {
