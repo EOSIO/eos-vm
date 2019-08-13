@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 
+#include "eosio_test_generator.hpp"
+
 using namespace std;
 
 const string include_eosio = "#include <eosio/eosio.hpp>\n\n";
@@ -53,19 +55,6 @@ void write_map_file(ofstream& file) {
 
    file << out.str();
    out.str("");
-}
-
-string normalize(string val) {
-   string ret_val = val;
-   for (int i = 0; i <= val.size(); i++) {
-      if (val[i] == '-' || val[i] == '.') {
-         ret_val[i] = '_';
-      } else {
-         ret_val[i] = val[i];
-      }
-   }
-
-   return ret_val;
 }
 
 string c_type(string wasm_type) {
@@ -336,6 +325,7 @@ int main(int argc, char** argv) {
    string test_suite_name;
 
    map<string, vector<picojson::object>> file_func_mappings = get_file_func_mappings(v);
+   map<string, map<int, string>>         test_mappings;
 
    for (const auto& f : file_func_mappings) {
       ofstream ofs_cpp;
@@ -348,8 +338,9 @@ int main(int argc, char** argv) {
       vector<string> sub_applies;
 
       int    pos          = f.first.find_last_of('.');
-      string out_file_cpp = f.first.substr(0, pos) + ".cpp";
-      string out_file_map = f.first.substr(0, pos) + ".map";
+      string test_name    = f.first.substr(0, pos);
+      string out_file_cpp = test_name + ".wasm.cpp";
+      string out_file_map = test_name + ".wasm.map";
 
       ofs_cpp.open(out_file_cpp, ofstream::out);
       ofs_map.open(out_file_map, ofstream::out);
@@ -374,40 +365,9 @@ int main(int argc, char** argv) {
          sub_apply_funcs << write_test_function_call(function_name, test, var_index);
          sub_apply_funcs << "   }\n";
 
-         /*
-         mod = var_index % 10;
-         if (mod == 0) {
-            // Check var_index % 10
-            // If so, start a new "sub_apply" function.
-            // Put all function calls inside sub_apply.
-            // Then in apply, call that sub_apply function.
-            // Need closing brace (when == 0)?
-
-            string name = "sub_apply_" + to_string(var_index);
-            sub_applies.push_back(name);
-
-            sub_apply_funcs << "   void " << name << "() {\n";
-            sub_apply_funcs << write_test_function_call(function_name, test, var_index);
-
-         } else {
-            sub_apply_funcs << write_test_function_call(function_name, test, var_index);
-
-            // Adds the closing brace after every 10th function
-            if (mod == 9) {
-               sub_apply_funcs << "   }\n";
-            }
-         }
-         */
-
+         test_mappings[test_name].insert(std::make_pair(var_index, type_test));
          ++var_index;
       }
-
-      /*
-      // Handles when the last group of functions is not exactly 10 long.
-      if (mod != 9) {
-         sub_apply_funcs << "   }\n";
-      }
-      */
 
       int index = 0;
       apply_func << "      switch(test_to_run) {\n";
@@ -423,4 +383,6 @@ int main(int argc, char** argv) {
       write_file(ofs_cpp, test_funcs.str(), sub_apply_funcs.str(), apply_func.str());
       write_map_file(ofs_map);
    }
+
+   write_tests(test_mappings);
 }

@@ -42,7 +42,7 @@ add_executable(unit_tests main.cpp
 target_link_libraries(unit_tests eos-vm Catch2::Catch2)
 
 add_executable( spec_test_generator ${CMAKE_CURRENT_SOURCE_DIR}/spec_test_generator/spec_test_generator.cpp )
-add_executable( eosio_test_generator ${CMAKE_CURRENT_SOURCE_DIR}/spec_tests/spec_test_generator/eosio_test_generator.cpp )
+add_executable( eosio_test_generator ${CMAKE_CURRENT_SOURCE_DIR}/spec_tests/spec_test_generator/eosio_test_generator.cpp ${CMAKE_CURRENT_SOURCE_DIR}/spec_tests/spec_test_generator/eosio_wasm_spec_test_generator.cpp)
 
 catch_discover_tests( eos_vm_spec_tests )
 
