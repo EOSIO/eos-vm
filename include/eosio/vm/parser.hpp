@@ -374,7 +374,7 @@ namespace eosio { namespace vm {
                }
                case opcodes::return_: {
                   uint32_t label = pc_stack.size() - 1;
-                  return__t& instr = append_instr(return__t{});
+                  return_t& instr = append_instr(return_t{});
                   handle_branch_target(label, &instr.pc, &instr.data);
                   start_unreachable();
 	       } break;
@@ -390,7 +390,7 @@ namespace eosio { namespace vm {
                } break;
                case opcodes::if_: {
                   uint32_t expected_result = *code++;
-                  if__t& instr = append_instr(if__t{});
+                  if_t& instr = append_instr(if_t{});
                   pop_operand();
                   pc_stack.push_back({operand_depth, expected_result, is_in_unreachable, std::vector{&instr.pc}});
                   start_reachable();
@@ -409,7 +409,7 @@ namespace eosio { namespace vm {
                   // Overwrite the branch from the `if` with the `else`.
                   // We're left with a normal relocation list where everything
                   // branches to the corresponding `end`
-                  auto& else_ = append_instr(else__t{});
+                  auto& else_ = append_instr(else_t{});
                   relocations[0] = &else_.pc;
                   // The branch from the if skips just past the else
                   *_if_pc = op_index;

@@ -376,7 +376,7 @@ namespace eosio { namespace vm {
 #define CREATE_TABLE_ENTRY(NAME, CODE) &&ev_label_##NAME,
 #define CREATE_EXITING_TABLE_ENTRY(NAME, CODE) &&ev_label_exiting_##NAME,
 #define CREATE_LABEL(NAME, CODE)                                                                                  \
-      ev_label_##NAME : visitor(ev_variant->template get<eosio::vm::NAME##_t>());                                 \
+      ev_label_##NAME : visitor(ev_variant->template get<eosio::vm::OPCODE_NAME(NAME)>());                        \
       ev_variant = &_mod.code.at_no_check(_state.code_index).code.at_no_check(_state.pc - _state.current_offset); \
       goto* dispatch_table[ev_variant->index()];
 #define CREATE_EXITING_LABEL(NAME, CODE)                                                  \

@@ -3,7 +3,7 @@
 #include <eosio/vm/interpret_visitor.hpp>
 
 #define DBG_VISIT(name, code)                                                                                          \
-   void operator()(name##_t& op) {                                                                                     \
+   void operator()(OPCODE_NAME(name)& op) {                                                                            \
       std::cout << "Found " << #name << " at " << get_context().get_pc() << " " << get_context().get_code_index()      \
                 << " " << get_context().get_code_offset() << "\n";                                                     \
       interpret_visitor<ExecutionCTX>::operator()(op);                                                                 \
@@ -11,7 +11,7 @@
    }
 
 #define DBG2_VISIT(name, code)                                                                                         \
-   void operator()(name##_t& op) { std::cout << "Found " << #name << "\n"; }
+   void operator()(OPCODE_NAME(name)& op) { std::cout << "Found " << #name << "\n"; }
 
 namespace eosio { namespace vm {
 

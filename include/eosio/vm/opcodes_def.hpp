@@ -283,18 +283,36 @@
 
 #define CREATE_MAP(name, code) { code, #name },
 
+#define OPCODE_NAME_if_
+#define OPCODE_NAME_else_
+#define OPCODE_NAME_return_
+
+#define OPCODE_NAME_TEST() 1
+#define OPCODE_NAME_TEST_OPCODE_NAME_TEST 0,
+#define OPCODE_NAME_TEST_1 1, ignore
+
+#define EXPAND(x) x
+#define CAT2(x, y) x ## y
+#define CAT(x, y) CAT2(x, y)
+#define APPLY(f, args) f args
+#define FIX_OPCODE_NAME_0(name) name ## _t
+#define FIX_OPCODE_NAME_1(name) name ## t
+#define FIX_OPCODE_NAME(iskeyword, garbage) FIX_OPCODE_NAME_ ## iskeyword
+
+#define OPCODE_NAME(name) APPLY(FIX_OPCODE_NAME, (CAT(OPCODE_NAME_TEST_, EXPAND(OPCODE_NAME_TEST OPCODE_NAME_ ## name ()))))(name)
+
 #define CREATE_SYNTHETIC_TYPES(name, code)                                                                             \
-   struct name##_t {                                                                                                   \
-      name##_t() = default;                                                                                            \
+   struct OPCODE_NAME(name) {                                                                                          \
+      OPCODE_NAME(name)() = default;                                                                                   \
       uint32_t pc;                                                                                                     \
       static constexpr uint8_t opcode = code;                                                                          \
    };
 
 #define CREATE_CONTROL_FLOW_TYPES(name, code)                                                                          \
-   struct name##_t {                                                                                                   \
-      name##_t() {}                                                                                                    \
-      name##_t(uint32_t data) : data(data) {}                                                                          \
-      name##_t(uint32_t d, uint32_t pc, uint16_t i, uint16_t oi) : data(d), pc(pc), index(i), op_index(oi) {}          \
+   struct OPCODE_NAME(name) {                                                                                          \
+      OPCODE_NAME(name)() {}                                                                                           \
+      OPCODE_NAME(name)(uint32_t data) : data(data) {}                                                                 \
+      OPCODE_NAME(name)(uint32_t d, uint32_t pc, uint16_t i, uint16_t oi) : data(d), pc(pc), index(i), op_index(oi) {} \
       uint32_t data     = 0;                                                                                           \
       uint32_t pc       = 0;                                                                                           \
       uint16_t index    = 0;                                                                                           \
@@ -387,5 +405,5 @@
       static constexpr uint8_t opcode = code;                                                                          \
    };
 
-#define IDENTITY(name, code) eosio::vm::name##_t,
-#define IDENTITY_END(name, code) eosio::vm::name##_t
+#define IDENTITY(name, code) eosio::vm::OPCODE_NAME(name),
+#define IDENTITY_END(name, code) eosio::vm::OPCODE_NAME(name)
