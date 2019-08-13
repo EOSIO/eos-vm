@@ -256,6 +256,8 @@ namespace eosio { namespace vm {
 
          // Initialize the control stack with the current function as the sole element
          uint32_t operand_depth = 0;
+         // used for cumulative br_table data
+         uint32_t pc_offset = 0;
          std::vector<pc_element_t> pc_stack{{
                operand_depth,
                ft.return_count ? ft.return_type : static_cast<uint32_t>(types::pseudo),
@@ -292,13 +294,13 @@ namespace eosio { namespace vm {
          
          auto parse_br_table = [&](wasm_code_ptr& code, br_table_t& bt) {
             size_t table_size = parse_varuint32(code);
-            // set a pseudo op to push the pc over the data
-            uint32_t offset = static_cast<uint32_t>(((table_size * sizeof(br_table_t::elem_t))/sizeof(opcode))+1);
-            fb[op_index++] = br_table_data_t{offset+1};
+            bt.offset = static_cast<uint32_t>(((table_size * sizeof(br_table_t::elem_t))/sizeof(opcode))+2);
+            //fb[op_index++] = br_table_data_t{bt.offset+1};
             // memory is after the br_table_data opcode `fb[op_index+1]`
             bt.table = reinterpret_cast<br_table_t::elem_t*>(&fb[op_index]);
 
-            op_index += offset;
+            op_index += bt.offset;
+            pc_offset += bt.offset;
 
             // canary to throw if we have overbounded our allocated memory
             fb[op_index] = error_t{};
@@ -309,6 +311,7 @@ namespace eosio { namespace vm {
             for (size_t i = 0; i < table_size + 1; i++) {
                handle_branch_target(parse_varuint32(code), &bt.table[i].pc, &bt.table[i].stack_pop);
             }
+            EOS_WB_ASSERT(fb[op_index].is_a<error_t>(), wasm_parse_exception, "overwrote br_table data");
             bt.size           = table_size;
          };
 
@@ -338,24 +341,22 @@ namespace eosio { namespace vm {
 
          // Handles branches to the end of the scope and pops the pc_stack
          auto exit_scope = [&]() {
-            if (pc_stack.size()) { // There must be at least one element
-               if(auto* relocations = std::get_if<std::vector<uint32_t*>>(&pc_stack.back().relocations)) {
-                  for(uint32_t* branch_op : *relocations) {
-                     *branch_op = op_index;
-                  }
+            // there must be at least one element
+            EOS_WB_ASSERT(pc_stack.size(), wasm_invalid_element, "unexpected end instruction");
+            if(auto* relocations = std::get_if<std::vector<uint32_t*>>(&pc_stack.back().relocations)) {
+               for(uint32_t* branch_op : *relocations) {
+                  *branch_op = op_index+1;
                }
-               unsigned expected_operand_depth = pc_stack.back().operand_depth;
-               if (pc_stack.back().expected_result != types::pseudo) {
-                  ++expected_operand_depth;
-               }
-               if (!is_unreachable())
-                  EOS_WB_ASSERT(operand_depth == expected_operand_depth, wasm_parse_exception, "incorrect stack depth at end");
-               operand_depth = expected_operand_depth;
-               is_in_unreachable = pc_stack.back().is_unreachable;
-               pc_stack.pop_back();
-            } else {
-               throw wasm_invalid_element{ "unexpected end instruction" };
             }
+            unsigned expected_operand_depth = pc_stack.back().operand_depth;
+            if (pc_stack.back().expected_result != types::pseudo) {
+               ++expected_operand_depth;
+            }
+            if (!is_unreachable())
+               EOS_WB_ASSERT(operand_depth == expected_operand_depth, wasm_parse_exception, "incorrect stack depth at end");
+            operand_depth = expected_operand_depth;
+            is_in_unreachable = pc_stack.back().is_unreachable;
+            pc_stack.pop_back();
          };
 
          // Tracks the operand stack
@@ -438,10 +439,9 @@ namespace eosio { namespace vm {
                   handle_branch_target(label, &instr.pc, &instr.data);
                } break;
                case opcodes::br_table: {
-                  br_table_t bt;
                   pop_operand();
-                  parse_br_table(code, bt);
-                  fb[op_index++] = bt;
+                  fb[op_index++] = br_table_t{};
+                  parse_br_table(code, fb[op_index-1].get<br_table_t>());
                   start_unreachable();
                } break;
                case opcodes::call: {
@@ -449,9 +449,9 @@ namespace eosio { namespace vm {
                   const func_type& ft = _mod->get_function_type(funcnum);
                   pop_operands(ft.param_types.size());
                   EOS_WB_ASSERT(ft.return_count <= 1, wasm_parse_exception, "unsupported");
+                  fb[op_index++] = call_imm_t{ funcnum, operand_depth, static_cast<uint16_t>(ft.return_count ? ft.return_type : 0x100) };
                   if(ft.return_count == 1)
                      push_operand();
-                  fb[op_index++] = call_t{ funcnum };
                } break;
                case opcodes::call_indirect: {
                   uint32_t functypeidx = parse_varuint32(code);

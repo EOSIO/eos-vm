@@ -43,7 +43,7 @@ namespace eosio { namespace vm {
       [[gnu::always_inline]] inline void operator()(const fend_t& op) { context.apply_pop_call(); }
 
       [[gnu::always_inline]] inline void operator()(const end_t& op) { context.inc_pc(); }
-      [[gnu::always_inline]] inline void operator()(const return__t& op) { context.jump(op.data, op.pc); }
+      [[gnu::always_inline]] inline void operator()(const return__t& op) { context.apply_pop_call(); }
       [[gnu::always_inline]] inline void operator()(block_t& op) { context.inc_pc(); }
       [[gnu::always_inline]] inline void operator()(loop_t& op) { context.inc_pc(); }
       [[gnu::always_inline]] inline void operator()(if__t& op) {
@@ -72,7 +72,7 @@ namespace eosio { namespace vm {
          const auto& entry = op.table[std::min(in, op.size)]; 
          context.jump(entry.stack_pop, entry.pc);
       }
-      [[gnu::always_inline]] inline void operator()(const call_t& op) {
+      [[gnu::always_inline]] inline void operator()(const call_imm_t& op) {
          context.call(op.index);
          // TODO place these in parser
          // EOS_WB_ASSERT(b.index < funcs_size, wasm_interpreter_exception, "call index out of bounds");

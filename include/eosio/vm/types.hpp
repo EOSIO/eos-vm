@@ -127,32 +127,6 @@ namespace eosio { namespace vm {
       init_expr               offset;
       guarded_vector<uint8_t> data;
    };
-   /*
-   template <typename T, typename Alloc>
-   class code_vector {
-      public:
-         constexpr code_vector(Alloc& alloc, uint32_t size=0) : allocator(alloc) {
-            indices = { alloc, size };
-         }
-         uint32_t size()const { return indices.size(); }
-         void new_element(uint32_t size) {
-            if (element_index < 1) {
-               indices[element_index++] = 0;
-            }
-            indices[element_index++] = indices[element_index-1]+size;
-            allocator.template alloc<opcode>
-         }
-         opcode* operator[](uint32_t index) {
-            return code + indices[index];
-         }
-      private:
-         std::unordered_map<uint32_t, uint32_t> indices_transform;
-         guarded_vector<uint32> indices;
-         uint32_t element_index = 0;
-         opcode* code = nullptr;
-         Alloc& allocator;
-   };
-   */
 
    using wasm_code     = std::vector<uint8_t>;
    using wasm_code_ptr = guarded_ptr<uint8_t>;

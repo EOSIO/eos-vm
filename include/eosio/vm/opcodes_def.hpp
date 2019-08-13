@@ -23,14 +23,14 @@
 #define CALL_OPS(opcode_macro)                  \
    opcode_macro(call, 0x10)                     \
    opcode_macro(call_indirect, 0x11)            \
-   opcode_macro(call_imm, 0x12)                 \
-   opcode_macro(call_indirect_imm, 0x13)        \
-   opcode_macro(br_table_data, 0x14)            \
-   opcode_macro(padding_call_3, 0x15)           \
-   opcode_macro(padding_call_4, 0x16)           \
-   opcode_macro(padding_call_5, 0x17)           \
-   opcode_macro(padding_call_6, 0x18)           \
-   opcode_macro(padding_call_7, 0x19)
+   opcode_macro(br_table_data, 0x12)
+#define CALL_IMM_OPS(opcode_macro)              \
+   opcode_macro(call_imm, 0x13)                 \
+   opcode_macro(call_indirect_imm, 0x14)        \
+   opcode_macro(padding_call_3, 0x16)           \
+   opcode_macro(padding_call_4, 0x17)           \
+   opcode_macro(padding_call_5, 0x18)           \
+   opcode_macro(padding_call_6, 0x19)
 #define PARAMETRIC_OPS(opcode_macro)            \
    opcode_macro(drop, 0x1A)                     \
    opcode_macro(select, 0x1B)                   \
@@ -308,6 +308,7 @@
       struct elem_t { uint32_t pc; uint32_t stack_pop; };                                                              \
       elem_t* table;                                                                                                   \
       uint32_t  size;                                                                                                  \
+      uint32_t  offset;                                                                                                \
       static constexpr uint8_t opcode = code;                                                                          \
    };
 
@@ -321,6 +322,15 @@
    struct name##_t {                                                                                                   \
       name##_t() = default;                                                                                            \
       uint32_t index;                                                                                                  \
+      static constexpr uint8_t opcode = code;                                                                          \
+   };
+
+#define CREATE_CALL_IMM_TYPES(name, code)                                                                              \
+   struct name##_t {                                                                                                   \
+      name##_t() = default;                                                                                            \
+      uint32_t index;                                                                                                  \
+      uint32_t stack_index;                                                                                            \
+      uint16_t return_type;                                                                                            \
       static constexpr uint8_t opcode = code;                                                                          \
    };
 

@@ -34,7 +34,7 @@ namespace eosio { namespace vm {
 	      _ctx.reset();
          _ctx.execute_start(host, interpret_visitor(_ctx));
          auto md = memory_dump(&(_mod.get_opcode(0)), 100);
-         md.write(std::cout); 
+         //md.write(std::cout); 
 	      return *this;
       }
 
