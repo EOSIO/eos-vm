@@ -105,49 +105,19 @@ namespace eosio { namespace vm {
     public:
       variant() = default;
       variant(const variant& other) = default;
-      variant(variant<Alternatives...>&& other) = default;
+      variant(variant&& other) = default;
 
-      variant& operator=(const variant& other) {
-         memcpy(&_storage, &other._storage, sizeof(_storage));
-         _which = other._which;
-         return *this;
-      }
+      variant& operator=(const variant& other) = default;
+      variant& operator=(variant&& other) = default;
 
-      variant& operator=(variant&& other) {
-         memcpy(&_storage, &other._storage, sizeof(_storage));
-         _which = other._which;
-         return *this;
-      }
-
-      template <typename T>
-      variant(const T& alt) {
-         static_assert(detail::is_valid_alternative_v<std::decay_t<T>, Alternatives...>,
-                       "type not a valid alternative (const T&)");
-         new (&_storage) std::decay_t<T>(alt);
-         _which = detail::get_alternatives_index_v<T, Alternatives...>;
-      }
-
-      template <typename T, typename = std::enable_if_t<!std::is_base_of_v<variant, std::decay_t<T>>, int>>
+      template <typename T, typename = std::enable_if_t<detail::is_valid_alternative_v<std::decay_t<T>, Alternatives...>>>
       variant(T&& alt) {
-         static_assert(detail::is_valid_alternative_v<std::decay_t<T>, Alternatives...>,
-                       "type not a valid alternative (T&&)");
          new (&_storage) std::decay_t<T>(std::forward<T>(alt));
          _which = detail::get_alternatives_index_v<std::decay_t<T>, Alternatives...>;
       }
 
-      template <typename T>
-      variant& operator=(const T& alt) {
-         static_assert(detail::is_valid_alternative_v<std::decay_t<T>, Alternatives...>,
-                       "type not a valid alternative (= const T&)");
-         new (&_storage) std::decay_t<T>(alt);
-         _which = detail::get_alternatives_index_v<T, Alternatives...>;
-         return *this;
-      }
-
-      template <typename T, typename = std::enable_if_t<!std::is_base_of_v<variant, std::decay_t<T>>, int>>
+      template <typename T, typename = std::enable_if_t<detail::is_valid_alternative_v<std::decay_t<T>, Alternatives...>>>
       variant& operator=(T&& alt) {
-         static_assert(detail::is_valid_alternative_v<std::decay_t<T>, Alternatives...>,
-                       "type not a valid alternative (= T&&)");
          new (&_storage) std::decay_t<T>(std::forward<T>(alt));
          _which = detail::get_alternatives_index_v<std::decay_t<T>, Alternatives...>;
          return *this;
