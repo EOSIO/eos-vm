@@ -800,6 +800,7 @@ namespace eosio { namespace vm {
          emit_i64_relop(0x93);
       }
 
+#ifdef EOS_VM_SOFTFLOAT
       // Make sure that the result doesn't contain any garbage bits in rax
       static uint64_t adapt_result(bool val) {
          return val?1:0;
@@ -864,56 +865,64 @@ namespace eosio { namespace vm {
             return nullptr;
          }
       }
+   #define CHOOSE_FN(name) choose_fn<&name>()
+#else
+      using float32_t = float;
+      using float64_t = double;
+   #define CHOOSE_FN(name) nullptr
+#endif
 
       // --------------- f32 relops ----------------------
       void emit_f32_eq() {
-         emit_f32_relop(0x00, choose_fn<&_eosio_f32_eq>(), false, false);
+         emit_f32_relop(0x00, CHOOSE_FN(_eosio_f32_eq), false, false);
       }
 
       void emit_f32_ne() {
-         emit_f32_relop(0x00, choose_fn<&_eosio_f32_eq>(), false, true);
+         emit_f32_relop(0x00, CHOOSE_FN(_eosio_f32_eq), false, true);
       }
 
       void emit_f32_lt() {
-         emit_f32_relop(0x01, choose_fn<&_eosio_f32_lt>(), false, false);
+         emit_f32_relop(0x01, CHOOSE_FN(_eosio_f32_lt), false, false);
       }
 
       void emit_f32_gt() {
-         emit_f32_relop(0x01, choose_fn<&_eosio_f32_lt>(), true, false);
+         emit_f32_relop(0x01, CHOOSE_FN(_eosio_f32_lt), true, false);
       }
 
       void emit_f32_le() {
-         emit_f32_relop(0x02, choose_fn<&_eosio_f32_le>(), false, false);
+         emit_f32_relop(0x02, CHOOSE_FN(_eosio_f32_le), false, false);
       }
 
       void emit_f32_ge() {
-         emit_f32_relop(0x02, choose_fn<&_eosio_f32_le>(), true, false);
+         emit_f32_relop(0x02, CHOOSE_FN(_eosio_f32_le), true, false);
       }
 
       // --------------- f64 relops ----------------------
       void emit_f64_eq() {
-         emit_f64_relop(0x00, choose_fn<&_eosio_f64_eq>(), false, false);
+         emit_f64_relop(0x00, CHOOSE_FN(_eosio_f64_eq), false, false);
       }
 
       void emit_f64_ne() {
-         emit_f64_relop(0x00, choose_fn<&_eosio_f64_eq>(), false, true);
+         emit_f64_relop(0x00, CHOOSE_FN(_eosio_f64_eq), false, true);
       }
 
       void emit_f64_lt() {
-         emit_f64_relop(0x01, choose_fn<&_eosio_f64_lt>(), false, false);
+         emit_f64_relop(0x01, CHOOSE_FN(_eosio_f64_lt), false, false);
       }
 
       void emit_f64_gt() {
-         emit_f64_relop(0x01, choose_fn<&_eosio_f64_lt>(), true, false);
+         emit_f64_relop(0x01, CHOOSE_FN(_eosio_f64_lt), true, false);
       }
 
       void emit_f64_le() {
-         emit_f64_relop(0x02, choose_fn<&_eosio_f64_le>(), false, false);
+         emit_f64_relop(0x02, CHOOSE_FN(_eosio_f64_le), false, false);
       }
 
       void emit_f64_ge() {
-         emit_f64_relop(0x02, choose_fn<&_eosio_f64_le>(), true, false);
+         emit_f64_relop(0x02, CHOOSE_FN(_eosio_f64_le), true, false);
       }
+
+#undef CHOOSE_FN
 
       // --------------- i32 unops ----------------------
 
