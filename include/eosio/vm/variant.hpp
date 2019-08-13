@@ -93,7 +93,7 @@ namespace eosio { namespace vm {
       struct dispatcher<true, Ret> {
          template <std::size_t I, typename Vis, typename Var>
          static constexpr Ret _case(Vis&& vis, Var&& var) {
-            return std::invoke(std::forward<Vis>(vis), var.template get<I>());
+            return std::invoke(std::forward<Vis>(vis), std::forward<Var>(var).template get<I>());
          }
 
          template <std::size_t I, typename Vis, typename Var>
@@ -117,8 +117,8 @@ namespace eosio { namespace vm {
                                                                             std::forward<Var>(var));
                }
                default: {
-                  return dispatcher<I + 4 < sz, Ret>::template _case<I + 4>(std::forward<Vis>(vis),
-                                                                            std::forward<Var>(var));
+                  return dispatcher<I + 4 < sz, Ret>::template _switch<I + 4>(std::forward<Vis>(vis),
+                                                                              std::forward<Var>(var));
                }
             }
          }
@@ -205,32 +205,42 @@ namespace eosio { namespace vm {
       }
 
       template <size_t Index>
-      inline constexpr const auto& get() const {
+      inline constexpr const auto& get() const & {
          return reinterpret_cast<const typename std::tuple_element<Index, alternatives_tuple>::type&>(_storage);
       }
 
       template <typename Alt>
-      inline constexpr const Alt& get() const &{
+      inline constexpr const Alt& get() const & {
          return reinterpret_cast<const Alt&>(_storage);
       }
 
       template <size_t Index>
-      inline constexpr auto& get() && {
-         return reinterpret_cast<typename std::tuple_element<Index, alternatives_tuple>::type&>(_storage);
+      inline constexpr const auto&& get() const && {
+         return reinterpret_cast<const typename std::tuple_element<Index, alternatives_tuple>::type&&>(_storage);
       }
 
       template <typename Alt>
-      inline constexpr Alt& get() && {
-         return reinterpret_cast<Alt&>(_storage);
+      inline constexpr const Alt&& get() const && {
+         return reinterpret_cast<const Alt&&>(_storage);
       }
 
       template <size_t Index>
-      inline constexpr auto get() {
+      inline constexpr auto&& get() && {
+         return reinterpret_cast<typename std::tuple_element<Index, alternatives_tuple>::type&&>(_storage);
+      }
+
+      template <typename Alt>
+      inline constexpr Alt&& get() && {
+         return reinterpret_cast<Alt&&>(_storage);
+      }
+
+      template <size_t Index>
+      inline constexpr auto& get() & {
          return reinterpret_cast<typename std::tuple_element<Index, alternatives_tuple>::type&>(_storage);
       }
 
       template <typename Alt>
-      inline constexpr Alt& get()& {
+      inline constexpr Alt& get() & {
          return reinterpret_cast<Alt&>(_storage);
       }
 
