@@ -101,6 +101,9 @@ namespace eosio { namespace vm {
    class variant {
       static_assert(sizeof...(Alternatives) <= std::numeric_limits<uint8_t>::max()+1,
                     "eosio::vm::variant can only accept 256 alternatives");
+      static_assert((... && (std::is_trivially_copy_constructible_v<Alternatives> && std::is_trivially_move_constructible_v<Alternatives> &&
+                    std::is_trivially_copy_assignable_v<Alternatives> && std::is_trivially_move_assignable_v<Alternatives> &&
+                    std::is_trivially_destructible_v<Alternatives>)), "Variant requires trivial types");
 
     public:
       variant() = default;
