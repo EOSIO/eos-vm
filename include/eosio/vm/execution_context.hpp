@@ -5,7 +5,9 @@
 #include <eosio/vm/types.hpp>
 #include <eosio/vm/wasm_stack.hpp>
 #include <eosio/vm/watchdog.hpp>
+#include <eosio/vm/memory_dump.hpp>
 
+#include <fstream>
 #include <optional>
 #include <string>
 #include <utility>
@@ -51,8 +53,6 @@ namespace eosio { namespace vm {
             setup_locals(index);
             const uint32_t& pc = _mod.function_sizes[index];
             set_pc(pc);
-            //_state.current_offset = pc;
-            //_state.code_index     = index - _mod.get_imported_functions_size();
          }
       }
 
@@ -104,11 +104,13 @@ namespace eosio { namespace vm {
          operand_stack_elem el;
          if (ret_type) {
             el = pop_operand();
+            /*  shouldn't show up because of validation anymore, used to debug
             EOS_WB_ASSERT(el.is_a<i32_const_t>() && ret_type == types::i32 ||
                                    el.is_a<i64_const_t>() && ret_type == types::i64 ||
                                    el.is_a<f32_const_t>() && ret_type == types::f32 ||
                                    el.is_a<f64_const_t>() && ret_type == types::f64,
                              wasm_interpreter_exception, "wrong return type");
+                             */
          }
          if (af.pc == -1) {
             set_exiting_op(_state.exiting_loc);
@@ -289,6 +291,12 @@ namespace eosio { namespace vm {
          _state.exiting_loc      = 0;
          _state.as_index         = _as.size();
          _state.os_index         = _os.size();
+         std::cout << "PC " << _state.pc << "\n";
+         std::cout << "index " << func_index << "\n";
+         memory_dump md((eosio::vm::opcode*)_mod.code.raw(), _mod.code.size());
+         std::ofstream mf("out.md");
+         md.write(mf);
+         mf.close();
 
          push_args(args...);
          push_call<true>(func_index);

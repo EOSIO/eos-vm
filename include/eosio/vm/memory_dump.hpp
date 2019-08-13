@@ -1,6 +1,7 @@
 #pragma once
 
 #include <eosio/vm/types.hpp>
+#include <eosio/vm/base_visitor.hpp>
 
 #include <string_view>
 
