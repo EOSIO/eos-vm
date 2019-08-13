@@ -22,57 +22,23 @@ namespace eosio { namespace vm {
    namespace detail {
 
       template <typename... Ts>
-      struct max_layout_size {
-         static constexpr auto value = std::max({sizeof(Ts)...});
-      };
+      constexpr std::size_t max_layout_size_v = std::max({sizeof(Ts)...});
 
       template <typename... Ts>
-      struct max_alignof {
-         static constexpr auto value = std::max({alignof(Ts)...});
-      };
+      constexpr std::size_t max_alignof_v = std::max({alignof(Ts)...});
 
       template <typename T, typename... Alternatives>
-      struct is_valid_alternative {
-         static constexpr auto value = (... + (std::is_same_v<T, Alternatives>?1:0)) != 0;
-      };
+      constexpr bool is_valid_alternative_v = (... + (std::is_same_v<T, Alternatives>?1:0)) != 0;
 
-      template <size_t N, typename T, typename Alternative, typename... Alternatives>
-      struct get_alternatives_index {
-         static constexpr auto value =
-               std::is_same<T, Alternative>::value ? N : get_alternatives_index<N + 1, T, Alternatives...>::value;
-      };
+      template <typename T, typename Alternative, typename... Alternatives>
+      constexpr std::size_t get_alternatives_index_v =
+               std::is_same_v<T, Alternative> ? 0 : get_alternatives_index_v<T, Alternatives...> + 1;
 
-      template <size_t N, typename T, typename Alternative>
-      struct get_alternatives_index<N, T, Alternative> {
-         static constexpr auto value = N;
-      };
+      template <typename T, typename Alternative>
+      constexpr std::size_t get_alternatives_index_v<T, Alternative> = 0;
 
-      template <typename Alternative, typename... Alternatives>
-      struct get_first_alternative {
-         using type = Alternative;
-      };
-
-      template <size_t I, size_t N, typename... Alternatives>
-      struct get_alternative {
-         using type = typename get_alternative<I + 1, N, Alternatives...>::type;
-      };
-
-      template <size_t I, typename... Alternatives>
-      struct get_alternative<I, I, Alternatives...> {
-         using type = typename get_first_alternative<Alternatives...>::type;
-      };
-
-      template <typename Ret, size_t I, size_t Sz, typename Alt, typename... Alts>
-      constexpr  Ret type_at(uint16_t index) {
-         if constexpr (I < Sz-1) {
-            if (I == index)
-               return Alt{};
-            else
-               return type_at<I+1, Sz, Alts...>(index);
-         } else {
-            throw wasm_invalid_element("type_at failure");
-         }
-      }
+      template <std::size_t I, typename... Alternatives>
+      using get_alternative_t = std::tuple_element_t<I, std::tuple<Alternatives...>>;
 
       template <bool Valid, typename Ret>
       struct dispatcher;
@@ -155,35 +121,35 @@ namespace eosio { namespace vm {
 
       template <typename T>
       variant(const T& alt) {
-         static_assert(detail::is_valid_alternative<std::decay_t<T>, Alternatives...>::value,
+         static_assert(detail::is_valid_alternative_v<std::decay_t<T>, Alternatives...>,
                        "type not a valid alternative (const T&)");
          new (&_storage) std::decay_t<T>(alt);
-         _which = detail::get_alternatives_index<0, T, Alternatives...>::value;
+         _which = detail::get_alternatives_index_v<T, Alternatives...>;
       }
 
       template <typename T, typename = std::enable_if_t<!std::is_base_of_v<variant, std::decay_t<T>>, int>>
       variant(T&& alt) {
-         static_assert(detail::is_valid_alternative<std::decay_t<T>, Alternatives...>::value,
+         static_assert(detail::is_valid_alternative_v<std::decay_t<T>, Alternatives...>,
                        "type not a valid alternative (T&&)");
          new (&_storage) std::decay_t<T>(std::forward<T>(alt));
-         _which = detail::get_alternatives_index<0, std::decay_t<T>, Alternatives...>::value;
+         _which = detail::get_alternatives_index_v<std::decay_t<T>, Alternatives...>;
       }
 
       template <typename T>
       variant& operator=(const T& alt) {
-         static_assert(detail::is_valid_alternative<std::decay_t<T>, Alternatives...>::value,
+         static_assert(detail::is_valid_alternative_v<std::decay_t<T>, Alternatives...>,
                        "type not a valid alternative (= const T&)");
          new (&_storage) std::decay_t<T>(alt);
-         _which = detail::get_alternatives_index<0, T, Alternatives...>::value;
+         _which = detail::get_alternatives_index_v<T, Alternatives...>;
          return *this;
       }
 
       template <typename T, typename = std::enable_if_t<!std::is_base_of_v<variant, std::decay_t<T>>, int>>
       variant& operator=(T&& alt) {
-         static_assert(detail::is_valid_alternative<std::decay_t<T>, Alternatives...>::value,
+         static_assert(detail::is_valid_alternative_v<std::decay_t<T>, Alternatives...>,
                        "type not a valid alternative (= T&&)");
          new (&_storage) std::decay_t<T>(std::forward<T>(alt));
-         _which = detail::get_alternatives_index<0, std::decay_t<T>, Alternatives...>::value;
+         _which = detail::get_alternatives_index_v<std::decay_t<T>, Alternatives...>;
          return *this;
       }
 
@@ -196,17 +162,9 @@ namespace eosio { namespace vm {
          return 3;
       }
 
-      inline constexpr char* get_raw() const {
-         return _storage;
-      }
-
-      inline constexpr char* get_raw() {
-         return _storage;
-      }
-
       template <size_t Index>
       inline constexpr const auto& get() const & {
-         return reinterpret_cast<const typename std::tuple_element<Index, alternatives_tuple>::type&>(_storage);
+         return reinterpret_cast<const typename detail::get_alternative_t<Index, Alternatives...>&>(_storage);
       }
 
       template <typename Alt>
@@ -216,7 +174,7 @@ namespace eosio { namespace vm {
 
       template <size_t Index>
       inline constexpr const auto&& get() const && {
-         return reinterpret_cast<const typename std::tuple_element<Index, alternatives_tuple>::type&&>(_storage);
+         return reinterpret_cast<const typename detail::get_alternative_t<Index, Alternatives...>&&>(_storage);
       }
 
       template <typename Alt>
@@ -226,7 +184,7 @@ namespace eosio { namespace vm {
 
       template <size_t Index>
       inline constexpr auto&& get() && {
-         return reinterpret_cast<typename std::tuple_element<Index, alternatives_tuple>::type&&>(_storage);
+         return reinterpret_cast<typename detail::get_alternative_t<Index, Alternatives...>&&>(_storage);
       }
 
       template <typename Alt>
@@ -236,7 +194,7 @@ namespace eosio { namespace vm {
 
       template <size_t Index>
       inline constexpr auto& get() & {
-         return reinterpret_cast<typename std::tuple_element<Index, alternatives_tuple>::type&>(_storage);
+         return reinterpret_cast<typename detail::get_alternative_t<Index, Alternatives...>&>(_storage);
       }
 
       template <typename Alt>
@@ -246,18 +204,15 @@ namespace eosio { namespace vm {
 
       template <typename Alt>
       inline constexpr bool is_a() {
-         return _which == detail::get_alternatives_index<0, Alt, Alternatives...>::value;
+         return _which == detail::get_alternatives_index_v<Alt, Alternatives...>;
       }
       inline constexpr void toggle_exiting_which() { _which ^= 0x100; }
       inline constexpr void clear_exiting_which() { _which &= 0xFF; }
       inline constexpr void set_exiting_which() { _which |= 0x100; }
 
-      static constexpr size_t size() { return std::tuple_size_v<alternatives_tuple>; }
-
     private:
-      using alternatives_tuple         = std::tuple<Alternatives...>;
-      static constexpr size_t _sizeof  = detail::max_layout_size<Alternatives...>::value;
-      static constexpr size_t _alignof = detail::max_alignof<Alternatives...>::value;
+      static constexpr size_t _sizeof  = detail::max_layout_size_v<Alternatives...>;
+      static constexpr size_t _alignof = detail::max_alignof_v<Alternatives...>;
       uint16_t _which                  = 0;
       alignas(_alignof) std::array<char, _sizeof> _storage;
    };
