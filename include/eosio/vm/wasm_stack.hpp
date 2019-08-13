@@ -40,7 +40,6 @@ namespace eosio { namespace vm {
       uint16_t                              _index = 0;
    };
 
-   using control_stack = fixed_stack<constants::max_nested_structures, control_stack_elem, bounded_allocator>;
    using operand_stack = fixed_stack<constants::max_stack_size,        operand_stack_elem, bounded_allocator>;
    using call_stack    = fixed_stack<constants::max_call_depth,        activation_frame,   bounded_allocator>;
 
