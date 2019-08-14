@@ -1,6 +1,6 @@
 # EOS VM - A Low-Latency, High Performance and Extensible WebAssembly Engine
 
-## *** Developer Preview ***
+## **!@* Developer Preview **@!*
 *Not yet licensed as OSS.*
 
 - Extremely Fast Execution (6x faster than WABT)
