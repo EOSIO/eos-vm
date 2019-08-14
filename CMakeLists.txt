@@ -99,7 +99,7 @@ if(ENABLE_TESTS)
       include(ExternalProject)
       ExternalProject_Add(
          eos_vm_test_wasms
-         GIT_REPOSITORY "git@github.com:eosio/eos-vm-test-wasms.git"
+         GIT_REPOSITORY "https://github.com/EOSIO/eos-vm-test-wasms.git"
          SOURCE_DIR ${CMAKE_BINARY_DIR}/wasms
          BINARY_DIR ${CMAKE_BINARY_DIR}/wasms
          BUILD_ALWAYS 0
