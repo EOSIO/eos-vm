@@ -1,7 +1,6 @@
 #pragma once
 
 #include <eosio/vm/types.hpp>
-#include <eosio/vm/base_visitor.hpp>
 
 #include <string_view>
 
@@ -21,12 +20,13 @@ namespace eosio { namespace vm {
    void operator()(const name##_t& op) { \
       stream << #name << " : { [ "; \
       for (uint32_t i=0; i < op.size; i++) { \
-         stream << op.table[i]; \
+         stream << op.table[i].pc; \
          if (i < op.size-1) { \
             stream << ", "; \
          } \
       } \
       stream << " ] }\n"; \
+      index += op.offset; \
    }
 
 #define MEMORY_DUMP_CALL_VISIT(name, code) \
@@ -50,12 +50,13 @@ namespace eosio { namespace vm {
    }
    
    template <typename Stream>
-   struct memory_dump_visitor : public base_visitor {
-      memory_dump_visitor(Stream&& stream) : stream(stream) {}
+   struct memory_dump_visitor {
+      memory_dump_visitor(Stream&& stream, size_t& i) : stream(stream), index(i) {}
       CONTROL_FLOW_OPS(MEMORY_DUMP_CONTROL_FLOW_VISIT)
       BR_TABLE_OP(MEMORY_DUMP_BR_TABLE_VISIT)
       RETURN_OP(MEMORY_DUMP_OP_VISIT)
       CALL_OPS(MEMORY_DUMP_CALL_VISIT)
+      CALL_IMM_OPS(MEMORY_DUMP_CALL_VISIT)
       PARAMETRIC_OPS(MEMORY_DUMP_OP_VISIT)
       VARIABLE_ACCESS_OPS(MEMORY_DUMP_VARIABLE_ACCESS_VISIT)
       I32_CONSTANT_OPS(MEMORY_DUMP_CONST_VISIT)
@@ -66,8 +67,12 @@ namespace eosio { namespace vm {
       NUMERIC_OPS(MEMORY_DUMP_OP_VISIT)
       CONVERSION_OPS(MEMORY_DUMP_OP_VISIT)
       SYNTHETIC_OPS(MEMORY_DUMP_OP_VISIT)
+      EMPTY_OPS(MEMORY_DUMP_OP_VISIT)
       ERROR_OPS(MEMORY_DUMP_OP_VISIT)
+      template <typename T>
+      inline void operator()(T) { stream << "invalid opcode\n"; }
       Stream& stream;
+      size_t& index;
    };
 
    template <typename Opcode>
@@ -77,13 +82,14 @@ namespace eosio { namespace vm {
 
          template <typename Stream>
          void write(Stream&& stream) {
-            memory_dump_visitor<Stream> md(std::forward<Stream>(stream));
-            for (size_t i=0; i < _size; i++) {
-               eosio::vm::visit(std::move(md), std::move(_opcodes[i]));
+            size_t index=0;
+            memory_dump_visitor<Stream> md(std::forward<Stream>(stream), index);
+            for (; index < _size; index++) {
+               eosio::vm::visit(std::move(md), std::move(_opcodes[index]));
             }
          }
       private:
-         Opcode* _opcodes;
-         size_t  _size;
+         Opcode* _opcodes = nullptr;
+         size_t  _size    = 0;
    };
 }} // ns eosio::vm

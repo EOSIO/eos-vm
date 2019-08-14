@@ -30,7 +30,7 @@ namespace eosio { namespace vm {
    using guarded_vector = managed_vector<T, growable_allocator>;
 
    struct activation_frame {
-      uint32_t pc;
+      opcode* pc;
       uint32_t offset;
       uint32_t index;
       uint16_t op_index;
@@ -159,9 +159,18 @@ namespace eosio { namespace vm {
       }
       inline uint32_t get_functions_size() const { return code.size(); }
       inline uint32_t get_functions_total() const { return get_imported_functions_size() + get_functions_size(); }
+      inline opcode* get_function_pc( uint32_t fidx ) const { 
+         EOS_WB_ASSERT( fidx >= get_imported_functions_size(), wasm_interpreter_exception, "trying to get the PC of an imported function" );
+         return code[fidx-get_imported_functions_size()].code;
+      }
 
       inline auto& get_opcode(uint32_t pc) const {
          return ((opcode*)&code[0].code[0])[pc];
+      }
+
+      inline uint32_t get_function_locals_size( uint32_t fidx ) const {
+         EOS_WB_ASSERT( fidx >= get_imported_functions_size(), wasm_interpreter_exception, "trying to get the PC of an imported function" );
+         return code[fidx-get_imported_functions_size()].locals.size();
       }
 
       auto& get_function_type(uint32_t index) const {

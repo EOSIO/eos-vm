@@ -27,10 +27,11 @@
 #define CALL_IMM_OPS(opcode_macro)              \
    opcode_macro(call_imm, 0x13)                 \
    opcode_macro(call_indirect_imm, 0x14)        \
-   opcode_macro(padding_call_3, 0x16)           \
-   opcode_macro(padding_call_4, 0x17)           \
-   opcode_macro(padding_call_5, 0x18)           \
-   opcode_macro(padding_call_6, 0x19)
+   opcode_macro(padding_call_1, 0x15)           \
+   opcode_macro(padding_call_2, 0x16)           \
+   opcode_macro(padding_call_3, 0x17)           \
+   opcode_macro(padding_call_4, 0x18)           \
+   opcode_macro(padding_call_5, 0x19)
 #define PARAMETRIC_OPS(opcode_macro)            \
    opcode_macro(drop, 0x1A)                     \
    opcode_macro(select, 0x1B)                   \
@@ -330,6 +331,7 @@
       name##_t() = default;                                                                                            \
       uint32_t index;                                                                                                  \
       uint32_t stack_index;                                                                                            \
+      uint32_t last_stack_index;                                                                                       \
       uint16_t return_type;                                                                                            \
       static constexpr uint8_t opcode = code;                                                                          \
    };

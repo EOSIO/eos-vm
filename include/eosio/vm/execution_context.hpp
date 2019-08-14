@@ -51,8 +51,9 @@ namespace eosio { namespace vm {
             // type_check(ft);
             push_call(index);
             setup_locals(index);
-            const uint32_t& pc = _mod.function_sizes[index];
-            set_pc(pc);
+            set_pc( _mod.get_function_pc(index) );
+            //const uint32_t& pc = _mod.function_sizes[index];
+            //set_pc(pc);
          }
       }
 
@@ -78,6 +79,7 @@ namespace eosio { namespace vm {
       inline void           push_operand(const operand_stack_elem& el) { _os.push(el); }
       inline operand_stack_elem     get_operand(uint16_t index) const { return _os.get(_last_op_index + index); }
       inline void           eat_operands(uint16_t index) { _os.eat(index); }
+      inline void           compact_operand(uint16_t index) { _os.compact(index); }
       inline void           set_operand(uint16_t index, const operand_stack_elem& el) { _os.set(_last_op_index + index, el); }
       inline uint16_t       current_operands_index() const { return _os.current_index(); }
       inline void           push_call(const activation_frame& el) { _as.push(el); }
@@ -87,45 +89,30 @@ namespace eosio { namespace vm {
       inline void           push_call(uint32_t index) {
          const auto& ftype = _mod.get_function_type(index);
          _last_op_index    = _os.size() - ftype.param_types.size();
-         _as.push(activation_frame{ _state.pc + 1, static_cast<uint16_t>(_last_op_index), ftype.return_type });
-         //_as.push(activation_frame{ _state.pc + 1, _state.current_offset, _state.code_index, static_cast<uint16_t>(_last_op_index),
-         //                           ftype.return_type });
          if constexpr (Should_Exit) {
-            _as.push(activation_frame{ static_cast<uint32_t>(-1), static_cast<uint16_t>(_last_op_index), ftype.return_type });
+            _as.push(activation_frame{ static_cast<opcode*>(nullptr), static_cast<uint16_t>(_last_op_index), ftype.return_type });
          } else {
-            _as.push(activation_frame{ _state.pc + 1, static_cast<uint16_t>(_last_op_index), ftype.return_type });
+            _as.push(activation_frame{ _state.pc + 1 });
          }
       }
 
       inline void apply_pop_call() {
          const auto& af = _as.pop();
-         const uint8_t    ret_type = af.ret_type;
-         const uint16_t   op_index = af.op_index;
-         operand_stack_elem el;
-         if (ret_type) {
-            el = pop_operand();
-            /*  shouldn't show up because of validation anymore, used to debug
-            EOS_WB_ASSERT(el.is_a<i32_const_t>() && ret_type == types::i32 ||
-                                   el.is_a<i64_const_t>() && ret_type == types::i64 ||
-                                   el.is_a<f32_const_t>() && ret_type == types::f32 ||
-                                   el.is_a<f64_const_t>() && ret_type == types::f64,
-                             wasm_interpreter_exception, "wrong return type");
-                             */
-         }
-         if (af.pc == -1) {
+         if (af.pc == nullptr) {
             set_exiting_op(_state.exiting_loc);
-            //_state.current_offset     = af.offset;
-            //_state.code_index         = af.index;
-            _state.pc = 0;
+            _state.pc = _mod.code[0].code;
          } else {
-            _state.pc                = af.pc;
-            _last_op_index = _as.peek().op_index;
-            //_state.current_offset = 0;
-            //_state.code_index = 0;
+            const auto& call_i = (af.pc-1)->template get<call_imm_t>();
+            const uint8_t    ret_type = call_i.return_type;
+            const uint16_t   op_index = call_i.stack_index;
+
+            _state.pc = af.pc;
+            _last_op_index = (_state.pc-1)->template get<call_imm_t>().last_stack_index;
+            if (ret_type)
+               compact_operand(op_index);
+            else
+               eat_operands(op_index);
          }
-         eat_operands(op_index);
-         if (ret_type)
-            push_operand(el);
       }
       inline operand_stack_elem  pop_operand() { return _os.pop(); }
       inline operand_stack_elem& peek_operand(size_t i = 0) { return _os.peek(i); }
@@ -201,12 +188,13 @@ namespace eosio { namespace vm {
          }
       }
 
-      inline uint32_t get_pc() const { return _state.pc; }
-      inline void     set_pc(uint32_t pc) { _state.pc = pc; }
-      inline void     set_relative_pc(uint32_t pc) { _state.pc = pc; }
+      inline opcode*  get_pc() const { return _state.pc; }
+      inline void     set_relative_pc(uint32_t pc_offset) { 
+         std::cout << "srp " << _state.pc << " " << _mod.code[0].code << " " << _mod.code[0].code+pc_offset << "\n";
+         _state.pc = _mod.code[0].code + pc_offset; 
+      }
+      inline void     set_pc(opcode* pc) { _state.pc = pc; }
       inline void     inc_pc(uint32_t offset=1) { _state.pc += offset; }
-      inline uint32_t get_code_index() const { return _state.code_index; }
-      //inline uint32_t get_code_offset() const { return _state.pc - _state.current_offset; }
       inline void     exit(std::error_code err = std::error_code()) {
          _error_code = err;
          clear_exiting_op(_state.exiting_loc);
@@ -275,6 +263,7 @@ namespace eosio { namespace vm {
          EOS_WB_ASSERT(func_index < std::numeric_limits<uint32_t>::max(), wasm_interpreter_exception,
                        "cannot execute function, function not found");
 
+
          auto last_last_op_index = _last_op_index;
 
          clear_exiting_op( _state.exiting_loc );
@@ -287,13 +276,14 @@ namespace eosio { namespace vm {
          _state.current_function = func_index;
          //_state.code_index       = func_index - _mod.import_functions.size();
          //_state.current_offset   = _mod.function_sizes[_state.current_function];
-         _state.pc              = _mod.function_sizes[func_index];
+         _state.pc               = _mod.get_function_pc(func_index);
+         std::cout << "PC* " << _state.pc << "\n";
+         //_state.pc               = _mod.function_sizes[func_index];
          _state.exiting_loc      = 0;
          _state.as_index         = _as.size();
          _state.os_index         = _os.size();
-         std::cout << "PC " << _state.pc << "\n";
-         std::cout << "index " << func_index << "\n";
-         memory_dump md((eosio::vm::opcode*)_mod.code.raw(), _mod.code.size());
+
+         memory_dump md(_mod.code[0].code, 1000);
          std::ofstream mf("out.md");
          md.write(mf);
          mf.close();
@@ -334,7 +324,7 @@ namespace eosio { namespace vm {
       }
 
       inline void jump(uint32_t pop_info, uint32_t new_pc) {
-         _state.pc = new_pc;
+         set_relative_pc(new_pc);
          if ((pop_info & 0x80000000u)) {
             const auto& op = pop_operand();
             eat_operands(_os.size() - ((pop_info & 0x7FFFFFFFu) - 1));
@@ -383,7 +373,7 @@ namespace eosio { namespace vm {
 #define CREATE_EXITING_TABLE_ENTRY(NAME, CODE) &&ev_label_exiting_##NAME,
 #define CREATE_LABEL(NAME, CODE)                                                                                  \
       ev_label_##NAME : visitor(ev_variant->template get<eosio::vm::NAME##_t>());                                 \
-      ev_variant = &_mod.get_opcode(_state.pc); \
+      ev_variant = _state.pc; \
       goto* dispatch_table[ev_variant->index()];
 #define CREATE_EXITING_LABEL(NAME, CODE)                                                  \
       ev_label_exiting_##NAME :  \
@@ -431,7 +421,7 @@ namespace eosio { namespace vm {
             ERROR_OPS(CREATE_EXITING_TABLE_ENTRY)
             &&__ev_last
          };
-         auto* ev_variant = &_mod.get_opcode(_state.pc);
+         auto* ev_variant = _state.pc;
          goto *dispatch_table[ev_variant->index()];
          while (1) {
              CONTROL_FLOW_OPS(CREATE_LABEL);
@@ -482,7 +472,7 @@ namespace eosio { namespace vm {
          uint32_t as_index         = 0;
          uint32_t cs_index         = 0;
          uint32_t os_index         = 0;
-         uint32_t pc              = 0;
+         opcode*  pc               = nullptr;
          bool     initialized      = false;
       };
 

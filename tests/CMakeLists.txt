@@ -17,7 +17,6 @@ enable_testing()
 # ##############
 # define spec tests
 # ##############
-#file(GLOB SPEC_TESTS "spec_tests/*.cpp" )
 file(GLOB SPEC_TESTS "spec/*.cpp" )
 add_executable( eos_vm_spec_tests main.cpp ${SPEC_TESTS} )
 target_link_libraries( eos_vm_spec_tests eos-vm Catch2::Catch2 )

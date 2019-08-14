@@ -49,11 +49,12 @@ namespace eosio { namespace vm {
       [[gnu::always_inline]] inline void operator()(if__t& op) {
          context.inc_pc();
          const auto& oper = context.pop_operand();
+         std::cout << "PC " << op.pc << " " << oper.to_ui32() << "\n";
          if (!oper.to_ui32()) {
             context.set_relative_pc(op.pc);
          }
       }
-      [[gnu::always_inline]] inline void operator()(const else__t& op) { context.set_relative_pc(op.pc); }
+      [[gnu::always_inline]] inline void operator()(const else__t& op) { context.set_relative_pc(op.pc+1); }
       [[gnu::always_inline]] inline void operator()(const br_t& op) { context.jump(op.data, op.pc); }
       [[gnu::always_inline]] inline void operator()(const br_if_t& op) {
          const auto& val = context.pop_operand();
@@ -74,8 +75,7 @@ namespace eosio { namespace vm {
       }
       [[gnu::always_inline]] inline void operator()(const call_imm_t& op) {
          context.call(op.index);
-         // TODO place these in parser
-         // EOS_WB_ASSERT(b.index < funcs_size, wasm_interpreter_exception, "call index out of bounds");
+         std::cout << "call_imm " << op.index << " " << op.stack_index << " " << op.return_type << "\n";
       }
       [[gnu::always_inline]] inline void operator()(const call_indirect_t& op) {
          const auto& index = context.pop_operand().to_ui32();

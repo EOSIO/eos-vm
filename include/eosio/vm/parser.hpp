@@ -256,6 +256,7 @@ namespace eosio { namespace vm {
 
          // Initialize the control stack with the current function as the sole element
          uint32_t operand_depth = 0;
+         uint32_t last_call_operand_depth = 0;
          // used for cumulative br_table data
          uint32_t pc_offset = 0;
          std::vector<pc_element_t> pc_stack{{
@@ -449,9 +450,10 @@ namespace eosio { namespace vm {
                   const func_type& ft = _mod->get_function_type(funcnum);
                   pop_operands(ft.param_types.size());
                   EOS_WB_ASSERT(ft.return_count <= 1, wasm_parse_exception, "unsupported");
-                  fb[op_index++] = call_imm_t{ funcnum, operand_depth, static_cast<uint16_t>(ft.return_count ? ft.return_type : 0x100) };
-                  if(ft.return_count == 1)
+                  fb[op_index++] = call_imm_t{ funcnum, operand_depth + _mod->get_function_locals_size(funcnum), last_call_operand_depth, static_cast<uint16_t>(ft.return_count ? ft.return_type : 0x100) };
+                  if(ft.return_count)
                      push_operand();
+                  last_call_operand_depth = operand_depth;
                } break;
                case opcodes::call_indirect: {
                   uint32_t functypeidx = parse_varuint32(code);
@@ -459,7 +461,7 @@ namespace eosio { namespace vm {
                   pop_operand();
                   pop_operands(ft.param_types.size());
                   EOS_WB_ASSERT(ft.return_count <= 1, wasm_parse_exception, "unsupported");
-                  if(ft.return_count == 1)
+                  if(ft.return_count)
                      push_operand();
                   fb[op_index++] = call_indirect_t{ functypeidx };
                   code++; // 0x00

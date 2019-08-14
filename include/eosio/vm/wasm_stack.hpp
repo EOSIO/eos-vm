@@ -27,6 +27,11 @@ namespace eosio { namespace vm {
       }
       ElemT        pop() { return _s[--_index]; }
       void         eat(uint32_t index) { _index = index; }
+      // compact the last element to the element pointed to by index
+      void         compact(uint32_t index) { 
+         _s[index] = _s[_index-1];
+         _index = index+1;
+      }
       uint16_t     current_index() const { return _index; }
       ElemT&       peek() { return _s[_index - 1]; }
       const ElemT& peek() const { return _s[_index - 1]; }
@@ -37,7 +42,7 @@ namespace eosio { namespace vm {
 
     private:
       managed_vector<ElemT, Allocator> _s;
-      uint16_t                              _index = 0;
+      uint16_t                         _index = 0;
    };
 
    using operand_stack = fixed_stack<constants::max_stack_size,        operand_stack_elem, bounded_allocator>;
