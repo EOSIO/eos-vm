@@ -16,6 +16,9 @@ const string extern_c      = "extern \"C\" {\n";
 const string apply_func    = "   void apply(uint64_t, uint64_t, uint64_t test_to_run) {\n";
 const string mem_clear     = "      volatile uint64_t* r = (uint64_t*)0;\n      *r = 0;\n";
 
+// NOTE: Changing this will likely break one or more tests.
+const int NUM_TESTS_PER_SUB_APPLY = 100;
+
 map<string, bool> func_already_written;
 map<string, int>  func_name_to_index;
 int               func_index = 0;
@@ -305,6 +308,14 @@ map<string, vector<picojson::object>> get_file_func_mappings(picojson::value v) 
    return file_func_mappings;
 }
 
+string create_sub_apply(string func_calls, string name) {
+   stringstream ss;
+   ss << "   void " << name << "() {\n";
+   ss << func_calls;
+   ss << "   }\n";
+   return ss.str();
+}
+
 int main(int argc, char** argv) {
    ifstream     ifs;
    stringstream ss;
@@ -348,9 +359,10 @@ int main(int argc, char** argv) {
       func_already_written.clear();
       func_name_to_index.clear();
 
-      int var_index = 0;
+      vector<picojson::object> assert_trap_tests;
+      vector<picojson::object> assert_return_tests;
+
       func_index    = 0;
-      int mod       = 0;
       for (auto test : f.second) {
          string type_test     = test["type"].to_str(); // TODO: Use this to help with switching
          auto   action        = test["action"].get<picojson::object>();
@@ -359,14 +371,50 @@ int main(int argc, char** argv) {
 
          test_funcs << write_test_function(function_name, test);
 
-         string name = "sub_apply_" + to_string(var_index);
-         sub_applies.push_back(name);
-         sub_apply_funcs << "   void " << name << "() {\n";
-         sub_apply_funcs << write_test_function_call(function_name, test, var_index);
-         sub_apply_funcs << "   }\n";
+         if (type_test == "assert_trap") {
+            assert_trap_tests.push_back(test);
+         } else {
+            assert_return_tests.push_back(test);
+         }
+      }
 
-         test_mappings[test_name].insert(std::make_pair(var_index, type_test));
-         ++var_index;
+      int sub_apply_index = 0;
+      for (auto test : assert_trap_tests) {
+         auto   action        = test["action"].get<picojson::object>();
+         string function_name = action["field"].to_str();
+         function_name        = "_" + normalize(function_name);
+
+         string name = "sub_apply_" + to_string(sub_apply_index);
+         sub_applies.push_back(name);
+         string func_call = write_test_function_call(function_name, test, sub_apply_index);
+         string sub_apply = create_sub_apply(func_call, name);
+
+         sub_apply_funcs << sub_apply;
+         test_mappings[test_name].insert(std::make_pair(sub_apply_index, "assert_trap"));
+         ++sub_apply_index;
+      }
+
+      stringstream ss;
+      int i = 1;
+      int length_tests = assert_return_tests.size();
+      for (auto test : assert_return_tests) {
+         auto   action        = test["action"].get<picojson::object>();
+         string function_name = action["field"].to_str();
+         function_name        = "_" + normalize(function_name);
+
+         if (i % NUM_TESTS_PER_SUB_APPLY == 0 || i == length_tests) {
+            string name = "sub_apply_" + to_string(sub_apply_index);
+            sub_applies.push_back(name);
+
+            ss << write_test_function_call(function_name, test, i);
+            sub_apply_funcs << create_sub_apply(ss.str(), name);
+            ss.str("");
+            test_mappings[test_name].insert(std::make_pair(sub_apply_index, ""));
+            ++sub_apply_index;
+         } else {
+            ss << write_test_function_call(function_name, test, i);
+         }
+         ++i;
       }
 
       int index = 0;
@@ -382,6 +430,7 @@ int main(int argc, char** argv) {
 
       write_file(ofs_cpp, test_funcs.str(), sub_apply_funcs.str(), apply_func.str());
       write_map_file(ofs_map);
+
    }
 
    write_tests(test_mappings);
