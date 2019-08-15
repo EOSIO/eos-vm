@@ -42,12 +42,12 @@ namespace eosio { namespace vm {
          }
 
          constexpr inline void push_back( const T& val ) {
-            EOS_WB_ASSERT( _index < _size, wasm_vector_oob_exception, "vector write out of bounds" );
+            EOS_VM_ASSERT( _index < _size, wasm_vector_oob_exception, "vector write out of bounds" );
             _data[_index++] = val;
          }
 
          constexpr inline void emplace_back( T&& val ) {
-            EOS_WB_ASSERT( _index < _size, wasm_vector_oob_exception, "vector write out of bounds" );
+            EOS_VM_ASSERT( _index < _size, wasm_vector_oob_exception, "vector write out of bounds" );
             _data[_index++] = std::move(val);
          }
 
@@ -56,16 +56,16 @@ namespace eosio { namespace vm {
          }
 
          constexpr inline void pop_back() {
-            EOS_WB_ASSERT( _index >= 0, wasm_vector_oob_exception, "vector pop out of bounds" );
+            EOS_VM_ASSERT( _index >= 0, wasm_vector_oob_exception, "vector pop out of bounds" );
          }
 
          constexpr inline T& at( size_t i ) {
-            EOS_WB_ASSERT( i < _size, wasm_vector_oob_exception, "vector read out of bounds" );
+            EOS_VM_ASSERT( i < _size, wasm_vector_oob_exception, "vector read out of bounds" );
             return _data[i];
          }
 
          constexpr inline T& at( size_t i )const {
-            EOS_WB_ASSERT( i < _size, wasm_vector_oob_exception, "vector read out of bounds" );
+            EOS_VM_ASSERT( i < _size, wasm_vector_oob_exception, "vector read out of bounds" );
             return _data[i];
          }
 

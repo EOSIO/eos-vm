@@ -17,13 +17,13 @@ namespace eosio { namespace vm {
       }
 
       inline guarded_ptr& operator+=(size_t i) {
-         EOS_WB_ASSERT((uintptr_t)raw_ptr + i <= (uintptr_t)bnds, guarded_ptr_exception, "overbounding pointer");
+         EOS_VM_ASSERT((uintptr_t)raw_ptr + i <= (uintptr_t)bnds, guarded_ptr_exception, "overbounding pointer");
          raw_ptr += i;
          return *this;
       }
 
       inline guarded_ptr& operator++() {
-         EOS_WB_ASSERT((uintptr_t)raw_ptr + 1 <= (uintptr_t)bnds, guarded_ptr_exception, "overbounding pointer");
+         EOS_VM_ASSERT((uintptr_t)raw_ptr + 1 <= (uintptr_t)bnds, guarded_ptr_exception, "overbounding pointer");
          raw_ptr += 1;
          return *this;
       }
@@ -80,7 +80,7 @@ namespace eosio { namespace vm {
       }
 
       inline T at(size_t index) const {
-         EOS_WB_ASSERT((uintptr_t)raw_ptr + index <= (uintptr_t)bnds, guarded_ptr_exception, "accessing out of bounds");
+         EOS_VM_ASSERT((uintptr_t)raw_ptr + index <= (uintptr_t)bnds, guarded_ptr_exception, "accessing out of bounds");
          return raw_ptr[index];
       }
       

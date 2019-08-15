@@ -28,7 +28,7 @@ namespace eosio { namespace vm {
       }
 
       inline int32_t grow_linear_memory(int32_t pages) {
-         EOS_WB_ASSERT(!(_mod.memories[0].limits.flags && (_mod.memories[0].limits.maximum < pages)), wasm_interpreter_exception, "memory limit reached");
+         EOS_VM_ASSERT(!(_mod.memories[0].limits.flags && (_mod.memories[0].limits.maximum < pages)), wasm_interpreter_exception, "memory limit reached");
          const int32_t sz = _wasm_alloc->get_current_page();
          if (pages < 0 || !_mod.memories.size() || (_mod.memories[0].limits.flags && (_mod.memories[0].limits.maximum < sz + pages)))
             return -1;
@@ -115,7 +115,7 @@ namespace eosio { namespace vm {
       inline operand_stack_elem  pop_operand() { return _os.pop(); }
       inline operand_stack_elem& peek_operand(size_t i = 0) { return _os.peek(i); }
       inline operand_stack_elem  get_global(uint32_t index) {
-         EOS_WB_ASSERT(index < _mod.globals.size(), wasm_interpreter_exception, "global index out of range");
+         EOS_VM_ASSERT(index < _mod.globals.size(), wasm_interpreter_exception, "global index out of range");
          const auto& gl = _mod.globals[index];
          switch (gl.type.content_type) {
             case types::i32: return i32_const_t{ *(uint32_t*)&gl.current.value.i32 };
@@ -127,26 +127,26 @@ namespace eosio { namespace vm {
       }
 
       inline void set_global(uint32_t index, const operand_stack_elem& el) {
-         EOS_WB_ASSERT(index < _mod.globals.size(), wasm_interpreter_exception, "global index out of range");
+         EOS_VM_ASSERT(index < _mod.globals.size(), wasm_interpreter_exception, "global index out of range");
          auto& gl = _mod.globals[index];
-         EOS_WB_ASSERT(gl.type.mutability, wasm_interpreter_exception, "global is not mutable");
+         EOS_VM_ASSERT(gl.type.mutability, wasm_interpreter_exception, "global is not mutable");
          visit(overloaded{ [&](const i32_const_t& i) {
-                                  EOS_WB_ASSERT(gl.type.content_type == types::i32, wasm_interpreter_exception,
+                                  EOS_VM_ASSERT(gl.type.content_type == types::i32, wasm_interpreter_exception,
                                                 "expected i32 global type");
                                   gl.current.value.i32 = i.data.ui;
                                },
                                 [&](const i64_const_t& i) {
-                                   EOS_WB_ASSERT(gl.type.content_type == types::i64, wasm_interpreter_exception,
+                                   EOS_VM_ASSERT(gl.type.content_type == types::i64, wasm_interpreter_exception,
                                                  "expected i64 global type");
                                    gl.current.value.i64 = i.data.ui;
                                 },
                                 [&](const f32_const_t& f) {
-                                   EOS_WB_ASSERT(gl.type.content_type == types::f32, wasm_interpreter_exception,
+                                   EOS_VM_ASSERT(gl.type.content_type == types::f32, wasm_interpreter_exception,
                                                  "expected f32 global type");
                                    gl.current.value.f32 = f.data.ui;
                                 },
                                 [&](const f64_const_t& f) {
-                                   EOS_WB_ASSERT(gl.type.content_type == types::f64, wasm_interpreter_exception,
+                                   EOS_VM_ASSERT(gl.type.content_type == types::f64, wasm_interpreter_exception,
                                                  "expected f64 global type");
                                    gl.current.value.f64 = f.data.ui;
                                 },
@@ -166,19 +166,19 @@ namespace eosio { namespace vm {
          for (int i = 0; i < ft.param_types.size(); i++) {
             const auto& op = peek_operand((ft.param_types.size() - 1) - i);
             visit(overloaded{ [&](const i32_const_t&) {
-                                     EOS_WB_ASSERT(ft.param_types[i] == types::i32, wasm_interpreter_exception,
+                                     EOS_VM_ASSERT(ft.param_types[i] == types::i32, wasm_interpreter_exception,
                                                    "function param type mismatch");
                                   },
                                    [&](const f32_const_t&) {
-                                      EOS_WB_ASSERT(ft.param_types[i] == types::f32, wasm_interpreter_exception,
+                                      EOS_VM_ASSERT(ft.param_types[i] == types::f32, wasm_interpreter_exception,
                                                     "function param type mismatch");
                                    },
                                    [&](const i64_const_t&) {
-                                      EOS_WB_ASSERT(ft.param_types[i] == types::i64, wasm_interpreter_exception,
+                                      EOS_VM_ASSERT(ft.param_types[i] == types::i64, wasm_interpreter_exception,
                                                     "function param type mismatch");
                                    },
                                    [&](const f64_const_t&) {
-                                      EOS_WB_ASSERT(ft.param_types[i] == types::f64, wasm_interpreter_exception,
+                                      EOS_VM_ASSERT(ft.param_types[i] == types::f64, wasm_interpreter_exception,
                                                     "function param type mismatch");
                                    },
                                    [&](auto) { throw wasm_interpreter_exception{ "function param invalid type" }; } },
@@ -188,7 +188,6 @@ namespace eosio { namespace vm {
 
       inline opcode*  get_pc() const { return _state.pc; }
       inline void     set_relative_pc(uint32_t pc_offset) { 
-         std::cout << "srp " << _state.pc << " " << _mod.code[0].code << " " << _mod.code[0].code+pc_offset << "\n";
          _state.pc = _mod.code[0].code + pc_offset; 
       }
       inline void     set_pc(opcode* pc) { _state.pc = pc; }
@@ -197,7 +196,6 @@ namespace eosio { namespace vm {
          _error_code = err;
          clear_exiting_op(_state.exiting_loc);
          _state.exiting_loc = _state.pc+1;
-         //_state.exiting_loc = { _state.code_index, (_state.pc+1)-_state.current_offset };
          set_exiting_op(_state.exiting_loc);
       }
 
@@ -258,7 +256,7 @@ namespace eosio { namespace vm {
 
       template <typename Visitor, typename... Args>
       inline std::optional<operand_stack_elem> execute(Host* host, Visitor&& visitor, uint32_t func_index, Args... args) {
-         EOS_WB_ASSERT(func_index < std::numeric_limits<uint32_t>::max(), wasm_interpreter_exception,
+         EOS_VM_ASSERT(func_index < std::numeric_limits<uint32_t>::max(), wasm_interpreter_exception,
                        "cannot execute function, function not found");
 
 
@@ -272,19 +270,16 @@ namespace eosio { namespace vm {
 
          _state.host             = host;
          _state.current_function = func_index;
-         //_state.code_index       = func_index - _mod.import_functions.size();
-         //_state.current_offset   = _mod.function_sizes[_state.current_function];
          _state.pc               = _mod.get_function_pc(func_index);
-         std::cout << "PC* " << _state.pc << "\n";
-         //_state.pc               = _mod.function_sizes[func_index];
          _state.exiting_loc      = 0;
          _state.as_index         = _as.size();
          _state.os_index         = _os.size();
-
-         memory_dump md(_mod.code[0].code, 10);
+         /*
+         memory_dump md(_mod.code[0].code, 40);
          std::ofstream mf("out.md");
          md.write(mf);
          mf.close();
+         */
 
          push_args(args...);
          push_call<true>(func_index);

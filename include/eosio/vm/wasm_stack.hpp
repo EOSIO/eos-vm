@@ -18,11 +18,11 @@ namespace eosio { namespace vm {
       fixed_stack(Allocator& alloc) : _s(managed_vector<ElemT, Allocator>{ alloc, Elems }) {}
       void        push(ElemT e) { _s[_index++] = e; }
       ElemT& get(uint32_t index) const {
-         EOS_WB_ASSERT(index <= _index, wasm_interpreter_exception, "invalid stack index");
+         EOS_VM_ASSERT(index <= _index, wasm_interpreter_exception, "invalid stack index");
          return _s[index];
       }
       void set(uint32_t index, const ElemT& el) {
-         EOS_WB_ASSERT(index <= _index, wasm_interpreter_exception, "invalid stack index");
+         EOS_VM_ASSERT(index <= _index, wasm_interpreter_exception, "invalid stack index");
          _s[index] = el;
       }
       ElemT        pop() { return _s[--_index]; }

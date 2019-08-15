@@ -22,13 +22,13 @@ namespace eosio { namespace vm {
       }
       template <typename T>
       T* alloc(size_t size = 1) {
-         EOS_WB_ASSERT((sizeof(T) * size) + index <= mem_size, wasm_bad_alloc, "wasm failed to allocate native");
+         EOS_VM_ASSERT((sizeof(T) * size) + index <= mem_size, wasm_bad_alloc, "wasm failed to allocate native");
          T* ret = (T*)(raw.get() + index);
          index += sizeof(T) * size;
          return ret;
       }
       void free() {
-         EOS_WB_ASSERT(index > 0, wasm_double_free, "double free");
+         EOS_VM_ASSERT(index > 0, wasm_double_free, "double free");
          index = 0;
       }
       void                       reset() { index = 0; }
@@ -68,6 +68,7 @@ namespace eosio { namespace vm {
 
          T* ptr  = (T*)(_base + _offset);
          _offset = aligned;
+         std::cout << "Alloc " << ptr << "\n";
          return ptr;
       }
 
@@ -77,10 +78,11 @@ namespace eosio { namespace vm {
        */
       template <typename T>
       void reclaim(size_t size=0) {
-         EOS_WB_ASSERT( _offset - size >= 0, wasm_bad_alloc, "reclaimed too much memory" );
+         EOS_VM_ASSERT( _offset - size >= 0, wasm_bad_alloc, "reclaimed too much memory" );
          _offset -= (sizeof(T)*size);
+         std::cout << "Reclaim " << (T*)(_base+_offset) << "\n";
       }
-      void free() { EOS_WB_ASSERT(false, wasm_bad_alloc, "unimplemented"); }
+      void free() { EOS_VM_ASSERT(false, wasm_bad_alloc, "unimplemented"); }
 
       void reset() { _offset = 0; }
 
@@ -102,6 +104,7 @@ namespace eosio { namespace vm {
       }
       fixed_stack_allocator(size_t max_size) : max_size(max_size) {
          raw = (T*)mmap(NULL, max_memory, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+         EOS_VM_ASSERT( raw != MAP_FAILED, wasm_bad_alloc, "mmap failed to alloca pages" );
          mprotect(raw, max_size * sizeof(T), PROT_READ | PROT_WRITE);
       }
       inline T* get_base_ptr() const { return raw; }
@@ -115,7 +118,7 @@ namespace eosio { namespace vm {
     public:
       template <typename T>
       T* alloc(size_t size = 1 /*in pages*/) {
-         EOS_WB_ASSERT(page + size <= max_pages, wasm_bad_alloc, "exceeded max number of pages");
+         EOS_VM_ASSERT(page + size <= max_pages, wasm_bad_alloc, "exceeded max number of pages");
          mprotect(raw + (page_size * page), (page_size * size), PROT_READ | PROT_WRITE);
          T* ptr    = (T*)(raw + (page_size * page));
          memset(ptr, 0, page_size * size);
@@ -125,6 +128,7 @@ namespace eosio { namespace vm {
       void free() { munmap(raw, max_memory); }
       wasm_allocator() {
          raw  = (char*)mmap(NULL, max_memory, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+         EOS_VM_ASSERT( raw != MAP_FAILED, wasm_bad_alloc, "mmap failed to alloca pages" );
          page = 0;
       }
       void reset() {
