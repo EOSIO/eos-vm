@@ -47,22 +47,24 @@ string create_push_action() {
 string create_pass_test_function(string file_name, string test_name, int test_index) {
    stringstream func;
 
-   func << "BOOST_FIXTURE_TEST_CASE(" << test_name << ", TESTER) { try {\n";
-   func << "   produce_block();\n";
-   func << "   create_account( N(wasmtest) );\n";
-   func << "   produce_block();\n";
-   func << "   set_code(N(wasmtest), wasm);\n";
-   func << "   produce_block();\n\n";
+   func << "BOOST_AUTO_TEST_CASE(" << test_name << ") { try {\n";
+   func << "   TESTER tester;\n";
+   func << "   tester.produce_block();\n";
+   func << "   tester.create_account( N(wasmtest) );\n";
+   func << "   tester.produce_block();\n";
+   func << "   tester.set_code(N(wasmtest), wasm);\n";
+   func << "   tester.produce_block();\n\n";
    func << "   action test;\n";
    func << "   test.account = N(wasmtest);\n";
-   func << "   test.name = (uint64_t)" << test_index << ";\n";
+   func << "   test.name = account_name((uint64_t)" << test_index << ");\n";
    func << "   test.authorization = {{N(wasmtest), config::active_name}};\n\n";
-   func << "   push_action(std::move(test), N(wasmtest));\n";
-   func << "   produce_block();\n";
-   func << "   BOOST_REQUIRE_EQUAL( validate(), true );\n";
+   func << "   push_action(tester, std::move(test), N(wasmtest).to_uint64_t());\n";
+   func << "   tester.produce_block();\n";
+   func << "   BOOST_REQUIRE_EQUAL( tester.validate(), true );\n";
    func << "} FC_LOG_AND_RETHROW() }\n";
 
    return func.str();
+
 }
 
 string create_throw_test_function(string file_name, string test_name, int test_index) {
@@ -77,9 +79,9 @@ string create_throw_test_function(string file_name, string test_name, int test_i
    func << "   tester.produce_block();\n\n";
    func << "   action test;\n";
    func << "   test.account = N(wasmtest);\n";
-   func << "   test.name = (uint64_t)" << test_index << ";\n";
+   func << "   test.name = account_name((uint64_t)" << test_index << ");\n";
    func << "   test.authorization = {{N(wasmtest), config::active_name}};\n\n";
-   func << "   BOOST_CHECK_THROW(push_action(tester, std::move(test), N(wasmtest)), wasm_execution_error);\n";
+   func << "   BOOST_CHECK_THROW(push_action(tester, std::move(test), N(wasmtest).to_uint64_t()), wasm_execution_error);\n";
    func << "   tester.produce_block();\n";
    func << "} FC_LOG_AND_RETHROW() }\n";
 
