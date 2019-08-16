@@ -100,7 +100,7 @@ namespace eosio { namespace vm {
          _state.pc = af.pc;
          _last_op_index = af.last_op_index;
          if (return_count)
-            compact_operand(_os.size() - num_locals);
+            compact_operand(_os.size() - num_locals - 1);
          else
             eat_operands(_os.size() - num_locals);
       }

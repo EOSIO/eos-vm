@@ -388,7 +388,9 @@ namespace eosio { namespace vm {
                }
                case opcodes::return_: {
                   uint32_t label = pc_stack.size() - 1;
-                  fb[op_index++] = return_t{ static_cast<uint32_t>(operand_depth + ft.param_types.size() + body.locals.size()), ft.return_count, 0, 0 };
+                  uint32_t depth = static_cast<uint32_t>(operand_depth + ft.param_types.size() + body.locals.size());
+                  if ( ft.return_count ) --depth;
+                  fb[op_index++] = return_t{ depth, ft.return_count, 0, 0 };
                   start_unreachable();
                } break;
                case opcodes::block: {
