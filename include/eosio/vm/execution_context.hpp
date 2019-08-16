@@ -251,7 +251,6 @@ namespace eosio { namespace vm {
          EOS_VM_ASSERT(func_index < std::numeric_limits<uint32_t>::max(), wasm_interpreter_exception,
                        "cannot execute function, function not found");
 
-
          auto last_last_op_index = _last_op_index;
 
          clear_exiting_op( _state.exiting_loc );
@@ -266,12 +265,6 @@ namespace eosio { namespace vm {
          _state.exiting_loc      = 0;
          _state.as_index         = _as.size();
          _state.os_index         = _os.size();
-         /*
-         memory_dump md(_mod.code[0].code, 40);
-         std::ofstream mf("out.md");
-         md.write(mf);
-         mf.close();
-         */
 
          push_args(args...);
          push_call<true>(func_index);

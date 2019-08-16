@@ -155,7 +155,7 @@ namespace eosio { namespace vm {
       }
       inline uint32_t get_functions_size() const { return code.size(); }
       inline uint32_t get_functions_total() const { return get_imported_functions_size() + get_functions_size(); }
-      inline opcode* get_function_pc( uint32_t fidx ) const { 
+      inline opcode* get_function_pc( uint32_t fidx ) const {
          EOS_VM_ASSERT( fidx >= get_imported_functions_size(), wasm_interpreter_exception, "trying to get the PC of an imported function" );
          return code[fidx-get_imported_functions_size()].code;
       }

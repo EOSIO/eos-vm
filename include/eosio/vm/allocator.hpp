@@ -41,7 +41,6 @@ namespace eosio { namespace vm {
     public:
       static constexpr size_t max_memory_size = 1024 * 1024 * 1024; // 1GB
       static constexpr size_t chunk_size      = 128 * 1024;         // 128KB
-      //  static constexpr size_t align_amt       = 16;
       template<std::size_t align_amt>
       static constexpr size_t align_offset(size_t offset) { return (offset + align_amt - 1) & ~(align_amt - 1); }
 
@@ -70,13 +69,11 @@ namespace eosio { namespace vm {
 
          T* ptr  = (T*)(_base + _offset);
          _offset = aligned;
-         //         std::cout << "Alloc " << ptr << "\n";
          return ptr;
       }
 
       /* different semantics than free,
-       * the memory is simply reset and assumes that allocations where sequential to use
-       * reclaim
+       * the memory must be at the end of the most recently allocated block.
        */
       template <typename T>
       void reclaim(const T* ptr, size_t size=0) {
@@ -84,7 +81,6 @@ namespace eosio { namespace vm {
          EOS_VM_ASSERT( size == 0 || ( (char*)(ptr + size) - _base ) == _offset, wasm_bad_alloc, "reclaiming memory must be strictly LIFO");
          if ( size != 0 )
             _offset = ((char*)ptr - _base);
-         //         std::cout << "Reclaim " << (T*)(_base+_offset) << "\n";
       }
       void free() { EOS_VM_ASSERT(false, wasm_bad_alloc, "unimplemented"); }
 

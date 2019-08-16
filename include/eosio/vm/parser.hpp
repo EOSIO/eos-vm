@@ -230,7 +230,7 @@ namespace eosio { namespace vm {
 
          fb.size -= code.offset() - before;
          _function_bodies.emplace_back(code.raw(), fb.size);
-         
+
          code += fb.size-1;
          EOS_VM_ASSERT(*code++ == 0x0B, wasm_parse_exception, "failed parsing function body, expected 'end'");
 
@@ -732,7 +732,6 @@ namespace eosio { namespace vm {
                case opcodes::error: fb[op_index++] = error_t{}; break;
             }
          }
-         //         std::cout << "Reclaim " << body.size << " " << op_index << " " << body.size - (op_index+1) << "\n";
          _allocator.template reclaim<opcode>(body.code + op_index + 1, body.size - (op_index+1));
          body.size = op_index + 1;
       }

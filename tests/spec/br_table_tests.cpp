@@ -19,13 +19,8 @@ TEST_CASE( "Testing wasm <br_table_0_wasm>", "[br_table_0_wasm_tests]" ) {
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
-   try {
-   bkend.call_with_return(nullptr, "env", "type-i32");
-   } catch (const eosio::vm::exception& ex) {
-      std::cout << "Error Will Robinson, " << ex.what() << " : " << ex.detail() << "\n";
-   }
+
    CHECK(!bkend.call_with_return(nullptr, "env", "type-i32"));
-   return;
    CHECK(!bkend.call_with_return(nullptr, "env", "type-i64"));
    CHECK(!bkend.call_with_return(nullptr, "env", "type-f32"));
    CHECK(!bkend.call_with_return(nullptr, "env", "type-f64"));

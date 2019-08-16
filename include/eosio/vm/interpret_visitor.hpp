@@ -40,8 +40,6 @@ namespace eosio { namespace vm {
 
       [[gnu::always_inline]] inline void operator()(const nop_t& op) { context.inc_pc(); }
 
-     //      [[gnu::always_inline]] inline void operator()(const fend_t& op) { throw; }
-
       [[gnu::always_inline]] inline void operator()(const end_t& op) { context.inc_pc(); }
       [[gnu::always_inline]] inline void operator()(const return_t& op) { context.apply_pop_call(op.data, op.pc); }
       [[gnu::always_inline]] inline void operator()(block_t& op) { context.inc_pc(); }
@@ -49,7 +47,6 @@ namespace eosio { namespace vm {
       [[gnu::always_inline]] inline void operator()(if_t& op) {
          context.inc_pc();
          const auto& oper = context.pop_operand();
-         //std::cout << "PC " << op.pc << " " << oper.to_ui32() << "\n";
          if (!oper.to_ui32()) {
             context.set_relative_pc(op.pc);
          }
@@ -75,7 +72,6 @@ namespace eosio { namespace vm {
       }
       [[gnu::always_inline]] inline void operator()(const call_imm_t& op) {
          context.call(op.index);
-         // std::cout << "call_imm " << op.index << " " << op.stack_index << " " << op.return_type << "\n";
       }
       [[gnu::always_inline]] inline void operator()(const call_indirect_t& op) {
          const auto& index = context.pop_operand().to_ui32();
