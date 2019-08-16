@@ -301,10 +301,9 @@ namespace eosio { namespace vm {
 
          auto cleanup = [&]() {
             clear_exiting_op( _state.exiting_loc );
-            _state = saved_state;
-            set_exiting_op( _state.exiting_loc );
             _os.eat(_state.os_index);
             _as.eat(_state.as_index);
+            _state = saved_state;
             
             _last_op_index = last_last_op_index;
          };

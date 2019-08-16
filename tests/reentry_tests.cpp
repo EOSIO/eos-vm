@@ -10,10 +10,10 @@ struct test_runner {
    eosio::vm::backend<test_runner>& bkend;
    uint32_t test_func_0(uint32_t val) {
       std::cout << "made it\n";
-      return bkend.call_with_return(this, "env", "bar")->to_ui32() + 50;
+      return bkend.call_with_return(this, "env", "bar", val)->to_ui32() + 50;
    }
    uint32_t test_func_1(uint32_t val) {
-      return bkend.call_with_return(this, "env", "testbar")->to_ui32() + 50;
+      return bkend.call_with_return(this, "env", "testbar", val)->to_ui32() + 50;
    }
    void eosio_assert(uint32_t, uint32_t) {}
    void* memset(void*, int, int) { return 0; }
