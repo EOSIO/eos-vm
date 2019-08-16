@@ -17,7 +17,7 @@ extern wasm_allocator wa;
 using backend_t = backend<std::nullptr_t>;
 
 TEST_CASE( "Testing wasm <elem_0_wasm>", "[elem_0_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( elem_0_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "elem.0.wasm" );
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -43,7 +43,7 @@ TEST_CASE( "Testing wasm <elem_11_wasm>", "[elem_11_wasm_tests]" ) {
 #endif
 
 TEST_CASE( "Testing wasm <elem_12_wasm>", "[elem_12_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( elem_12_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "elem.12.wasm" );
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -110,7 +110,7 @@ TEST_CASE( "Testing wasm <elem_2_wasm>", "[elem_2_wasm_tests]" ) {
 #endif
 
 TEST_CASE( "Testing wasm <elem_36_wasm>", "[elem_36_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( elem_36_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "elem.36.wasm" );
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -195,7 +195,7 @@ TEST_CASE( "Testing wasm <elem_6_wasm>", "[elem_6_wasm_tests]" ) {
 #endif
 
 TEST_CASE( "Testing wasm <elem_7_wasm>", "[elem_7_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( elem_7_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "elem.7.wasm" );
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -205,7 +205,7 @@ TEST_CASE( "Testing wasm <elem_7_wasm>", "[elem_7_wasm_tests]" ) {
 }
 
 TEST_CASE( "Testing wasm <elem_8_wasm>", "[elem_8_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( elem_8_wasm );
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "elem.8.wasm" );
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
