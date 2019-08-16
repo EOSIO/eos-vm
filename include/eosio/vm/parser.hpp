@@ -234,9 +234,6 @@ namespace eosio { namespace vm {
          code += fb.size-1;
          EOS_VM_ASSERT(*code++ == 0x0B, wasm_parse_exception, "failed parsing function body, expected 'end'");
 
-         // pre-allocate for the function body code, so we have a big blob of memory to work with during function code parsing
-         fb.code = _allocator.template alloc<opcode>(fb.size);
-
       }
 
       // The control stack holds either address of the target of the
@@ -391,8 +388,7 @@ namespace eosio { namespace vm {
                }
                case opcodes::return_: {
                   uint32_t label = pc_stack.size() - 1;
-                  return_t& instr = append_instr(return_t{});
-                  handle_branch_target(label, &instr.pc, &instr.data);
+                  fb[op_index++] = return_t{ static_cast<uint32_t>(operand_depth + ft.param_types.size() + body.locals.size()), ft.return_count, 0, 0 };
                   start_unreachable();
                } break;
                case opcodes::block: {
@@ -455,7 +451,7 @@ namespace eosio { namespace vm {
                   const func_type& ft = _mod->get_function_type(funcnum);
                   pop_operands(ft.param_types.size());
                   EOS_VM_ASSERT(ft.return_count <= 1, wasm_parse_exception, "unsupported");
-                  fb[op_index++] = call_imm_t{ funcnum, operand_depth + _mod->get_function_locals_size(funcnum), last_call_operand_depth, static_cast<uint16_t>(ft.return_count ? ft.return_type : 0x100) };
+                  fb[op_index++] = call_imm_t{ funcnum };
                   if(ft.return_count)
                      push_operand();
                   last_call_operand_depth = operand_depth;
@@ -735,7 +731,7 @@ namespace eosio { namespace vm {
             }
          }
          std::cout << "Reclaim " << body.size << " " << op_index << " " << body.size - (op_index+1) << "\n";
-         _allocator.template reclaim<opcode>(body.size - (op_index+1));
+         _allocator.template reclaim<opcode>(body.code + op_index + 1, body.size - (op_index+1));
          body.size = op_index + 1;
          code_offset += body.size;
       }
@@ -824,11 +820,14 @@ namespace eosio { namespace vm {
                                 vec<typename std::enable_if_t<id == section_id::code_section, function_body>>& elems) {
          parse_section_impl(code, elems,
                             [&](wasm_code_ptr& code, function_body& fb, std::size_t idx) { parse_function_body(code, fb, idx); });
-         opcode* function_code_ptr = _mod->code[0].code;
-         for (size_t i = 0; i < _function_bodies.size(); i++) { 
-            _mod->code[i].code = function_code_ptr;
-            parse_function_body_code(_function_bodies[i], _mod->code[i].size, _mod->code[i], _mod->types.at(_mod->functions.at(i)), &function_code_ptr); 
-            _mod->code[i].code[_mod->code[i].size - 1] = fend_t{};
+         opcode* function_code_ptr = nullptr;
+         for (size_t i = 0; i < _function_bodies.size(); i++) {
+            function_body& fb = _mod->code[i];
+            // pre-allocate for the function body code, so we have a big blob of memory to work with during function code parsing
+            fb.code = function_code_ptr = _allocator.template alloc<opcode>(fb.size);
+            func_type& ft = _mod->types.at(_mod->functions.at(i));
+            parse_function_body_code(_function_bodies[i], fb.size, fb, ft, &function_code_ptr); 
+            fb.code[fb.size - 1] = return_t{ static_cast<uint32_t>(_mod->code[i].locals.size() + ft.param_types.size()), ft.return_count, 0, 0 };
          }
       }
       template <uint8_t id>

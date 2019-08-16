@@ -16,7 +16,7 @@ namespace eosio { namespace vm {
    template <typename Host>
    class execution_context {
     public:
-      execution_context(module& m) : _linear_memory(nullptr), _mod(m) {
+      execution_context(module& m) : _linear_memory(nullptr), _mod(m), _halt(exit_t{}) {
          for (int i = 0; i < _mod.exports.size(); i++) _mod.import_functions.resize(_mod.get_imported_functions_size());
          _mod.function_sizes.resize(_mod.get_functions_total());
          const size_t import_size  = _mod.get_imported_functions_size();
@@ -25,6 +25,7 @@ namespace eosio { namespace vm {
             _mod.function_sizes[i] = total_so_far;
             total_so_far += _mod.code[i - import_size].size;
          }
+         _halt.set_exiting_which();
       }
 
       inline int32_t grow_linear_memory(int32_t pages) {
@@ -86,31 +87,22 @@ namespace eosio { namespace vm {
       template <bool Should_Exit=false>
       inline void           push_call(uint32_t index) {
          const auto& ftype = _mod.get_function_type(index);
-         _last_op_index    = _os.size() - ftype.param_types.size();
          if constexpr (Should_Exit) {
-            _as.push(activation_frame{ static_cast<opcode*>(nullptr), static_cast<uint16_t>(_last_op_index), ftype.return_type });
+            _as.push(activation_frame{ static_cast<opcode*>(&_halt), static_cast<uint16_t>(_last_op_index) });
          } else {
-            _as.push(activation_frame{ _state.pc + 1 });
+            _as.push(activation_frame{ _state.pc + 1, static_cast<uint16_t>(_last_op_index) });
          }
+         _last_op_index    = _os.size() - ftype.param_types.size();
       }
 
-      inline void apply_pop_call() {
+      inline void apply_pop_call(uint32_t num_locals, uint16_t return_count) {
          const auto& af = _as.pop();
-         if (af.pc == nullptr) {
-            set_exiting_op(_state.exiting_loc);
-            _state.pc = _mod.code[0].code;
-         } else {
-            const auto& call_i = (af.pc-1)->template get<call_imm_t>();
-            const uint8_t    ret_type = call_i.return_type;
-            const uint16_t   op_index = call_i.stack_index;
-
-            _state.pc = af.pc;
-            _last_op_index = (_state.pc-1)->template get<call_imm_t>().last_stack_index;
-            if (ret_type)
-               compact_operand(op_index);
-            else
-               eat_operands(op_index);
-         }
+         _state.pc = af.pc;
+         _last_op_index = af.last_op_index;
+         if (return_count)
+            compact_operand(_os.size() - num_locals);
+         else
+            eat_operands(_os.size() - num_locals);
       }
       inline operand_stack_elem  pop_operand() { return _os.pop(); }
       inline operand_stack_elem& peek_operand(size_t i = 0) { return _os.peek(i); }
@@ -486,5 +478,6 @@ namespace eosio { namespace vm {
       call_stack                      _as = { _base_allocator };
       registered_host_functions<Host> _rhf;
       std::error_code                 _error_code;
+      opcode                          _halt;
    };
 }} // namespace eosio::vm

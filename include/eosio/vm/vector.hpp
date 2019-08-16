@@ -36,7 +36,7 @@ namespace eosio { namespace vm {
                if (_size == 0)
                  _data = ptr;
             } else {
-               _allocator->template reclaim<T>( _size - size );
+               _allocator->template reclaim<T>( _data + size, _size - size );
             }
             _size = size;
          }

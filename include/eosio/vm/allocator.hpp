@@ -77,9 +77,11 @@ namespace eosio { namespace vm {
        * reclaim
        */
       template <typename T>
-      void reclaim(size_t size=0) {
+      void reclaim(const T* ptr, size_t size=0) {
          EOS_VM_ASSERT( _offset - size >= 0, wasm_bad_alloc, "reclaimed too much memory" );
-         _offset -= (sizeof(T)*size);
+         EOS_VM_ASSERT( size == 0 || align_offset( (char*)(ptr + size) - _base ) == _offset, wasm_bad_alloc, "reclaiming memory must be strictly LIFO");
+         if ( size != 0 )
+            _offset = align_offset((char*)ptr - _base);
          std::cout << "Reclaim " << (T*)(_base+_offset) << "\n";
       }
       void free() { EOS_VM_ASSERT(false, wasm_bad_alloc, "unimplemented"); }

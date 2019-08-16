@@ -31,10 +31,7 @@ namespace eosio { namespace vm {
 
    struct activation_frame {
       opcode* pc;
-      uint32_t offset;
-      uint32_t index;
-      uint16_t op_index;
-      uint8_t  ret_type;
+      uint16_t last_op_index;
    };
 
    struct resizable_limits {
@@ -165,11 +162,6 @@ namespace eosio { namespace vm {
 
       inline auto& get_opcode(uint32_t pc) const {
          return ((opcode*)&code[0].code[0])[pc];
-      }
-
-      inline uint32_t get_function_locals_size( uint32_t fidx ) const {
-         EOS_VM_ASSERT( fidx >= get_imported_functions_size(), wasm_interpreter_exception, "trying to get the PC of an imported function" );
-         return code[fidx-get_imported_functions_size()].locals.size();
       }
 
       auto& get_function_type(uint32_t index) const {

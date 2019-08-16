@@ -351,9 +351,6 @@
    struct EOS_VM_OPCODE_T(name) {                                                                                      \
       EOS_VM_OPCODE_T(name)() = default;                                                                               \
       uint32_t index;                                                                                                  \
-      uint32_t stack_index;                                                                                            \
-      uint32_t last_stack_index;                                                                                       \
-      uint16_t return_type;                                                                                            \
       static constexpr uint8_t opcode = code;                                                                          \
    };
 
