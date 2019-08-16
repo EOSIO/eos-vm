@@ -33,7 +33,7 @@ else # Linux
 
     BUILD_COMMANDS="cd /workdir/build && cmake -DCMAKE_TOOLCHAIN_FILE=/workdir/.cicd/helpers/clang.make -DENABLE_TESTS=ON .. && make -j$JOBS"
     TEST_COMMANDS="cd /workdir/build && ctest -j$JOBS --output-on-failure -T Test"
-
+    echo 'Changed stuff'
     # Docker Run Arguments
     ARGS=${ARGS:-"--rm -v $(pwd):/workdir"}
     # Docker Commands
