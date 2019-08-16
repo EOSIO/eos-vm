@@ -11,6 +11,25 @@
 
 using namespace std;
 
+map<string, bool> blacklist_memory_clearing = {
+   {"address.0", true},
+   {"address.2", true},
+   {"address.3", true},
+   {"address.4", true},
+   {"float_exprs.59", true},
+   {"float_exprs.60", true},
+   {"float_memory.0", true},
+   {"float_memory.1", true},
+   {"float_memory.2", true},
+   {"float_memory.3", true},
+   {"float_memory.4", true},
+   {"float_memory.5", true},
+   {"memory.25", true},
+   {"memory_trap.1", true},
+   {"start.3", true},
+   {"start.4", true},
+};
+
 const string include_eosio = "#include <eosio/eosio.hpp>\n\n";
 const string extern_c      = "extern \"C\" {\n";
 const string apply_func    = "   void apply(uint64_t, uint64_t, uint64_t test_to_run) {\n";
@@ -23,7 +42,7 @@ map<string, bool> func_already_written;
 map<string, int>  func_name_to_index;
 int               func_index = 0;
 
-void write_file(ofstream& file, string funcs, string sub_applies, string apply) {
+void write_file(ofstream& file, string test_name, string funcs, string sub_applies, string apply) {
    stringstream out;
    string       end_brace = "}";
 
@@ -32,7 +51,9 @@ void write_file(ofstream& file, string funcs, string sub_applies, string apply) 
    out << funcs;
    out << sub_applies;
    out << apply_func;
-   out << mem_clear;
+   if (!blacklist_memory_clearing.count(test_name)) {
+      out << mem_clear;
+   }
    out << apply;
    out << "   }\n";
    out << "}\n";
@@ -428,7 +449,7 @@ int main(int argc, char** argv) {
       }
       apply_func << "      }\n";
 
-      write_file(ofs_cpp, test_funcs.str(), sub_apply_funcs.str(), apply_func.str());
+      write_file(ofs_cpp, test_name, test_funcs.str(), sub_apply_funcs.str(), apply_func.str());
       write_map_file(ofs_map);
 
    }
