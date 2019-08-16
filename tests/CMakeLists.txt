@@ -15,11 +15,6 @@ endif()
 enable_testing()
 
 # ##############
-# disable catch2 from installing it's own signal handlers
-# ##############
-add_definitions(-DCATCH_CONFIG_NO_POSIX_SIGNALS)
-
-# ##############
 # define spec tests
 # ##############
 
@@ -66,12 +61,20 @@ target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
 target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/spec )
 
 add_executable(unit_tests main.cpp 
-	                  varint_tests.cpp 
-			  host_functions_tests.cpp 
-			  signals_tests.cpp 
-			  watchdog_tests.cpp
+                          varint_tests.cpp
+                          variant_tests.cpp
+                          host_functions_tests.cpp
+                          reentry_tests.cpp
+                          signals_tests.cpp
+                          watchdog_tests.cpp
                           implementation_limits_tests.cpp)
 target_link_libraries(unit_tests eos-vm Catch2::Catch2)
+
+# ##############
+# disable catch2 from installing it's own signal handlers
+# ##############
+target_compile_definitions(eos_vm_spec_tests PUBLIC -DCATCH_CONFIG_NO_POSIX_SIGNALS)
+target_compile_definitions(unit_tests PUBLIC -DCATCH_CONFIG_NO_POSIX_SIGNALS)
 
 add_executable( spec_test_generator ${CMAKE_CURRENT_SOURCE_DIR}/spec_test_generator/spec_test_generator.cpp )
 

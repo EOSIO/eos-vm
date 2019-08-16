@@ -16,10 +16,10 @@ namespace eosio { namespace vm {
    inline constexpr bool use_softfloat = false;
 #endif
 
-#ifdef NDEBUG
-   inline constexpr bool eos_vm_debug = false;
-#else
+#ifdef EOS_VM_FULL_DEBUG
    inline constexpr bool eos_vm_debug = true;
+#else
+   inline constexpr bool eos_vm_debug = false;
 #endif
 
 }} // namespace eosio::vm

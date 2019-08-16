@@ -46,8 +46,8 @@ namespace eosio { namespace vm {
 
       void parse_module(wasm_code_ptr& code_ptr, size_t sz, module& mod) {
          _mod = &mod;
-         EOS_WB_ASSERT(parse_magic(code_ptr) == constants::magic, wasm_parse_exception, "magic number did not match");
-         EOS_WB_ASSERT(parse_version(code_ptr) == constants::version, wasm_parse_exception,
+         EOS_VM_ASSERT(parse_magic(code_ptr) == constants::magic, wasm_parse_exception, "magic number did not match");
+         EOS_VM_ASSERT(parse_version(code_ptr) == constants::version, wasm_parse_exception,
                        "version number did not match");
          for (int i = 0; i < section_id::num_of_elems; i++) {
             if (code_ptr.offset() == sz)
@@ -78,7 +78,7 @@ namespace eosio { namespace vm {
                   break;
                case section_id::code_section: parse_section<section_id::code_section>(code_ptr, mod.code); break;
                case section_id::data_section: parse_section<section_id::data_section>(code_ptr, mod.data); break;
-               default: EOS_WB_ASSERT(false, wasm_parse_exception, "error invalid section id");
+               default: EOS_VM_ASSERT(false, wasm_parse_exception, "error invalid section id");
             }
          }
       }
@@ -111,7 +111,7 @@ namespace eosio { namespace vm {
          auto type  = parse_varuint32(code);
          switch ((uint8_t)entry.kind) {
             case external_kind::Function: entry.type.func_t = type; break;
-            default: EOS_WB_ASSERT(false, wasm_unsupported_import_exception, "only function imports are supported");
+            default: EOS_VM_ASSERT(false, wasm_unsupported_import_exception, "only function imports are supported");
          }
       }
 
@@ -132,7 +132,7 @@ namespace eosio { namespace vm {
       void parse_global_variable(wasm_code_ptr& code, global_variable& gv) {
          uint8_t ct           = *code++;
          gv.type.content_type = ct;
-         EOS_WB_ASSERT(ct == types::i32 || ct == types::i64 || ct == types::f32 || ct == types::f64,
+         EOS_VM_ASSERT(ct == types::i32 || ct == types::i64 || ct == types::f32 || ct == types::f64,
                        wasm_parse_exception, "invalid global content type");
 
          gv.type.mutability = *code++;
@@ -166,12 +166,12 @@ namespace eosio { namespace vm {
          for (size_t i = 0; i < param_types.size(); i++) {
             uint8_t pt        = *code++;
             param_types.at(i) = pt;
-            EOS_WB_ASSERT(pt == types::i32 || pt == types::i64 || pt == types::f32 || pt == types::f64,
+            EOS_VM_ASSERT(pt == types::i32 || pt == types::i64 || pt == types::f32 || pt == types::f64,
                           wasm_parse_exception, "invalid function param type");
          }
          ft.param_types  = std::move(param_types);
          ft.return_count = *code++;
-         EOS_WB_ASSERT(ft.return_count < 2, wasm_parse_exception, "invalid function return count");
+         EOS_VM_ASSERT(ft.return_count < 2, wasm_parse_exception, "invalid function return count");
          if (ft.return_count > 0)
             ft.return_type = *code++;
       }
@@ -182,9 +182,9 @@ namespace eosio { namespace vm {
             if (_mod->tables[i].element_type == types::anyfunc)
                tt = &(_mod->tables[i]);
          }
-         EOS_WB_ASSERT(tt != nullptr, wasm_parse_exception, "table not declared");
+         EOS_VM_ASSERT(tt != nullptr, wasm_parse_exception, "table not declared");
          es.index = parse_varuint32(code);
-         EOS_WB_ASSERT(es.index == 0, wasm_parse_exception, "only table index of 0 is supported");
+         EOS_VM_ASSERT(es.index == 0, wasm_parse_exception, "only table index of 0 is supported");
          parse_init_expr(code, es.offset);
          uint32_t           size  = parse_varuint32(code);
          decltype(es.elems) elems = { _allocator, size };
@@ -210,16 +210,16 @@ namespace eosio { namespace vm {
                code += sizeof(double);
                break;
             default:
-               EOS_WB_ASSERT(false, wasm_parse_exception,
+               EOS_VM_ASSERT(false, wasm_parse_exception,
                              "initializer expression can only acception i32.const, i64.const, f32.const and f64.const");
          }
-         EOS_WB_ASSERT((*code++) == opcodes::end, wasm_parse_exception, "no end op found");
+         EOS_VM_ASSERT((*code++) == opcodes::end, wasm_parse_exception, "no end op found");
       }
 
-      void parse_function_body(wasm_code_ptr& code, function_body& fb, std::size_t idx, Writer& code_writer) {
+      void parse_function_body(wasm_code_ptr& code, function_body& fb, std::size_t idx) {
          const auto&         fn_type   = _mod->types.at(_mod->functions.at(idx));
 
-         const auto&         body_size = parse_varuint32(code);
+         fb.size   = parse_varuint32(code);
          const auto&         before    = code.offset();
          const auto&         local_cnt = parse_varuint32(code);
          _current_function_index++;
@@ -231,15 +231,12 @@ namespace eosio { namespace vm {
          }
          fb.locals = std::move(locals);
 
-         // -1 is 'end' 0xb byte and one extra slot for an exiting instruction to be held during execution, this is used to drive the pc past normal execution
-         size_t            bytes = (body_size - (code.offset() - before));
-         wasm_code_ptr     fb_code(code.raw(), bytes);
-         code_writer.emit_prologue(fn_type, locals, idx);
-         parse_function_body_code(fb_code, bytes, code_writer, fn_type);
-         code_writer.emit_epilogue(fn_type, locals, idx);
-         code += bytes - 1;
-         EOS_WB_ASSERT(*code++ == 0x0B, wasm_parse_exception, "failed parsing function body, expected 'end'");
-         code_writer.finalize(fb);
+         fb.size -= code.offset() - before;
+         _function_bodies.emplace_back(code.raw(), fb.size);
+
+         code += fb.size-1;
+         EOS_VM_ASSERT(*code++ == 0x0B, wasm_parse_exception, "failed parsing function body, expected 'end'");
+
       }
 
       // The control stack holds either address of the target of the
@@ -261,10 +258,13 @@ namespace eosio { namespace vm {
       void parse_function_body_code(wasm_code_ptr& code, size_t bounds, Writer& code_writer, const func_type& ft) {
          // Initialize the control stack with the current function as the sole element
          uint32_t operand_depth = 0;
+         uint32_t last_call_operand_depth = 0;
+         // used for cumulative br_table data
+         uint32_t pc_offset = 0;
          std::vector<pc_element_t> pc_stack{{
                operand_depth,
-               ft.return_count?ft.return_type:static_cast<uint32_t>(types::pseudo),
-               ft.return_count?ft.return_type:static_cast<uint32_t>(types::pseudo),
+               ft.return_count ? ft.return_type : static_cast<uint32_t>(types::pseudo),
+               ft.return_count ? ft.return_type : static_cast<uint32_t>(types::pseudo),
                false,
                std::vector<branch_t>{}}};
 
@@ -272,7 +272,7 @@ namespace eosio { namespace vm {
          // is not yet available, address will be recorded in the relocations
          // list for label.
          auto handle_branch_target = [&](uint32_t label, branch_t address) {
-            EOS_WB_ASSERT(label < pc_stack.size(), wasm_parse_exception, "invalid label");
+            EOS_VM_ASSERT(label < pc_stack.size(), wasm_parse_exception, "invalid label");
             pc_element_t& branch_target = pc_stack[pc_stack.size() - label - 1];
             std::visit(overloaded{ [&](label_t target) { code_writer.fix_branch(address, target); },
                                    [&](std::vector<branch_t>& relocations) { relocations.push_back(address); } },
@@ -284,7 +284,7 @@ namespace eosio { namespace vm {
          // be counted in this, and the high bit will be set to signal
          // its presence.
          auto compute_depth_change = [&](uint32_t label) -> uint32_t {
-            EOS_WB_ASSERT(label < pc_stack.size(), wasm_parse_exception, "invalid label");
+            EOS_VM_ASSERT(label < pc_stack.size(), wasm_parse_exception, "invalid label");
             pc_element_t& branch_target = pc_stack[pc_stack.size() - label - 1];
             uint32_t result = operand_depth - branch_target.operand_depth;
             if(branch_target.label_result != types::pseudo) {
@@ -317,43 +317,41 @@ namespace eosio { namespace vm {
 
          // Handles branches to the end of the scope and pops the pc_stack
          auto exit_scope = [&]() {
-            if (pc_stack.size()) { // There must be at least one element
-               auto end_pos = code_writer.emit_end();
-               if(auto* relocations = std::get_if<std::vector<branch_t>>(&pc_stack.back().relocations)) {
-                  for(auto branch_op : *relocations) {
-                     code_writer.fix_branch(branch_op, end_pos);
-                  }
+            // There must be at least one element
+            EOS_VM_ASSERT(pc_stack.size(), wasm_invalid_element, "unexpected end instruction");
+            auto end_pos = code_writer.emit_end();
+            if(auto* relocations = std::get_if<std::vector<branch_t>>(&pc_stack.back().relocations)) {
+               for(auto branch_op : *relocations) {
+                  code_writer.fix_branch(branch_op, end_pos);
                }
-               unsigned expected_operand_depth = pc_stack.back().operand_depth;
-               if (pc_stack.back().expected_result != types::pseudo) {
-                  ++expected_operand_depth;
-               }
-               if (!is_unreachable())
-                  EOS_WB_ASSERT(operand_depth == expected_operand_depth, wasm_parse_exception, "incorrect stack depth at end");
-               operand_depth = expected_operand_depth;
-               is_in_unreachable = pc_stack.back().is_unreachable;
-               pc_stack.pop_back();
-            } else {
-               throw wasm_invalid_element{ "unexpected end instruction" };
             }
+            unsigned expected_operand_depth = pc_stack.back().operand_depth;
+            if (pc_stack.back().expected_result != types::pseudo) {
+               ++expected_operand_depth;
+            }
+            if (!is_unreachable())
+               EOS_VM_ASSERT(operand_depth == expected_operand_depth, wasm_parse_exception, "incorrect stack depth at end");
+            operand_depth = expected_operand_depth;
+            is_in_unreachable = pc_stack.back().is_unreachable;
+            pc_stack.pop_back();
          };
 
          // Tracks the operand stack
          auto push_operand = [&](/* uint8_t type */) {
-             EOS_WB_ASSERT(operand_depth < 0xFFFFFFFF, wasm_parse_exception, "Wasm stack overflow.");
+             EOS_VM_ASSERT(operand_depth < 0xFFFFFFFF, wasm_parse_exception, "Wasm stack overflow.");
              ++operand_depth;
          };
          auto pop_operand = [&]() {
-            EOS_WB_ASSERT(operand_depth > 0, wasm_parse_exception, "Not enough items on the stack.");
+            EOS_VM_ASSERT(operand_depth > 0, wasm_parse_exception, "Not enough items on the stack.");
             --operand_depth;
          };
          auto pop_operands = [&](uint32_t num_to_pop) {
-            EOS_WB_ASSERT(operand_depth >= num_to_pop, wasm_parse_exception, "Not enough items on the stack.");
+            EOS_VM_ASSERT(operand_depth >= num_to_pop, wasm_parse_exception, "Not enough items on the stack.");
             operand_depth -= num_to_pop;
          };
 
          while (code.offset() < bounds) {
-            EOS_WB_ASSERT(pc_stack.size() <= constants::max_nested_structures, wasm_parse_exception,
+            EOS_VM_ASSERT(pc_stack.size() <= constants::max_nested_structures, wasm_parse_exception,
                           "nested structures validation failure");
 
             switch (*code++) {
@@ -393,7 +391,7 @@ namespace eosio { namespace vm {
                   auto& relocations = std::get<std::vector<branch_t>>(old_index.relocations);
                   // reset the operand stack to the same state as the if
                   if (!is_unreachable()) {
-                     EOS_WB_ASSERT((old_index.expected_result != types::pseudo) + old_index.operand_depth == operand_depth,
+                     EOS_VM_ASSERT((old_index.expected_result != types::pseudo) + old_index.operand_depth == operand_depth,
                                    wasm_parse_exception, "Malformed if body");
                   }
                   operand_depth = old_index.operand_depth;
@@ -434,8 +432,8 @@ namespace eosio { namespace vm {
                   uint32_t funcnum = parse_varuint32(code);
                   const func_type& ft = _mod->get_function_type(funcnum);
                   pop_operands(ft.param_types.size());
-                  EOS_WB_ASSERT(ft.return_count <= 1, wasm_parse_exception, "unsupported");
-                  if(ft.return_count == 1)
+                  EOS_VM_ASSERT(ft.return_count <= 1, wasm_parse_exception, "unsupported");
+                  if(ft.return_count)
                      push_operand();
                   code_writer.emit_call(ft, funcnum);
                } break;
@@ -444,8 +442,8 @@ namespace eosio { namespace vm {
                   const func_type& ft = _mod->types.at(functypeidx);
                   pop_operand();
                   pop_operands(ft.param_types.size());
-                  EOS_WB_ASSERT(ft.return_count <= 1, wasm_parse_exception, "unsupported");
-                  if(ft.return_count == 1)
+                  EOS_VM_ASSERT(ft.return_count <= 1, wasm_parse_exception, "unsupported");
+                  if(ft.return_count)
                      push_operand();
                   code_writer.emit_call_indirect(ft, functypeidx);
                   code++; // 0x00
@@ -697,7 +695,7 @@ namespace eosio { namespace vm {
             code.fit_bounds(constants::id_size);
             _id = parse_section_id(code);
          }
-         EOS_WB_ASSERT(_id == id, wasm_parse_exception, "Section id does not match");
+         EOS_VM_ASSERT(_id == id, wasm_parse_exception, "Section id does not match");
          code.add_bounds(constants::varuint32_size);
          code.fit_bounds(parse_section_payload_len(code));
       }
@@ -755,7 +753,15 @@ namespace eosio { namespace vm {
                                 vec<typename std::enable_if_t<id == section_id::code_section, function_body>>& elems) {
          Writer code_writer(_allocator, code.bounds() - code.offset(), *_mod);
          parse_section_impl(code, elems,
-                            [&](wasm_code_ptr& code, function_body& fb, std::size_t idx) { parse_function_body(code, fb, idx, code_writer); });
+                            [&](wasm_code_ptr& code, function_body& fb, std::size_t idx) { parse_function_body(code, fb, idx); });
+         for (size_t i = 0; i < _function_bodies.size(); i++) {
+            function_body& fb = _mod->code[i];
+            func_type& ft = _mod->types.at(_mod->functions.at(i));
+            code_writer.emit_prologue(ft, fb.locals, i);
+            parse_function_body_code(_function_bodies[i], fb.size, code_writer, ft);
+            code_writer.emit_epilogue(ft, fb.locals, i);
+            code_writer.finalize(fb);
+         }
       }
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                                code,
@@ -782,5 +788,6 @@ namespace eosio { namespace vm {
       module*             _mod; // non-owning weak pointer
       int64_t             _current_function_index = -1;
       std::set<uint32_t>  _export_indices;
+      std::vector<wasm_code_ptr>  _function_bodies;
    };
 }} // namespace eosio::vm

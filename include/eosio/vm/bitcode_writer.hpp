@@ -19,9 +19,10 @@ namespace eosio { namespace vm {
     public:
       // FIXME: This function is really a hack.  Find a better way to make the allocator configurable.
       static growable_allocator& choose_alloc(growable_allocator& alloc, jit_allocator&) { return alloc; }
-      explicit bitcode_writer(growable_allocator& alloc, std::size_t source_bytes, std::size_t /*idx*/, module& /*mod*/, bool is_exported) :
+      explicit bitcode_writer(growable_allocator& alloc, std::size_t source_bytes, std::size_t /*idx*/, module& mod, bool is_exported) :
          _allocator(alloc),
-         fb(alloc, source_bytes) {}
+         fb(alloc, source_bytes),
+         _mod(&mod) {}
       void emit_unreachable() { fb[op_index++] = unreachable_t{}; };
       void emit_nop() { fb[op_index++] = nop_t{}; }
       uint32_t emit_end() { return op_index; }
@@ -31,12 +32,12 @@ namespace eosio { namespace vm {
       void emit_block() {}
       uint32_t emit_loop() { return op_index; }
       uint32_t* emit_if() { 
-         if__t& instr = append_instr(if__t{});
+         if_t& instr = append_instr(if_t{});
          return &instr.pc;
       }
       uint32_t * emit_else(uint32_t * if_loc) {
-         auto& else_ = append_instr(else__t{});
-         *if_loc = op_index;
+         auto& else_ = append_instr(else_t{});
+         *if_loc = _base_offset + op_index;
          return &else_.pc;
       }
       uint32_t * emit_br(uint32_t depth_change) {
@@ -52,11 +53,20 @@ namespace eosio { namespace vm {
       friend struct br_table_parser;
       struct br_table_parser {
          br_table_parser(bitcode_writer& base, uint32_t table_size) :
-            _table_size{ table_size },
-            _br_tab{ base._allocator, table_size + 1 },
-            _bt{},
             _this{ &base },
-            _i{ 0 } {}
+            _i{ 0 } {
+            br_table_t& bt = _this->append_instr(br_table_t{});
+            bt.offset = static_cast<uint32_t>(((table_size * sizeof(br_table_t::elem_t))/sizeof(opcode))+2);
+
+            // point the branch table data to after the br_table instruction
+            _br_tab = bt.table = reinterpret_cast<br_table_t::elem_t*>(&_this->fb[_this->op_index]);
+
+            _this->op_index += bt.offset;
+
+            // canary to throw if we have overbounded our allocated memory
+            _this->fb[_this->op_index] = error_t{};
+            bt.size           = table_size;
+         }
          uint32_t * emit_case(uint32_t depth_change) {
             auto& elem = _br_tab[_i++];
             elem.stack_pop = depth_change;
@@ -65,21 +75,17 @@ namespace eosio { namespace vm {
          // Must be called after all cases
          uint32_t* emit_default(uint32_t depth_change) {
             auto result = emit_case(depth_change);
-            _bt.table          = _br_tab.raw();
-            _bt.size           = _table_size;
-            _this->fb[_this->op_index++] = _bt;
+            EOS_VM_ASSERT(_this->fb[_this->op_index].is_a<error_t>(), wasm_parse_exception, "overwrote br_table data");
             return result;
          }
-         size_t _table_size;
-         guarded_vector<br_table_t::elem_t> _br_tab;
-         br_table_t _bt;
+         br_table_t::elem_t* _br_tab;
          bitcode_writer * _this;
          std::size_t _i;
          br_table_parser(const br_table_parser&) = delete;
          br_table_parser& operator=(const br_table_parser&) = delete;
       };
       auto emit_br_table(uint32_t table_size) { return br_table_parser{ *this, table_size }; }
-      void emit_call(const func_type& ft, uint32_t funcnum) { fb[op_index++] = call_t{ funcnum }; }
+      void emit_call(const func_type& ft, uint32_t funcnum) { fb[op_index++] = call_imm_t{ funcnum }; }
       void emit_call_indirect(const func_type& ft, uint32_t functypeidx) { fb[op_index++] = call_indirect_t{ functypeidx }; }
 
 
@@ -269,21 +275,29 @@ namespace eosio { namespace vm {
 
       void emit_error() { fb[op_index++] = error_t{}; }
       
-      void fix_branch(uint32_t* branch, uint32_t target) { if(branch) *branch = target; }
-      void emit_prologue(const func_type&, const guarded_vector<local_entry>&) {}
-      void emit_epilogue(const func_type&, const guarded_vector<local_entry>&) {
+      void fix_branch(uint32_t* branch, uint32_t target) { if(branch) *branch = _base_offset + target; }
+      void emit_prologue(const func_type& ft, const guarded_vector<local_entry>&, uint32_t idx) {
+         // pre-allocate for the function body code, so we have a big blob of memory to work with during function code parsing
+         fb = guarded_vector<opcode>{_allocator, _mod->code[idx].size };
+      }
+     void emit_epilogue(const func_type& ft, const guarded_vector<local_entry>& locals, uint32_t idx) {
          fb.resize(op_index + 1);
          fb[fb.size() - 1] = fend_t{};
+         _mod->code[idx].code[_mod->code[idx].size - 1] = return_t{ static_cast<uint32_t>(locals.size() + ft.param_types.size()), ft.return_count, 0, 0 };
       }
 
       void finalize(function_body& body) {
-         body.code = std::move(fb);
+         _allocator.template reclaim<opcode>(body.code + op_index + 1, body.size - (op_index+1));
+         body.size = op_index + 1;
+         _base_offset += body.size;
       }
     private:
 
       growable_allocator& _allocator;
       std::size_t op_index = 0;
       guarded_vector<opcode> fb;
+      module* _mod;
+      std::size_t _base_offset = 0;
    };
 
 }}

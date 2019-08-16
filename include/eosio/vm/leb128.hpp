@@ -48,7 +48,7 @@ namespace eosio { namespace vm {
          inline constexpr void from( guarded_ptr<uint8_t>& code ) {
             uint8_t cnt = 0;
             for (; cnt < bytes_needed<N>(); cnt++) {
-               EOS_WB_ASSERT( code.offset()+cnt < code.bounds(), wasm_interpreter_exception, "pointer out of bounds" );
+               EOS_VM_ASSERT( code.offset()+cnt < code.bounds(), wasm_interpreter_exception, "pointer out of bounds" );
                storage[cnt] = code[cnt];
                if ((storage[cnt] & 0x80) == 0) {
                   break;
@@ -115,7 +115,7 @@ namespace eosio { namespace vm {
          inline constexpr void from( guarded_ptr<uint8_t>& code ) {
             uint8_t cnt = 0;
             for (; cnt < bytes_needed<N>(); cnt++) {
-               EOS_WB_ASSERT( code.offset()+cnt < code.bounds(), wasm_interpreter_exception, "pointer out of bounds" );
+               EOS_VM_ASSERT( code.offset()+cnt < code.bounds(), wasm_interpreter_exception, "pointer out of bounds" );
                storage[cnt] = code[cnt];
                if ((storage[cnt] & 0x80) == 0) {
                   break;

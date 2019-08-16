@@ -5,7 +5,7 @@
 #include <exception>
 #include <string>
 
-#define EOS_WB_ASSERT( expr, exc_type, msg ) \
+#define EOS_VM_ASSERT( expr, exc_type, msg ) \
    if (!UNLIKELY(expr)) {                    \
       throw exc_type{msg};                   \
    }

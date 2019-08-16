@@ -10,6 +10,7 @@
 #include <eosio/vm/signals.hpp>
 #include <eosio/vm/types.hpp>
 #include <eosio/vm/x86_64.hpp>
+#include <eosio/vm/memory_dump.hpp>
 
 #include <fstream>
 #include <optional>

@@ -1700,7 +1700,7 @@ namespace eosio { namespace vm {
          emit_bytes(0xff, 0xc3);
       }
 
-      static void unimplemented() { EOS_WB_ASSERT(false, wasm_parse_exception, "Sorry, not implemented."); }
+      static void unimplemented() { EOS_VM_ASSERT(false, wasm_parse_exception, "Sorry, not implemented."); }
 
       // clobbers %rax if the high bit of count is set.
       void emit_multipop(uint32_t count) {

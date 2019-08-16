@@ -458,7 +458,7 @@ namespace eosio { namespace vm {
             std::string mod_name =
                   std::string((char*)mod.imports[i].module_str.raw(), mod.imports[i].module_str.size());
             std::string fn_name = std::string((char*)mod.imports[i].field_str.raw(), mod.imports[i].field_str.size());
-            EOS_WB_ASSERT(current_mappings.named_mapping.count({ mod_name, fn_name }), wasm_link_exception,
+            EOS_VM_ASSERT(current_mappings.named_mapping.count({ mod_name, fn_name }), wasm_link_exception,
                           "no mapping for imported function");
             imports[i] = current_mappings.named_mapping[{ mod_name, fn_name }];
          }
