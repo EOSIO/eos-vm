@@ -54,7 +54,7 @@ namespace eosio { namespace vm {
             context.set_relative_pc(op.pc);
          }
       }
-      [[gnu::always_inline]] inline void operator()(const else_t& op) { context.set_relative_pc(op.pc+1); }
+      [[gnu::always_inline]] inline void operator()(const else_t& op) { context.set_relative_pc(op.pc); }
       [[gnu::always_inline]] inline void operator()(const br_t& op) { context.jump(op.data, op.pc); }
       [[gnu::always_inline]] inline void operator()(const br_if_t& op) {
          const auto& val = context.pop_operand();

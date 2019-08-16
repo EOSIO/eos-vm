@@ -41,7 +41,8 @@ namespace eosio { namespace vm {
     public:
       static constexpr size_t max_memory_size = 1024 * 1024 * 1024; // 1GB
       static constexpr size_t chunk_size      = 128 * 1024;         // 128KB
-      static constexpr size_t align_amt       = 16;
+      //  static constexpr size_t align_amt       = 16;
+      template<std::size_t align_amt>
       static constexpr size_t align_offset(size_t offset) { return (offset + align_amt - 1) & ~(align_amt - 1); }
 
       // size in bytes
@@ -59,7 +60,8 @@ namespace eosio { namespace vm {
       // TODO use Outcome library
       template <typename T>
       T* alloc(size_t size = 0) {
-         size_t aligned = align_offset((sizeof(T) * size) + _offset);
+         _offset = align_offset<alignof(T)>(_offset);
+         size_t aligned = (sizeof(T) * size) + _offset;
          if (aligned >= _size) {
             size_t chunks_to_alloc = aligned / chunk_size;
             mprotect((char*)_base + _size, (chunk_size * chunks_to_alloc), PROT_READ | PROT_WRITE);
@@ -68,7 +70,7 @@ namespace eosio { namespace vm {
 
          T* ptr  = (T*)(_base + _offset);
          _offset = aligned;
-         std::cout << "Alloc " << ptr << "\n";
+         //         std::cout << "Alloc " << ptr << "\n";
          return ptr;
       }
 
@@ -79,10 +81,10 @@ namespace eosio { namespace vm {
       template <typename T>
       void reclaim(const T* ptr, size_t size=0) {
          EOS_VM_ASSERT( _offset - size >= 0, wasm_bad_alloc, "reclaimed too much memory" );
-         EOS_VM_ASSERT( size == 0 || align_offset( (char*)(ptr + size) - _base ) == _offset, wasm_bad_alloc, "reclaiming memory must be strictly LIFO");
+         EOS_VM_ASSERT( size == 0 || ( (char*)(ptr + size) - _base ) == _offset, wasm_bad_alloc, "reclaiming memory must be strictly LIFO");
          if ( size != 0 )
-            _offset = align_offset((char*)ptr - _base);
-         std::cout << "Reclaim " << (T*)(_base+_offset) << "\n";
+            _offset = ((char*)ptr - _base);
+         //         std::cout << "Reclaim " << (T*)(_base+_offset) << "\n";
       }
       void free() { EOS_VM_ASSERT(false, wasm_bad_alloc, "unimplemented"); }
 

@@ -249,11 +249,11 @@ namespace eosio { namespace vm {
          std::variant<uint32_t, std::vector<uint32_t*>> relocations;
       };
 
-      void parse_function_body_code(wasm_code_ptr& code, size_t bounds, function_body& body, const func_type& ft, opcode** code_offset) {
+      void parse_function_body_code(wasm_code_ptr& code, size_t bounds, function_body& body, const func_type& ft, std::size_t base_offset) {
          //body.code = _allocator.template alloc<opcode>(bounds);
          //fb.set(body.code, body.size, 0);
          guarded_vector<opcode> fb{_allocator, 0};
-         fb.set(*code_offset, body.size, 0);
+         fb.set(body.code, body.size, 0);
          size_t op_index       = 0;
 
          // Initialize the control stack with the current function as the sole element
@@ -289,7 +289,7 @@ namespace eosio { namespace vm {
                // this assumption around the code.
                original_operand_depth |= 0x80000000;
             }
-            std::visit(overloaded{ [&](uint32_t target) { *address = target; },
+            std::visit(overloaded{ [&](uint32_t target) { *address = base_offset + target; },
                                    [&](std::vector<uint32_t*>& relocations) { relocations.push_back(address); } },
                branch_target.relocations);
             *operand_depth_change = operand_depth - original_operand_depth;
@@ -348,7 +348,7 @@ namespace eosio { namespace vm {
             EOS_VM_ASSERT(pc_stack.size(), wasm_invalid_element, "unexpected end instruction");
             if(auto* relocations = std::get_if<std::vector<uint32_t*>>(&pc_stack.back().relocations)) {
                for(uint32_t* branch_op : *relocations) {
-                  *branch_op = op_index+1;
+                  *branch_op = base_offset + op_index;
                }
             }
             unsigned expected_operand_depth = pc_stack.back().operand_depth;
@@ -425,7 +425,7 @@ namespace eosio { namespace vm {
                   auto& else_ = append_instr(else_t{});
                   relocations[0] = &else_.pc;
                   // The branch from the if skips just past the else
-                  *_if_pc = op_index;
+                  *_if_pc = base_offset + op_index;
                   break;
                }
                case opcodes::br: {
@@ -730,10 +730,9 @@ namespace eosio { namespace vm {
                case opcodes::error: fb[op_index++] = error_t{}; break;
             }
          }
-         std::cout << "Reclaim " << body.size << " " << op_index << " " << body.size - (op_index+1) << "\n";
+         //         std::cout << "Reclaim " << body.size << " " << op_index << " " << body.size - (op_index+1) << "\n";
          _allocator.template reclaim<opcode>(body.code + op_index + 1, body.size - (op_index+1));
          body.size = op_index + 1;
-         code_offset += body.size;
       }
 
       void parse_data_segment(wasm_code_ptr& code, data_segment& ds) {
@@ -820,14 +819,15 @@ namespace eosio { namespace vm {
                                 vec<typename std::enable_if_t<id == section_id::code_section, function_body>>& elems) {
          parse_section_impl(code, elems,
                             [&](wasm_code_ptr& code, function_body& fb, std::size_t idx) { parse_function_body(code, fb, idx); });
-         opcode* function_code_ptr = nullptr;
+         std::size_t offset = 0;
          for (size_t i = 0; i < _function_bodies.size(); i++) {
             function_body& fb = _mod->code[i];
             // pre-allocate for the function body code, so we have a big blob of memory to work with during function code parsing
-            fb.code = function_code_ptr = _allocator.template alloc<opcode>(fb.size);
+            fb.code = _allocator.template alloc<opcode>(fb.size);
             func_type& ft = _mod->types.at(_mod->functions.at(i));
-            parse_function_body_code(_function_bodies[i], fb.size, fb, ft, &function_code_ptr); 
+            parse_function_body_code(_function_bodies[i], fb.size, fb, ft, offset);
             fb.code[fb.size - 1] = return_t{ static_cast<uint32_t>(_mod->code[i].locals.size() + ft.param_types.size()), ft.return_count, 0, 0 };
+            offset += fb.size;
          }
       }
       template <uint8_t id>
