@@ -392,7 +392,7 @@ int main(int argc, char** argv) {
 
          test_funcs << write_test_function(function_name, test);
 
-         if (type_test == "assert_trap") {
+         if (type_test == "assert_trap" || type_test == "assert_exhaustion") {
             assert_trap_tests.push_back(test);
          } else {
             assert_return_tests.push_back(test);
