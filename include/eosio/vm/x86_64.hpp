@@ -22,23 +22,31 @@ namespace eosio { namespace vm {
    template<typename Context>
    class machine_code_writer {
     public:
-      machine_code_writer(growable_allocator& /*alloc*/, std::size_t source_bytes, module& mod) :
-         _mod(mod) {
-         // FIXME: Guess at upper bound on function size.  This should be an upper bound
-         // except for the prologue and epilogue, but is not as tight as it could be.
-         _mod.j_alloc = jit_allocator{source_bytes * 64};
-         code = _mod.j_alloc.alloc();
+      machine_code_writer(growable_allocator& alloc, std::size_t source_bytes, module& mod) :
+         _mod(mod), _code_segment_base(alloc.start_code()) {
+         std::size_t code_size = 4 * 16; // 4 error handler, each is 16 bytes.
+         _code_start = _mod.allocator.alloc<unsigned char>(code_size);
+         _code_end = _code_start + code_size;
+         code = _code_start;
+
          // always emit these functions
          fpe_handler = emit_error_handler(&on_fp_error);
          call_indirect_handler = emit_error_handler(&on_call_indirect_error);
          type_error_handler = emit_error_handler(&on_type_error);
          stack_overflow_handler = emit_error_handler(&on_stack_overflow);
-         _mod.j_alloc.setpos(code);
+
+         assert(code == _code_end);
       }
-      ~machine_code_writer() { _mod.j_alloc.make_executable(); }
+      ~machine_code_writer() { _mod.allocator.end_code(_code_segment_base); }
 
       void emit_prologue(const func_type& /*ft*/, const guarded_vector<local_entry>& locals, uint32_t funcnum) {
          _ft = &_mod.types[_mod.functions[funcnum]];
+         // FIXME: Guess at upper bound on function size.  This should be an upper bound
+         // except for the prologue and epilogue, but is not as tight as it could be.
+         std::size_t code_size = _mod.code[funcnum].size * 64;
+         _code_start = _mod.allocator.alloc<unsigned char>(code_size);
+         _code_end = _code_start + code_size;
+         code = _code_start;
          start_function(code, funcnum);
          // pushq RBP
          emit_bytes(0x55);
@@ -1648,7 +1656,8 @@ namespace eosio { namespace vm {
 
       using fn_type = native_value(*)(void* context, void* memory);
       void finalize(function_body& body) {
-         body.jit_code = reinterpret_cast<fn_type>(_mod.j_alloc.setpos(code));
+         _mod.allocator.reclaim(code, _code_end - code);
+         body.jit_code = reinterpret_cast<fn_type>(_code_start);
       }
 
       template<typename... Args>
@@ -1660,7 +1669,10 @@ namespace eosio { namespace vm {
     private:
 
       module& _mod;
+      void * _code_segment_base;
       const func_type* _ft;
+      unsigned char * _code_start;
+      unsigned char * _code_end;
       unsigned char * code;
       std::vector<std::variant<std::vector<void*>, void*>> _function_relocations;
       void* fpe_handler;

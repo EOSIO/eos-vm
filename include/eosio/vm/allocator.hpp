@@ -45,6 +45,11 @@ namespace eosio { namespace vm {
       template<std::size_t align_amt>
       static constexpr size_t align_offset(size_t offset) { return (offset + align_amt - 1) & ~(align_amt - 1); }
 
+      static std::size_t align_to_page(std::size_t offset) {
+         std::size_t pagesize = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
+         return (offset + pagesize - 1) & ~(pagesize - 1);
+      }
+
       // size in bytes
       growable_allocator(size_t size) {
          _base = (char*)mmap(NULL, max_memory_size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -71,6 +76,15 @@ namespace eosio { namespace vm {
          T* ptr  = (T*)(_base + _offset);
          _offset = aligned;
          return ptr;
+      }
+
+      void * start_code() {
+         _offset = align_to_page(_offset);
+         return _base + _offset;
+      }
+      void end_code(void * code_base) {
+         _offset = align_to_page(_offset);
+         mprotect(code_base, _offset - ((char*)code_base - _base), PROT_EXEC);
       }
 
       /* different semantics than free,
@@ -110,54 +124,6 @@ namespace eosio { namespace vm {
       }
       inline T* get_base_ptr() const { return raw; }
    };
-
-    class jit_allocator {
-     public:
-       jit_allocator() : _size(0), _raw(nullptr), _pos(nullptr) {}
-       explicit jit_allocator(std::size_t size)
-         : _size(round_to_page(size)),
-           _raw((uint8_t*)mmap(NULL, _size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0)),
-           _pos(_raw)
-       {}
-       ~jit_allocator() {
-          if(_raw)
-             munmap(_raw, _size);
-       }
-       jit_allocator(jit_allocator&& other)
-         : _size{other._size},
-           _raw{other._raw},
-           _pos{other._pos}
-       {
-          other._size = 0;
-          other._raw = nullptr;
-          other._pos = nullptr;
-       }
-       jit_allocator& operator=(jit_allocator&& other) {
-          std::swap(_size, other._size);
-          std::swap(_raw, other._raw);
-          std::swap(_pos, other._pos);
-          return *this;
-       }
-       uint8_t* alloc() {
-          return _pos;
-       }
-       uint8_t* setpos(uint8_t* newpos) {
-          uint8_t* oldpos = _pos;
-          _pos = newpos;
-          return oldpos;
-       }
-       void make_executable() {
-          mprotect(_raw, round_to_page(_pos - _raw), PROT_EXEC);
-       }
-     private:
-       std::size_t _size;
-       uint8_t* _raw;
-       uint8_t* _pos;
-       static std::size_t round_to_page(std::size_t size) {
-          std::size_t pagesize = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
-          return (size + pagesize - 1) / pagesize * pagesize;
-       }
-    };
 
    class wasm_allocator {
     private:

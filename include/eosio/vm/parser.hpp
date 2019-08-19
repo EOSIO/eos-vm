@@ -751,9 +751,9 @@ namespace eosio { namespace vm {
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                                 code,
                                 vec<typename std::enable_if_t<id == section_id::code_section, function_body>>& elems) {
-         Writer code_writer(_allocator, code.bounds() - code.offset(), *_mod);
          parse_section_impl(code, elems,
                             [&](wasm_code_ptr& code, function_body& fb, std::size_t idx) { parse_function_body(code, fb, idx); });
+         Writer code_writer(_allocator, code.bounds() - code.offset(), *_mod);
          for (size_t i = 0; i < _function_bodies.size(); i++) {
             function_body& fb = _mod->code[i];
             func_type& ft = _mod->types.at(_mod->functions.at(i));

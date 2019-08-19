@@ -150,7 +150,6 @@ namespace eosio { namespace vm {
 
    struct module {
       growable_allocator              allocator = { constants::initial_module_size };
-      jit_allocator                   j_alloc;
       uint32_t                        start     = std::numeric_limits<uint32_t>::max();
       guarded_vector<func_type>       types     = { allocator, 0 };
       guarded_vector<import_entry>    imports   = { allocator, 0 };
