@@ -91,10 +91,40 @@ namespace eosio { namespace vm {
       return std::tuple<std::decay_t<Args>...>{};
    }
 
-   struct align_ptr_triple {
-      void*  o = nullptr;
-      void*  n = nullptr;
-      size_t s;
+   template <typename T>
+   struct aligned_ptr_wrapper {
+      constexpr aligned_ptr_wrapper(T* ptr) : ptr(ptr) {
+         if (ptr % alignof(T) != 0) {
+            copy = T{};
+            memcpy( (void*)&(*copy), (void*)ptr, sizeof(T) );
+         }
+      }
+      ~aligned_ptr_wrapper() {
+         if constexpr (!std::is_const_v<T>)
+            if (copy)
+               memcpy( (void*)ptr, (void*)&(*copy), sizeof(T) );
+      }
+      constexpr std::add_lvalue_reference_t<T> operator*() const { 
+         if (copy)
+            return *copy;
+         else
+            return *ptr;
+      }
+      constexpr T* operator->() const noexcept {
+         if (copy)
+            return &(*copy);
+         else
+            return ptr;
+      }
+      constexpr operator T*() const {
+         if (copy)
+            return &(*copy);
+         else
+            return ptr;
+      }
+
+      T* ptr;
+      std::optional<T> copy;
    };
 
    // This class can be specialized to define a conversion to/from wasm.
@@ -132,11 +162,21 @@ namespace eosio { namespace vm {
                     "wasm_type_converter must use the same type for both from_wasm and to_wasm.");
       using type = from_wasm_type_impl_t<T>;
    };
+   
+   // try the pointer to force segfault early
+   template <typename WAlloc, typename T>
+   constexpr T* validate_ptr( WAlloc&& alloc, uint32_t offset, uint32_t len ) {
+      EOS_VM_ASSERT( len < INT_MAX / (uint32_t)sizeof(T), wasm_interpreter_exception, "length will overflow" );
+      T* ret_ptr = reinterpret_cast<T>(alloc.template get_base_ptr<char>() + offset);
+      volatile auto ret_val = *(ret_ptr+len-1);
+      return ret_ptr;
+   }
 
-   template<typename S, typename T, typename WAlloc>
-   constexpr auto get_value(WAlloc* alloc, T&& val) -> S {
-      if constexpr (std::is_integral_v<S> && sizeof(S) == 4)
+   template<typename S, size_t I, typename Args, typename T, typename WAlloc, typename OS>
+   constexpr auto get_value(WAlloc* alloc, OS&& os, T&& val) -> S {
+      if constexpr (std::is_integral_v<S> && sizeof(S) == 4) {
          return val.template get<i32_const_t>().data.ui;
+      }
       else if constexpr (std::is_integral_v<S> && sizeof(S) == 8)
          return val.template get<i64_const_t>().data.ui;
       else if constexpr (std::is_floating_point_v<S> && sizeof(S) == 4)
@@ -144,6 +184,13 @@ namespace eosio { namespace vm {
       else if constexpr (std::is_floating_point_v<S> && sizeof(S) == 8)
          return val.template get<f64_const_t>().data.f;
       else if constexpr (std::is_pointer_v<S>)
+         /* validate a pointer followed by length */
+         if constexpr (std::is_same_v<uint32_t, std::tuple_element<I+1, Args>>) {
+            return aligned_ptr_wrapper<S>{ validate_ptr(alloc, val.template get<i32_const_t>().data.ui, 
+                  detail::get_value<std::tuple_element_t<I+1, Args>>(alloc, std::forward<OS>(os), os.get_back((std::tuple_size_v<Args>-1) - I))) };
+         }
+         /* transcribe two pointers and a length */
+         if constexpr (std::is_pointer_v<std::tuple_element_t<I, Args>>)
          return reinterpret_cast<S>(alloc->template get_base_ptr<char>() + val.template get<i32_const_t>().data.ui);
       else
          return wasm_type_converter<S>::from_wasm(detail::get_value<from_wasm_type_impl_t<S>>(alloc, static_cast<T&&>(val)));
@@ -237,7 +284,7 @@ namespace eosio { namespace vm {
             __cxxabiv1::__cxa_demangle(mangled_name, nullptr, &len, &status), &::std::free);
       return ptr.get();
    }
-    struct maybe_void_t {
+   struct maybe_void_t {
       struct void_t {};
       static void_t void_val;
       inline constexpr auto operator[](void_t)const { return void_val; }
@@ -247,17 +294,28 @@ namespace eosio { namespace vm {
       inline constexpr friend auto operator, (T&& val, void_t) { return std::forward<T>(val); }
    } maybe_void;
 
+   template <typename Derived, typename Host, typename Args>
+   struct args_tuple {
+      using type = decltype(std::tuple_cat(construct_derived<Derived, Host>::value(std::declval<Host>()), Args{}));
+   };
+
+   template <typename Host, typename Args>
+   struct args_tuple<nullptr_t, Host, Args> {
+      typedef Args type;
+   };
+
+   template <typename Derived, typename Host, typename Args>
+   using args_tuple_t = typename args_tuple<Derived, Host, Args>::type;
+
    template <auto F, typename Derived, typename Host, typename Walloc, typename Args, size_t... Is>
    auto invoke_with_host(Host* host, Walloc* walloc, operand_stack& os) {
       constexpr size_t args_end = sizeof...(Is)-1;
+      args_tuple_t<Derived, Host, Args> args;
       if constexpr (!std::is_same_v<Derived, nullptr_t>)
-         return maybe_void[std::invoke(F, construct_derived<Derived, Host>::value(*host),
-                                 detail::get_value<std::tuple_element_t<Is, Args>>(walloc, 
-                                    std::move(os.get_back(args_end - Is)))...), maybe_void_t::void_val];
+         args = { detail::get_value<std::tuple_element_t<Is, Args>, Is, Args>(walloc, &os, std::move(os.get_back(args_end - Is)))... };
       else
-         return maybe_void[std::invoke(F, 
-                                 detail::get_value<std::tuple_element_t<Is, Args>>(walloc, 
-                                    std::move(os.get_back(args_end - Is)))...), maybe_void_t::void_val];
+         args = { construct_derived<Derived, Host>::value(*host), detail::get_value<std::tuple_element_t<Is, Args>, Is, Args>(walloc, &os, std::move(os.get_back(args_end - Is)))... };
+      return maybe_void[std::invoke(F, args), maybe_void_t::void_val];
    }
 
    // RAII type for handling results
@@ -421,7 +479,7 @@ namespace eosio { namespace vm {
             std::string mod_name =
                   std::string((char*)mod.imports[i].module_str.raw(), mod.imports[i].module_str.size());
             std::string fn_name = std::string((char*)mod.imports[i].field_str.raw(), mod.imports[i].field_str.size());
-            EOS_WB_ASSERT(current_mappings.named_mapping.count({ mod_name, fn_name }), wasm_link_exception,
+            EOS_VM_ASSERT(current_mappings.named_mapping.count({ mod_name, fn_name }), wasm_link_exception,
                           "no mapping for imported function");
             imports[i] = current_mappings.named_mapping[{ mod_name, fn_name }];
          }

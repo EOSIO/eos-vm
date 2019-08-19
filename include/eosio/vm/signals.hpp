@@ -54,7 +54,7 @@ namespace eosio { namespace vm {
 
    inline void setup_signal_handler() {
       static int init_helper = (setup_signal_handler_impl(), 0);
-      EOS_WB_ASSERT(signal_dest.is_lock_free(), wasm_interpreter_exception, "Atomic pointers must be lock-free to be async signal safe.");
+      EOS_VM_ASSERT(signal_dest.is_lock_free(), wasm_interpreter_exception, "Atomic pointers must be lock-free to be async signal safe.");
    }
 
    /// Call a function with a signal handler installed.  If this thread is

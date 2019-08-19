@@ -15,6 +15,7 @@
 #include <limits>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 namespace eosio { namespace vm {
    enum types { i32 = 0x7f, i64 = 0x7e, f32 = 0x7d, f64 = 0x7c, anyfunc = 0x70, func = 0x60, pseudo = 0x40, ret_void };
@@ -29,11 +30,8 @@ namespace eosio { namespace vm {
    using guarded_vector = managed_vector<T, growable_allocator>;
 
    struct activation_frame {
-      uint32_t pc;
-      uint32_t offset;
-      uint32_t index;
-      uint16_t op_index;
-      uint8_t  ret_type;
+      opcode* pc;
+      uint16_t last_op_index;
    };
 
    struct resizable_limits {
@@ -115,9 +113,9 @@ namespace eosio { namespace vm {
    };
 
    struct function_body {
-      uint32_t                    body_size;
+      uint32_t                    size;
       guarded_vector<local_entry> locals;
-      guarded_vector<opcode>      code;
+      opcode*                     code;
    };
 
    struct data_segment {
@@ -157,6 +155,19 @@ namespace eosio { namespace vm {
       }
       inline uint32_t get_functions_size() const { return code.size(); }
       inline uint32_t get_functions_total() const { return get_imported_functions_size() + get_functions_size(); }
+      inline opcode* get_function_pc( uint32_t fidx ) const {
+         EOS_VM_ASSERT( fidx >= get_imported_functions_size(), wasm_interpreter_exception, "trying to get the PC of an imported function" );
+         return code[fidx-get_imported_functions_size()].code;
+      }
+
+      inline auto& get_opcode(uint32_t pc) const {
+         return ((opcode*)&code[0].code[0])[pc];
+      }
+      
+      inline uint32_t get_function_locals_size(uint32_t index) const {
+         EOS_VM_ASSERT(index >= get_imported_functions_size(), wasm_interpreter_exception, "imported functions do not have locals");
+         return code[index - get_imported_functions_size()].locals.size();
+      }
 
       auto& get_function_type(uint32_t index) const {
          if (index < get_imported_functions_size())
