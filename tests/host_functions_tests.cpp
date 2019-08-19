@@ -153,7 +153,7 @@ TEST_CASE( "Testing throwing host functions", "[host_functions_throw_test]" ) {
 }
 
 struct host_functions_exit {
-   execution_context<host_functions_exit> * context;
+   jit_execution_context<host_functions_exit> * context;
    int test(int) { context->exit(); return 0; }
 };
 

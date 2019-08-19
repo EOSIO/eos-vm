@@ -14,20 +14,12 @@
 #include <utility>
 
 namespace eosio { namespace vm {
-   template <typename Host>
-   class execution_context {
+
+   template<typename Derived, typename Host>
+   class execution_context_base {
     public:
-      execution_context(module& m) : _linear_memory(nullptr), _mod(m), _halt(exit_t{}) {
-         for (int i = 0; i < _mod.exports.size(); i++) _mod.import_functions.resize(_mod.get_imported_functions_size());
-         _mod.function_sizes.resize(_mod.get_functions_total());
-         const size_t import_size  = _mod.get_imported_functions_size();
-         uint32_t     total_so_far = 0;
-         for (int i = _mod.get_imported_functions_size(); i < _mod.function_sizes.size(); i++) {
-            _mod.function_sizes[i] = total_so_far;
-            total_so_far += _mod.code[i - import_size].size;
-         }
-         _halt.set_exiting_which();
-      }
+      Derived& derived() { return static_cast<Derived&>(*this); }
+      execution_context_base(module& m) : _mod(m) {}
 
       inline int32_t grow_linear_memory(int32_t pages) {
          const int32_t sz = _wasm_alloc->get_current_page();
@@ -39,28 +31,111 @@ namespace eosio { namespace vm {
       }
 
       inline int32_t current_linear_memory() const { return _wasm_alloc->get_current_page(); }
+      inline void     exit(std::error_code err = std::error_code()) {
+         // FIXME: system_error?
+         _error_code = err;
+         throw wasm_exit_exception{"Exiting"};
+      }
+
+      inline module&        get_module() { return _mod; }
+      inline void           set_wasm_allocator(wasm_allocator* alloc) { _wasm_alloc = alloc; }
+      inline auto           get_wasm_allocator() { return _wasm_alloc; }
+      inline char*          linear_memory() { return _linear_memory; }
+
+      inline std::error_code get_error_code() const { return _error_code; }
+
+      inline void reset() {
+         _linear_memory = _wasm_alloc->get_base_ptr<char>();
+         if (_mod.memories.size()) {
+            grow_linear_memory(_mod.memories[0].limits.initial - _wasm_alloc->get_current_page());
+         }
+
+         for (int i = 0; i < _mod.data.size(); i++) {
+            const auto& data_seg = _mod.data[i];
+            // TODO validate only use memory idx 0 in parse
+            auto addr = _linear_memory + data_seg.offset.value.i32;
+            memcpy((char*)(addr), data_seg.data.raw(), data_seg.data.size());
+         }
+
+         // reset the mutable globals
+         for (int i = 0; i < _mod.globals.size(); i++) {
+            if (_mod.globals[i].type.mutability)
+               _mod.globals[i].current = _mod.globals[i].init;
+         }
+      }
+
+      template <typename Visitor, typename... Args>
+      inline std::optional<operand_stack_elem> execute(Host* host, Visitor&& visitor, const std::string_view func,
+                                               Args... args) {
+         uint32_t func_index = _mod.get_exported_function(func);
+         return derived().execute(host, std::forward<Visitor>(visitor), func_index, std::forward<Args>(args)...);
+      }
+
+      template <typename Visitor, typename... Args>
+      inline void execute_start(Host* host, Visitor&& visitor) {
+         if (_mod.start != std::numeric_limits<uint32_t>::max())
+            derived().execute(host, std::forward<Visitor>(visitor), _mod.start);
+      }
+
+    protected:
+
+      static void handle_signal(int sig) {
+         switch(sig) {
+          case SIGSEGV:
+          case SIGBUS:
+          case SIGFPE:
+            break;
+          default:
+            /* TODO fix this */
+            assert(!"??????");
+         }
+         throw wasm_memory_exception{ "wasm memory out-of-bounds" };
+      }
+
+      char*                           _linear_memory    = nullptr;
+      module&                         _mod;
+      wasm_allocator*                 _wasm_alloc;
+      registered_host_functions<Host> _rhf;
+      std::error_code                 _error_code;
+   };
+
+   struct jit_visitor { template<typename T> jit_visitor(T&&) {} };
+
+   template<typename Host>
+   class jit_execution_context : public execution_context_base<jit_execution_context<Host>, Host> {
+      using base_type = execution_context_base<jit_execution_context<Host>, Host>;
+   public:
+      using base_type::execute;
+      using base_type::_linear_memory;
+      using base_type::base_type;
+      using base_type::_mod;
+      using base_type::_rhf;
+      using base_type::_error_code;
+      using base_type::handle_signal;
+
+      inline operand_stack& get_operand_stack() { return _os; }
 
       inline native_value call_host_function(native_value* stack, uint32_t index) {
          const auto& ft = _mod.get_function_type(index);
          uint32_t num_params = ft.param_types.size();
 #ifndef NDEBUG
-         uint32_t original_operands = current_operands_index();
+         uint32_t original_operands = _os.size();
 #endif
          for(uint32_t i = 0; i < ft.param_types.size(); ++i) {
             switch(ft.param_types[i]) {
-             case i32: push_operand(i32_const_t{stack[num_params - i - 1].i32}); break;
-             case i64: push_operand(i64_const_t{stack[num_params - i - 1].i64}); break;
-             case f32: push_operand(f32_const_t{stack[num_params - i - 1].f32}); break;
-             case f64: push_operand(f64_const_t{stack[num_params - i - 1].f64}); break;
+             case i32: _os.push(i32_const_t{stack[num_params - i - 1].i32}); break;
+             case i64: _os.push(i64_const_t{stack[num_params - i - 1].i64}); break;
+             case f32: _os.push(f32_const_t{stack[num_params - i - 1].f32}); break;
+             case f64: _os.push(f64_const_t{stack[num_params - i - 1].f64}); break;
              default: assert(!"Unexpected type in param_types.");
             }
          }
-         _rhf(_state.host, *this, _mod.import_functions[index]);
+         _rhf(_host, *this, _mod.import_functions[index]);
          native_value result{uint32_t{0}};
          // guarantee that the junk bits are zero, to avoid problems.
          auto set_result = [&result](auto val) { std::memcpy(&result, &val, sizeof(val)); };
          if(ft.return_count) {
-            operand_stack_elem el = pop_operand();
+            operand_stack_elem el = _os.pop();
             switch(ft.return_type) {
              case i32: set_result(el.to_ui32()); break;
              case i64: set_result(el.to_ui64()); break;
@@ -69,9 +144,71 @@ namespace eosio { namespace vm {
              default: assert(!"Unexpected function return type.");
             }
          }
-         assert(current_operands_index() == original_operands);
+         assert(_os.size() == original_operands);
          return result;
       }
+
+      template <typename... Args>
+      inline std::optional<operand_stack_elem> execute(Host* host, jit_visitor, uint32_t func_index, Args... args) {
+         auto saved_host = _host;
+         auto g = scope_guard([&](){ _host = saved_host; });
+
+         _host = host;
+
+         auto fn = _mod.code[func_index - _mod.get_imported_functions_size()].jit_code;
+         const func_type& ft = _mod.get_function_type(func_index);
+         native_value result;
+
+         try {
+            vm::invoke_with_signal_handler([&]() {
+               // FIXME: Move invoke out of machine_code_writer.
+               result = machine_code_writer<jit_execution_context>::invoke(fn, this, _linear_memory, args...);
+            }, &handle_signal);
+         } catch(wasm_exit_exception&) {
+            return {};
+         }
+
+         if(!ft.return_count)
+            return {};
+         else switch (ft.return_type) {
+            case i32: return {i32_const_t{result.i32}};
+            case i64: return {i64_const_t{result.i64}};
+            case f32: return {f32_const_t{result.f32}};
+            case f64: return {f64_const_t{result.f64}};
+            default: assert(!"Unexpected function return type");
+         }
+         __builtin_unreachable();
+      }
+   protected:
+      Host * _host = nullptr;
+      // This is only needed because the host function api uses operand stack
+      bounded_allocator _base_allocator = {
+         constants::max_stack_size * sizeof(operand_stack_elem)
+      };
+      operand_stack                   _os = { _base_allocator };
+   };
+
+   template <typename Host>
+   class execution_context : public execution_context_base<execution_context<Host>, Host> {
+      using base_type = execution_context_base<execution_context<Host>, Host>;
+    public:
+      using base_type::_mod;
+      using base_type::_rhf;
+      using base_type::_linear_memory;
+      using base_type::_error_code;
+      using base_type::handle_signal;
+      execution_context(module& m) : base_type(m), _halt(exit_t{}) {
+         for (int i = 0; i < _mod.exports.size(); i++) _mod.import_functions.resize(_mod.get_imported_functions_size());
+         _mod.function_sizes.resize(_mod.get_functions_total());
+         const size_t import_size  = _mod.get_imported_functions_size();
+         uint32_t     total_so_far = 0;
+         for (int i = _mod.get_imported_functions_size(); i < _mod.function_sizes.size(); i++) {
+            _mod.function_sizes[i] = total_so_far;
+            total_so_far += _mod.code[i - import_size].size;
+         }
+         _halt.set_exiting_which();
+      }
+
 
       inline void call(uint32_t index) {
          // TODO validate index is valid
@@ -104,10 +241,6 @@ namespace eosio { namespace vm {
       }
 
       inline operand_stack& get_operand_stack() { return _os; }
-      inline module&        get_module() { return _mod; }
-      inline void           set_wasm_allocator(wasm_allocator* alloc) { _wasm_alloc = alloc; }
-      inline auto           get_wasm_allocator() { return _wasm_alloc; }
-      inline char*          linear_memory() { return _linear_memory; }
       inline uint32_t       table_elem(uint32_t i) { return _mod.tables[0].table[i]; }
       inline void           push_operand(const operand_stack_elem& el) { _os.push(el); }
       inline operand_stack_elem     get_operand(uint16_t index) const { return _os.get(_last_op_index + index); }
@@ -214,38 +347,22 @@ namespace eosio { namespace vm {
 
       inline opcode*  get_pc() const { return _state.pc; }
       inline void     set_relative_pc(uint32_t pc_offset) { 
-         _state.pc = _mod.code[0].code + pc_offset; 
+         _state.pc = _mod.code[0].code + pc_offset;
       }
       inline void     set_pc(opcode* pc) { _state.pc = pc; }
       inline void     inc_pc(uint32_t offset=1) { _state.pc += offset; }
       inline void     exit(std::error_code err = std::error_code()) {
-         // FIXME: system_error?
          _error_code = err;
-         throw wasm_exit_exception{"Exiting"};
+         clear_exiting_op(_state.exiting_loc);
+         _state.exiting_loc = _state.pc+1-_mod.code[0].code;
+         set_exiting_op(_state.exiting_loc);
       }
 
       inline void reset() {
-         _linear_memory = _wasm_alloc->get_base_ptr<char>();
-         if (_mod.memories.size()) {
-            grow_linear_memory(_mod.memories[0].limits.initial - _wasm_alloc->get_current_page());
-         }
-
-         for (int i = 0; i < _mod.data.size(); i++) {
-            const auto& data_seg = _mod.data[i];
-            // TODO validate only use memory idx 0 in parse
-            auto addr = _linear_memory + data_seg.offset.value.i32;
-            memcpy((char*)(addr), data_seg.data.raw(), data_seg.data.size());
-         }
-
-         // reset the mutable globals
-         for (int i = 0; i < _mod.globals.size(); i++) {
-            if (_mod.globals[i].type.mutability)
-               _mod.globals[i].current = _mod.globals[i].init;
-         }
+         base_type::reset();
          _state = execution_state{};
          _os.eat(_state.os_index);
          _as.eat(_state.as_index);
-
       }
       
       inline void set_exiting_op( uint32_t exiting_loc ) {
@@ -257,8 +374,6 @@ namespace eosio { namespace vm {
          if (exiting_loc != -1)
             _mod.get_opcode(exiting_loc).clear_exiting_which();
       }
-
-      inline std::error_code get_error_code() const { return _error_code; }
 
       template <typename Visitor, typename... Args>
       inline std::optional<operand_stack_elem> execute_func_table(Host* host, Visitor&& visitor, uint32_t table_index,
@@ -290,8 +405,6 @@ namespace eosio { namespace vm {
          // save the state of the original calling context
          execution_state saved_state = _state;
 
-         _linear_memory = _wasm_alloc->get_base_ptr<char>();
-
          _state.host             = host;
          _state.current_function = func_index;
          _state.pc               = _mod.get_function_pc(func_index);
@@ -299,43 +412,14 @@ namespace eosio { namespace vm {
          _state.as_index         = _as.size();
          _state.os_index         = _os.size();
 
-         auto cleanup = [&]() {
+         auto cleanup = scope_guard([&]() {
             clear_exiting_op( _state.exiting_loc );
             _os.eat(_state.os_index);
             _as.eat(_state.as_index);
             _state = saved_state;
-            
+
             _last_op_index = last_last_op_index;
-         };
-         struct guard {
-            ~guard() {
-               _cleanup();
-            }
-            decltype(cleanup)& _cleanup;
-         };
-         guard g{cleanup};
-
-         if(auto fn = _mod.code[func_index - _mod.get_imported_functions_size()].jit_code) {
-            const func_type& ft = _mod.get_function_type(func_index);
-            native_value result;
-
-            try {
-               vm::invoke_with_signal_handler([&]() {
-                  result = machine_code_writer<execution_context>::invoke(fn, this, _linear_memory, args...);
-               }, &handle_signal);
-            } catch(wasm_exit_exception&) {
-               return {};
-            }
-
-            if(!ft.return_count)
-               return {};
-            else switch (ft.return_type) {
-               case i32: return {i32_const_t{result.i32}};
-               case i64: return {i64_const_t{result.i64}};
-               case f32: return {f32_const_t{result.f32}};
-               case f64: return {f64_const_t{result.f64}};
-            }
-         }
+         });
 
          push_args(args...);
          push_call<true>(func_index);
@@ -401,19 +485,6 @@ namespace eosio { namespace vm {
                   default: throw wasm_interpreter_exception{ "invalid function param type" };
                }
          }
-      }
-
-      static void handle_signal(int sig) {
-         switch(sig) {
-          case SIGSEGV:
-          case SIGBUS:
-          case SIGFPE:
-            break;
-          default:
-            /* TODO fix this */
-            assert(!"??????");
-         }
-         throw wasm_memory_exception{ "wasm memory out-of-bounds" };
       }
 
 #define CREATE_TABLE_ENTRY(NAME, CODE) &&ev_label_##NAME,
@@ -533,13 +604,8 @@ namespace eosio { namespace vm {
       };
       execution_state _state;
       uint16_t                        _last_op_index    = 0;
-      char*                           _linear_memory    = nullptr;
-      module&                         _mod;
-      wasm_allocator*                 _wasm_alloc;
       operand_stack                   _os = { _base_allocator };
       call_stack                      _as = { _base_allocator };
-      registered_host_functions<Host> _rhf;
-      std::error_code                 _error_code;
       opcode                          _halt;
    };
 }} // namespace eosio::vm
