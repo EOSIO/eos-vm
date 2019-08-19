@@ -17,9 +17,7 @@ namespace eosio { namespace vm {
       }
 
     public:
-      // FIXME: This function is really a hack.  Find a better way to make the allocator configurable.
-      static growable_allocator& choose_alloc(growable_allocator& alloc, jit_allocator&) { return alloc; }
-      explicit bitcode_writer(growable_allocator& alloc, std::size_t source_bytes, std::size_t /*idx*/, module& mod, bool is_exported) :
+      explicit bitcode_writer(growable_allocator& alloc, std::size_t source_bytes, module& mod) :
          _allocator(alloc),
          fb(alloc, source_bytes),
          _mod(&mod) {}
@@ -42,10 +40,12 @@ namespace eosio { namespace vm {
       }
       uint32_t * emit_br(uint32_t depth_change) {
          auto& instr = append_instr(br_t{});
+         instr.data = depth_change;
          return &instr.pc;
       }
       uint32_t * emit_br_if(uint32_t depth_change) {
          auto& instr = append_instr(br_if_t{});
+         instr.data = depth_change;
          return &instr.pc;
       }
 
@@ -277,17 +277,18 @@ namespace eosio { namespace vm {
       
       void fix_branch(uint32_t* branch, uint32_t target) { if(branch) *branch = _base_offset + target; }
       void emit_prologue(const func_type& ft, const guarded_vector<local_entry>&, uint32_t idx) {
+         op_index = 0;
          // pre-allocate for the function body code, so we have a big blob of memory to work with during function code parsing
          fb = guarded_vector<opcode>{_allocator, _mod->code[idx].size };
       }
      void emit_epilogue(const func_type& ft, const guarded_vector<local_entry>& locals, uint32_t idx) {
          fb.resize(op_index + 1);
-         fb[fb.size() - 1] = fend_t{};
-         _mod->code[idx].code[_mod->code[idx].size - 1] = return_t{ static_cast<uint32_t>(locals.size() + ft.param_types.size()), ft.return_count, 0, 0 };
+         fb[fb.size() - 1] = return_t{ static_cast<uint32_t>(locals.size() + ft.param_types.size()), ft.return_count, 0, 0 };
       }
 
       void finalize(function_body& body) {
-         _allocator.template reclaim<opcode>(body.code + op_index + 1, body.size - (op_index+1));
+         fb.resize(op_index + 1);
+         body.code = fb.raw();
          body.size = op_index + 1;
          _base_offset += body.size;
       }
