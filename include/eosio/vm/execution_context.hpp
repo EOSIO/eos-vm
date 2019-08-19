@@ -25,7 +25,6 @@ namespace eosio { namespace vm {
             _mod.function_sizes[i] = total_so_far;
             total_so_far += _mod.code[i - import_size].size;
          }
-         _halt.set_exiting_which();
       }
 
       inline int32_t grow_linear_memory(int32_t pages) {
@@ -185,9 +184,7 @@ namespace eosio { namespace vm {
       inline void     inc_pc(uint32_t offset=1) { _state.pc += offset; }
       inline void     exit(std::error_code err = std::error_code()) {
          _error_code = err;
-         clear_exiting_op(_state.exiting_loc);
-         _state.exiting_loc = _state.pc+1;
-         set_exiting_op(_state.exiting_loc);
+         _state.pc = &_halt;
       }
 
       inline void reset() {
@@ -214,16 +211,6 @@ namespace eosio { namespace vm {
 
       }
       
-      inline void set_exiting_op( uint32_t exiting_loc ) {
-         if (exiting_loc != -1)
-            _mod.get_opcode(exiting_loc).set_exiting_which();
-      }
-
-      inline void clear_exiting_op( uint32_t exiting_loc ) {
-         if (exiting_loc != -1)
-            _mod.get_opcode(exiting_loc).clear_exiting_which();
-      }
-
       inline std::error_code get_error_code() const { return _error_code; }
 
       template <typename Visitor, typename... Args>
@@ -252,16 +239,13 @@ namespace eosio { namespace vm {
 
          auto last_last_op_index = _last_op_index;
 
-         clear_exiting_op( _state.exiting_loc );
          // save the state of the original calling context
          execution_state saved_state = _state;
 
          _linear_memory = _wasm_alloc->get_base_ptr<char>();
 
          _state.host             = host;
-         _state.current_function = func_index;
          _state.pc               = _mod.get_function_pc(func_index);
-         _state.exiting_loc      = 0;
          _state.as_index         = _as.size();
          _state.os_index         = _os.size();
 
@@ -290,7 +274,6 @@ namespace eosio { namespace vm {
          }
 
          // revert the state back to original calling context
-         clear_exiting_op( _state.exiting_loc );
          _os.eat(_state.os_index);
          _as.eat(_state.as_index);
          _state = saved_state;
@@ -347,13 +330,11 @@ namespace eosio { namespace vm {
       }
 
 #define CREATE_TABLE_ENTRY(NAME, CODE) &&ev_label_##NAME,
-#define CREATE_EXITING_TABLE_ENTRY(NAME, CODE) &&ev_label_exiting_##NAME,
 #define CREATE_LABEL(NAME, CODE)                                                                                  \
       ev_label_##NAME : visitor(ev_variant->template get<eosio::vm::EOS_VM_OPCODE_T(NAME)>());                    \
       ev_variant = _state.pc; \
       goto* dispatch_table[ev_variant->index()];
-#define CREATE_EXITING_LABEL(NAME, CODE)                                                  \
-      ev_label_exiting_##NAME :  \
+#define CREATE_EXIT_LABEL(NAME, CODE) ev_label_##NAME : \
       return;
 #define CREATE_EMPTY_LABEL(NAME, CODE) ev_label_##NAME :  \
       throw wasm_interpreter_exception{"empty operand"};
@@ -376,26 +357,9 @@ namespace eosio { namespace vm {
             EOS_VM_COMPARISON_OPS(CREATE_TABLE_ENTRY)
             EOS_VM_NUMERIC_OPS(CREATE_TABLE_ENTRY)
             EOS_VM_CONVERSION_OPS(CREATE_TABLE_ENTRY)
-            EOS_VM_SYNTHETIC_OPS(CREATE_TABLE_ENTRY)
+            EOS_VM_EXIT_OP(CREATE_TABLE_ENTRY)
             EOS_VM_EMPTY_OPS(CREATE_TABLE_ENTRY)
             EOS_VM_ERROR_OPS(CREATE_TABLE_ENTRY)
-            EOS_VM_CONTROL_FLOW_OPS(CREATE_EXITING_TABLE_ENTRY)
-            EOS_VM_BR_TABLE_OP(CREATE_EXITING_TABLE_ENTRY)
-            EOS_VM_RETURN_OP(CREATE_EXITING_TABLE_ENTRY)
-            EOS_VM_CALL_OPS(CREATE_EXITING_TABLE_ENTRY)
-            EOS_VM_PARAMETRIC_OPS(CREATE_EXITING_TABLE_ENTRY)
-            EOS_VM_VARIABLE_ACCESS_OPS(CREATE_EXITING_TABLE_ENTRY)
-            EOS_VM_MEMORY_OPS(CREATE_EXITING_TABLE_ENTRY)
-            EOS_VM_I32_CONSTANT_OPS(CREATE_EXITING_TABLE_ENTRY)
-            EOS_VM_I64_CONSTANT_OPS(CREATE_EXITING_TABLE_ENTRY)
-            EOS_VM_F32_CONSTANT_OPS(CREATE_EXITING_TABLE_ENTRY)
-            EOS_VM_F64_CONSTANT_OPS(CREATE_EXITING_TABLE_ENTRY)
-            EOS_VM_COMPARISON_OPS(CREATE_EXITING_TABLE_ENTRY)
-            EOS_VM_NUMERIC_OPS(CREATE_EXITING_TABLE_ENTRY)
-            EOS_VM_CONVERSION_OPS(CREATE_EXITING_TABLE_ENTRY)
-            EOS_VM_SYNTHETIC_OPS(CREATE_EXITING_TABLE_ENTRY)
-            EOS_VM_EMPTY_OPS(CREATE_EXITING_TABLE_ENTRY)
-            EOS_VM_ERROR_OPS(CREATE_EXITING_TABLE_ENTRY)
             &&__ev_last
          };
          auto* ev_variant = _state.pc;
@@ -416,50 +380,27 @@ namespace eosio { namespace vm {
              EOS_VM_COMPARISON_OPS(CREATE_LABEL);
              EOS_VM_NUMERIC_OPS(CREATE_LABEL);
              EOS_VM_CONVERSION_OPS(CREATE_LABEL);
-             EOS_VM_SYNTHETIC_OPS(CREATE_LABEL);
+             EOS_VM_EXIT_OP(CREATE_EXIT_LABEL);
              EOS_VM_EMPTY_OPS(CREATE_EMPTY_LABEL);
              EOS_VM_ERROR_OPS(CREATE_LABEL);
-             EOS_VM_CONTROL_FLOW_OPS(CREATE_EXITING_LABEL);
-             EOS_VM_BR_TABLE_OP(CREATE_EXITING_LABEL);
-             EOS_VM_RETURN_OP(CREATE_EXITING_LABEL);
-             EOS_VM_CALL_OPS(CREATE_EXITING_LABEL);
-             EOS_VM_PARAMETRIC_OPS(CREATE_EXITING_LABEL);
-             EOS_VM_VARIABLE_ACCESS_OPS(CREATE_EXITING_LABEL);
-             EOS_VM_MEMORY_OPS(CREATE_EXITING_LABEL);
-             EOS_VM_I32_CONSTANT_OPS(CREATE_EXITING_LABEL);
-             EOS_VM_I64_CONSTANT_OPS(CREATE_EXITING_LABEL);
-             EOS_VM_F32_CONSTANT_OPS(CREATE_EXITING_LABEL);
-             EOS_VM_F64_CONSTANT_OPS(CREATE_EXITING_LABEL);
-             EOS_VM_COMPARISON_OPS(CREATE_EXITING_LABEL);
-             EOS_VM_NUMERIC_OPS(CREATE_EXITING_LABEL);
-             EOS_VM_CONVERSION_OPS(CREATE_EXITING_LABEL);
-             EOS_VM_SYNTHETIC_OPS(CREATE_EXITING_LABEL);
-             EOS_VM_EMPTY_OPS(CREATE_EXITING_LABEL);
-             EOS_VM_ERROR_OPS(CREATE_EXITING_LABEL);
              __ev_last:
                 throw wasm_interpreter_exception{"should never reach here"};
          }
       }
 
 #undef CREATE_EMPTY_LABEL
-#undef CREATE_EXITING_LABEL
 #undef CREATE_LABEL
-#undef CREATE_EXITING_TABLE_ENTRY
 #undef CREATE_TABLE_ENTRY
 
       struct execution_state {
-         Host* host                                = nullptr;
-         uint32_t current_function                 = 0;
-         int32_t  exiting_loc = -1;
+         Host* host                = nullptr;
          uint32_t as_index         = 0;
-         uint32_t cs_index         = 0;
          uint32_t os_index         = 0;
          opcode*  pc               = nullptr;
-         bool     initialized      = false;
       };
 
       bounded_allocator _base_allocator = {
-         (constants::max_stack_size + constants::max_call_depth) * (std::max(sizeof(operand_stack_elem), sizeof(uint32_t)))
+         (constants::max_stack_size + constants::max_call_depth) * (std::max(sizeof(operand_stack_elem), sizeof(activation_frame)))
       };
       execution_state _state;
       uint16_t                        _last_op_index    = 0;

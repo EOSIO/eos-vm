@@ -208,10 +208,10 @@
    opcode_macro(i64_reinterpret_f64, 0xBD)      \
    opcode_macro(f32_reinterpret_i32, 0xBE)      \
    opcode_macro(f64_reinterpret_i64, 0xBF)
-#define EOS_VM_SYNTHETIC_OPS(opcode_macro)      \
-   opcode_macro(fend, 0xC0)                     \
-   opcode_macro(exit, 0xC1)
+#define EOS_VM_EXIT_OP(opcode_macro)            \
+   opcode_macro(exit, 0xC0)
 #define EOS_VM_EMPTY_OPS(opcode_macro)          \
+   opcode_macro(empty0xC1, 0xC1)                \
    opcode_macro(empty0xC2, 0xC2)                \
    opcode_macro(empty0xC3, 0xC3)                \
    opcode_macro(empty0xC4, 0xC4)                \
@@ -304,7 +304,7 @@
       (EOS_VM_CAT(EOS_VM_OPCODE_NAME_TEST_,                                               \
            EOS_VM_EXPAND(EOS_VM_OPCODE_NAME_TEST EOS_VM_OPCODE_NAME_ ## name ()))))(name)
 
-#define EOS_VM_CREATE_SYNTHETIC_TYPES(name, code)                                                                      \
+#define EOS_VM_CREATE_EXIT_TYPE(name, code)                                                                      \
    struct EOS_VM_OPCODE_T(name) {                                                                                      \
       EOS_VM_OPCODE_T(name)() = default;                                                                               \
       uint32_t pc;                                                                                                     \
