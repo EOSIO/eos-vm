@@ -18,13 +18,28 @@
 #include <vector>
 
 namespace eosio { namespace vm {
-   template <typename Host>
+
+   struct jit {
+      template<typename Host>
+      using context = jit_execution_context<Host>;
+      template<typename Host>
+      using parser = binary_parser<machine_code_writer<jit_execution_context<Host>>>;
+   };
+
+   struct interpreter {
+      template<typename Host>
+      using context = execution_context<Host>;
+      template<typename Host>
+      using parser = binary_parser<bitcode_writer>;
+   };
+
+   template <typename Host, typename Impl = interpreter>
    class backend {
     public:
       using host_t = Host;
 
-      backend(wasm_code& code) : _ctx(binary_parser<machine_code_writer<jit_execution_context<Host>>>{ _mod.allocator }.parse_module(code, _mod)) {}
-      backend(wasm_code_ptr& ptr, size_t sz) : _ctx(binary_parser<machine_code_writer<jit_execution_context<Host>>>{ _mod.allocator }.parse_module2(ptr, sz, _mod)) {}
+      backend(wasm_code& code) : _ctx(typename Impl::template parser<Host>{ _mod.allocator }.parse_module(code, _mod)) {}
+      backend(wasm_code_ptr& ptr, size_t sz) : _ctx(typename Impl::template parser<Host>{ _mod.allocator }.parse_module2(ptr, sz, _mod)) {}
 
       template <typename... Args>
       inline bool operator()(Host* host, const std::string_view& mod, const std::string_view& func, Args... args) {
@@ -173,7 +188,7 @@ namespace eosio { namespace vm {
     private:
       wasm_allocator*         _walloc = nullptr; // non owning pointer
       module                  _mod;
-      jit_execution_context<Host> _ctx;
+      typename Impl::template context<Host> _ctx;
       std::atomic<bool>       _timed_out;
    };
 }} // namespace eosio::vm

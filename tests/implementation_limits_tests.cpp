@@ -9,6 +9,7 @@
 
 #include <eosio/vm/backend.hpp>
 #include "wasm_config.hpp"
+#include "utils.hpp"
 
 using namespace eosio;
 using namespace eosio::vm;
@@ -21,9 +22,9 @@ wasm_code implementation_limits_wasm_code{
    implementation_limits_wasm + 0,
    implementation_limits_wasm + sizeof(implementation_limits_wasm)};
 
-TEST_CASE( "Test call depth", "[call_depth]") { 
+BACKEND_TEST_CASE( "Test call depth", "[call_depth]") {
    wasm_allocator wa;
-   using backend_t = eosio::vm::backend<nullptr_t>;
+   using backend_t = eosio::vm::backend<nullptr_t, TestType>;
    using rhf_t     = eosio::vm::registered_host_functions<nullptr_t>;
    rhf_t::add<nullptr_t, &host_call, wasm_allocator>("env", "host.call");
 

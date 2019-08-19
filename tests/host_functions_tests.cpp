@@ -9,6 +9,7 @@
 
 #include <eosio/vm/backend.hpp>
 #include "wasm_config.hpp"
+#include "utils.hpp"
 
 using namespace eosio;
 using namespace eosio::vm;
@@ -69,9 +70,9 @@ void c_style_host_function_4(const state_t& ss) {
    c_style_host_function_state = ss.i;
 }
 
-TEST_CASE( "Test C-style host function system", "[C-style_host_functions_tests]") { 
+BACKEND_TEST_CASE( "Test C-style host function system", "[C-style_host_functions_tests]") { 
    wasm_allocator wa;
-   using backend_t = eosio::vm::backend<nullptr_t>;
+   using backend_t = eosio::vm::backend<nullptr_t, TestType>;
    using rhf_t     = eosio::vm::registered_host_functions<nullptr_t>;
    rhf_t::add<nullptr_t, &c_style_host_function_0, wasm_allocator>("env", "c_style_host_function_0");
    rhf_t::add<nullptr_t, &c_style_host_function_1, wasm_allocator>("env", "c_style_host_function_1");
@@ -109,12 +110,12 @@ struct my_host_functions {
 
 extern wasm_allocator wa;
 
-TEST_CASE( "Testing host functions", "[host_functions_test]" ) {
+BACKEND_TEST_CASE( "Testing host functions", "[host_functions_test]" ) {
    my_host_functions host;
    registered_function<my_host_functions, std::nullptr_t, &my_host_functions::test>("host", "test");
    registered_function<my_host_functions, std::nullptr_t, &my_host_functions::test2>("host", "test2");
 
-   using backend_t = backend<my_host_functions>;
+   using backend_t = backend<my_host_functions, TestType>;
 
    auto code = backend_t::read_wasm( host_wasm );
    backend_t bkend( code );
@@ -136,12 +137,12 @@ struct host_functions_throw {
    static int test(int) { throw test_exception{}; }
 };
 
-TEST_CASE( "Testing throwing host functions", "[host_functions_throw_test]" ) {
+BACKEND_TEST_CASE( "Testing throwing host functions", "[host_functions_throw_test]" ) {
    host_functions_throw host;
    registered_function<host_functions_throw, std::nullptr_t, &host_functions_throw::test>("host", "test");
    registered_function<host_functions_throw, std::nullptr_t, &host_functions_throw::test>("host", "test2");
 
-   using backend_t = backend<host_functions_throw>;
+   using backend_t = backend<host_functions_throw, TestType>;
 
    auto code = backend_t::read_wasm( host_wasm );
    backend_t bkend( code );
@@ -152,22 +153,23 @@ TEST_CASE( "Testing throwing host functions", "[host_functions_throw_test]" ) {
    CHECK_THROWS_AS(bkend.call(&host, "env", "test", UINT32_C(2)), test_exception);
 }
 
+template<typename Impl>
 struct host_functions_exit {
-   jit_execution_context<host_functions_exit> * context;
+   typename Impl::template context<host_functions_exit> * context;
    int test(int) { context->exit(); return 0; }
 };
 
-TEST_CASE( "Testing exiting host functions", "[host_functions_exit_test]" ) {
-   registered_function<host_functions_exit, host_functions_exit, &host_functions_exit::test>("host", "test");
-   registered_function<host_functions_exit, host_functions_exit, &host_functions_exit::test>("host", "test2");
+BACKEND_TEST_CASE( "Testing exiting host functions", "[host_functions_exit_test]" ) {
+   registered_function<host_functions_exit<TestType>, host_functions_exit<TestType>, &host_functions_exit<TestType>::test>("host", "test");
+   registered_function<host_functions_exit<TestType>, host_functions_exit<TestType>, &host_functions_exit<TestType>::test>("host", "test2");
 
-   using backend_t = backend<host_functions_exit>;
+   using backend_t = backend<host_functions_exit<TestType>, TestType>;
 
    auto code = backend_t::read_wasm( host_wasm );
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
-   registered_host_functions<host_functions_exit>::resolve(bkend.get_module());
-   host_functions_exit host{&bkend.get_context()};
+   registered_host_functions<host_functions_exit<TestType>>::resolve(bkend.get_module());
+   host_functions_exit<TestType> host{&bkend.get_context()};
 
    bkend.initialize();
    CHECK(!bkend.call_with_return(&host, "env", "test", UINT32_C(2)));
