@@ -163,6 +163,11 @@ namespace eosio { namespace vm {
       inline auto& get_opcode(uint32_t pc) const {
          return ((opcode*)&code[0].code[0])[pc];
       }
+      
+      inline uint32_t get_function_locals_size(uint32_t index) const {
+         EOS_VM_ASSERT(index >= get_imported_functions_size(), wasm_interpreter_exception, "imported functions do not have locals");
+         return code[index - get_imported_functions_size()].locals.size();
+      }
 
       auto& get_function_type(uint32_t index) const {
          if (index < get_imported_functions_size())

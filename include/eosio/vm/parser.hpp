@@ -453,7 +453,7 @@ namespace eosio { namespace vm {
                   const func_type& ft = _mod->get_function_type(funcnum);
                   pop_operands(ft.param_types.size());
                   EOS_VM_ASSERT(ft.return_count <= 1, wasm_parse_exception, "unsupported");
-                  fb[op_index++] = call_imm_t{ funcnum };
+                  fb[op_index++] = call_t{ funcnum };
                   if(ft.return_count)
                      push_operand();
                   last_call_operand_depth = operand_depth;
@@ -464,6 +464,7 @@ namespace eosio { namespace vm {
                   pop_operand();
                   pop_operands(ft.param_types.size());
                   EOS_VM_ASSERT(ft.return_count <= 1, wasm_parse_exception, "unsupported");
+                  fb[op_index++] = call_indirect_t{ functypeidx };
                   if(ft.return_count)
                      push_operand();
                   fb[op_index++] = call_indirect_t{ functypeidx };

@@ -86,13 +86,12 @@ namespace eosio { namespace vm {
       inline uint32_t       call_depth()const { return _as.size(); }
       template <bool Should_Exit=false>
       inline void           push_call(uint32_t index) {
-         const auto& ftype = _mod.get_function_type(index);
-         if constexpr (Should_Exit) {
-            _as.push(activation_frame{ static_cast<opcode*>(&_halt), static_cast<uint16_t>(_last_op_index) });
-         } else {
-            _as.push(activation_frame{ _state.pc + 1, static_cast<uint16_t>(_last_op_index) });
-         }
-         _last_op_index    = _os.size() - ftype.param_types.size();
+         opcode* return_pc = static_cast<opcode*>(&_halt);
+         if constexpr (!Should_Exit)
+            return_pc = _state.pc + 1;
+
+         _as.push( activation_frame{ return_pc, _last_op_index } );
+         _last_op_index = _os.size() - _mod.get_function_type(index).param_types.size();
       }
 
       inline void apply_pop_call(uint32_t num_locals, uint16_t return_count) {
@@ -460,7 +459,7 @@ namespace eosio { namespace vm {
       };
 
       bounded_allocator _base_allocator = {
-         (constants::max_stack_size + constants::max_call_depth) * (std::max(sizeof(operand_stack_elem), sizeof(activation_frame)))
+         (constants::max_stack_size + constants::max_call_depth) * (std::max(sizeof(operand_stack_elem), sizeof(uint32_t)))
       };
       execution_state _state;
       uint16_t                        _last_op_index    = 0;
