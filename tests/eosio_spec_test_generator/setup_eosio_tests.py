@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from multiprocessing import Pool
+
 import os
 import shutil
 import subprocess
@@ -24,25 +26,29 @@ def main():
         pass
 
     for j in json_files:
-        print(j)
-        dir_name = j.split('.')[0]
-        new_dir = os.path.join(OUT_DIR, dir_name)
-        json_file = os.path.join(WASM_DIR, j)
+        setup_tests(j)
 
-        _cwd = os.getcwd()
 
-        os.mkdir(new_dir)
-        os.chdir(new_dir)
+def setup_tests(j):
+    print(j)
+    dir_name = j.split('.')[0]
+    new_dir = os.path.join(OUT_DIR, dir_name)
+    json_file = os.path.join(WASM_DIR, j)
 
-        out = subprocess.run([generator, json_file], capture_output=True)
-        out.check_returncode()
+    _cwd = os.getcwd()
 
-        mkdirs()
-        copy(dir_name)
-        compile_wasm()
-        generate_and_copy()
+    os.mkdir(new_dir)
+    os.chdir(new_dir)
 
-        os.chdir(_cwd)
+    out = subprocess.run([generator, json_file], capture_output=True)
+    out.check_returncode()
+
+    mkdirs()
+    copy(dir_name)
+    compile_wasm()
+    generate_and_copy()
+
+    os.chdir(_cwd)
 
 
 def mkdirs():
@@ -71,12 +77,26 @@ def copy(dir_name):
 def compile_wasm():
     cwd = os.getcwd()
     name = cwd.split('/')[-1]
-    for d in os.listdir():
-        compile_eosio_tests.main(
-            d,
-            f'{name}.{d}.wasm.cpp',
-            f'{name}.{d}-int.wasm',
-        )
+    fs = os.listdir()
+
+    fs_m = map(lambda x: (x, name), fs)
+
+    # If there's a lot of files, break out and process in parallel.
+    # Otherwise, we can just do serially.
+    if len(fs) > 5:
+        with Pool(os.cpu_count() - 2) as p:
+            p.map(compile_eosio, fs_m)
+    else:
+        for d in fs_m:
+            compile_eosio(d)
+
+def compile_eosio(f):
+    d, name = f
+    compile_eosio_tests.main(
+        d,
+        f'{name}.{d}.wasm.cpp',
+        f'{name}.{d}-int.wasm',
+    )
 
 
 def generate_and_copy():
