@@ -215,8 +215,8 @@ namespace eosio { namespace vm {
             // TODO validate only importing functions
             const auto& ft = _mod.types[_mod.imports[index].type.func_t];
             type_check(ft);
-            _rhf(_state.host, *this, _mod.import_functions[index]);
             inc_pc();
+            _rhf(_state.host, *this, _mod.import_functions[index]);
          } else {
             // const auto& ft = _mod.types[_mod.functions[index - _mod.get_imported_functions_size()]];
             // type_check(ft);
