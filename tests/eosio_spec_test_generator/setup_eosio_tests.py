@@ -9,12 +9,12 @@ import sys
 import compile_eosio_tests
 import generate_eosio_tests
 
-WASM_DIR = sys.argv[1]
-EOSIO_DIR = sys.argv[2]
-OUT_DIR = sys.argv[3]
-GENERATOR_DIR = sys.argv[4]
+WASM_DIR = ''
+EOSIO_DIR = ''
+OUT_DIR = ''
+GENERATOR_DIR = ''
 
-generator = os.path.join(GENERATOR_DIR, 'eosio_test_generator')
+generator = ''
 
 test_failures = []
 
@@ -127,4 +127,24 @@ def generate_and_copy():
         shutil.copy(os.path.join(d, wasm_file), os.path.join(test_dir, 'wasms', wasm_file))
 
 if __name__ == '__main__':
+    if len(sys.argv) < 5:
+        print("""Please provide:
+                Arg 1: Directory containing test wasms
+                Arg 2: Directory containing eosio repo
+                Arg 3: Directory for test files to be output to
+                Arg 4: Build directory of the eosio_spec_test_generator
+
+                ex:
+                python setup_eosio_tests.py ~/code/eos-vm-test-wasms ~/code/eos /tmp ~/code/eos-vm/build/tests
+              """)
+        sys.exit(1)
+
+    WASM_DIR = sys.argv[1]
+    EOSIO_DIR = sys.argv[2]
+    OUT_DIR = sys.argv[3]
+    GENERATOR_DIR = sys.argv[4]
+
+    generator = os.path.join(GENERATOR_DIR, 'eosio_test_generator')
+
+    test_failures = []
     main()
