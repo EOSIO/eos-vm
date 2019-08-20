@@ -12,9 +12,9 @@
 using namespace eosio;
 using namespace eosio::vm;
 extern wasm_allocator wa;
-using backend_t = backend<std::nullptr_t>;
 
-TEST_CASE( "Testing wasm <start_3_wasm>", "[start_3_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <start_3_wasm>", "[start_3_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "start.3.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -27,7 +27,8 @@ bkend(nullptr, "env", "inc");
    CHECK(bkend.call_with_return(nullptr, "env", "get")->to_ui32() == UINT32_C(70));
 }
 
-TEST_CASE( "Testing wasm <start_4_wasm>", "[start_4_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <start_4_wasm>", "[start_4_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "start.4.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );

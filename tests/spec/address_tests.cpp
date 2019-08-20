@@ -12,9 +12,9 @@
 using namespace eosio;
 using namespace eosio::vm;
 extern wasm_allocator wa;
-using backend_t = backend<std::nullptr_t>;
 
-TEST_CASE( "Testing wasm <address_0_wasm>", "[address_0_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <address_0_wasm>", "[address_0_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "address.0.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -107,7 +107,8 @@ TEST_CASE( "Testing wasm <address_0_wasm>", "[address_0_wasm_tests]" ) {
    CHECK_THROWS_AS(bkend(nullptr, "env", "32_bad", UINT32_C(1)), std::exception);
 }
 
-TEST_CASE( "Testing wasm <address_2_wasm>", "[address_2_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <address_2_wasm>", "[address_2_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "address.2.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -234,7 +235,8 @@ TEST_CASE( "Testing wasm <address_2_wasm>", "[address_2_wasm_tests]" ) {
    CHECK_THROWS_AS(bkend(nullptr, "env", "64_bad", UINT32_C(1)), std::exception);
 }
 
-TEST_CASE( "Testing wasm <address_3_wasm>", "[address_3_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <address_3_wasm>", "[address_3_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "address.3.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -259,7 +261,8 @@ TEST_CASE( "Testing wasm <address_3_wasm>", "[address_3_wasm_tests]" ) {
    CHECK_THROWS_AS(bkend(nullptr, "env", "32_bad", UINT32_C(1)), std::exception);
 }
 
-TEST_CASE( "Testing wasm <address_4_wasm>", "[address_4_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <address_4_wasm>", "[address_4_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "address.4.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );

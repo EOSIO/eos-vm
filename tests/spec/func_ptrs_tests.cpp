@@ -12,9 +12,9 @@
 using namespace eosio;
 using namespace eosio::vm;
 extern wasm_allocator wa;
-using backend_t = backend<std::nullptr_t>;
 
-TEST_CASE( "Testing wasm <func_ptrs_0_wasm>", "[func_ptrs_0_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <func_ptrs_0_wasm>", "[func_ptrs_0_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "func_ptrs.0.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -28,7 +28,8 @@ bkend(nullptr, "env", "four", UINT32_C(83));
 #endif
 }
 
-TEST_CASE( "Testing wasm <func_ptrs_8_wasm>", "[func_ptrs_8_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <func_ptrs_8_wasm>", "[func_ptrs_8_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "func_ptrs.8.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -56,7 +57,8 @@ TEST_CASE( "Testing wasm <func_ptrs_8_wasm>", "[func_ptrs_8_wasm_tests]" ) {
    CHECK_THROWS_AS(bkend(nullptr, "env", "callu", UINT32_C(4294967295)), std::exception);
 }
 
-TEST_CASE( "Testing wasm <func_ptrs_9_wasm>", "[func_ptrs_9_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <func_ptrs_9_wasm>", "[func_ptrs_9_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "func_ptrs.9.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );

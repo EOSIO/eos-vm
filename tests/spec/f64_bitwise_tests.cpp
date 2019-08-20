@@ -12,9 +12,9 @@
 using namespace eosio;
 using namespace eosio::vm;
 extern wasm_allocator wa;
-using backend_t = backend<std::nullptr_t>;
 
-TEST_CASE( "Testing wasm <f64_bitwise_0_wasm>", "[f64_bitwise_0_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <f64_bitwise_0_wasm>", "[f64_bitwise_0_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "f64_bitwise.0.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );

@@ -12,9 +12,9 @@
 using namespace eosio;
 using namespace eosio::vm;
 extern wasm_allocator wa;
-using backend_t = backend<std::nullptr_t>;
 
-TEST_CASE( "Testing wasm <func_0_wasm>", "[func_0_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <func_0_wasm>", "[func_0_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "func.0.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -91,7 +91,8 @@ TEST_CASE( "Testing wasm <func_0_wasm>", "[func_0_wasm_tests]" ) {
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "init-local-f64")->to_f64()) == UINT64_C(0));
 }
 
-TEST_CASE( "Testing wasm <func_1_wasm>", "[func_1_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <func_1_wasm>", "[func_1_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "func.1.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -99,7 +100,8 @@ TEST_CASE( "Testing wasm <func_1_wasm>", "[func_1_wasm_tests]" ) {
 
 }
 
-TEST_CASE( "Testing wasm <func_3_wasm>", "[func_3_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <func_3_wasm>", "[func_3_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "func.3.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );

@@ -12,9 +12,9 @@
 using namespace eosio;
 using namespace eosio::vm;
 extern wasm_allocator wa;
-using backend_t = backend<std::nullptr_t>;
 
-TEST_CASE( "Testing wasm <globals_0_wasm>", "[globals_0_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <globals_0_wasm>", "[globals_0_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "globals.0.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -79,7 +79,8 @@ TEST_CASE( "Testing wasm <globals_14_wasm>", "[globals_14_wasm_tests]" ) {
 }
 */
 
-TEST_CASE( "Testing wasm <globals_17_wasm>", "[globals_17_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <globals_17_wasm>", "[globals_17_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "globals.17.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -87,7 +88,8 @@ TEST_CASE( "Testing wasm <globals_17_wasm>", "[globals_17_wasm_tests]" ) {
 
 }
 
-TEST_CASE( "Testing wasm <globals_2_wasm>", "[globals_2_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <globals_2_wasm>", "[globals_2_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "globals.2.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -95,7 +97,8 @@ TEST_CASE( "Testing wasm <globals_2_wasm>", "[globals_2_wasm_tests]" ) {
 
 }
 
-TEST_CASE( "Testing wasm <globals_3_wasm>", "[globals_3_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <globals_3_wasm>", "[globals_3_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "globals.3.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );

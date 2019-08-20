@@ -12,9 +12,9 @@
 using namespace eosio;
 using namespace eosio::vm;
 extern wasm_allocator wa;
-using backend_t = backend<std::nullptr_t>;
 
-TEST_CASE( "Testing wasm <memory_trap_0_wasm>", "[memory_trap_0_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <memory_trap_0_wasm>", "[memory_trap_0_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "memory_trap.0.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -35,7 +35,8 @@ TEST_CASE( "Testing wasm <memory_trap_0_wasm>", "[memory_trap_0_wasm_tests]" ) {
    CHECK(bkend.call_with_return(nullptr, "env", "memory.grow", UINT32_C(65537))->to_ui32() == UINT32_C(4294967295));
 }
 
-TEST_CASE( "Testing wasm <memory_trap_1_wasm>", "[memory_trap_1_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <memory_trap_1_wasm>", "[memory_trap_1_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "memory_trap.1.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );

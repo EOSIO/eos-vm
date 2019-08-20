@@ -1122,8 +1122,8 @@ const string test_includes = "#include <algorithm>\n#include <vector>\n#include 
                              "<iterator>\n#include <cmath>\n#include <cstdlib>\n#include <catch2/catch.hpp>\n"
                              "#include <utils.hpp>\n#include <wasm_config.hpp>\n#include "
                              "<eosio/vm/backend.hpp>\n\nusing namespace eosio;\nusing namespace eosio::vm;\n"
-                             "extern wasm_allocator wa;\nusing backend_t = backend<std::nullptr_t>;\n\n";
-const string test_preamble_0 = "auto code = backend_t::read_wasm( ";
+                             "extern wasm_allocator wa;\n\n";
+const string test_preamble_0 = "using backend_t = backend<std::nullptr_t, TestType>;\n   auto code = backend_t::read_wasm( ";
 const string test_preamble_1 = "backend_t bkend( code );\n   bkend.set_wasm_allocator( &wa );\n   bkend.initialize(nullptr);";
 
 string generate_test_call(picojson::object obj, string expected_t, string expected_v) {
@@ -1229,7 +1229,7 @@ void generate_tests(const map<string, vector<picojson::object>>& mappings) {
       if(tsn_file.empty()) continue;
       auto tsn = tsn_file;
       std::replace(tsn.begin(), tsn.end(), '.', '_');
-      unit_tests << "TEST_CASE( \"Testing wasm <" << tsn << ">\", \"[" << tsn << "_tests]\" ) {\n";
+      unit_tests << "BACKEND_TEST_CASE( \"Testing wasm <" << tsn << ">\", \"[" << tsn << "_tests]\" ) {\n";
       unit_tests << "   " << test_preamble_0 << "std::string(wasm_directory) + \"" <<  tsn_file << "\");\n";
       unit_tests << "   " << test_preamble_1 << "\n\n";
 
