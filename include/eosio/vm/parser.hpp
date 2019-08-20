@@ -217,8 +217,6 @@ namespace eosio { namespace vm {
       }
 
       void parse_function_body(wasm_code_ptr& code, function_body& fb, std::size_t idx) {
-         const auto&         fn_type   = _mod->types.at(_mod->functions.at(idx));
-
          fb.size   = parse_varuint32(code);
          const auto&         before    = code.offset();
          const auto&         local_cnt = parse_varuint32(code);
@@ -258,9 +256,6 @@ namespace eosio { namespace vm {
       void parse_function_body_code(wasm_code_ptr& code, size_t bounds, Writer& code_writer, const func_type& ft) {
          // Initialize the control stack with the current function as the sole element
          uint32_t operand_depth = 0;
-         uint32_t last_call_operand_depth = 0;
-         // used for cumulative br_table data
-         uint32_t pc_offset = 0;
          std::vector<pc_element_t> pc_stack{{
                operand_depth,
                ft.return_count ? ft.return_type : static_cast<uint32_t>(types::pseudo),
