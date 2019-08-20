@@ -60,7 +60,8 @@ target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
 target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include )
 target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/spec )
 
-add_executable(unit_tests main.cpp 
+add_executable(unit_tests main.cpp
+                          guarded_ptr_tests.cpp
                           varint_tests.cpp
                           variant_tests.cpp
                           host_functions_tests.cpp
