@@ -85,7 +85,7 @@ namespace eosio { namespace vm {
          br_table_parser& operator=(const br_table_parser&) = delete;
       };
       auto emit_br_table(uint32_t table_size) { return br_table_parser{ *this, table_size }; }
-      void emit_call(const func_type& ft, uint32_t funcnum) { fb[op_index++] = call_imm_t{ funcnum }; }
+      void emit_call(const func_type& ft, uint32_t funcnum) { fb[op_index++] = call_t{ funcnum }; }
       void emit_call_indirect(const func_type& ft, uint32_t functypeidx) { fb[op_index++] = call_indirect_t{ functypeidx }; }
 
 

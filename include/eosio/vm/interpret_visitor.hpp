@@ -70,7 +70,7 @@ namespace eosio { namespace vm {
          const auto& entry = op.table[std::min(in, op.size)]; 
          context.jump(entry.stack_pop, entry.pc);
       }
-      [[gnu::always_inline]] inline void operator()(const call_imm_t& op) {
+      [[gnu::always_inline]] inline void operator()(const call_t& op) {
          context.call(op.index);
       }
       [[gnu::always_inline]] inline void operator()(const call_indirect_t& op) {
