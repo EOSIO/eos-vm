@@ -64,7 +64,6 @@ string create_pass_test_function(string file_name, string test_name, int test_in
    func << "} FC_LOG_AND_RETHROW() }\n";
 
    return func.str();
-
 }
 
 string create_throw_test_function(string file_name, string test_name, int test_index) {
@@ -81,7 +80,8 @@ string create_throw_test_function(string file_name, string test_name, int test_i
    func << "   test.account = N(wasmtest);\n";
    func << "   test.name = account_name((uint64_t)" << test_index << ");\n";
    func << "   test.authorization = {{N(wasmtest), config::active_name}};\n\n";
-   func << "   BOOST_CHECK_THROW(push_action(tester, std::move(test), N(wasmtest).to_uint64_t()), wasm_execution_error);\n";
+   func << "   BOOST_CHECK_THROW(push_action(tester, std::move(test), N(wasmtest).to_uint64_t()), "
+           "wasm_execution_error);\n";
    func << "   tester.produce_block();\n";
    func << "} FC_LOG_AND_RETHROW() }\n";
 

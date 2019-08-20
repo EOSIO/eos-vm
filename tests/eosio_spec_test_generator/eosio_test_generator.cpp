@@ -12,22 +12,10 @@
 using namespace std;
 
 map<string, bool> blacklist_memory_clearing = {
-   {"address.0", true},
-   {"address.2", true},
-   {"address.3", true},
-   {"address.4", true},
-   {"float_exprs.59", true},
-   {"float_exprs.60", true},
-   {"float_memory.0", true},
-   {"float_memory.1", true},
-   {"float_memory.2", true},
-   {"float_memory.3", true},
-   {"float_memory.4", true},
-   {"float_memory.5", true},
-   {"memory.25", true},
-   {"memory_trap.1", true},
-   {"start.3", true},
-   {"start.4", true},
+   { "address.0", true },      { "address.2", true },      { "address.3", true },      { "address.4", true },
+   { "float_exprs.59", true }, { "float_exprs.60", true }, { "float_memory.0", true }, { "float_memory.1", true },
+   { "float_memory.2", true }, { "float_memory.3", true }, { "float_memory.4", true }, { "float_memory.5", true },
+   { "memory.25", true },      { "memory_trap.1", true },  { "start.3", true },        { "start.4", true },
 };
 
 const string include_eosio = "#include <eosio/eosio.hpp>\n\n";
@@ -383,7 +371,7 @@ int main(int argc, char** argv) {
       vector<picojson::object> assert_trap_tests;
       vector<picojson::object> assert_return_tests;
 
-      func_index    = 0;
+      func_index = 0;
       for (auto test : f.second) {
          string type_test     = test["type"].to_str(); // TODO: Use this to help with switching
          auto   action        = test["action"].get<picojson::object>();
@@ -416,8 +404,8 @@ int main(int argc, char** argv) {
       }
 
       stringstream ss;
-      int i = 1;
-      int length_tests = assert_return_tests.size();
+      int          i            = 1;
+      int          length_tests = assert_return_tests.size();
       for (auto test : assert_return_tests) {
          auto   action        = test["action"].get<picojson::object>();
          string function_name = action["field"].to_str();
@@ -451,7 +439,6 @@ int main(int argc, char** argv) {
 
       write_file(ofs_cpp, test_name, test_funcs.str(), sub_apply_funcs.str(), apply_func.str());
       write_map_file(ofs_map);
-
    }
 
    write_tests(test_mappings);
