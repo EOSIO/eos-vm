@@ -142,6 +142,8 @@ namespace eosio { namespace vm {
       inline T* get_base_ptr() const {
          return reinterpret_cast<T*>(raw);
       }
+      template <typename T>
+      inline T* create_pointer(uint32_t offset) { return reinterpret_cast<T*>(raw + offset); }
       inline int32_t get_current_page() const { return page; }
       bool is_in_region(char* p) { return p >= raw && p < raw + max_memory; }
    };

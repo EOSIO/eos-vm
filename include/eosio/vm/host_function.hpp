@@ -128,108 +128,132 @@ namespace eosio { namespace vm {
    };
 
    // This class can be specialized to define a conversion to/from wasm.
-   template<typename T>
-   struct wasm_type_converter;
+   // generic pass through
+   template <typename T>
+   struct wasm_type_converter {
+      static T&& from_wasm(T&& t) { return std::forward<T>(t); }
+      static T&& to_wasm(T&& t) { return std::forward<T>(t); }
+   };
 
    namespace detail {
 
-   template<typename T, typename U, typename... Args>
-   auto from_wasm_type_impl(T (*)(U, Args...)) -> U;
-   template<typename T>
-   using from_wasm_type_impl_t = decltype(detail::from_wasm_type_impl(&wasm_type_converter<T>::from_wasm));
+      template<typename T, typename U, typename... Args>
+      auto from_wasm_type_impl(T (*)(U, Args...)) -> U;
+      template<typename T>
+      using from_wasm_type_impl_t = decltype(detail::from_wasm_type_impl(&wasm_type_converter<T>::from_wasm));
 
-   template<typename T, typename U, typename... Args>
-   auto to_wasm_type_impl(T (*)(U, Args...)) -> T;
-   template<typename T>
-   using to_wasm_type_impl_t = decltype(detail::to_wasm_type_impl(&wasm_type_converter<T>::to_wasm));
+      template<typename T, typename U, typename... Args>
+      auto to_wasm_type_impl(T (*)(U, Args...)) -> T;
+      template<typename T>
+      using to_wasm_type_impl_t = decltype(detail::to_wasm_type_impl(&wasm_type_converter<T>::to_wasm));
 
-   // Extract the wasm type from wasm_type_converter and verify
-   // that if both from_wasm and to_wasm are defined, they use
-   // the same type.
-   template<typename T, typename HasFromWasm = void, typename HasToWasm = void>
-   struct get_wasm_type;
-   template<typename T, typename HasToWasm>
-   struct get_wasm_type<T, std::void_t<from_wasm_type_impl_t<T>>, HasToWasm> {
-      using type = from_wasm_type_impl_t<T>;
-   };
-   template<typename T, typename HasFromWasm>
-   struct get_wasm_type<T, HasFromWasm, std::void_t<from_wasm_type_impl_t<T>>> {
-      using type = to_wasm_type_impl_t<T>;
-   };
-   template<typename T>
-   struct get_wasm_type<T, std::void_t<from_wasm_type_impl_t<T>>, std::void_t<to_wasm_type_impl_t<T>>> {
-      static_assert(std::is_same_v<from_wasm_type_impl_t<T>, to_wasm_type_impl_t<T>>,
-                    "wasm_type_converter must use the same type for both from_wasm and to_wasm.");
-      using type = from_wasm_type_impl_t<T>;
-   };
-   
-   // try the pointer to force segfault early
-   template <typename WAlloc, typename T>
-   constexpr T* validate_ptr( WAlloc&& alloc, uint32_t offset, uint32_t len ) {
-      EOS_VM_ASSERT( len < INT_MAX / (uint32_t)sizeof(T), wasm_interpreter_exception, "length will overflow" );
-      T* ret_ptr = reinterpret_cast<T>(alloc.template get_base_ptr<char>() + offset);
-      volatile auto ret_val = *(ret_ptr+len-1);
-      return ret_ptr;
-   }
-
-   template<typename S, size_t I, typename Args, typename T, typename WAlloc, typename OS>
-   constexpr auto get_value(WAlloc* alloc, OS&& os, T&& val) -> S {
-      if constexpr (std::is_integral_v<S> && sizeof(S) == 4) {
-         return val.template get<i32_const_t>().data.ui;
+      // Extract the wasm type from wasm_type_converter and verify
+      // that if both from_wasm and to_wasm are defined, they use
+      // the same type.
+      template<typename T, typename HasFromWasm = void, typename HasToWasm = void>
+      struct get_wasm_type;
+      template<typename T, typename HasToWasm>
+      struct get_wasm_type<T, std::void_t<from_wasm_type_impl_t<T>>, HasToWasm> {
+         using type = from_wasm_type_impl_t<T>;
+      };
+      template<typename T, typename HasFromWasm>
+      struct get_wasm_type<T, HasFromWasm, std::void_t<from_wasm_type_impl_t<T>>> {
+         using type = to_wasm_type_impl_t<T>;
+      };
+      template<typename T>
+      struct get_wasm_type<T, std::void_t<from_wasm_type_impl_t<T>>, std::void_t<to_wasm_type_impl_t<T>>> {
+         static_assert(std::is_same_v<from_wasm_type_impl_t<T>, to_wasm_type_impl_t<T>>,
+                       "wasm_type_converter must use the same type for both from_wasm and to_wasm.");
+         using type = from_wasm_type_impl_t<T>;
+      };
+      
+      // try the pointer to force segfault early
+      template <typename WAlloc, typename T>
+      constexpr T* validate_ptr( WAlloc&& alloc, uint32_t offset, uint32_t len ) {
+         EOS_VM_ASSERT( len < INT_MAX / (uint32_t)sizeof(T), wasm_interpreter_exception, "length will overflow" );
+         T* ret_ptr = reinterpret_cast<T>(alloc.template get_base_ptr<char>() + offset);
+         // check the pointer
+         volatile auto ret_val = *(ret_ptr + (len ? len-1 : 0));
+         return ret_ptr;
       }
-      else if constexpr (std::is_integral_v<S> && sizeof(S) == 8)
-         return val.template get<i64_const_t>().data.ui;
-      else if constexpr (std::is_floating_point_v<S> && sizeof(S) == 4)
-         return val.template get<f32_const_t>().data.f;
-      else if constexpr (std::is_floating_point_v<S> && sizeof(S) == 8)
-         return val.template get<f64_const_t>().data.f;
-      else if constexpr (std::is_pointer_v<S>)
-         /* validate a pointer followed by length */
-         if constexpr (std::is_same_v<uint32_t, std::tuple_element<I+1, Args>>) {
-            return aligned_ptr_wrapper<S>{ validate_ptr(alloc, val.template get<i32_const_t>().data.ui, 
-                  detail::get_value<std::tuple_element_t<I+1, Args>>(alloc, std::forward<OS>(os), os.get_back((std::tuple_size_v<Args>-1) - I))) };
+
+      struct aligned_ptr_flag {};
+     
+
+      template <typename S, size_t I, typename Args, typename T, typename WAlloc, typename OS>
+      constexpr auto get_value(WAlloc* alloc, OS&& os, T&& val) -> S;
+
+      template <typename S, typename HostFunctionArgs, size_t I, size_t... Is> 
+      struct match_host_args {
+         template <typename WAlloc, typename OS>
+         static constexpr auto match(WAlloc* alloc, OS&& os, std::index_sequence<Is...>) -> 
+            std::enable_if_t<std::is_same_v<S, decltype(wasm_type_converter<S>::from_wasm( std::declval<from_wasm_type_impl_t<std::tuple_element_t<Is, HostFunctionArgs>>>()... ))>> {}
+         //static constexpr auto match(WAlloc* alloc, OS&& os, std::index_sequence<Is...>) -> std::enable_if_t<std::is_same_v<S, decltype(wasm_type_converter<S>::from_wasm(
+         //      detail::get_value<from_wasm_type_impl_t<std::tuple_element_t<Is, HostFunctionArgs>>, I, HostFunctionArgs>(
+         //         alloc, std::forward<OS>(os), std::move(os->get_back((std::tuple_size_v<HostFunctionArgs>-1) - (Is))))...)), std::tuple<std::tuple_element_t<Is, HostFunctionArgs>...>>> {
+         //}
+      };
+
+      template <typename S, typename T, typename Args, typename WAlloc, typename OS, typename FromWasmArgs, size_t Offset, size_t... Is>
+      constexpr auto _get_value(WAlloc* alloc, OS&& os, std::index_sequence<Is...>) {
+         return wasm_type_converter<S>::from_wasm(
+               detail::get_value<from_wasm_type_impl_t<std::tuple_element_t<Is, FromWasmArgs>>, Offset, Args>(
+                  alloc, std::forward<OS>(os), std::move(os->get_back((std::tuple_size_v<Args>-1) - (Offset + Is))))...);
+      }
+
+      template<typename S, size_t I, typename Args, typename T, typename WAlloc, typename OS>
+      constexpr auto get_value(WAlloc* alloc, OS&& os, T&& val) -> S {
+         if constexpr (std::is_integral_v<S> && sizeof(S) == 4)
+            return val.template get<i32_const_t>().data.ui;
+         else if constexpr (std::is_integral_v<S> && sizeof(S) == 8)
+            return val.template get<i64_const_t>().data.ui;
+         else if constexpr (std::is_floating_point_v<S> && sizeof(S) == 4)
+            return val.template get<f32_const_t>().data.f;
+         else if constexpr (std::is_floating_point_v<S> && sizeof(S) == 8)
+            return val.template get<f64_const_t>().data.f;
+         else if constexpr (std::is_pointer_v<S>)
+            return reinterpret_cast<S>(alloc->template get_base_ptr<char>() + val.template get<i32_const_t>().data.ui);
+         else {
+            //using deduced_args = decltype(get_args(AUTO_PARAM_WORKAROUND(&wasm_type_converter<S>::from_wasm)));
+            //if constexpr (std::tuple_size_v<deduced_args> > 1) {
+            //   constexpr auto Is = std::make_index_sequence<std::tuple_size_v<deduced_args>>();
+            //   return detail::_get_value<S, T, Args, WAlloc, OS, deduced_args, I>(alloc, std::forward<OS>(os), Is);
+            //} else
+            match_host_args<S, Args, I>(alloc, std::forward<OS>(os), std::make_index_sequence<std::tuple_size_v<Args>>{});
+            return wasm_type_converter<S>::from_wasm(detail::get_value<from_wasm_type_impl_t<S>, I, Args>(alloc, std::forward<OS>(os), static_cast<T&&>(val)));
          }
-         /* transcribe two pointers and a length */
-         if constexpr (std::is_pointer_v<std::tuple_element_t<I, Args>>)
-         return reinterpret_cast<S>(alloc->template get_base_ptr<char>() + val.template get<i32_const_t>().data.ui);
-      else
-         return wasm_type_converter<S>::from_wasm(detail::get_value<from_wasm_type_impl_t<S>>(alloc, static_cast<T&&>(val)));
-   }
+      }
 
-   template <typename T, typename WAlloc>
-   constexpr auto resolve_result(T&& res, WAlloc* alloc) {
-      if constexpr (std::is_integral_v<T> && sizeof(T) == 4)
-         return i32_const_t{ static_cast<uint32_t>(res) };
-      else if constexpr (std::is_integral_v<T> && sizeof(T) == 8)
-         return i64_const_t{ static_cast<uint64_t>(res) };
-      else if constexpr (std::is_floating_point_v<T> && sizeof(T) == 4)
-         return f32_const_t{ static_cast<float>(res) };
-      else if constexpr (std::is_floating_point_v<T> && sizeof(T) == 8)
-         return f64_const_t{ static_cast<double>(res) };
-      else if constexpr (std::is_pointer_v<T>)
-         return i32_const_t{ static_cast<uint32_t>(reinterpret_cast<uintptr_t>(res) -
-                                                   reinterpret_cast<uintptr_t>(alloc->template get_base_ptr<char>())) };
-      else
-         return detail::resolve_result(wasm_type_converter<T>::to_wasm(static_cast<T&&>(res)), alloc);
-   }
+      template <typename T, typename WAlloc>
+      constexpr auto resolve_result(T&& res, WAlloc* alloc) {
+         if constexpr (std::is_integral_v<T> && sizeof(T) == 4)
+            return i32_const_t{ static_cast<uint32_t>(res) };
+         else if constexpr (std::is_integral_v<T> && sizeof(T) == 8)
+            return i64_const_t{ static_cast<uint64_t>(res) };
+         else if constexpr (std::is_floating_point_v<T> && sizeof(T) == 4)
+            return f32_const_t{ static_cast<float>(res) };
+         else if constexpr (std::is_floating_point_v<T> && sizeof(T) == 8)
+            return f64_const_t{ static_cast<double>(res) };
+         else if constexpr (std::is_pointer_v<T>)
+            return i32_const_t{ static_cast<uint32_t>(reinterpret_cast<uintptr_t>(res) -
+                                                      reinterpret_cast<uintptr_t>(alloc->template get_base_ptr<char>())) };
+         else
+            return detail::resolve_result(wasm_type_converter<T>::to_wasm(static_cast<T&&>(res)), alloc);
+      }
+   } //ns detail
 
-   }
-
-   template<>
+   template <>
    struct wasm_type_converter<bool> {
-      template <typename Walloc>
-      static bool from_wasm(uint32_t val, Walloc) { return val != 0; }
-      template <typename Walloc>
-      static uint32_t to_wasm(bool val, Walloc) { return val? 1 : 0; }
+      static bool from_wasm(uint32_t val) { return val != 0; }
+      static uint32_t to_wasm(bool val) { return val? 1 : 0; }
    };
 
-   template<typename T>
+   template <typename T>
    struct wasm_type_converter<T&> {
-      template <typename Walloc>
-      static T& from_wasm(T* ptr, Walloc) { return *ptr; }
-      template <typename Walloc>
-      static T* to_wasm(T& ref, Walloc) { return std::addressof(ref); }
+      static T& from_wasm(T* ptr) { return *ptr; }
+      static T* to_wasm(T& ref) { return std::addressof(ref); }
    };
+  
 
    template <typename T>
    inline constexpr auto to_wasm_type() -> uint8_t {
@@ -284,6 +308,7 @@ namespace eosio { namespace vm {
             __cxxabiv1::__cxa_demangle(mangled_name, nullptr, &len, &status), &::std::free);
       return ptr.get();
    }
+
    struct maybe_void_t {
       struct void_t {};
       static void_t void_val;
@@ -292,30 +317,19 @@ namespace eosio { namespace vm {
       inline constexpr auto operator[](T&& val)const { return std::forward<T>(val); } 
       template <typename T>
       inline constexpr friend auto operator, (T&& val, void_t) { return std::forward<T>(val); }
-   } maybe_void;
-
-   template <typename Derived, typename Host, typename Args>
-   struct args_tuple {
-      using type = decltype(std::tuple_cat(construct_derived<Derived, Host>::value(std::declval<Host>()), Args{}));
    };
 
-   template <typename Host, typename Args>
-   struct args_tuple<nullptr_t, Host, Args> {
-      typedef Args type;
-   };
-
-   template <typename Derived, typename Host, typename Args>
-   using args_tuple_t = typename args_tuple<Derived, Host, Args>::type;
+   static maybe_void_t maybe_void;
 
    template <auto F, typename Derived, typename Host, typename Walloc, typename Args, size_t... Is>
    auto invoke_with_host(Host* host, Walloc* walloc, operand_stack& os) {
       constexpr size_t args_end = sizeof...(Is)-1;
-      args_tuple_t<Derived, Host, Args> args;
-      if constexpr (!std::is_same_v<Derived, nullptr_t>)
-         args = { detail::get_value<std::tuple_element_t<Is, Args>, Is, Args>(walloc, &os, std::move(os.get_back(args_end - Is)))... };
+      if constexpr (std::is_same_v<Derived, nullptr_t>)
+         return maybe_void[std::invoke(F, detail::get_value<std::tuple_element_t<Is, Args>, Is, Args>(walloc, &os, std::move(os.get_back(args_end - Is)))...),
+            maybe_void_t::void_val];
       else
-         args = { construct_derived<Derived, Host>::value(*host), detail::get_value<std::tuple_element_t<Is, Args>, Is, Args>(walloc, &os, std::move(os.get_back(args_end - Is)))... };
-      return maybe_void[std::invoke(F, args), maybe_void_t::void_val];
+         return maybe_void[std::invoke(F, construct_derived<Derived, Host>::value(*host), detail::get_value<std::tuple_element_t<Is, Args>, Is, Args>(walloc, &os, std::move(os.get_back(args_end - Is)))...),
+            maybe_void_t::void_val];
    }
 
    // RAII type for handling results
@@ -357,22 +371,7 @@ namespace eosio { namespace vm {
    }
 
    template <typename T>
-   constexpr bool is_return_void() {
-      if constexpr (std::is_same<T, void>::value)
-         return true;
-      return false;
-   }
-
-   template <typename... Args>
-   struct to_wasm_type_array {
-      static constexpr uint8_t value[] = { to_wasm_type<Args>()... };
-   };
-
-   template <typename T>
    constexpr auto to_wasm_type_v = to_wasm_type<T>();
-
-   template <typename T>
-   constexpr auto is_return_void_v = is_return_void<T>();
 
    struct host_function {
       void*                   ptr;
@@ -465,7 +464,7 @@ namespace eosio { namespace vm {
          using deduced_full_ts                         = decltype(get_args_full(AUTO_PARAM_WORKAROUND(Func)));
          using deduced_ts                              = decltype(get_args(AUTO_PARAM_WORKAROUND(Func)));
          using res_t                                   = typename decltype(get_return_t(AUTO_PARAM_WORKAROUND(Func)))::type;
-         static constexpr auto is                      = std::make_index_sequence<std::tuple_size<deduced_ts>::value>();
+         static constexpr auto is                      = std::make_index_sequence<std::tuple_size_v<deduced_ts>>();
          auto&                 current_mappings        = get_mappings<WAlloc>();
          current_mappings.named_mapping[{ mod, name }] = current_mappings.current_index++;
          current_mappings.functions.push_back(create_function<WAlloc, Cls, Cls2, Func, res_t, deduced_full_ts>(is));
