@@ -85,3 +85,15 @@ BACKEND_TEST_CASE( "Testing wasm <memory_size_3_wasm>", "[memory_size_3_wasm_tes
    CHECK(bkend.call_with_return(nullptr, "env", "size")->to_ui32() == UINT32_C(8));
 }
 
+BACKEND_TEST_CASE( "Testing wasm <memory_size_4_wasm>", "[memory_size_4_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "memory_size.4.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
+BACKEND_TEST_CASE( "Testing wasm <memory_size_5_wasm>", "[memory_size_5_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "memory_size.5.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+

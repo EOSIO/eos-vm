@@ -2422,3 +2422,39 @@ BACKEND_TEST_CASE( "Testing wasm <f64_cmp_0_wasm>", "[f64_cmp_0_wasm_tests]" ) {
    CHECK(bkend.call_with_return(nullptr, "env", "ge", bit_cast<double>(UINT64_C(9219994337134247936)), bit_cast<double>(UINT64_C(9219994337134247936)))->to_ui32() == UINT32_C(0));
 }
 
+BACKEND_TEST_CASE( "Testing wasm <f64_cmp_1_wasm>", "[f64_cmp_1_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "f64_cmp.1.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
+BACKEND_TEST_CASE( "Testing wasm <f64_cmp_2_wasm>", "[f64_cmp_2_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "f64_cmp.2.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
+BACKEND_TEST_CASE( "Testing wasm <f64_cmp_3_wasm>", "[f64_cmp_3_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "f64_cmp.3.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
+BACKEND_TEST_CASE( "Testing wasm <f64_cmp_4_wasm>", "[f64_cmp_4_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "f64_cmp.4.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
+BACKEND_TEST_CASE( "Testing wasm <f64_cmp_5_wasm>", "[f64_cmp_5_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "f64_cmp.5.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
+BACKEND_TEST_CASE( "Testing wasm <f64_cmp_6_wasm>", "[f64_cmp_6_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "f64_cmp.6.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
