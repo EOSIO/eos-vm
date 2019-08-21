@@ -229,10 +229,12 @@ namespace eosio { namespace vm {
 
       static maybe_void_t maybe_void;
 
+      struct no_match_found_t {};
+
       template <typename Funcs, size_t I>
       constexpr auto _get_valid_func() {
-         if constexpr (I > std::tuple_size_v<Funcs>)
-            return void();
+         if constexpr (I >= std::tuple_size_v<Funcs>)
+            return no_match_found_t();
          else
             if constexpr (std::is_same_v<std::tuple_element_t<I, Funcs>, maybe_void_t::void_t>)
                return _get_valid_func<Funcs, I+1>();
@@ -248,7 +250,7 @@ namespace eosio { namespace vm {
          return std::make_tuple(maybe_void[match_from_wasm_args_impl<S, Args>::match(std::make_index_sequence<std::tuple_size_v<Args>-Is>()), maybe_void_t::void_val]...);
       }
 
-      template <typename S, typename Args>
+      template <typename S, typename Args, size_t... Is>
       constexpr auto _match_from_wasm_args() {
          return _match_from_wasm_args<S, Args>(std::make_index_sequence<std::tuple_size_v<Args>>());
       }
@@ -270,15 +272,16 @@ namespace eosio { namespace vm {
          else if constexpr (std::is_pointer_v<S>)
             return reinterpret_cast<S>(alloc->template get_base_ptr<char>() + val.template get<i32_const_t>().data.ui);
          else {
-            //using from_wasm_overload_t = match_from_wasm_args_t<S, Args>;
+            using from_wasm_overload_t = match_from_wasm_args_t<S, Args>;
+            if constexpr (!std::is_same_v<from_wasm_overload_t, no_match_found_t>) {
+            } else {
             //using deduced_from_wasm_args = decltype(get_args(AUTO_PARAM_WORKAROUND(from_wasm_overload_t{})));
             //if constexpr (std::tuple_size_v<deduced_from_wasm_args> > 1) {
             //   using from_wasm_overload_t = match_from_wasm_args_t<S, Args>;
             //   //constexpr auto&& from_wasm_overload = 
             //   //using from_wasm_overloads = decltype(match_from_wasm_args<uint32
-            //} else {
                return wasm_type_converter<S>::from_wasm(detail::get_value<from_wasm_type_impl_t<S>, I, Args>(alloc, std::forward<OS>(os), static_cast<T&&>(val)));
-            //}
+            }
             
             //using deduced_args = decltype(get_args(AUTO_PARAM_WORKAROUND(&wasm_type_converter<S>::from_wasm)));
             //   constexpr auto Is = std::make_index_sequence<std::tuple_size_v<deduced_args>>();
