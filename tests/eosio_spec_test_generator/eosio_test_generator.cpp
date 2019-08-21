@@ -18,6 +18,11 @@ map<string, bool> blacklist_memory_clearing = {
    { "memory.25", true },      { "memory_trap.1", true },  { "start.3", true },        { "start.4", true },
 };
 
+map<string, bool> whitelist_force_check_throw = {
+   { "memory.6", true },
+   { "memory.7", true },
+};
+
 const string include_eosio = "#include <eosio/eosio.hpp>\n\n";
 const string extern_c      = "extern \"C\" {\n";
 const string apply_func    = "   void apply(uint64_t, uint64_t, uint64_t test_to_run) {\n";
@@ -373,14 +378,14 @@ int main(int argc, char** argv) {
 
       func_index = 0;
       for (auto test : f.second) {
-         string type_test     = test["type"].to_str(); // TODO: Use this to help with switching
+         string type_test     = test["type"].to_str();
          auto   action        = test["action"].get<picojson::object>();
          string function_name = action["field"].to_str();
          function_name        = "_" + normalize(function_name);
 
          test_funcs << write_test_function(function_name, test);
-
-         if (type_test == "assert_trap" || type_test == "assert_exhaustion") {
+         int is_whitelisted = whitelist_force_check_throw.count(test_name);
+         if (type_test == "assert_trap" || type_test == "assert_exhaustion" || is_whitelisted) {
             assert_trap_tests.push_back(test);
          } else {
             assert_return_tests.push_back(test);
