@@ -2,8 +2,7 @@ steps:
 
   - label: ":aws: Amazon_Linux 2 - Build"
     command:
-      - "echo pipeline.yml DOCKERHUB_USERNAME: ${DOCKERHUB_USERNAME}"
-      - "echo pipeline.yml DOCKERHUB_PASSWORD: ${DOCKERHUB_PASSWORD}"
+      - "echo pipeline.yml $(df -h)"
       - "./.cicd/build.sh"
       - "tar -pczf build.tar.gz build && buildkite-agent artifact upload build.tar.gz"
     env:
