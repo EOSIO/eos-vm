@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from multiprocessing import Pool
+from pathlib import Path
 
 import os
 import shutil
@@ -13,6 +14,8 @@ WASM_DIR = ''
 EOSIO_DIR = ''
 OUT_DIR = ''
 GENERATOR_DIR = ''
+REPO_ROOT = ''
+ALTERED_WASMS_DIR = ''
 
 generator = ''
 
@@ -27,6 +30,15 @@ def main():
 
     for j in json_files:
         setup_tests(j)
+
+def get_altered_wasms():
+    aws = {}
+    for d in os.listdir(ALTERED_WASMS_DIR):
+        for f in os.listdir(os.path.join(ALTERED_WASMS_DIR, d)):
+            if f.find('.wasm') > -1:
+                aws[f] = True
+    return aws
+
 
 
 def setup_tests(j):
@@ -102,47 +114,56 @@ def compile_eosio(f):
 def generate_and_copy():
     cwd = os.getcwd()
     name = cwd.split('/')[-1]
+    altered_wasms = get_altered_wasms()
     for d in os.listdir():
-        try:
-            g_wasm_file = os.path.join(d, f'{name}.{d}-int.wasm')
-            t_wasm_file = os.path.join(d, 'test.wasm')
-            o_wast_file = os.path.join(d, f'{name}.{d}.wast')
-            map_file = os.path.join(d, f'{name}.{d}.wasm.map')
-            generate_eosio_tests.main(g_wasm_file, t_wasm_file, o_wast_file, map_file)
-            wasm_file = f'{name}.{d}.wasm'
-            out = subprocess.run(
-                ['eosio-wast2wasm', o_wast_file, '-o', os.path.join(d, wasm_file)],
-                capture_output=True
-            )
-            if out.returncode > 0:
-                # TODO: Better messaging
-                print('    ', o_wast_file, 'failed to compile')
-        except Exception:
-            continue
+        wasm_file = f'{name}.{d}.wasm'
+        if wasm_file in altered_wasms:
+            wasm_file_path = os.path.join(ALTERED_WASMS_DIR, name, wasm_file)
+        else:
+            try:
+                g_wasm_file = os.path.join(d, f'{name}.{d}-int.wasm')
+                t_wasm_file = os.path.join(d, 'test.wasm')
+                o_wast_file = os.path.join(d, f'{name}.{d}.wast')
+                map_file = os.path.join(d, f'{name}.{d}.wasm.map')
+                generate_eosio_tests.main(g_wasm_file, t_wasm_file, o_wast_file, map_file)
+                wasm_file_path = os.path.join(d, wasm_file)
+                out = subprocess.run(
+                    ['eosio-wast2wasm', o_wast_file, '-o', os.path.join(d, wasm_file)],
+                    capture_output=True
+                )
+                if out.returncode > 0:
+                    print('    ', o_wast_file, 'failed to compile')
+            except Exception:
+                continue
 
         test_dir = os.path.join(EOSIO_DIR, 'wasm_spec_tests')
 
         cpp_file = f'{name}.{d}.cpp'
         shutil.copy(os.path.join(d, cpp_file), os.path.join(test_dir, cpp_file))
-        shutil.copy(os.path.join(d, wasm_file), os.path.join(test_dir, 'wasms', wasm_file))
+        shutil.copy(wasm_file_path, os.path.join(test_dir, 'wasms', wasm_file))
 
 if __name__ == '__main__':
-    if len(sys.argv) < 5:
+    if len(sys.argv) < 3:
         print("""Please provide:
                 Arg 1: Directory containing test wasms
                 Arg 2: Directory containing eosio repo
-                Arg 3: Directory for test files to be output to
-                Arg 4: Build directory of the eosio_spec_test_generator
+                (optional) Arg 3: Directory for intermediate test files <defaults to /tmp/wasm_spec_tests>
 
                 ex:
-                python setup_eosio_tests.py ~/code/eos-vm-test-wasms ~/code/eos /tmp ~/code/eos-vm/build/tests
+                python setup_eosio_tests.py ~/code/eos-vm-test-wasms ~/code/eos ~/wasm_spec_tests
               """)
         sys.exit(1)
 
     WASM_DIR = sys.argv[1]
     EOSIO_DIR = sys.argv[2]
-    OUT_DIR = sys.argv[3]
-    GENERATOR_DIR = sys.argv[4]
+    if len(sys.argv) > 3:
+        OUT_DIR = sys.argv[3]
+    else:
+        OUT_DIR = '/tmp/wasm_spec_tests'
+
+    REPO_ROOT = Path(os.path.realpath(__file__)).parent.parent.parent
+    GENERATOR_DIR = os.path.join(REPO_ROOT, 'build', 'tests')
+    ALTERED_WASMS_DIR = os.path.join(REPO_ROOT, 'tests', 'eosio_spec_test_generator', 'altered-wasms')
 
     generator = os.path.join(GENERATOR_DIR, 'eosio_test_generator')
 
