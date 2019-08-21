@@ -16,11 +16,11 @@
 
 ## How tests are split up
 
-- Within a spec test suite, each `assert_trap` and `assert_exhaustion` test case is given a unique function.
-    - All tests in a suite are in the same WASM file, so the test that is run is based on the `test.name` passed in to `apply`.
+- Within a spec test suite, each `assert_trap` and `assert_exhaustion` test case is given a unique `sub_apply` function.
+    - All tests in a suite are in the same WASM file, so the test that is run is based on the `test.name` passed in to `apply` (which calls the correct `sub_apply`).
 
 - Within a test suite, `assert_return` tests are grouped into sets of 100.
-    - This is due to the limit on 1024 locals and 1024 func defs built into nodeos. Some spec tests had too many functions to have a function per test, and some had too many variables to be put all into one function.
+    - This is due to the limit on 1024 locals and 1024 func defs built into nodeos. Some spec tests had too many functions to have a `sub_apply` per test, and some had too many variables to be put all into one `sub_apply`.
     - 100 was found to be the number that did not exceed this maximum for all the tests.
     - The tests also have some reliance on ordering (a store may need to be called before a load for example).
     - 100 also works out to make sure the right ordering is achieved.
