@@ -14,6 +14,12 @@
 #include <memory>
 #include <string>
 
+// forward declaration of array_ptr
+namespace eosio { namespace chain {
+   template <typename T>
+   struct array_ptr;
+}}
+
 namespace eosio { namespace vm {
 
    template <typename Derived, typename Base>
@@ -177,29 +183,79 @@ namespace eosio { namespace vm {
          return ret_ptr;
       }
 
-      struct aligned_ptr_flag {};
-     
-
-      template <typename S, size_t I, typename Args, typename T, typename WAlloc, typename OS>
-      constexpr auto get_value(WAlloc* alloc, OS&& os, T&& val) -> S;
-
-      template <typename S, typename HostFunctionArgs, size_t I, size_t... Is> 
-      struct match_host_args {
-         template <typename WAlloc, typename OS>
-         static constexpr auto match(WAlloc* alloc, OS&& os, std::index_sequence<Is...>) -> 
-            std::enable_if_t<std::is_same_v<S, decltype(wasm_type_converter<S>::from_wasm( std::declval<from_wasm_type_impl_t<std::tuple_element_t<Is, HostFunctionArgs>>>()... ))>> {}
-         //static constexpr auto match(WAlloc* alloc, OS&& os, std::index_sequence<Is...>) -> std::enable_if_t<std::is_same_v<S, decltype(wasm_type_converter<S>::from_wasm(
-         //      detail::get_value<from_wasm_type_impl_t<std::tuple_element_t<Is, HostFunctionArgs>>, I, HostFunctionArgs>(
-         //         alloc, std::forward<OS>(os), std::move(os->get_back((std::tuple_size_v<HostFunctionArgs>-1) - (Is))))...)), std::tuple<std::tuple_element_t<Is, HostFunctionArgs>...>>> {
-         //}
+      template <typename T, typename... Args>
+      struct has_from_wasm {
+         template <typename C, typename = decltype(C::from_wasm(std::declval<Args>()...))>
+         static std::true_type test(int);
+         template <typename C>
+         static std::false_type test(...);
+         static constexpr bool value = decltype(test<wasm_type_converter<T>>(0))::value;
       };
 
-      template <typename S, typename T, typename Args, typename WAlloc, typename OS, typename FromWasmArgs, size_t Offset, size_t... Is>
-      constexpr auto _get_value(WAlloc* alloc, OS&& os, std::index_sequence<Is...>) {
-         return wasm_type_converter<S>::from_wasm(
-               detail::get_value<from_wasm_type_impl_t<std::tuple_element_t<Is, FromWasmArgs>>, Offset, Args>(
-                  alloc, std::forward<OS>(os), std::move(os->get_back((std::tuple_size_v<Args>-1) - (Offset + Is))))...);
+      template <typename T, typename... Args>
+      inline constexpr auto has_from_wasm_v = has_from_wasm<T, Args...>::value;
+
+      template <typename S, typename Args, size_t... Is>
+      constexpr auto get_from_wasm_overload(bool) {
+         return []() constexpr -> S(*)(std::tuple_element_t<Is, Args>...) { return wasm_type_converter<S>::from_wasm; }();
       }
+
+      template <typename S, typename FPtr>
+      constexpr auto get_from_wasm_overload() {
+         return []() constexpr -> FPtr { return wasm_type_converter<S>::from_wasm; }();
+      }
+      
+      template <typename S, typename Args>
+      struct match_from_wasm_args_impl {
+         template <size_t... Is>
+         static constexpr auto match(std::index_sequence<Is...>) {
+            if constexpr (has_from_wasm_v<S, std::tuple_element_t<Is, Args>...>) {
+               return get_from_wasm_overload<S, Args, Is...>(false);
+            }
+            else
+               return void();
+         }
+      };
+
+      struct maybe_void_t {
+         struct void_t {};
+         static void_t void_val;
+         inline constexpr auto operator[](void_t)const { return void_val; }
+         template <typename T>
+         inline constexpr auto operator[](T&& val)const { return std::forward<T>(val); } 
+         template <typename T>
+         inline constexpr friend auto operator, (T&& val, void_t) { return std::forward<T>(val); }
+      };
+
+      static maybe_void_t maybe_void;
+
+      template <typename Funcs, size_t I>
+      constexpr auto _get_valid_func() {
+         if constexpr (I > std::tuple_size_v<Funcs>)
+            return void();
+         else
+            if constexpr (std::is_same_v<std::tuple_element_t<I, Funcs>, maybe_void_t::void_t>)
+               return _get_valid_func<Funcs, I+1>();
+            else
+               return std::get<I>(Funcs{});
+      }
+
+      template <typename Funcs>
+      constexpr auto get_valid_func() { return _get_valid_func<Funcs, 0>(); }
+
+      template <typename S, typename Args, size_t... Is>
+      constexpr auto _match_from_wasm_args(std::index_sequence<Is...>) {
+         return std::make_tuple(maybe_void[match_from_wasm_args_impl<S, Args>::match(std::make_index_sequence<std::tuple_size_v<Args>-Is>()), maybe_void_t::void_val]...);
+      }
+
+      template <typename S, typename Args>
+      constexpr auto _match_from_wasm_args() {
+         return _match_from_wasm_args<S, Args>(std::make_index_sequence<std::tuple_size_v<Args>>());
+      }
+
+      template <typename S, typename Args>
+      using match_from_wasm_args_t = decltype(get_valid_func<decltype(_match_from_wasm_args<S, Args>())>());
+      
 
       template<typename S, size_t I, typename Args, typename T, typename WAlloc, typename OS>
       constexpr auto get_value(WAlloc* alloc, OS&& os, T&& val) -> S {
@@ -214,13 +270,21 @@ namespace eosio { namespace vm {
          else if constexpr (std::is_pointer_v<S>)
             return reinterpret_cast<S>(alloc->template get_base_ptr<char>() + val.template get<i32_const_t>().data.ui);
          else {
+            //using from_wasm_overload_t = match_from_wasm_args_t<S, Args>;
+            //using deduced_from_wasm_args = decltype(get_args(AUTO_PARAM_WORKAROUND(from_wasm_overload_t{})));
+            //if constexpr (std::tuple_size_v<deduced_from_wasm_args> > 1) {
+            //   using from_wasm_overload_t = match_from_wasm_args_t<S, Args>;
+            //   //constexpr auto&& from_wasm_overload = 
+            //   //using from_wasm_overloads = decltype(match_from_wasm_args<uint32
+            //} else {
+               return wasm_type_converter<S>::from_wasm(detail::get_value<from_wasm_type_impl_t<S>, I, Args>(alloc, std::forward<OS>(os), static_cast<T&&>(val)));
+            //}
+            
             //using deduced_args = decltype(get_args(AUTO_PARAM_WORKAROUND(&wasm_type_converter<S>::from_wasm)));
-            //if constexpr (std::tuple_size_v<deduced_args> > 1) {
             //   constexpr auto Is = std::make_index_sequence<std::tuple_size_v<deduced_args>>();
             //   return detail::_get_value<S, T, Args, WAlloc, OS, deduced_args, I>(alloc, std::forward<OS>(os), Is);
             //} else
-            match_host_args<S, Args, I>(alloc, std::forward<OS>(os), std::make_index_sequence<std::tuple_size_v<Args>>{});
-            return wasm_type_converter<S>::from_wasm(detail::get_value<from_wasm_type_impl_t<S>, I, Args>(alloc, std::forward<OS>(os), static_cast<T&&>(val)));
+            //match_host_args<S, Args, I>(alloc, std::forward<OS>(os), std::make_index_sequence<std::tuple_size_v<Args>>{});
          }
       }
 
@@ -309,27 +373,16 @@ namespace eosio { namespace vm {
       return ptr.get();
    }
 
-   struct maybe_void_t {
-      struct void_t {};
-      static void_t void_val;
-      inline constexpr auto operator[](void_t)const { return void_val; }
-      template <typename T>
-      inline constexpr auto operator[](T&& val)const { return std::forward<T>(val); } 
-      template <typename T>
-      inline constexpr friend auto operator, (T&& val, void_t) { return std::forward<T>(val); }
-   };
-
-   static maybe_void_t maybe_void;
 
    template <auto F, typename Derived, typename Host, typename Walloc, typename Args, size_t... Is>
    auto invoke_with_host(Host* host, Walloc* walloc, operand_stack& os) {
       constexpr size_t args_end = sizeof...(Is)-1;
       if constexpr (std::is_same_v<Derived, nullptr_t>)
-         return maybe_void[std::invoke(F, detail::get_value<std::tuple_element_t<Is, Args>, Is, Args>(walloc, &os, std::move(os.get_back(args_end - Is)))...),
-            maybe_void_t::void_val];
+         return detail::maybe_void[std::invoke(F, detail::get_value<std::tuple_element_t<Is, Args>, Is, Args>(walloc, &os, std::move(os.get_back(args_end - Is)))...),
+            detail::maybe_void_t::void_val];
       else
-         return maybe_void[std::invoke(F, construct_derived<Derived, Host>::value(*host), detail::get_value<std::tuple_element_t<Is, Args>, Is, Args>(walloc, &os, std::move(os.get_back(args_end - Is)))...),
-            maybe_void_t::void_val];
+         return detail::maybe_void[std::invoke(F, construct_derived<Derived, Host>::value(*host), detail::get_value<std::tuple_element_t<Is, Args>, Is, Args>(walloc, &os, std::move(os.get_back(args_end - Is)))...),
+            detail::maybe_void_t::void_val];
    }
 
    // RAII type for handling results
@@ -355,7 +408,7 @@ namespace eosio { namespace vm {
 
    template <size_t TrimAmt, typename Res, typename Walloc>
    auto wrap_invoke(Walloc* walloc, operand_stack& os, Res&& res=Res()) {
-      if constexpr (std::is_same_v<Res, maybe_void_t::void_t>)
+      if constexpr (std::is_same_v<Res, detail::maybe_void_t::void_t>)
          return invoke_result_wrapper<void, Walloc, TrimAmt>(os, walloc);
       else
          return invoke_result_wrapper<Res, Walloc, TrimAmt>(std::forward<Res>(res), os, walloc);
@@ -365,8 +418,8 @@ namespace eosio { namespace vm {
    auto create_function(std::index_sequence<Is...>) {
       return std::function<void(Cls*, Walloc*, operand_stack&)>{ [](Cls* self, Walloc* walloc, operand_stack& os) {
          wrap_invoke<sizeof...(Is)>(
-               walloc, os, maybe_void[invoke_with_host<F, Cls2, Cls, Walloc, Args, Is...>(
-                  self, walloc, os), maybe_void_t::void_val]);
+               walloc, os, detail::maybe_void[invoke_with_host<F, Cls2, Cls, Walloc, Args, Is...>(
+                  self, walloc, os), detail::maybe_void_t::void_val]);
       } };
    }
 
