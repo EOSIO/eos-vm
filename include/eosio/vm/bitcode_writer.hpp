@@ -283,7 +283,11 @@ namespace eosio { namespace vm {
       }
      void emit_epilogue(const func_type& ft, const guarded_vector<local_entry>& locals, uint32_t idx) {
          fb.resize(op_index + 1);
-         fb[fb.size() - 1] = return_t{ static_cast<uint32_t>(locals.size() + ft.param_types.size()), ft.return_count, 0, 0 };
+         uint32_t locals_count = 0;
+         for(uint32_t i = 0; i < locals.size(); ++i) {
+            locals_count += locals[i].count;
+         }
+         fb[fb.size() - 1] = return_t{ static_cast<uint32_t>(locals_count + ft.param_types.size()), ft.return_count, 0, 0 };
       }
 
       void finalize(function_body& body) {
