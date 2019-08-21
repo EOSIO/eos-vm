@@ -451,49 +451,51 @@ namespace eosio { namespace vm {
                case opcodes::tee_local: code_writer.emit_tee_local( parse_varuint32(code) ); break;
                case opcodes::get_global: code_writer.emit_get_global( parse_varuint32(code) ); push_operand(); break;
                case opcodes::set_global: code_writer.emit_set_global( parse_varuint32(code) ); pop_operand(); break;
-#define LOAD_OP(op_name)                                             \
+#define LOAD_OP(op_name, max_align)                                  \
                case opcodes::op_name: {                              \
                   uint32_t alignment = parse_varuint32(code);        \
                   uint32_t offset = parse_varuint32(code);           \
+                  EOS_VM_ASSERT(alignment <= uint32_t(max_align), wasm_parse_exception, "alignment cannot be greater than size."); \
                   code_writer.emit_ ## op_name( alignment, offset ); \
                   pop_operand();                                     \
                   push_operand();                                    \
                } break;
 
-               LOAD_OP(i32_load)
-               LOAD_OP(i64_load)
-               LOAD_OP(f32_load)
-               LOAD_OP(f64_load)
-               LOAD_OP(i32_load8_s)
-               LOAD_OP(i32_load16_s)
-               LOAD_OP(i32_load8_u)
-               LOAD_OP(i32_load16_u)
-               LOAD_OP(i64_load8_s)
-               LOAD_OP(i64_load16_s)
-               LOAD_OP(i64_load32_s)
-               LOAD_OP(i64_load8_u)
-               LOAD_OP(i64_load16_u)
-               LOAD_OP(i64_load32_u)
+               LOAD_OP(i32_load, 2)
+               LOAD_OP(i64_load, 3)
+               LOAD_OP(f32_load, 2)
+               LOAD_OP(f64_load, 3)
+               LOAD_OP(i32_load8_s, 0)
+               LOAD_OP(i32_load16_s, 1)
+               LOAD_OP(i32_load8_u, 0)
+               LOAD_OP(i32_load16_u, 1)
+               LOAD_OP(i64_load8_s, 0)
+               LOAD_OP(i64_load16_s, 1)
+               LOAD_OP(i64_load32_s, 2)
+               LOAD_OP(i64_load8_u, 0)
+               LOAD_OP(i64_load16_u, 1)
+               LOAD_OP(i64_load32_u, 2)
 
 #undef LOAD_OP
                      
-#define STORE_OP(op_name)                                            \
+#define STORE_OP(op_name, max_align)                                 \
                case opcodes::op_name: {                              \
                   uint32_t alignment = parse_varuint32(code);        \
                   uint32_t offset = parse_varuint32(code);           \
+                  EOS_VM_ASSERT(alignment <= uint32_t(max_align), wasm_parse_exception, "alignment cannot be greater than size."); \
                   code_writer.emit_ ## op_name( alignment, offset ); \
                   pop_operands(2);                                   \
                } break;
 
-               STORE_OP(i32_store)
-               STORE_OP(i64_store)
-               STORE_OP(f32_store)
-               STORE_OP(f64_store)
-               STORE_OP(i32_store8)
-               STORE_OP(i32_store16)
-               STORE_OP(i64_store8)
-               STORE_OP(i64_store16)
-               STORE_OP(i64_store32)
+               STORE_OP(i32_store, 2)
+               STORE_OP(i64_store, 3)
+               STORE_OP(f32_store, 2)
+               STORE_OP(f64_store, 3)
+               STORE_OP(i32_store8, 0)
+               STORE_OP(i32_store16, 1)
+               STORE_OP(i64_store8, 0)
+               STORE_OP(i64_store16, 1)
+               STORE_OP(i64_store32, 2)
 
 #undef STORE_OP
 
