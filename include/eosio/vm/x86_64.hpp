@@ -36,6 +36,51 @@ namespace eosio { namespace vm {
          stack_overflow_handler = emit_error_handler(&on_stack_overflow);
 
          assert(code == _code_end);
+
+         // emit host functions
+         uint32_t num_imported = mod.get_imported_functions_size();
+         std::size_t host_functions_size = 40 * num_imported;
+         _code_start = _mod.allocator.alloc<unsigned char>(host_functions_size);
+         _code_end = _code_start + host_functions_size;
+         // code already set
+         for(uint32_t i = 0; i < num_imported; ++i) {
+            start_function(code, i);
+            emit_host_call(i);
+         }
+         assert(code == _code_end);
+
+         jmp_table = code;
+         if (_mod.tables.size() > 0) {
+            // emit table
+            std::size_t table_size = 17*_mod.tables[0].table.size();
+            _code_start = _mod.allocator.alloc<unsigned char>(table_size);
+            _code_end = _code_start + table_size;
+            // code already set
+            for(uint32_t i = 0; i < _mod.tables[0].table.size(); ++i) {
+               uint32_t fn_idx = _mod.tables[0].table[i];
+               if (fn_idx < _mod.fast_functions.size()) {
+                  // cmp _mod.fast_functions[fn_idx], %edx
+                  emit_bytes(0x81, 0xfa);
+                  emit_operand32(_mod.fast_functions[fn_idx]);
+                  // je fn
+                  emit_bytes(0x0f, 0x84);
+                  register_call(emit_branch_target32(), fn_idx);
+                  // jmp ERROR
+                  emit_bytes(0xe9);
+                  fix_branch(emit_branch_target32(), type_error_handler);
+               } else {
+                  // jmp ERROR
+                  emit_bytes(0xe9);
+                  // default for out-of-range functions
+                  fix_branch(emit_branch_target32(), call_indirect_handler);
+                  // padding
+                  emit_bytes(0xcc, 0xcc, 0xcc, 0xcc);
+                  emit_bytes(0xcc, 0xcc, 0xcc, 0xcc);
+                  emit_bytes(0xcc, 0xcc, 0xcc, 0xcc);
+               }
+            }
+            assert(code == _code_end);
+         }
       }
       ~machine_code_writer() { _mod.allocator.end_code(_code_segment_base); }
 
@@ -47,7 +92,7 @@ namespace eosio { namespace vm {
          _code_start = _mod.allocator.alloc<unsigned char>(code_size);
          _code_end = _code_start + code_size;
          code = _code_start;
-         start_function(code, funcnum);
+         start_function(code, funcnum + _mod.get_imported_functions_size());
          // pushq RBP
          emit_bytes(0x55);
          // movq RSP, RBP
@@ -233,55 +278,20 @@ namespace eosio { namespace vm {
 
       void emit_call(const func_type& ft, uint32_t funcnum) {
          emit_check_call_depth();
-         if(is_host_function(funcnum)) {
-            // mov $funcnum, %edx
-            emit_bytes(0xba);
-            emit_operand32(funcnum);
-            // pushq %rdi
-            emit_bytes(0x57);
-            // pushq %rsi
-            emit_bytes(0x56);
-            // lea 16(%rsp), %rsi
-            emit_bytes(0x48, 0x8d, 0x74, 0x24, 0x10);
-            // mov %rsp, rcx; andq $-16, %rsp; push rcx; push %rcx
-            emit_bytes(0x48, 0x89, 0xe1);
-            emit_bytes(0x48, 0x83, 0xe4, 0xf0);
-            emit_bytes(0x51);
-            emit_bytes(0x51);
-            // movabsq $call_host_function, %rax
-            emit_bytes(0x48, 0xb8);
-            emit_operand_ptr(&call_host_function);
-            // callq *%rax
-            emit_bytes(0xff, 0xd0);
-            // mov (%rsp), %rsp
-            emit_bytes(0x48, 0x8b, 0x24, 0x24);
-            // popq %rsi
-            emit_bytes(0x5e);
-            // popq %rdi
-            emit_bytes(0x5f);
-            // addq ft.param_types.size()*8, %rsp
-            emit_multipop(ft.param_types.size());
-            if(ft.return_count != 0)
-               // pushq %rax
-               emit_bytes(0x50);
-         } else {
-            // callq TARGET
-            emit_bytes(0xe8);
-            void * branch = emit_branch_target32();
-            emit_multipop(ft.param_types.size());
-            register_call(branch, funcnum - _mod.get_imported_functions_size());
-            if(ft.return_count != 0)
-               // pushq %rax
-               emit_bytes(0x50);
-         }
+         // callq TARGET
+         emit_bytes(0xe8);
+         void * branch = emit_branch_target32();
+         emit_multipop(ft.param_types.size());
+         register_call(branch, funcnum);
+         if(ft.return_count != 0)
+            // pushq %rax
+            emit_bytes(0x50);
          emit_check_call_depth_end();
       }
 
       void emit_call_indirect(const func_type& ft, uint32_t functypeidx) {
          emit_check_call_depth();
          auto& table = _mod.tables[0].table;
-         void * functions = &_mod.fast_functions[0];
-         void * code_with_offset = &_mod.code[0].jit_code;
          functypeidx = _mod.type_aliases[functypeidx];
          // pop %rax
          emit_bytes(0x58);
@@ -291,84 +301,18 @@ namespace eosio { namespace vm {
          // jae ERROR
          emit_bytes(0x0f, 0x83);
          fix_branch(emit_branch_target32(), call_indirect_handler);
-         // shl $2, %rax
-         emit_bytes(0x48, 0xc1, 0xe0, 0x02);
-         // movabsq $table, %rdx
-         emit_bytes(0x48, 0xba);
-         emit_operand_ptr(table.raw());
-         // add %rdx, %rax
-         emit_bytes(0x48, 0x01, 0xd0);
-         // movl (%rax), %eax // function index
-         emit_bytes(0x8b, 0x00);
-         // movl %eax, %ecx
-         emit_bytes(0x89, 0xc1);
-         // shl $2, %rcx
-         emit_bytes(0x48, 0xc1, 0xe1, 0x02);
-         // movabsq $functions, %rdx
-         emit_bytes(0x48, 0xba);
-         emit_operand_ptr(functions);
-         // add %rdx, %rcx
-         emit_bytes(0x48, 0x01, 0xd1);
-         // movl (%rcx), %ecx // function type
-         emit_bytes(0x8b, 0x09);
-         // cmp functypeidx, %ecx
-         emit_bytes(0x81, 0xf9);
-         emit_operand32(functypeidx);
-         // jne ERROR
-         emit_bytes(0x0f, 0x85);
-         fix_branch(emit_branch_target32(), type_error_handler);
-         // sub $num_imported_functions, %eax
-         emit_bytes(0x81, 0xe8);
-         emit_operand32(_mod.get_imported_functions_size());
-         // jb IMPORTED
-         emit_bytes(0x0f, 0x8c);
-         void * imported = emit_branch_target32();
-         // imul sizeof(function_body), %rax, %rax
-         static_assert(sizeof(function_body) < 256);
-         emit_bytes(0x48, 0x6b, 0xc0, sizeof(function_body));
-         // movabsq $code_with_offset, %rdx
-         emit_bytes(0x48, 0xba);
-         emit_operand_ptr(code_with_offset);
+         // leaq table(%rip), %rdx
+         emit_bytes(0x48, 0x8d, 0x15);
+         fix_branch(emit_branch_target32(), jmp_table);
+         // imul $17, %eax, %eax
+         emit_bytes(0x6b, 0xc0, 0x11);
          // addq %rdx, %rax
          emit_bytes(0x48, 0x01, 0xd0);
-         // movq (%rax), %rax
-         emit_bytes(0x48, 0x8b, 0x00);
+         // mov $funtypeidx, %edx
+         emit_bytes(0xba);
+         emit_operand32(functypeidx);
          // callq *%rax
          emit_bytes(0xff, 0xd0);
-         // jmp DONE
-         emit_bytes(0xe9);
-         void * done = emit_branch_target32();
-         // IMPORTED:
-         fix_branch(imported, code);
-         // add $num_imported_functions, %eax
-         emit_bytes(0x81, 0xc0);
-         emit_operand32(_mod.get_imported_functions_size());
-         // mov %eax, %edx
-         emit_bytes(0x89, 0xc2);
-         // pushq %rdi
-         emit_bytes(0x57);
-         // pushq %rsi
-         emit_bytes(0x56);
-         // lea 16(%rsp), %rsi
-         emit_bytes(0x48, 0x8d, 0x74, 0x24, 0x10);
-         // mov %rsp, rcx; andq $-16, %rsp; push rcx; push %rcx
-         emit_bytes(0x48, 0x89, 0xe1);
-         emit_bytes(0x48, 0x83, 0xe4, 0xf0);
-         emit_bytes(0x51);
-         emit_bytes(0x51);
-         // movabsq $call_host_function, %rax
-         emit_bytes(0x48, 0xb8);
-         emit_operand_ptr(&call_host_function);
-         // callq *%rax
-         emit_bytes(0xff, 0xd0);
-         // mov (%rsp), %rsp
-         emit_bytes(0x48, 0x8b, 0x24, 0x24);
-         // popq %rsi
-         emit_bytes(0x5e);
-         // popq %rdi
-         emit_bytes(0x5f);
-         // DONE:
-         fix_branch(done, code);
          emit_multipop(ft.param_types.size());
          if(ft.return_count != 0)
             // pushq %rax
@@ -1679,6 +1623,7 @@ namespace eosio { namespace vm {
       void* call_indirect_handler;
       void* type_error_handler;
       void* stack_overflow_handler;
+      void* jmp_table;
 
       void emit_byte(uint8_t val) { *code++ = val; }
       void emit_bytes() {}
@@ -2033,6 +1978,31 @@ namespace eosio { namespace vm {
       void emit_restore_stack() {
          // mov (%rsp), %rsp
          emit_bytes(0x48, 0x8b, 0x24, 0x24);
+      }
+
+      void emit_host_call(uint32_t funcnum) {
+         // mov $funcnum, %edx
+         emit_bytes(0xba);
+         emit_operand32(funcnum);
+         // pushq %rdi
+         emit_bytes(0x57);
+         // pushq %rsi
+         emit_bytes(0x56);
+         // lea 24(%rsp), %rsi
+         emit_bytes(0x48, 0x8d, 0x74, 0x24, 0x18);
+         emit_align_stack();
+         // movabsq $call_host_function, %rax
+         emit_bytes(0x48, 0xb8);
+         emit_operand_ptr(&call_host_function);
+         // callq *%rax
+         emit_bytes(0xff, 0xd0);
+         emit_restore_stack();
+         // popq %rsi
+         emit_bytes(0x5e);
+         // popq %rdi
+         emit_bytes(0x5f);
+         // retq
+         emit_bytes(0xc3);
       }
 
       bool is_host_function(uint32_t funcnum) { return funcnum < _mod.get_imported_functions_size(); }
