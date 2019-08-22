@@ -41,7 +41,7 @@ macro( add_spec_test name )
    endif()
 endmacro()
 
-foreach(testcase address align block br br_if br_table break-drop call_indirect
+foreach(testcase address align binary-leb128 block br br_if br_table break-drop call_indirect
                  call const conversions f32 f32_bitwise f32_cmp f64 f64_bitwise f64_cmp
                  float_exprs float_literals float_memory float_misc forward
                  func i32 i64 if int_exprs int_literals labels left-to-right

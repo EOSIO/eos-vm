@@ -1233,7 +1233,10 @@ void generate_tests(const map<string, vector<picojson::object>>& mappings) {
       unit_tests << "BACKEND_TEST_CASE( \"Testing wasm <" << tsn << ">\", \"[" << tsn << "_tests]\" ) {\n";
       unit_tests << "   " << test_preamble_0 << "std::string(wasm_directory) + \"" <<  tsn_file << "\");\n";
 
-      if(!cmds.empty() && [](picojson::object cmd) { return cmd["type"].to_str() == "assert_invalid"; }(cmds.front())) {
+      if(!cmds.empty() && [](picojson::object cmd) {
+                            return (cmd["type"].to_str() == "assert_invalid" ||
+                                    cmd["type"].to_str() == "assert_malformed") &&
+                              cmd["module_type"].to_str() == "binary"; }(cmds.front())) {
          unit_tests << "   CHECK_THROWS_AS(backend_t(code), std::exception);\n";
       } else {
          unit_tests << "   " << test_preamble_1 << "\n\n";
@@ -1294,7 +1297,7 @@ int main(int argc, char** argv) {
       if (i->first == "commands") {
          for (const auto& o : i->second.get<picojson::array>()) {
             picojson::object obj = o.get<picojson::object>();
-            if (obj["type"].to_str() == "module" || obj["type"].to_str() == "assert_invalid") {
+            if (obj["type"].to_str() == "module" || obj["type"].to_str() == "assert_invalid" || (obj["type"].to_str() == "assert_malformed" && obj["module_type"].to_str() == "binary")) {
                test_suite_name = obj["filename"].to_str();
                test_mappings[test_suite_name] = {};
             }
