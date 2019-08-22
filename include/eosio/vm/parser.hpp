@@ -59,7 +59,7 @@ namespace eosio { namespace vm {
             code_ptr.fit_bounds(len);
 
             switch (id) {
-               case section_id::custom_section: code_ptr += len; break;
+               case section_id::custom_section: parse_custom(code_ptr); break;
                case section_id::type_section: parse_section<section_id::type_section>(code_ptr, mod.types); break;
                case section_id::import_section: parse_section<section_id::import_section>(code_ptr, mod.imports); break;
                case section_id::function_section:
@@ -97,6 +97,12 @@ namespace eosio { namespace vm {
       }
       inline uint8_t  parse_section_id(wasm_code_ptr& code) { return *code++; }
       inline uint32_t parse_section_payload_len(wasm_code_ptr& code) { return parse_varuint32(code); }
+
+      inline void parse_custom(wasm_code_ptr& code) {
+         /*uint32_t name_len =*/ parse_varuint32(code);
+         // FIXME: validate name
+         code += code.bounds() - code.offset();
+      }
 
       void parse_import_entry(wasm_code_ptr& code, import_entry& entry) {
          auto len         = parse_varuint32(code);
