@@ -289,6 +289,7 @@ namespace eosio { namespace vm {
                return any_type;
             else {
                uint8_t result = state.back();
+               --operand_depth;
                state.pop_back();
                return result;
             }
