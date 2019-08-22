@@ -472,16 +472,25 @@ namespace eosio { namespace vm {
                } break;
                case opcodes::br_table: {
                   size_t table_size = parse_varuint32(code);
+                  uint8_t result_type;
                   op_stack.pop(types::i32);
                   auto handler = code_writer.emit_br_table(table_size);
                   for (size_t i = 0; i < table_size; i++) {
                      uint32_t label = parse_varuint32(code);
                      auto branch = handler.emit_case(compute_depth_change(label));
                      handle_branch_target(label, branch);
+                     uint8_t one_result = pc_stack[pc_stack.size() - label - 1].label_result;
+                     if(i == 0) {
+                        result_type = one_result;
+                     } else {
+                        EOS_VM_ASSERT(result_type == one_result, wasm_parse_exception, "br_table labels must have the same type");
+                     }
                   }
                   uint32_t label = parse_varuint32(code);
                   auto branch = handler.emit_default(compute_depth_change(label));
                   handle_branch_target(label, branch);
+                  EOS_VM_ASSERT(table_size == 0 || result_type == pc_stack[pc_stack.size() - label - 1].label_result,
+                                wasm_parse_exception, "br_table labels must have the same type");
                   op_stack.start_unreachable();
                } break;
                case opcodes::call: {
