@@ -143,8 +143,11 @@ namespace eosio { namespace vm {
       void parse_memory_type(wasm_code_ptr& code, memory_type& mt) {
          mt.limits.flags   = *code++;
          mt.limits.initial = parse_varuint32(code);
+         EOS_VM_ASSERT(mt.limits.initial <= 65535, wasm_parse_exception, "initial memory out of range");
          if (mt.limits.flags) {
             mt.limits.maximum = parse_varuint32(code);
+            EOS_VM_ASSERT(mt.limits.maximum >= mt.limits.initial, wasm_parse_exception, "maximum must be at least minimum");
+            EOS_VM_ASSERT(mt.limits.maximum <= 65536u, wasm_parse_exception, "maximum memory out of range");
          }
       }
 
@@ -534,6 +537,7 @@ namespace eosio { namespace vm {
                } break;
 #define LOAD_OP(op_name, max_align, type)                            \
                case opcodes::op_name: {                              \
+                  EOS_VM_ASSERT(_mod->memories.size() > 0, wasm_parse_exception, "load requires memory"); \
                   uint32_t alignment = parse_varuint32(code);        \
                   uint32_t offset = parse_varuint32(code);           \
                   EOS_VM_ASSERT(alignment <= uint32_t(max_align), wasm_parse_exception, "alignment cannot be greater than size."); \
@@ -561,6 +565,7 @@ namespace eosio { namespace vm {
                      
 #define STORE_OP(op_name, max_align, type)                           \
                case opcodes::op_name: {                              \
+                  EOS_VM_ASSERT(_mod->memories.size() > 0, wasm_parse_exception, "store requires memory"); \
                   uint32_t alignment = parse_varuint32(code);        \
                   uint32_t offset = parse_varuint32(code);           \
                   EOS_VM_ASSERT(alignment <= uint32_t(max_align), wasm_parse_exception, "alignment cannot be greater than size."); \
@@ -582,11 +587,13 @@ namespace eosio { namespace vm {
 #undef STORE_OP
 
                case opcodes::current_memory:
+                  EOS_VM_ASSERT(_mod->memories.size() != 0, wasm_parse_exception, "memory.size requires memory");
                   code_writer.emit_current_memory();
                   op_stack.push(types::i32);
                   code++;
                   break;
                case opcodes::grow_memory:
+                  EOS_VM_ASSERT(_mod->memories.size() != 0, wasm_parse_exception, "memory.grow requires memory");
                   code_writer.emit_grow_memory();
                   op_stack.pop(types::i32);
                   op_stack.push(types::i32);
@@ -770,6 +777,7 @@ namespace eosio { namespace vm {
       }
 
       void parse_data_segment(wasm_code_ptr& code, data_segment& ds) {
+         EOS_VM_ASSERT(_mod->memories.size() != 0, wasm_parse_exception, "data requires memory");
          ds.index = parse_varuint32(code);
          parse_init_expr(code, ds.offset);
          ds.data = decltype(ds.data){ _allocator, parse_varuint32(code) };
@@ -823,7 +831,10 @@ namespace eosio { namespace vm {
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                                 code,
                                 vec<typename std::enable_if_t<id == section_id::memory_section, memory_type>>& elems) {
-         parse_section_impl(code, elems, [&](wasm_code_ptr& code, memory_type& mt, std::size_t /*idx*/) { parse_memory_type(code, mt); });
+         parse_section_impl(code, elems, [&](wasm_code_ptr& code, memory_type& mt, std::size_t idx) {
+            EOS_VM_ASSERT(idx == 0, wasm_parse_exception, "only one memory is permitted");
+            parse_memory_type(code, mt);
+         });
       }
       template <uint8_t id>
       inline void
