@@ -29,7 +29,7 @@ macro( add_spec_test name )
    if ( WASM_SPEC_TESTS_LOCATION )
       add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/spec/${name}.json
          COMMAND ${WAST2JSON} ${WASM_SPEC_TESTS_LOCATION}/${name}.wast -o ${name}.json && mv ${name}.json ${CMAKE_CURRENT_BINARY_DIR}/spec/${name}.json
-         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/wasms
+         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/wasms
          DEPENDS ${WASM_SPEC_TESTS_LOCATION}/${name}.wast
       )
       add_custom_command(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/spec/${name}_tests.cpp
@@ -47,7 +47,7 @@ foreach(testcase address align block br br_if br_table break-drop call_indirect
                  func i32 i64 if int_exprs int_literals labels left-to-right
                  load local_get local_set local_tee loop memory
                  memory_redundancy memory_size memory_trap nop return
-                 stack store switch traps unreachable unwind
+                 stack store switch traps unreachable unreached-invalid unwind
                  )
    add_spec_test(${testcase})
 endforeach()

@@ -266,11 +266,6 @@ namespace eosio { namespace vm {
          void push(uint8_t type) {
             assert(type != unreachable_tag && type != scope_tag);
             assert(type == types::i32 || type == types::i64 || type == types::f32 || type == types::f64 || type == any_type);
-            // any_type can only be pushed by select.
-            if(type == any_type) {
-               assert(!state.empty() && state.back() == unreachable_tag);
-               return;
-            }
             EOS_VM_ASSERT(operand_depth < std::numeric_limits<uint32_t>::max(), wasm_parse_exception, "integer overflow in operand depth");
             ++operand_depth;
             state.push_back(type);
@@ -280,7 +275,7 @@ namespace eosio { namespace vm {
             if(expected == types::pseudo) return;
             EOS_VM_ASSERT(!state.empty(), wasm_parse_exception, "unexpected pop");
             if (state.back() != unreachable_tag) {
-               EOS_VM_ASSERT(state.back() == expected, wasm_parse_exception, "wrong type");
+               EOS_VM_ASSERT(state.back() == expected || state.back() == any_type, wasm_parse_exception, "wrong type");
                --operand_depth;
                state.pop_back();
             }
@@ -297,9 +292,9 @@ namespace eosio { namespace vm {
             }
          }
          void top(uint8_t expected) {
-            assert(expected != unreachable_tag && expected != scope_tag);
-            EOS_VM_ASSERT(!state.empty(), wasm_parse_exception, "expected a value");
-            EOS_VM_ASSERT(state.back() == expected || state.back() == unreachable_tag, wasm_parse_exception, "wrong type");
+            // Constrain the top of the stack if it was any_type or unreachable_tag.
+            pop(expected);
+            push(expected);
          }
          void start_unreachable() {
             while(!state.empty() && state.back() != scope_tag) {
