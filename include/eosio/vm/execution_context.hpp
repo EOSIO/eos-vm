@@ -216,7 +216,9 @@ namespace eosio { namespace vm {
             const auto& ft = _mod.types[_mod.imports[index].type.func_t];
             type_check(ft);
             inc_pc();
+            push_call( activation_frame{ nullptr, 0 } );
             _rhf(_state.host, *this, _mod.import_functions[index]);
+            pop_call();
          } else {
             // const auto& ft = _mod.types[_mod.functions[index - _mod.get_imported_functions_size()]];
             // type_check(ft);
