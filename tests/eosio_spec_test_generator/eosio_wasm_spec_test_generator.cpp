@@ -24,26 +24,6 @@ string normalize(string val) {
    return ret_val;
 }
 
-string create_push_action() {
-   stringstream pa;
-
-   pa << "void push_action(TESTER& tester, action&& act, uint64_t authorizer) {";
-   pa << "   signed_transaction trx;\n";
-   pa << "   if (authorizer) {\n";
-   pa << "      act.authorization = vector<permission_level>{{authorizer, config::active_name}};\n";
-   pa << "   }\n";
-   pa << "   trx.actions.emplace_back(std::move(act));\n";
-   pa << "   tester.set_transaction_headers(trx);\n";
-   pa << "   if (authorizer) {\n";
-   pa << "      trx.sign(tester.get_private_key(authorizer, \"active\"), tester.control->get_chain_id());\n";
-   pa << "   }\n";
-   pa << "   tester.push_transaction(trx);\n";
-   pa << "   tester.produce_block();\n";
-   pa << "}\n\n";
-
-   return pa.str();
-}
-
 string create_pass_test_function(string file_name, string test_name, int test_index) {
    stringstream func;
 
