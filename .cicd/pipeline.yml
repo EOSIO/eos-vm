@@ -7,7 +7,7 @@ steps:
     env:
       IMAGE_TAG: "amazonlinux-2"
     agents: 
-      queue: "automation-test-fleet"
+      queue: "automation-eos-buillder-fleet"
     timeout: ${TIMEOUT:-10}
     skip: $SKIP_AMAZON_LINUX_2
 
