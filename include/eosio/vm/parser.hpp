@@ -195,6 +195,7 @@ namespace eosio { namespace vm {
             uint32_t index                     = parse_varuint32(code);
             tt->table[es.offset.value.i32 + i] = index;
             elems.at(i)                        = index;
+            EOS_VM_ASSERT(index < _mod->functions.size(), wasm_parse_exception,  "elem for undefined function");
          }
          es.elems = std::move(elems);
       }
@@ -506,6 +507,7 @@ namespace eosio { namespace vm {
                case opcodes::call_indirect: {
                   uint32_t functypeidx = parse_varuint32(code);
                   const func_type& ft = _mod->types.at(functypeidx);
+                  EOS_VM_ASSERT(_mod->tables.size() > 0, wasm_parse_exception, "call_indirect requires a table");
                   op_stack.pop(types::i32);
                   for(uint32_t i = 0; i < ft.param_types.size(); ++i)
                      op_stack.pop(ft.param_types[ft.param_types.size() - i - 1]);
