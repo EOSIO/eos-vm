@@ -249,19 +249,110 @@ namespace eosio { namespace vm {
          uint32_t operand_depth;
          uint32_t expected_result;
          uint32_t label_result;
-         bool is_unreachable;
          std::variant<label_t, std::vector<branch_t>> relocations;
       };
 
-      void parse_function_body_code(wasm_code_ptr& code, size_t bounds, Writer& code_writer, const func_type& ft) {
-         // Initialize the control stack with the current function as the sole element
+      static constexpr uint8_t any_type = 0x82;
+      struct operand_stack_type_tracker {
+        std::vector<uint8_t> state = { scope_tag };
+         static constexpr uint8_t unreachable_tag = 0x80;
+         static constexpr uint8_t scope_tag = 0x81;
          uint32_t operand_depth = 0;
+         void push(uint8_t type) {
+            assert(type != unreachable_tag && type != scope_tag);
+            assert(type == types::i32 || type == types::i64 || type == types::f32 || type == types::f64 || type == any_type);
+            // any_type can only be pushed by select.
+            if(type == any_type) {
+               assert(!state.empty() && state.back() == unreachable_tag);
+               return;
+            }
+            EOS_VM_ASSERT(operand_depth < std::numeric_limits<uint32_t>::max(), wasm_parse_exception, "integer overflow in operand depth");
+            ++operand_depth;
+            state.push_back(type);
+         }
+         void pop(uint8_t expected) {
+            assert(expected != unreachable_tag && expected != scope_tag);
+            if(expected == types::pseudo) return;
+            EOS_VM_ASSERT(!state.empty(), wasm_parse_exception, "unexpected pop");
+            if (state.back() != unreachable_tag) {
+               EOS_VM_ASSERT(state.back() == expected, wasm_parse_exception, "wrong type");
+               --operand_depth;
+               state.pop_back();
+            }
+         }
+         uint8_t pop() {
+            EOS_VM_ASSERT(!state.empty() && state.back() != scope_tag, wasm_parse_exception, "unexpected pop");
+            if (state.back() == unreachable_tag)
+               return any_type;
+            else {
+               uint8_t result = state.back();
+               state.pop_back();
+               return result;
+            }
+         }
+         void top(uint8_t expected) {
+            assert(expected != unreachable_tag && expected != scope_tag);
+            EOS_VM_ASSERT(!state.empty(), wasm_parse_exception, "expected a value");
+            EOS_VM_ASSERT(state.back() == expected || state.back() == unreachable_tag, wasm_parse_exception, "wrong type");
+         }
+         void start_unreachable() {
+            while(!state.empty() && state.back() != scope_tag) {
+               if (state.back() != unreachable_tag)
+                  --operand_depth;
+               state.pop_back();
+            }
+            state.push_back(unreachable_tag);
+         }
+         void push_scope() {
+            state.push_back(scope_tag);
+         }
+         void pop_scope(uint8_t expected_result = types::pseudo) {
+            pop(expected_result);
+            EOS_VM_ASSERT(!state.empty(), wasm_parse_exception, "unexpected end");
+            if (state.back() == unreachable_tag) {
+               state.pop_back();
+            }
+            EOS_VM_ASSERT(state.back() == scope_tag, wasm_parse_exception, "unexpected end");
+            state.pop_back();
+            if (expected_result != types::pseudo) {
+               push(expected_result);
+            }
+         }
+         void finish() {
+            if (!state.empty() && state.back() == unreachable_tag) {
+               state.pop_back();
+            }
+            EOS_VM_ASSERT(state.empty(), wasm_parse_exception, "stack not empty at scope end");
+         }
+         uint32_t depth() const { return operand_depth; }
+      };
+
+      struct local_types_t {
+         local_types_t(const func_type& ft, const guarded_vector<local_entry>& locals_arg) {
+            for (uint32_t i = 0; i < ft.param_types.size(); ++i) {
+               locals.push_back(ft.param_types[i]);
+            }
+            for (uint32_t i = 0; i < locals_arg.size(); ++i) {
+               locals.insert(locals.end(), locals_arg[i].count, locals_arg[i].type);
+            }
+         }
+         uint8_t operator[](uint32_t local_idx) const {
+            EOS_VM_ASSERT(local_idx < locals.size(), wasm_parse_exception, "undefined local");
+            return locals[local_idx];
+         }
+         std::vector<value_type> locals;
+      };
+
+      void parse_function_body_code(wasm_code_ptr& code, size_t bounds, Writer& code_writer, const func_type& ft, const guarded_vector<local_entry>& locals) {
+         // Initialize the control stack with the current function as the sole element
+         operand_stack_type_tracker op_stack;
          std::vector<pc_element_t> pc_stack{{
-               operand_depth,
+               op_stack.depth(),
                ft.return_count ? ft.return_type : static_cast<uint32_t>(types::pseudo),
                ft.return_count ? ft.return_type : static_cast<uint32_t>(types::pseudo),
-               false,
                std::vector<branch_t>{}}};
+
+         local_types_t local_types(ft, locals);
 
          // writes the continuation of a label to address.  If the continuation
          // is not yet available, address will be recorded in the relocations
@@ -281,7 +372,7 @@ namespace eosio { namespace vm {
          auto compute_depth_change = [&](uint32_t label) -> uint32_t {
             EOS_VM_ASSERT(label < pc_stack.size(), wasm_parse_exception, "invalid label");
             pc_element_t& branch_target = pc_stack[pc_stack.size() - label - 1];
-            uint32_t result = operand_depth - branch_target.operand_depth;
+            uint32_t result = op_stack.depth() - branch_target.operand_depth;
             if(branch_target.label_result != types::pseudo) {
                // FIXME: Reusing the high bit imposes an additional constraint
                // on the maximum depth of the operand stack.  This isn't an
@@ -289,26 +380,10 @@ namespace eosio { namespace vm {
                // to 8192 elements, but it would be better to avoid spreading
                // this assumption around the code.
                result |= 0x80000000;
+               op_stack.top(branch_target.label_result);
             }
             return result;
          };
-
-         // Unconditional branches effectively make the state of the
-         // stack unconstrained.  FIXME: Note that the unreachable instructions
-         // still need to be validated, for consistency, which this impementation
-         // fails to do.  Also, note that this variable is strictly for validation
-         // purposes, and nested unreachable control structures have this reset
-         // to "reachable," since their bodies get validated normally.
-         bool is_in_unreachable = false;
-         auto start_unreachable = [&]() {
-            // We need enough room to push/pop any number of operands.
-            operand_depth = 0x80000000;
-            is_in_unreachable = true;
-         };
-         auto is_unreachable = [&]() -> bool {
-            return is_in_unreachable;
-         };
-         auto start_reachable = [&]() { is_in_unreachable = false; };
 
          // Handles branches to the end of the scope and pops the pc_stack
          auto exit_scope = [&]() {
@@ -320,29 +395,8 @@ namespace eosio { namespace vm {
                   code_writer.fix_branch(branch_op, end_pos);
                }
             }
-            unsigned expected_operand_depth = pc_stack.back().operand_depth;
-            if (pc_stack.back().expected_result != types::pseudo) {
-               ++expected_operand_depth;
-            }
-            if (!is_unreachable())
-               EOS_VM_ASSERT(operand_depth == expected_operand_depth, wasm_parse_exception, "incorrect stack depth at end");
-            operand_depth = expected_operand_depth;
-            is_in_unreachable = pc_stack.back().is_unreachable;
+            op_stack.pop_scope(pc_stack.back().expected_result);
             pc_stack.pop_back();
-         };
-
-         // Tracks the operand stack
-         auto push_operand = [&](/* uint8_t type */) {
-             EOS_VM_ASSERT(operand_depth < 0xFFFFFFFF, wasm_parse_exception, "Wasm stack overflow.");
-             ++operand_depth;
-         };
-         auto pop_operand = [&]() {
-            EOS_VM_ASSERT(operand_depth > 0, wasm_parse_exception, "Not enough items on the stack.");
-            --operand_depth;
-         };
-         auto pop_operands = [&](uint32_t num_to_pop) {
-            EOS_VM_ASSERT(operand_depth >= num_to_pop, wasm_parse_exception, "Not enough items on the stack.");
-            operand_depth -= num_to_pop;
          };
 
          while (code.offset() < bounds) {
@@ -350,7 +404,7 @@ namespace eosio { namespace vm {
                           "nested structures validation failure");
 
             switch (*code++) {
-               case opcodes::unreachable: code_writer.emit_unreachable(); start_unreachable(); break;
+               case opcodes::unreachable: code_writer.emit_unreachable(); op_stack.start_unreachable(); break;
                case opcodes::nop: code_writer.emit_nop(); break;
                case opcodes::end: {
                   exit_scope();
@@ -360,37 +414,34 @@ namespace eosio { namespace vm {
                   uint32_t label = pc_stack.size() - 1;
                   auto branch = code_writer.emit_return(compute_depth_change(label));
                   handle_branch_target(label, branch);
-                  start_unreachable();
+                  op_stack.start_unreachable();
                } break;
                case opcodes::block: {
                   uint32_t expected_result = *code++;
-                  pc_stack.push_back({operand_depth, expected_result, expected_result, is_in_unreachable, std::vector<branch_t>{}});
+                  pc_stack.push_back({op_stack.depth(), expected_result, expected_result, std::vector<branch_t>{}});
                   code_writer.emit_block();
-                  start_reachable();
+                  op_stack.push_scope();
                } break;
                case opcodes::loop: {
                   uint32_t expected_result = *code++;
                   auto pos = code_writer.emit_loop();
-                  pc_stack.push_back({operand_depth, expected_result, types::pseudo, is_in_unreachable, pos});
-                  start_reachable();
+                  pc_stack.push_back({op_stack.depth(), expected_result, types::pseudo, pos});
+                  op_stack.push_scope();
                } break;
                case opcodes::if_: {
                   uint32_t expected_result = *code++;
                   auto branch = code_writer.emit_if();
-                  pop_operand();
-                  pc_stack.push_back({operand_depth, expected_result, expected_result, is_in_unreachable, std::vector{branch}});
-                  start_reachable();
+                  op_stack.pop(types::i32);
+                  pc_stack.push_back({op_stack.depth(), expected_result, expected_result, std::vector{branch}});
+                  op_stack.push_scope();
                } break;
                case opcodes::else_: {
                   auto& old_index = pc_stack.back();
                   auto& relocations = std::get<std::vector<branch_t>>(old_index.relocations);
                   // reset the operand stack to the same state as the if
-                  if (!is_unreachable()) {
-                     EOS_VM_ASSERT((old_index.expected_result != types::pseudo) + old_index.operand_depth == operand_depth,
-                                   wasm_parse_exception, "Malformed if body");
-                  }
-                  operand_depth = old_index.operand_depth;
-                  start_reachable();
+                  op_stack.pop(old_index.expected_result);
+                  op_stack.pop_scope();
+                  op_stack.push_scope();
                   // Overwrite the branch from the `if` with the `else`.
                   // We're left with a normal relocation list where everything
                   // branches to the corresponding `end`
@@ -401,17 +452,17 @@ namespace eosio { namespace vm {
                   uint32_t label = parse_varuint32(code);
                   auto branch = code_writer.emit_br(compute_depth_change(label));
                   handle_branch_target(label, branch);
-                  start_unreachable();
+                  op_stack.start_unreachable();
                } break;
                case opcodes::br_if: {
                   uint32_t label = parse_varuint32(code);
-                  pop_operand();
+                  op_stack.pop(types::i32);
                   auto branch = code_writer.emit_br_if(compute_depth_change(label));
                   handle_branch_target(label, branch);
                } break;
                case opcodes::br_table: {
                   size_t table_size = parse_varuint32(code);
-                  pop_operand();
+                  op_stack.pop(types::i32);
                   auto handler = code_writer.emit_br_table(table_size);
                   for (size_t i = 0; i < table_size; i++) {
                      uint32_t label = parse_varuint32(code);
@@ -421,117 +472,152 @@ namespace eosio { namespace vm {
                   uint32_t label = parse_varuint32(code);
                   auto branch = handler.emit_default(compute_depth_change(label));
                   handle_branch_target(label, branch);
-                  start_unreachable();
+                  op_stack.start_unreachable();
                } break;
                case opcodes::call: {
                   uint32_t funcnum = parse_varuint32(code);
                   const func_type& ft = _mod->get_function_type(funcnum);
-                  pop_operands(ft.param_types.size());
+                  for(uint32_t i = 0; i < ft.param_types.size(); ++i)
+                     op_stack.pop(ft.param_types[ft.param_types.size() - i - 1]);
                   EOS_VM_ASSERT(ft.return_count <= 1, wasm_parse_exception, "unsupported");
                   if(ft.return_count)
-                     push_operand();
+                     op_stack.push(ft.return_type);
                   code_writer.emit_call(ft, funcnum);
                } break;
                case opcodes::call_indirect: {
                   uint32_t functypeidx = parse_varuint32(code);
                   const func_type& ft = _mod->types.at(functypeidx);
-                  pop_operand();
-                  pop_operands(ft.param_types.size());
+                  op_stack.pop(types::i32);
+                  for(uint32_t i = 0; i < ft.param_types.size(); ++i)
+                     op_stack.pop(ft.param_types[ft.param_types.size() - i - 1]);
                   EOS_VM_ASSERT(ft.return_count <= 1, wasm_parse_exception, "unsupported");
                   if(ft.return_count)
-                     push_operand();
+                     op_stack.push(ft.return_type);
                   code_writer.emit_call_indirect(ft, functypeidx);
                   code++; // 0x00
                   break;
                }
-               case opcodes::drop: code_writer.emit_drop(); pop_operand(); break;
-               case opcodes::select: code_writer.emit_select(); pop_operands(3); push_operand(); break;
-               case opcodes::get_local: code_writer.emit_get_local( parse_varuint32(code) ); push_operand(); break;
-               case opcodes::set_local: code_writer.emit_set_local( parse_varuint32(code) ); pop_operand(); break;
-               case opcodes::tee_local: code_writer.emit_tee_local( parse_varuint32(code) ); break;
-               case opcodes::get_global: code_writer.emit_get_global( parse_varuint32(code) ); push_operand(); break;
-               case opcodes::set_global: code_writer.emit_set_global( parse_varuint32(code) ); pop_operand(); break;
-#define LOAD_OP(op_name, max_align)                                  \
+               case opcodes::drop: code_writer.emit_drop(); op_stack.pop(); break;
+               case opcodes::select: {
+                  code_writer.emit_select();
+                  op_stack.pop(types::i32);
+                  uint8_t t0 = op_stack.pop();
+                  uint8_t t1 = op_stack.pop();
+                  EOS_VM_ASSERT(t0 == t1 || t0 == any_type || t1 == any_type, wasm_parse_exception, "incorrect types for select");
+                  op_stack.push(t0 != any_type? t0 : t1);
+               } break;
+               case opcodes::get_local: {
+                  uint32_t local_idx = parse_varuint32(code);
+                  code_writer.emit_get_local(local_idx);
+                  op_stack.push(local_types[local_idx]);
+               } break;
+               case opcodes::set_local: {
+                  uint32_t local_idx = parse_varuint32(code);
+                  code_writer.emit_set_local(local_idx);
+                  op_stack.pop(local_types[local_idx]);
+               } break;
+               case opcodes::tee_local: {
+                  uint32_t local_idx = parse_varuint32(code);
+                  code_writer.emit_tee_local(local_idx);
+                  op_stack.top(local_types[local_idx]);
+               } break;
+               case opcodes::get_global: {
+                  uint32_t global_idx = parse_varuint32(code);
+                  code_writer.emit_get_global(global_idx);
+                  op_stack.push(_mod->globals.at(global_idx).type.content_type);
+               } break;
+               case opcodes::set_global: {
+                  uint32_t global_idx = parse_varuint32(code);
+                  code_writer.emit_set_global(global_idx);
+                  EOS_VM_ASSERT(_mod->globals.at(global_idx).type.mutability, wasm_parse_exception, "cannot set const global");
+                  op_stack.pop(_mod->globals.at(global_idx).type.content_type);
+               } break;
+#define LOAD_OP(op_name, max_align, type)                            \
                case opcodes::op_name: {                              \
                   uint32_t alignment = parse_varuint32(code);        \
                   uint32_t offset = parse_varuint32(code);           \
                   EOS_VM_ASSERT(alignment <= uint32_t(max_align), wasm_parse_exception, "alignment cannot be greater than size."); \
                   code_writer.emit_ ## op_name( alignment, offset ); \
-                  pop_operand();                                     \
-                  push_operand();                                    \
+                  op_stack.pop(types::i32);                          \
+                  op_stack.push(types::type);                        \
                } break;
 
-               LOAD_OP(i32_load, 2)
-               LOAD_OP(i64_load, 3)
-               LOAD_OP(f32_load, 2)
-               LOAD_OP(f64_load, 3)
-               LOAD_OP(i32_load8_s, 0)
-               LOAD_OP(i32_load16_s, 1)
-               LOAD_OP(i32_load8_u, 0)
-               LOAD_OP(i32_load16_u, 1)
-               LOAD_OP(i64_load8_s, 0)
-               LOAD_OP(i64_load16_s, 1)
-               LOAD_OP(i64_load32_s, 2)
-               LOAD_OP(i64_load8_u, 0)
-               LOAD_OP(i64_load16_u, 1)
-               LOAD_OP(i64_load32_u, 2)
+               LOAD_OP(i32_load, 2, i32)
+               LOAD_OP(i64_load, 3, i64)
+               LOAD_OP(f32_load, 2, f32)
+               LOAD_OP(f64_load, 3, f64)
+               LOAD_OP(i32_load8_s, 0, i32)
+               LOAD_OP(i32_load16_s, 1, i32)
+               LOAD_OP(i32_load8_u, 0, i32)
+               LOAD_OP(i32_load16_u, 1, i32)
+               LOAD_OP(i64_load8_s, 0, i64)
+               LOAD_OP(i64_load16_s, 1, i64)
+               LOAD_OP(i64_load32_s, 2, i64)
+               LOAD_OP(i64_load8_u, 0, i64)
+               LOAD_OP(i64_load16_u, 1, i64)
+               LOAD_OP(i64_load32_u, 2, i64)
 
 #undef LOAD_OP
                      
-#define STORE_OP(op_name, max_align)                                 \
+#define STORE_OP(op_name, max_align, type)                           \
                case opcodes::op_name: {                              \
                   uint32_t alignment = parse_varuint32(code);        \
                   uint32_t offset = parse_varuint32(code);           \
                   EOS_VM_ASSERT(alignment <= uint32_t(max_align), wasm_parse_exception, "alignment cannot be greater than size."); \
                   code_writer.emit_ ## op_name( alignment, offset ); \
-                  pop_operands(2);                                   \
+                  op_stack.pop(types::type);                         \
+                  op_stack.pop(types::i32);                          \
                } break;
 
-               STORE_OP(i32_store, 2)
-               STORE_OP(i64_store, 3)
-               STORE_OP(f32_store, 2)
-               STORE_OP(f64_store, 3)
-               STORE_OP(i32_store8, 0)
-               STORE_OP(i32_store16, 1)
-               STORE_OP(i64_store8, 0)
-               STORE_OP(i64_store16, 1)
-               STORE_OP(i64_store32, 2)
+               STORE_OP(i32_store, 2, i32)
+               STORE_OP(i64_store, 3, i64)
+               STORE_OP(f32_store, 2, f32)
+               STORE_OP(f64_store, 3, f64)
+               STORE_OP(i32_store8, 0, i32)
+               STORE_OP(i32_store16, 1, i32)
+               STORE_OP(i64_store8, 0, i64)
+               STORE_OP(i64_store16, 1, i64)
+               STORE_OP(i64_store32, 2, i64)
 
 #undef STORE_OP
 
                case opcodes::current_memory:
                   code_writer.emit_current_memory();
-                  push_operand();
+                  op_stack.push(types::i32);
                   code++;
                   break;
                case opcodes::grow_memory:
                   code_writer.emit_grow_memory();
-                  pop_operand();
-                  push_operand();
+                  op_stack.pop(types::i32);
+                  op_stack.push(types::i32);
                   code++;
                   break;
-               case opcodes::i32_const: code_writer.emit_i32_const( parse_varint32(code) ); push_operand(); break;
-               case opcodes::i64_const: code_writer.emit_i64_const( parse_varint64(code) ); push_operand(); break;
+               case opcodes::i32_const: code_writer.emit_i32_const( parse_varint32(code) ); op_stack.push(types::i32); break;
+               case opcodes::i64_const: code_writer.emit_i64_const( parse_varint64(code) ); op_stack.push(types::i64); break;
                case opcodes::f32_const: {
                   float value;
                   memcpy(&value, code.raw(), 4);
                   code_writer.emit_f32_const( value );
                   code += 4;
-                  push_operand();
+                  op_stack.push(types::f32);
                } break;
                case opcodes::f64_const: {
                   double value;
                   memcpy(&value, code.raw(), 8);
                   code_writer.emit_f64_const( value );
                   code += 8;
-                  push_operand();
+                  op_stack.push(types::f64);
                } break;
 
 #define UNOP(opname) \
-               case opcodes::opname: code_writer.emit_ ## opname(); pop_operand(); push_operand(); break;
+               case opcodes::opname: code_writer.emit_ ## opname(); op_stack.pop(types::A); op_stack.push(types::R); break;
 #define BINOP(opname) \
-               case opcodes::opname: code_writer.emit_ ## opname(); pop_operands(2); push_operand(); break;
+               case opcodes::opname: code_writer.emit_ ## opname(); op_stack.pop(types::A); op_stack.pop(types::A); op_stack.push(types::R); break;
+#define CASTOP(dst, opname, src)                                         \
+               case opcodes::dst ## _ ## opname ## _ ## src: code_writer.emit_ ## dst ## _ ## opname ## _ ## src(); op_stack.pop(types::src); op_stack.push(types::dst); break;
 
+#define R i32
+#define A i32  
                UNOP(i32_eqz)
                BINOP(i32_eq)
                BINOP(i32_ne)
@@ -543,6 +629,8 @@ namespace eosio { namespace vm {
                BINOP(i32_le_u)
                BINOP(i32_ge_s)
                BINOP(i32_ge_u)
+#undef A
+#define A i64                 
                UNOP(i64_eqz)
                BINOP(i64_eq)
                BINOP(i64_ne)
@@ -554,19 +642,26 @@ namespace eosio { namespace vm {
                BINOP(i64_le_u)
                BINOP(i64_ge_s)
                BINOP(i64_ge_u)
+#undef A
+#define A f32
                BINOP(f32_eq)
                BINOP(f32_ne)
                BINOP(f32_lt)
                BINOP(f32_gt)
                BINOP(f32_le)
                BINOP(f32_ge)
+#undef A
+#define A f64
                BINOP(f64_eq)
                BINOP(f64_ne)
                BINOP(f64_lt)
                BINOP(f64_gt)
                BINOP(f64_le)
                BINOP(f64_ge)
-
+#undef A
+#undef R
+#define R A
+#define A i32
                UNOP(i32_clz)
                UNOP(i32_ctz)
                UNOP(i32_popcnt)
@@ -585,6 +680,8 @@ namespace eosio { namespace vm {
                BINOP(i32_shr_u)
                BINOP(i32_rotl)
                BINOP(i32_rotr)
+#undef A
+#define A i64
                UNOP(i64_clz)
                UNOP(i64_ctz)
                UNOP(i64_popcnt)
@@ -603,7 +700,8 @@ namespace eosio { namespace vm {
                BINOP(i64_shr_u)
                BINOP(i64_rotl)
                BINOP(i64_rotr)
-
+#undef A
+#define A f32
                UNOP(f32_abs)
                UNOP(f32_neg)
                UNOP(f32_ceil)
@@ -618,6 +716,8 @@ namespace eosio { namespace vm {
                BINOP(f32_min)
                BINOP(f32_max)
                BINOP(f32_copysign)
+#undef A
+#define A f64
                UNOP(f64_abs)
                UNOP(f64_neg)
                UNOP(f64_ceil)
@@ -632,33 +732,36 @@ namespace eosio { namespace vm {
                BINOP(f64_min)
                BINOP(f64_max)
                BINOP(f64_copysign)
+#undef A
+#undef R
 
-               UNOP(i32_wrap_i64)
-               UNOP(i32_trunc_s_f32)
-               UNOP(i32_trunc_u_f32)
-               UNOP(i32_trunc_s_f64)
-               UNOP(i32_trunc_u_f64)
-               UNOP(i64_extend_s_i32)
-               UNOP(i64_extend_u_i32)
-               UNOP(i64_trunc_s_f32)
-               UNOP(i64_trunc_u_f32)
-               UNOP(i64_trunc_s_f64)
-               UNOP(i64_trunc_u_f64)
-               UNOP(f32_convert_s_i32)
-               UNOP(f32_convert_u_i32)
-               UNOP(f32_convert_s_i64)
-               UNOP(f32_convert_u_i64)
-               UNOP(f32_demote_f64)
-               UNOP(f64_convert_s_i32)
-               UNOP(f64_convert_u_i32)
-               UNOP(f64_convert_s_i64)
-               UNOP(f64_convert_u_i64)
-               UNOP(f64_promote_f32)
-               UNOP(i32_reinterpret_f32)
-               UNOP(i64_reinterpret_f64)
-               UNOP(f32_reinterpret_i32)
-               UNOP(f64_reinterpret_i64)
+               CASTOP(i32, wrap, i64)
+               CASTOP(i32, trunc_s, f32)
+               CASTOP(i32, trunc_u, f32)
+               CASTOP(i32, trunc_s, f64)
+               CASTOP(i32, trunc_u, f64)
+               CASTOP(i64, extend_s, i32)
+               CASTOP(i64, extend_u, i32)
+               CASTOP(i64, trunc_s, f32)
+               CASTOP(i64, trunc_u, f32)
+               CASTOP(i64, trunc_s, f64)
+               CASTOP(i64, trunc_u, f64)
+               CASTOP(f32, convert_s, i32)
+               CASTOP(f32, convert_u, i32)
+               CASTOP(f32, convert_s, i64)
+               CASTOP(f32, convert_u, i64)
+               CASTOP(f32, demote, f64)
+               CASTOP(f64, convert_s, i32)
+               CASTOP(f64, convert_u, i32)
+               CASTOP(f64, convert_s, i64)
+               CASTOP(f64, convert_u, i64)
+               CASTOP(f64, promote, f32)
+               CASTOP(i32, reinterpret, f32)
+               CASTOP(i64, reinterpret, f64)
+               CASTOP(f32, reinterpret, i32)
+               CASTOP(f64, reinterpret, i64)
 
+#undef CASTOP
 #undef UNOP
 #undef BINOP
                case opcodes::error: code_writer.emit_error(); break;
@@ -755,7 +858,7 @@ namespace eosio { namespace vm {
             function_body& fb = _mod->code[i];
             func_type& ft = _mod->types.at(_mod->functions.at(i));
             code_writer.emit_prologue(ft, fb.locals, i);
-            parse_function_body_code(_function_bodies[i], fb.size, code_writer, ft);
+            parse_function_body_code(_function_bodies[i], fb.size, code_writer, ft, fb.locals);
             code_writer.emit_epilogue(ft, fb.locals, i);
             code_writer.finalize(fb);
          }
