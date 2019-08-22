@@ -252,6 +252,7 @@ namespace eosio { namespace vm {
          uint32_t operand_depth;
          uint32_t expected_result;
          uint32_t label_result;
+         bool is_if;
          std::variant<label_t, std::vector<branch_t>> relocations;
       };
 
@@ -354,6 +355,7 @@ namespace eosio { namespace vm {
                op_stack.depth(),
                ft.return_count ? ft.return_type : static_cast<uint32_t>(types::pseudo),
                ft.return_count ? ft.return_type : static_cast<uint32_t>(types::pseudo),
+               false,
                std::vector<branch_t>{}}};
 
          local_types_t local_types(ft, locals);
@@ -393,6 +395,8 @@ namespace eosio { namespace vm {
          auto exit_scope = [&]() {
             // There must be at least one element
             EOS_VM_ASSERT(pc_stack.size(), wasm_invalid_element, "unexpected end instruction");
+            // an if with an empty else cannot have a return value
+            EOS_VM_ASSERT(!pc_stack.back().is_if || pc_stack.back().expected_result == types::pseudo, wasm_parse_exception, "wrong type");
             auto end_pos = code_writer.emit_end();
             if(auto* relocations = std::get_if<std::vector<branch_t>>(&pc_stack.back().relocations)) {
                for(auto branch_op : *relocations) {
@@ -422,21 +426,21 @@ namespace eosio { namespace vm {
                } break;
                case opcodes::block: {
                   uint32_t expected_result = *code++;
-                  pc_stack.push_back({op_stack.depth(), expected_result, expected_result, std::vector<branch_t>{}});
+                  pc_stack.push_back({op_stack.depth(), expected_result, expected_result, false, std::vector<branch_t>{}});
                   code_writer.emit_block();
                   op_stack.push_scope();
                } break;
                case opcodes::loop: {
                   uint32_t expected_result = *code++;
                   auto pos = code_writer.emit_loop();
-                  pc_stack.push_back({op_stack.depth(), expected_result, types::pseudo, pos});
+                  pc_stack.push_back({op_stack.depth(), expected_result, types::pseudo, false, pos});
                   op_stack.push_scope();
                } break;
                case opcodes::if_: {
                   uint32_t expected_result = *code++;
                   auto branch = code_writer.emit_if();
                   op_stack.pop(types::i32);
-                  pc_stack.push_back({op_stack.depth(), expected_result, expected_result, std::vector{branch}});
+                  pc_stack.push_back({op_stack.depth(), expected_result, expected_result, true, std::vector{branch}});
                   op_stack.push_scope();
                } break;
                case opcodes::else_: {
@@ -450,6 +454,8 @@ namespace eosio { namespace vm {
                   // We're left with a normal relocation list where everything
                   // branches to the corresponding `end`
                   relocations[0] = code_writer.emit_else(relocations[0]);
+                  EOS_VM_ASSERT(old_index.is_if, wasm_parse_exception, "else outside if");
+                  old_index.is_if = false;
                   break;
                }
                case opcodes::br: {
