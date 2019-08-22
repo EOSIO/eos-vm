@@ -296,9 +296,6 @@ BACKEND_TEST_CASE( "Testing wasm <func_42_wasm>", "[func_42_wasm_tests]" ) {
 BACKEND_TEST_CASE( "Testing wasm <func_43_wasm>", "[func_43_wasm_tests]" ) {
    using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "func.43.wasm");
-   backend_t bkend( code );
-   bkend.set_wasm_allocator( &wa );
-   bkend.initialize(nullptr);
-
+   CHECK_THROWS_AS(backend_t(code), std::exception);
 }
 

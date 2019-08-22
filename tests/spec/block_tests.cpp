@@ -252,10 +252,7 @@ BACKEND_TEST_CASE( "Testing wasm <block_126_wasm>", "[block_126_wasm_tests]" ) {
 BACKEND_TEST_CASE( "Testing wasm <block_127_wasm>", "[block_127_wasm_tests]" ) {
    using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "block.127.wasm");
-   backend_t bkend( code );
-   bkend.set_wasm_allocator( &wa );
-   bkend.initialize(nullptr);
-
+   CHECK_THROWS_AS(backend_t(code), std::exception);
 }
 
 BACKEND_TEST_CASE( "Testing wasm <block_13_wasm>", "[block_13_wasm_tests]" ) {

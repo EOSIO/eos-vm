@@ -1233,7 +1233,7 @@ void generate_tests(const map<string, vector<picojson::object>>& mappings) {
       unit_tests << "BACKEND_TEST_CASE( \"Testing wasm <" << tsn << ">\", \"[" << tsn << "_tests]\" ) {\n";
       unit_tests << "   " << test_preamble_0 << "std::string(wasm_directory) + \"" <<  tsn_file << "\");\n";
 
-      if(cmds.size() <= 2 && std::find_if(cmds.begin(), cmds.end(), [](picojson::object cmd) { return cmd["type"].to_str() == "assert_invalid"; }) != cmds.end()) {
+      if(!cmds.empty() && [](picojson::object cmd) { return cmd["type"].to_str() == "assert_invalid"; }(cmds.front())) {
          unit_tests << "   CHECK_THROWS_AS(backend_t(code), std::exception);\n";
       } else {
          unit_tests << "   " << test_preamble_1 << "\n\n";
