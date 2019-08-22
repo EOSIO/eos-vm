@@ -47,7 +47,8 @@ foreach(testcase address align block br br_if br_table break-drop call_indirect
                  func i32 i64 if int_exprs int_literals labels left-to-right
                  load local_get local_set local_tee loop memory
                  memory_redundancy memory_size memory_trap nop return
-                 stack store switch traps unreachable unreached-invalid unwind
+                 stack store switch traps typecheck
+                 unreachable unreached-invalid unwind
                  )
    add_spec_test(${testcase})
 endforeach()
