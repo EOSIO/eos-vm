@@ -15,18 +15,16 @@
 6. The newly created merged wasms and unit test C++ files are copied into the appropriate directory in the eos repo.
 
 ## How tests are split up
-
 - Within a spec test suite, each `assert_trap` and `assert_exhaustion` test case is given a unique `sub_apply` function.
     - All tests in a suite are in the same WASM file, so the test that is run is based on the `test.name` passed in to `apply` (which calls the correct `sub_apply`).
-
 - Within a test suite, `assert_return` tests are grouped into sets of 100.
     - This is due to the limit on 1024 locals and 1024 func defs built into nodeos. Some spec tests had too many functions to have a `sub_apply` per test, and some had too many variables to be put all into one `sub_apply`.
     - 100 was found to be the number that did not exceed this maximum for all the tests.
     - The tests also have some reliance on ordering (a store may need to be called before a load for example).
     - 100 also works out to make sure the right ordering is achieved.
 
-- The unit tests are generated based off the functions that are generated from the above rules.
-    - For example, a test suite with 5 `assert_trap` and 180 `assert_return` would have 5 functions for the `assert_trap` and 2 for the `assert_return` so 7 unit tests in total.
+- The unit tests are split into 2 groups. All of the `assert_trap` tests are grouped into one `BOOST_DATA_TEST_CASE` and all the `assert_return` tests are grouped into a second `BOOST_DATA_TEST_CASE`
+- The unit test files are grouped by test suite (all `address` tests are together, all `call` tests together, etc.)
 
 ## How to generate tests
 - Run the `setup_eosio_tests.py` script with no options to see the help text.
