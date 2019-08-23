@@ -216,7 +216,9 @@ namespace eosio { namespace vm {
             const auto& ft = _mod.types[_mod.imports[index].type.func_t];
             type_check(ft);
             inc_pc();
+            push_call( activation_frame{ nullptr, 0 } );
             _rhf(_state.host, *this, _mod.import_functions[index]);
+            pop_call();
          } else {
             // const auto& ft = _mod.types[_mod.functions[index - _mod.get_imported_functions_size()]];
             // type_check(ft);
@@ -352,6 +354,7 @@ namespace eosio { namespace vm {
       inline void     exit(std::error_code err = std::error_code()) {
          _error_code = err;
          _state.pc = &_halt;
+         _state.exiting = true;
       }
 
       inline void reset() {
@@ -416,7 +419,7 @@ namespace eosio { namespace vm {
             return {};
          }
 
-         if (_mod.get_function_type(func_index).return_count) {
+         if (_mod.get_function_type(func_index).return_count && !_state.exiting) {
             return pop_operand();
          } else {
             return {};
@@ -537,6 +540,7 @@ namespace eosio { namespace vm {
          uint32_t as_index         = 0;
          uint32_t os_index         = 0;
          opcode*  pc               = nullptr;
+         bool     exiting          = false;
       };
 
       bounded_allocator _base_allocator = {

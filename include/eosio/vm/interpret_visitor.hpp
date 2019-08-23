@@ -75,7 +75,11 @@ namespace eosio { namespace vm {
       }
       [[gnu::always_inline]] inline void operator()(const call_indirect_t& op) {
          const auto& index = context.pop_operand().to_ui32();
-         context.call(context.table_elem(index));
+         uint32_t fn = context.table_elem(index);
+         const auto& expected_type = context.get_module().types.at(op.index);
+         const auto& actual_type = context.get_module().get_function_type(fn);
+         EOS_VM_ASSERT(actual_type == expected_type, wasm_interpreter_exception, "bad call_indirect type");
+         context.call(fn);
       }
       [[gnu::always_inline]] inline void operator()(const drop_t& op) {
          context.pop_operand();
