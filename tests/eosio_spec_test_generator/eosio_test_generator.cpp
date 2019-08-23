@@ -352,6 +352,8 @@ int main(int argc, char** argv) {
    map<string, vector<picojson::object>> file_func_mappings = get_file_func_mappings(v);
    map<string, map<int, string>>         test_mappings;
 
+   vector<spec_test> spec_tests;
+
    for (const auto& f : file_func_mappings) {
       ofstream ofs_cpp;
       ofstream ofs_map;
@@ -408,6 +410,12 @@ int main(int argc, char** argv) {
          ++sub_apply_index;
       }
 
+      int assert_trap_end_index = sub_apply_index;
+
+      if (assert_return_tests.size() < 1 ) {
+         cout << test_name << " -- NO ASSERT_RETURN" << endl;
+      }
+
       stringstream ss;
       int          i            = 1;
       int          length_tests = assert_return_tests.size();
@@ -431,6 +439,8 @@ int main(int argc, char** argv) {
          ++i;
       }
 
+      spec_tests.push_back(spec_test{test_name, 0, assert_trap_end_index, assert_trap_end_index, sub_apply_index});
+
       int index = 0;
       apply_func << "      switch(test_to_run) {\n";
       for (auto sub_apply : sub_applies) {
@@ -446,5 +456,5 @@ int main(int argc, char** argv) {
       write_map_file(ofs_map);
    }
 
-   write_tests(test_mappings);
+   write_tests(spec_tests);
 }

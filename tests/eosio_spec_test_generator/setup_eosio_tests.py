@@ -58,7 +58,8 @@ def setup_tests(j):
     mkdirs()
     copy(dir_name)
     compile_wasm()
-    generate_and_copy()
+    generate_wasm_and_copy()
+    copy_cpp()
 
     os.chdir(_cwd)
 
@@ -67,23 +68,26 @@ def mkdirs():
     new_dirs = []
     for f in os.listdir():
         num = f.split('.')[1]
-        new_dirs.append(num)
+        if num.isdigit():
+            new_dirs.append(num)
 
     for d in set(new_dirs):
-        os.mkdir(d)
+        os.mkdir(str(d))
 
     for f in os.listdir():
         if not os.path.isdir(f):
             num = f.split('.')[1]
-            os.rename(f, os.path.join(num, f))
+            if num.isdigit():
+                os.rename(f, os.path.join(num, f))
 
 
 def copy(dir_name):
     for d in os.listdir():
-        shutil.copy(
-            os.path.join(WASM_DIR, f'{dir_name}.{d}.wasm'),
-            os.path.join(os.getcwd(), d, 'test.wasm')
-        )
+        if d.isdigit():
+            shutil.copy(
+                os.path.join(WASM_DIR, f'{dir_name}.{d}.wasm'),
+                os.path.join(os.getcwd(), d, 'test.wasm')
+            )
 
 
 def compile_wasm():
@@ -91,6 +95,7 @@ def compile_wasm():
     name = cwd.split('/')[-1]
     fs = os.listdir()
 
+    fs = list(filter(lambda x: os.path.isdir(x), fs))
     fs_m = map(lambda x: (x, name), fs)
 
     # If there's a lot of files, break out and process in parallel.
@@ -111,11 +116,14 @@ def compile_eosio(f):
     )
 
 
-def generate_and_copy():
+def generate_wasm_and_copy():
     cwd = os.getcwd()
     name = cwd.split('/')[-1]
     altered_wasms = get_altered_wasms()
     for d in os.listdir():
+        if not d.isdigit():
+            continue
+
         wasm_file = f'{name}.{d}.wasm'
         if wasm_file in altered_wasms:
             wasm_file_path = os.path.join(ALTERED_WASMS_DIR, name, wasm_file)
@@ -138,9 +146,15 @@ def generate_and_copy():
 
         test_dir = os.path.join(EOSIO_DIR, 'wasm_spec_tests')
 
-        cpp_file = f'{name}.{d}.cpp'
-        shutil.copy(os.path.join(d, cpp_file), os.path.join(test_dir, cpp_file))
         shutil.copy(wasm_file_path, os.path.join(test_dir, 'wasms', wasm_file))
+
+
+def copy_cpp():
+    cwd = os.getcwd()
+    name = cwd.split('/')[-1]
+    cpp_file = f'{name}.cpp'
+    test_dir = os.path.join(EOSIO_DIR, 'wasm_spec_tests')
+    shutil.copy(cpp_file, os.path.join(test_dir, cpp_file))
 
 if __name__ == '__main__':
     if len(sys.argv) < 3:

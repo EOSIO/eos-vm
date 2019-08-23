@@ -3,13 +3,14 @@
 #include <map>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "eosio_test_generator.hpp"
 
 using namespace std;
 
-const string test_includes = "#include <wasm_spec_tests.hpp>\n";
-const string end_test      = "BOOST_AUTO_TEST_SUITE_END()\n";
+const string test_includes = "#include <wasm_spec_tests.hpp>\n\n";
+const string boost_xrange  = "boost::unit_test::data::xrange";
 
 string normalize(string val) {
    string ret_val = val;
@@ -24,74 +25,75 @@ string normalize(string val) {
    return ret_val;
 }
 
-string create_pass_test_function(string file_name, string test_name, int test_index) {
+string create_passing_data_test_case(string test_name, int start_index, int end_index) {
    stringstream func;
 
-   func << "BOOST_AUTO_TEST_CASE(" << test_name << ") { try {\n";
+   func << "BOOST_DATA_TEST_CASE(" << test_name << "_pass, " << boost_xrange << "(" << start_index << "," << end_index
+        << "), index) { try {\n";
    func << "   TESTER tester;\n";
    func << "   tester.produce_block();\n";
    func << "   tester.create_account( N(wasmtest) );\n";
    func << "   tester.produce_block();\n";
-   func << "   tester.set_code(N(wasmtest), wasm);\n";
+   func << "   tester.set_code(N(wasmtest), wasm_" << test_name << ");\n";
    func << "   tester.produce_block();\n\n";
    func << "   action test;\n";
    func << "   test.account = N(wasmtest);\n";
-   func << "   test.name = account_name((uint64_t)" << test_index << ");\n";
+   func << "   test.name = account_name((uint64_t)index);\n";
    func << "   test.authorization = {{N(wasmtest), config::active_name}};\n\n";
    func << "   push_action(tester, std::move(test), N(wasmtest).to_uint64_t());\n";
    func << "   tester.produce_block();\n";
    func << "   BOOST_REQUIRE_EQUAL( tester.validate(), true );\n";
-   func << "} FC_LOG_AND_RETHROW() }\n";
+   func << "} FC_LOG_AND_RETHROW() }\n\n";
 
    return func.str();
 }
 
-string create_throw_test_function(string file_name, string test_name, int test_index) {
+string create_check_throw_data_test_case(string test_name, int start_index, int end_index) {
    stringstream func;
 
-   func << "BOOST_AUTO_TEST_CASE(" << test_name << ") { try {\n";
+   func << "BOOST_DATA_TEST_CASE(" << test_name << "_check_throw, " << boost_xrange << "(" << start_index << "," << end_index
+        << "), index) { try {\n";
    func << "   TESTER tester;\n";
    func << "   tester.produce_block();\n";
    func << "   tester.create_account( N(wasmtest) );\n";
    func << "   tester.produce_block();\n";
-   func << "   tester.set_code(N(wasmtest), wasm);\n";
+   func << "   tester.set_code(N(wasmtest), wasm_" << test_name << ");\n";
    func << "   tester.produce_block();\n\n";
    func << "   action test;\n";
    func << "   test.account = N(wasmtest);\n";
-   func << "   test.name = account_name((uint64_t)" << test_index << ");\n";
+   func << "   test.name = account_name((uint64_t)index);\n";
    func << "   test.authorization = {{N(wasmtest), config::active_name}};\n\n";
    func << "   BOOST_CHECK_THROW(push_action(tester, std::move(test), N(wasmtest).to_uint64_t()), "
            "wasm_execution_error);\n";
    func << "   tester.produce_block();\n";
-   func << "} FC_LOG_AND_RETHROW() }\n";
+   func << "} FC_LOG_AND_RETHROW() }\n\n";
 
    return func.str();
 }
 
-void write_tests(map<string, map<int, string>> test_mappings) {
-   for (const auto& f : test_mappings) {
-      ofstream ofs;
-      string   file_name = f.first;
+void write_tests(vector<spec_test> tests) {
+   string file_name = "";
+   stringstream test_ss;
 
-      ofs.open(file_name + ".cpp", ofstream::out);
+   for (const auto& t: tests) {
+      file_name = t.name.substr(0, t.name.find_last_of('.'));
 
-      ofs << test_includes;
-      ofs << "BOOST_AUTO_TEST_SUITE(" << normalize(file_name) << ")\n\n";
+      string name = normalize(t.name);
+      test_ss << "const string wasm_str_" << name << " = base_dir + \"/wasm_spec_tests/wasms/" << t.name << ".wasm\";\n";
+      test_ss << "std::vector<uint8_t> wasm_" << name << "= read_wasm(wasm_str_" << name << ".c_str());\n\n";
 
-      ofs << "const string wasm_str = base_dir + \"/wasm_spec_tests/wasms/" << file_name << ".wasm\";\n";
-      ofs << "std::vector<uint8_t> wasm = read_wasm(wasm_str.c_str());\n\n";
-
-      for (const auto& ff : f.second) {
-         string test_name  = normalize(file_name) + "_sub_apply_" + to_string(ff.first);
-         int    test_index = ff.first;
-         string type_test  = ff.second;
-
-         if (type_test == "assert_trap") {
-            ofs << create_throw_test_function(file_name, test_name, test_index) << "\n";
-         } else {
-            ofs << create_pass_test_function(file_name, test_name, test_index) << "\n";
-         }
+      if (t.assert_trap_start_index < t.assert_trap_end_index) {
+         test_ss << create_check_throw_data_test_case(name, t.assert_trap_start_index, t.assert_trap_end_index);
       }
-      ofs << end_test;
+
+      if (t.assert_return_start_index < t.assert_return_end_index) {
+         test_ss << create_passing_data_test_case(name, t.assert_return_start_index, t.assert_return_end_index);
+      }
    }
+
+   ofstream ofs;
+   ofs.open(file_name + ".cpp", ofstream::out);
+
+   ofs << test_includes;
+   ofs << test_ss.str();
 }
