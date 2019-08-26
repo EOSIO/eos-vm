@@ -1126,6 +1126,27 @@ const string test_includes = "#include <algorithm>\n#include <vector>\n#include 
 const string test_preamble_0 = "using backend_t = backend<std::nullptr_t, TestType>;\n   auto code = backend_t::read_wasm( ";
 const string test_preamble_1 = "backend_t bkend( code );\n   bkend.set_wasm_allocator( &wa );\n   bkend.initialize(nullptr);";
 
+std::string cpp_string(const picojson::value& x) {
+   std::string result = "\"";
+   for(unsigned char ch : x.to_str()) {
+     if ((unsigned char)ch < 0x20 || (unsigned char)ch > 0x7F) {
+         // Use a three digit octal escape, because that won't
+         // accidentally consume the following characters.
+         result += '\\';
+         result += (((unsigned char)ch >> 6) & 0x07) + '0';
+         result += (((unsigned char)ch >> 3) & 0x07) + '0';
+         result += (((unsigned char)ch >> 0) & 0x07) + '0';
+      } else if(ch == '\\' || ch == '\"') {
+         result += '\\';
+         result += ch;
+      } else {
+         result += ch;
+      }
+   }
+   result += "\"";
+   return result;
+}
+
 string generate_test_call(picojson::object obj, string expected_t, string expected_v) {
    stringstream ss;
 
@@ -1141,7 +1162,7 @@ string generate_test_call(picojson::object obj, string expected_t, string expect
       ss << "!bkend.call_with_return(nullptr, \"env\", ";
    }
 
-   ss << "\"" << obj["field"].to_str() << "\"";
+   ss << cpp_string(obj["field"]);
 
    for (picojson::value argv : obj["args"].get<picojson::array>()) {
       ss << ", ";
@@ -1177,7 +1198,7 @@ string generate_trap_call(picojson::object obj) {
    stringstream ss;
 
    ss << "bkend(nullptr, \"env\", ";
-   ss << "\"" << obj["field"].to_str() << "\"";
+   ss << cpp_string(obj["field"]);
 
    for (picojson::value argv : obj["args"].get<picojson::array>()) {
       ss << ", ";
@@ -1199,7 +1220,7 @@ string generate_call(picojson::object obj) {
    stringstream ss;
 
    ss << "bkend(nullptr, \"env\", ";
-   ss << "\"" << obj["field"].to_str() << "\"";
+   ss << cpp_string(obj["field"]);
 
    for (picojson::value argv : obj["args"].get<picojson::array>()) {
       ss << ", ";

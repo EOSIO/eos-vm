@@ -99,6 +99,7 @@ namespace eosio { namespace vm {
                default: EOS_VM_ASSERT(false, wasm_parse_exception, "error invalid section id");
             }
          }
+         EOS_VM_ASSERT(_mod->code.size() == _mod->functions.size(), wasm_parse_exception, "code section must have the same size as the function section" );
       }
 
       inline uint32_t parse_magic(wasm_code_ptr& code) {
@@ -520,6 +521,7 @@ namespace eosio { namespace vm {
                   if(ft.return_count)
                      op_stack.push(ft.return_type);
                   code_writer.emit_call_indirect(ft, functypeidx);
+                  EOS_VM_ASSERT(*code == 0, wasm_parse_exception, "call_indirect must end with 0x00.");
                   code++; // 0x00
                   break;
                }
@@ -613,6 +615,7 @@ namespace eosio { namespace vm {
                   EOS_VM_ASSERT(_mod->memories.size() != 0, wasm_parse_exception, "memory.size requires memory");
                   code_writer.emit_current_memory();
                   op_stack.push(types::i32);
+                  EOS_VM_ASSERT(*code == 0, wasm_parse_exception, "memory.size must end with 0x00");
                   code++;
                   break;
                case opcodes::grow_memory:
@@ -620,6 +623,7 @@ namespace eosio { namespace vm {
                   code_writer.emit_grow_memory();
                   op_stack.pop(types::i32);
                   op_stack.push(types::i32);
+                  EOS_VM_ASSERT(*code == 0, wasm_parse_exception, "memory.grow must end with 0x00");
                   code++;
                   break;
                case opcodes::i32_const: code_writer.emit_i32_const( parse_varint32(code) ); op_stack.push(types::i32); break;
@@ -867,6 +871,7 @@ namespace eosio { namespace vm {
                                 vec<typename std::enable_if_t<id == section_id::code_section, function_body>>& elems) {
          parse_section_impl(code, elems,
                             [&](wasm_code_ptr& code, function_body& fb, std::size_t idx) { parse_function_body(code, fb, idx); });
+         EOS_VM_ASSERT( elems.size() == _mod->functions.size(), wasm_parse_exception, "code section must have the same size as the function section" );
          Writer code_writer(_allocator, code.bounds() - code.offset(), *_mod);
          for (size_t i = 0; i < _function_bodies.size(); i++) {
             function_body& fb = _mod->code[i];
