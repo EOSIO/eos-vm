@@ -451,6 +451,7 @@ namespace eosio { namespace vm {
                } break;
                case opcodes::else_: {
                   auto& old_index = pc_stack.back();
+                  EOS_VM_ASSERT(old_index.is_if, wasm_parse_exception, "else outside if");
                   auto& relocations = std::get<std::vector<branch_t>>(old_index.relocations);
                   // reset the operand stack to the same state as the if
                   op_stack.pop(old_index.expected_result);
@@ -460,7 +461,6 @@ namespace eosio { namespace vm {
                   // We're left with a normal relocation list where everything
                   // branches to the corresponding `end`
                   relocations[0] = code_writer.emit_else(relocations[0]);
-                  EOS_VM_ASSERT(old_index.is_if, wasm_parse_exception, "else outside if");
                   old_index.is_if = false;
                   break;
                }
