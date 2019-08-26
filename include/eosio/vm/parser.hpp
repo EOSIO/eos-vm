@@ -33,8 +33,27 @@ namespace eosio { namespace vm {
 
       static inline int64_t parse_varint64(wasm_code_ptr& code) { return varint<64>(code).to(); }
 
+      guarded_vector<uint8_t> parse_utf8_string(wasm_code_ptr& code) {
+         auto len        = parse_varuint32(code);
+         auto guard = code.scoped_shrink_bounds(len);
+         auto result = guarded_vector<uint8_t>{ _allocator, len };
+         result.copy(code.raw(), len);
+         code += len;
+         return result;
+      }
+
+      template<typename T>
+      T parse_raw(wasm_code_ptr& code) {
+         static_assert(std::is_arithmetic_v<T>, "Can only read builtin types");
+         auto guard = code.scoped_shrink_bounds(sizeof(T));
+         T result;
+         memcpy(&result, code.raw(), sizeof(T));
+         code += sizeof(T);
+         return result;
+      }
+
       inline module& parse_module(wasm_code& code, module& mod) {
-         wasm_code_ptr cp(code.data(), 0);
+         wasm_code_ptr cp(code.data(), code.size());
          parse_module(cp, code.size(), mod);
          return mod;
       }
@@ -52,11 +71,10 @@ namespace eosio { namespace vm {
          for (int i = 0; i < section_id::num_of_elems; i++) {
             if (code_ptr.offset() == sz)
                break;
-            code_ptr.add_bounds(constants::id_size);
             auto id = parse_section_id(code_ptr);
-            code_ptr.add_bounds(constants::varuint32_size);
             auto len = parse_section_payload_len(code_ptr);
-            code_ptr.fit_bounds(len);
+
+            auto section_guard = code_ptr.scoped_consume_items(len);
 
             switch (id) {
                case section_id::custom_section: parse_custom(code_ptr); break;
@@ -84,35 +102,25 @@ namespace eosio { namespace vm {
       }
 
       inline uint32_t parse_magic(wasm_code_ptr& code) {
-         code.add_bounds(constants::magic_size);
-         const auto magic = *((uint32_t*)code.raw());
-         code += sizeof(uint32_t);
-         return magic;
+         return parse_raw<uint32_t>(code);
       }
       inline uint32_t parse_version(wasm_code_ptr& code) {
-         code.add_bounds(constants::version_size);
-         const auto version = *((uint32_t*)code.raw());
-         code += sizeof(uint32_t);
-         return version;
+         return parse_raw<uint32_t>(code);
       }
       inline uint8_t  parse_section_id(wasm_code_ptr& code) { return *code++; }
-      inline uint32_t parse_section_payload_len(wasm_code_ptr& code) { return parse_varuint32(code); }
+      inline uint32_t parse_section_payload_len(wasm_code_ptr& code) {
+         return parse_varuint32(code);
+      }
 
       inline void parse_custom(wasm_code_ptr& code) {
-         /*uint32_t name_len =*/ parse_varuint32(code);
-         // FIXME: validate name
+         parse_utf8_string(code); // ignored, but needs to be validated
+         // skip to the end of the section
          code += code.bounds() - code.offset();
       }
 
       void parse_import_entry(wasm_code_ptr& code, import_entry& entry) {
-         auto len         = parse_varuint32(code);
-         entry.module_str = decltype(entry.module_str){ _allocator, len };
-         entry.module_str.copy(code.raw(), len);
-         code += len;
-         len             = parse_varuint32(code);
-         entry.field_str = decltype(entry.field_str){ _allocator, len };
-         entry.field_str.copy(code.raw(), len);
-         code += len;
+         entry.module_str = parse_utf8_string(code);
+         entry.field_str = parse_utf8_string(code);
          entry.kind = (external_kind)(*code++);
          auto type  = parse_varuint32(code);
          switch ((uint8_t)entry.kind) {
@@ -158,10 +166,7 @@ namespace eosio { namespace vm {
       }
 
       void parse_export_entry(wasm_code_ptr& code, export_entry& entry) {
-         auto len        = parse_varuint32(code);
-         entry.field_str = decltype(entry.field_str){ _allocator, len };
-         entry.field_str.copy(code.raw(), len);
-         code += len;
+         entry.field_str = parse_utf8_string(code);
          entry.kind  = (external_kind)(*code++);
          entry.index = parse_varuint32(code);
 	 if (entry.kind == external_kind::Function) {
@@ -199,7 +204,7 @@ namespace eosio { namespace vm {
          decltype(es.elems) elems = { _allocator, size };
          for (uint32_t i = 0; i < size; i++) {
             uint32_t index                     = parse_varuint32(code);
-            tt->table[es.offset.value.i32 + i] = index;
+            tt->table[es.offset.value.i32 + i] = index; // FIXME: integer overflow?  Not possible because 0xFFFFFFFF is never a valid table address???
             elems.at(i)                        = index;
             EOS_VM_ASSERT(index < _mod->functions.size(), wasm_parse_exception,  "elem for undefined function");
          }
@@ -212,12 +217,10 @@ namespace eosio { namespace vm {
             case opcodes::i32_const: ie.value.i32 = parse_varint32(code); break;
             case opcodes::i64_const: ie.value.i64 = parse_varint64(code); break;
             case opcodes::f32_const:
-               std::memcpy(&ie.value.f32, code.raw(), sizeof(float));
-               code += sizeof(float);
+               ie.value.f32 = parse_raw<uint32_t>(code);
                break;
             case opcodes::f64_const:
-               std::memcpy(&ie.value.f64, code.raw(), sizeof(double));
-               code += sizeof(double);
+               ie.value.f64 = parse_raw<uint64_t>(code);
                break;
             default:
                EOS_VM_ASSERT(false, wasm_parse_exception,
@@ -240,6 +243,7 @@ namespace eosio { namespace vm {
          fb.locals = std::move(locals);
 
          fb.size -= code.offset() - before;
+         auto guard = code.scoped_shrink_bounds(fb.size);
          _function_bodies.emplace_back(code.raw(), fb.size);
 
          code += fb.size-1;
@@ -621,17 +625,11 @@ namespace eosio { namespace vm {
                case opcodes::i32_const: code_writer.emit_i32_const( parse_varint32(code) ); op_stack.push(types::i32); break;
                case opcodes::i64_const: code_writer.emit_i64_const( parse_varint64(code) ); op_stack.push(types::i64); break;
                case opcodes::f32_const: {
-                  float value;
-                  memcpy(&value, code.raw(), 4);
-                  code_writer.emit_f32_const( value );
-                  code += 4;
+                  code_writer.emit_f32_const( parse_raw<float>(code) );
                   op_stack.push(types::f32);
                } break;
                case opcodes::f64_const: {
-                  double value;
-                  memcpy(&value, code.raw(), 8);
-                  code_writer.emit_f64_const( value );
-                  code += 8;
+                  code_writer.emit_f64_const( parse_raw<double>(code) );
                   op_stack.push(types::f64);
                } break;
 
@@ -799,9 +797,11 @@ namespace eosio { namespace vm {
          EOS_VM_ASSERT(_mod->memories.size() != 0, wasm_parse_exception, "data requires memory");
          ds.index = parse_varuint32(code);
          parse_init_expr(code, ds.offset);
-         ds.data = decltype(ds.data){ _allocator, parse_varuint32(code) };
-         ds.data.copy(code.raw(), ds.data.size());
-         code += ds.data.size();
+         auto len =  parse_varuint32(code);
+         auto guard = code.scoped_shrink_bounds(len);
+         ds.data = decltype(ds.data){ _allocator, len};
+         ds.data.copy(code.raw(), len);
+         code += len;
       }
 
       template <typename Elem, typename ParseFunc>
@@ -809,22 +809,6 @@ namespace eosio { namespace vm {
          auto count = parse_varuint32(code);
          elems      = vec<Elem>{ _allocator, count };
          for (size_t i = 0; i < count; i++) { elem_parse(code, elems.at(i), i); }
-      }
-
-      template <uint8_t id>
-      inline void parse_section_header(wasm_code_ptr& code) {
-         code.add_bounds(constants::id_size);
-         auto _id = parse_section_id(code);
-         // ignore custom sections
-         if (_id == section_id::custom_section) {
-            code.add_bounds(constants::varuint32_size);
-            code += parse_section_payload_len(code);
-            code.fit_bounds(constants::id_size);
-            _id = parse_section_id(code);
-         }
-         EOS_VM_ASSERT(_id == id, wasm_parse_exception, "Section id does not match");
-         code.add_bounds(constants::varuint32_size);
-         code.fit_bounds(parse_section_payload_len(code));
       }
 
       template <uint8_t id>

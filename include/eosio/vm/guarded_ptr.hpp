@@ -10,12 +10,6 @@ namespace eosio { namespace vm {
       T* bnds;
       guarded_ptr( T* rp, size_t bnds ) : raw_ptr(rp), orig_ptr(rp), bnds(rp + bnds) {}
 
-      void set(T* rp, size_t bnds) {
-         raw_ptr = rp;
-         orig_ptr = rp;
-         bnds = orig_ptr+bnds;
-      }
-
       inline guarded_ptr& operator+=(size_t i) {
          EOS_VM_ASSERT(i <= bnds - raw_ptr, guarded_ptr_exception, "overbounding pointer");
          raw_ptr += i;
@@ -54,13 +48,8 @@ namespace eosio { namespace vm {
          EOS_VM_ASSERT(raw_ptr < bnds, guarded_ptr_exception, "accessing out of bounds");
          return raw_ptr;
       }
-      
-      inline T& operator= (const guarded_ptr<T>& ptr) {
-         raw_ptr = ptr.raw_ptr;
-         orig_ptr = ptr.orig_ptr;
-         bnds     = ptr.bnds;
-         return *this;
-      }
+
+      T& operator= (const guarded_ptr<T>& ptr) = delete;
 
       inline T* raw() {
          return raw_ptr;
@@ -69,17 +58,25 @@ namespace eosio { namespace vm {
       inline size_t offset() {
          return raw_ptr - orig_ptr;
       }
-      
-      inline void add_bounds(size_t n) {
-         bnds += n;
-      } 
-      
-      inline void fit_bounds() {
-         bnds = raw_ptr;
-      }
-      
-      inline void fit_bounds(size_t n) {
+
+      // reduces the bounds for the lifetime of the returned object
+      auto scoped_shrink_bounds(std::size_t n) {
+         EOS_VM_ASSERT(n <= (bnds - raw_ptr), guarded_ptr_exception, "guarded ptr out of bounds");
+         T* old_bnds = bnds;
          bnds = raw_ptr + n;
+         return scope_guard{ [this, old_bnds](){ bnds = old_bnds; } };
+      }
+      // verifies that the pointer is advanced by exactly n before
+      // the returned object is destroyed.
+      auto scoped_consume_items(std::size_t n) {
+         EOS_VM_ASSERT(n <= (bnds - raw_ptr), guarded_ptr_exception, "guarded ptr out of bounds");
+         int exceptions = std::uncaught_exceptions();
+         T* old_bnds = bnds;
+         bnds = raw_ptr + n;
+         return scope_guard{ [this, old_bnds, exceptions](){
+            EOS_VM_ASSERT(exceptions != std::uncaught_exceptions() || raw_ptr == bnds, guarded_ptr_exception, "guarded_ptr not advanced");
+            bnds = old_bnds;
+         } };
       }
 
       inline size_t bounds() {
