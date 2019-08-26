@@ -154,7 +154,11 @@ def copy_cpp():
     name = cwd.split('/')[-1]
     cpp_file = f'{name}.cpp'
     test_dir = os.path.join(EOSIO_DIR, 'wasm_spec_tests')
-    shutil.copy(cpp_file, os.path.join(test_dir, cpp_file))
+    try:
+        shutil.copy(cpp_file, os.path.join(test_dir, cpp_file))
+    except FileNotFoundError:
+        # This occurs when a test suite is all `assert_malformed` or other tests we don't test.
+        pass
 
 if __name__ == '__main__':
     if len(sys.argv) < 3:
