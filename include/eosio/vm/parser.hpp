@@ -423,6 +423,7 @@ namespace eosio { namespace vm {
                case opcodes::nop: code_writer.emit_nop(); break;
                case opcodes::end: {
                   exit_scope();
+                  EOS_VM_ASSERT(!pc_stack.empty() || code.offset() == bounds, wasm_parse_exception, "function too short");
                   break;
                }
                case opcodes::return_: {
@@ -795,6 +796,7 @@ namespace eosio { namespace vm {
                case opcodes::error: code_writer.emit_error(); break;
             }
          }
+         EOS_VM_ASSERT( pc_stack.empty(), wasm_parse_exception, "function body too long" );
       }
 
       void parse_data_segment(wasm_code_ptr& code, data_segment& ds) {

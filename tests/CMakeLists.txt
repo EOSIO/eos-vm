@@ -24,18 +24,26 @@ find_program(WAST2JSON wast2json)
 # These tests require manual maintenance
 set(SPEC_TESTS spec/binary_tests.cpp spec/elem_tests.cpp spec/func_ptrs_tests.cpp spec/globals_tests.cpp spec/memory_grow_tests.cpp spec/start_tests.cpp)
 
-macro( add_spec_test name )
+macro( add_spec_test_impl name source)
    list( APPEND SPEC_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/spec/${name}_tests.cpp )
-   if ( WASM_SPEC_TESTS_LOCATION )
+   if ( WAST2JSON )
       add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/spec/${name}.json
-         COMMAND ${WAST2JSON} ${WASM_SPEC_TESTS_LOCATION}/${name}.wast -o ${name}.json && mv ${name}.json ${CMAKE_CURRENT_BINARY_DIR}/spec/${name}.json
+         COMMAND ${WAST2JSON} ${source}  -o ${name}.json && mv ${name}.json ${CMAKE_CURRENT_BINARY_DIR}/spec/${name}.json
          WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/wasms
-         DEPENDS ${WASM_SPEC_TESTS_LOCATION}/${name}.wast
+         DEPENDS ${source}
       )
       add_custom_command(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/spec/${name}_tests.cpp
          COMMAND spec_test_generator ${CMAKE_CURRENT_BINARY_DIR}/spec/${name}.json > ${CMAKE_CURRENT_SOURCE_DIR}/spec/${name}_tests.cpp
          DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/spec/${name}.json spec_test_generator)
       message("Generating: ${name}_tests.cpp")
+   else()
+      message("Using existing: ${name}_tests.cpp")
+   endif()
+endmacro()
+
+macro( add_spec_test name )
+   if ( WASM_SPEC_TESTS_LOCATION )
+      add_spec_test_impl(${name} ${WASM_SPEC_TESTS_LOCATION}/${name}.wast)
    else()
       message("Using existing: ${name}_tests.cpp")
    endif()
@@ -52,6 +60,8 @@ foreach(testcase address align binary-leb128 block br br_if br_table break-drop 
                  )
    add_spec_test(${testcase})
 endforeach()
+
+add_spec_test_impl(e_function ${CMAKE_CURRENT_SOURCE_DIR}/spec/extra/function.wast)
 
 #file(GLOB SPEC_TESTS "spec/*.cpp")
 add_executable( eos_vm_spec_tests main.cpp ${SPEC_TESTS} )
