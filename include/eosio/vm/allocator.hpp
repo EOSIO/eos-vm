@@ -47,14 +47,17 @@ namespace eosio { namespace vm {
 
       static std::size_t align_to_page(std::size_t offset) {
          std::size_t pagesize = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
+         assert(max_memory_size % page_size == 0);
          return (offset + pagesize - 1) & ~(pagesize - 1);
       }
 
       // size in bytes
       growable_allocator(size_t size) {
+         EOS_VM_ASSERT(size <= max_memory_size, wasm_bad_alloc, "Too large initial memory size");
          _base = (char*)mmap(NULL, max_memory_size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+         EOS_VM_ASSERT(_base != MAP_FAILED, wasm_bad_alloc, "mmap failed.");
          if (size != 0) {
-            size_t chunks_to_alloc = (size / chunk_size) + 1;
+            size_t chunks_to_alloc = (align_offset<chunk_size>(size) / chunk_size);
             _size += (chunk_size * chunks_to_alloc);
             mprotect((char*)_base, _size, PROT_READ | PROT_WRITE);
          }
@@ -65,10 +68,14 @@ namespace eosio { namespace vm {
       // TODO use Outcome library
       template <typename T>
       T* alloc(size_t size = 0) {
+         static_assert(max_memory_size % alignof(T) == 0, "alignment must divide max_memory_size.");
          _offset = align_offset<alignof(T)>(_offset);
+         // Evaluating the inequality in this form cannot cause integer overflow.
+         // Once this assertion passes, the rest of the function is safe.
+         EOS_VM_ASSERT ((max_memory_size - _offset) / sizeof(T) >= size, wasm_bad_alloc, "Allocated too much memory");
          size_t aligned = (sizeof(T) * size) + _offset;
-         if (aligned >= _size) {
-            size_t chunks_to_alloc = aligned / chunk_size;
+         if (aligned > _size) {
+            size_t chunks_to_alloc = align_offset<chunk_size>(aligned - _size) / chunk_size;
             mprotect((char*)_base + _size, (chunk_size * chunks_to_alloc), PROT_READ | PROT_WRITE);
             _size += (chunk_size * chunks_to_alloc);
          }
@@ -83,6 +90,8 @@ namespace eosio { namespace vm {
          return _base + _offset;
       }
       void end_code(void * code_base) {
+         assert((char*)code_base >= _base);
+         assert((char*)code_base <= (_base+_offset));
          _offset = align_to_page(_offset);
          mprotect(code_base, _offset - ((char*)code_base - _base), PROT_EXEC);
       }
