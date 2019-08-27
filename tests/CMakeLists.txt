@@ -62,6 +62,7 @@ foreach(testcase address align binary-leb128 block br br_if br_table break-drop 
 endforeach()
 
 add_spec_test_impl(e_function ${CMAKE_CURRENT_SOURCE_DIR}/spec/extra/function.wast)
+add_spec_test_impl(e_module ${CMAKE_CURRENT_SOURCE_DIR}/spec/extra/module.wast)
 
 #file(GLOB SPEC_TESTS "spec/*.cpp")
 add_executable( eos_vm_spec_tests main.cpp ${SPEC_TESTS} )

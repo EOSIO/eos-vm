@@ -68,11 +68,15 @@ namespace eosio { namespace vm {
          EOS_VM_ASSERT(parse_magic(code_ptr) == constants::magic, wasm_parse_exception, "magic number did not match");
          EOS_VM_ASSERT(parse_version(code_ptr) == constants::version, wasm_parse_exception,
                        "version number did not match");
-         for (int i = 0; i < section_id::num_of_elems; i++) {
+         uint8_t highest_section_id = 0;
+         for (;;) {
             if (code_ptr.offset() == sz)
                break;
             auto id = parse_section_id(code_ptr);
             auto len = parse_section_payload_len(code_ptr);
+
+            EOS_VM_ASSERT(id == 0 || id > highest_section_id, wasm_parse_exception, "section out of order");
+            highest_section_id = std::max(highest_section_id, id);
 
             auto section_guard = code_ptr.scoped_consume_items(len);
 
