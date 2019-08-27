@@ -17,7 +17,7 @@ class WASM(object):
         self.elems = []
         self.start = ''
 
-        self.max_type = 0
+        self.max_type = -1
         self.max_import = 0
 
         self.function_symbol_map = {}

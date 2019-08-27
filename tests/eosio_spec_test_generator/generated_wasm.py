@@ -11,47 +11,8 @@ from wasm import WASM
 class GeneratedWASM(WASM):
     def __init__(self):
         super(GeneratedWASM, self).__init__()
-        self.types = []
-        self.imports = []
-        self.funcs = []
-        self.tables = []
-        self.memory = []
-        self.global_vars = []
-        self.exports = []
-        self.data = []
-        self.elems = []
-        self.max_type = -1
-        self.apply_func = None
-        self.check_func = None
-        self.apply_func_num = -1
-        self.check_func_num = -1
-        self.base_funcs = []
         self.end_funcs = []
-        self.num_imports_base_functions = 0
         self.imports_map = {}
-
-    def shift_base_funcs(self, max_func):
-        max_import = self.get_max_import()
-
-        new_starting_index = 0
-        self.num_imports_base_functions = max_import
-        for f in self.funcs:
-            for l in f.split('\n'):
-                match = re.search(FUNC_REGEX, l)
-                if match:
-                    func_num = int(match.group(2))
-                    # The "base functions" are the 3 functions that always follow the imports.
-                    if func_num > int(max_import) and func_num <= int(max_import) + 3:
-                        new_func_num, new_func = self.shift_func(f, max_func)
-                        self.base_funcs.append(new_func)
-                        self.function_symbol_map[match.group(2)] = new_func_num
-
-                        new_starting_index += 1
-                        max_func = int(max_func) + 1
-                        self.num_imports_base_functions = int(self.num_imports_base_functions) + 1
-
-        self.funcs = self.funcs[new_starting_index:]
-        return max_func
 
     def shift_func(self, func, max_function_num):
         new_func_num = int(max_function_num) + 1
@@ -59,39 +20,6 @@ class GeneratedWASM(WASM):
         new_func = re.sub(FUNC_REGEX, sub_func, func)
 
         return (new_func_num, new_func)
-
-    def shift_apply_func(self, max_func_num):
-        apply_regex = r'\(func \(;([0-9]+);\) \(type [0-9]+\) \(param i64 i64 i64\)'
-        match_last = re.search(apply_regex, self.funcs[-1])
-        match_second_last = re.search(apply_regex, self.funcs[-2])
-        if match_last or match_second_last:
-            if match_last:
-                func_num = match_last.group(1)
-                apply_func = self.funcs[-1]
-                self.funcs = self.funcs[:-1]
-            else:
-                func_num = match_second_last.group(1)
-                apply_func = self.funcs[-2]
-                self.funcs = self.funcs[:-2] + self.funcs[-1:]
-
-            max_func_num, self.apply_func = self.shift_func(apply_func, max_func_num)
-            self.function_symbol_map[func_num] = max_func_num
-            self.apply_func_num = max_func_num
-
-        return max_func_num
-
-    def shift_check_func(self, max_func_num):
-        check_regex = r'\(func \(;([0-9]+);\) \(type [0-9]+\) \(param i32 i32\)'
-        match = re.search(check_regex, self.funcs[-1])
-        if match:
-            func_num = match.group(1)
-            max_func_num, self.check_func = self.shift_func(self.funcs[-1], max_func_num)
-            self.function_symbol_map[func_num] = max_func_num
-            self.check_func_num = max_func_num
-
-            self.funcs = self.funcs[:-1]
-
-        return max_func_num
 
     def shift_funcs(self, num_to_name_map, max_func_num):
         end_funcs = []

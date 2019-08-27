@@ -6,6 +6,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 
 import compile_eosio_tests
 import generate_eosio_tests
@@ -165,7 +166,7 @@ if __name__ == '__main__':
         print("""Please provide:
                 Arg 1: Directory containing test wasms
                 Arg 2: Directory containing eosio repo
-                (optional) Arg 3: Directory for intermediate test files <defaults to /tmp/wasm_spec_tests>
+                (optional) Arg 3: Directory for intermediate test files <defaults to a temp directory>
 
                 ex:
                 python setup_eosio_tests.py ~/code/eos-vm-test-wasms ~/code/eos ~/wasm_spec_tests
@@ -177,7 +178,9 @@ if __name__ == '__main__':
     if len(sys.argv) > 3:
         OUT_DIR = sys.argv[3]
     else:
-        OUT_DIR = '/tmp/wasm_spec_tests'
+        OUT_DIR = tempfile.mkdtemp()
+
+    print(f'Temporary files will be saved in {OUT_DIR}')
 
     REPO_ROOT = Path(os.path.realpath(__file__)).parent.parent.parent
     GENERATOR_DIR = os.path.join(REPO_ROOT, 'build', 'tests')

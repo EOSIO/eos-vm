@@ -11,21 +11,6 @@ from wasm import WASM
 class TestWASM(WASM):
     def __init__(self):
         super(TestWASM, self).__init__()
-        self.types = []
-        self.imports = []
-        self.funcs = []
-        self.tables = []
-        self.memory = []
-        self.global_vars = []
-        self.exports = []
-        self.data = []
-        self.elems = []
-        self.max_type = -1
-        self.apply_func = None
-        self.check_func = None
-        self.apply_func_num = -1
-        self.check_func_num = -1
-        self.base_funcs = []
 
     def shift_types(self, max_type):
         type_map = {}
