@@ -26,10 +26,6 @@ const string mem_clear     = "      volatile uint64_t* r = (uint64_t*)0;\n      
 // NOTE: Changing this will likely break one or more tests.
 const int NUM_TESTS_PER_SUB_APPLY = 100;
 
-map<string, bool> func_already_written;
-map<string, int>  func_name_to_index;
-int               func_index = 0;
-
 void write_file(ofstream& file, string test_name, string funcs, string sub_applies, string apply) {
    stringstream out;
    string       end_brace = "}";
@@ -50,12 +46,12 @@ void write_file(ofstream& file, string test_name, string funcs, string sub_appli
    out.str("");
 }
 
-void write_map_file(ofstream& file) {
+void write_map_file(ofstream& file, spec_test_function_state& func_state) {
    stringstream out;
 
    out << "{\n";
    bool first = true;
-   for (const auto& [name, index] : func_name_to_index) {
+   for (const auto& [name, index] : func_state.name_to_index) {
       if (first) {
          first = false;
       } else {
@@ -87,24 +83,6 @@ string c_type(string wasm_type) {
    return c_type;
 }
 
-bool check_exists(string function_name, vector<pair<string, string>> params, pair<string, string> expected_return) {
-   stringstream func_hash;
-   func_hash << function_name;
-   for (auto p = params.begin(); p != params.end(); p++) {
-      auto [type, _] = *p;
-      func_hash << '-' << type;
-   }
-   auto [return_type, _] = expected_return;
-   func_hash << '-' << return_type;
-
-   if (func_already_written.find(func_hash.str()) == func_already_written.end()) {
-      func_already_written[func_hash.str()] = true;
-      return false;
-   } else {
-      return true;
-   }
-}
-
 vector<pair<string, string>> get_params(picojson::object action) {
    vector<pair<string, string>> params = {};
 
@@ -132,7 +110,7 @@ pair<string, string> get_expected_return(picojson::object test) {
    return expected_return;
 }
 
-string write_test_function(string function_name, picojson::object test) {
+string write_test_function(string function_name, picojson::object test, spec_test_function_state& func_state) {
    stringstream out;
 
    auto action = test["action"].get<picojson::object>();
@@ -140,11 +118,14 @@ string write_test_function(string function_name, picojson::object test) {
    vector<pair<string, string>> params          = get_params(action);
    pair<string, string>         expected_return = get_expected_return(test);
 
-   if (check_exists(function_name, params, expected_return)) {
+   if (func_state.already_written_funcs.count(function_name)) {
       return "";
    }
-   func_name_to_index[function_name] = func_index;
-   ++func_index;
+
+   func_state.already_written_funcs.insert(function_name);
+
+   func_state.name_to_index[function_name] = func_state.index;
+   ++func_state.index;
 
    auto [return_type, return_val] = expected_return;
    out << "   " << c_type(return_type) << " ";
@@ -361,20 +342,17 @@ int main(int argc, char** argv) {
       ofs_cpp.open(out_file_cpp, ofstream::out);
       ofs_map.open(out_file_map, ofstream::out);
 
-      func_already_written.clear();
-      func_name_to_index.clear();
-
       vector<picojson::object> assert_trap_tests;
       vector<picojson::object> assert_return_tests;
 
-      func_index = 0;
+      spec_test_function_state func_state;
       for (auto test : f.second) {
          string type_test     = test["type"].to_str();
          auto   action        = test["action"].get<picojson::object>();
          string function_name = action["field"].to_str();
          function_name        = "_" + convert_to_valid_cpp_identifier(function_name);
 
-         test_funcs << write_test_function(function_name, test);
+         test_funcs << write_test_function(function_name, test, func_state);
          int is_whitelisted = whitelist_force_check_throw.count(test_name);
          if (type_test == "assert_trap" || type_test == "assert_exhaustion" || is_whitelisted) {
             assert_trap_tests.push_back(test);
@@ -442,7 +420,7 @@ int main(int argc, char** argv) {
       apply_func << "      }\n";
 
       write_file(ofs_cpp, test_name, test_funcs.str(), sub_apply_funcs.str(), apply_func.str());
-      write_map_file(ofs_map);
+      write_map_file(ofs_map, func_state);
    }
 
    write_tests(spec_tests);
