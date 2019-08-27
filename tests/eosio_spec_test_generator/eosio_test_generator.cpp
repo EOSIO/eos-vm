@@ -2,7 +2,7 @@
 
 #include <fstream>
 #include <iostream>
-#include <map>
+#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -11,17 +11,12 @@
 
 using namespace std;
 
-map<string, bool> blacklist_memory_clearing = {
-   { "address.0", true },      { "address.2", true },      { "address.3", true },      { "address.4", true },
-   { "float_exprs.59", true }, { "float_exprs.60", true }, { "float_memory.0", true }, { "float_memory.1", true },
-   { "float_memory.2", true }, { "float_memory.3", true }, { "float_memory.4", true }, { "float_memory.5", true },
-   { "memory.25", true },      { "memory_trap.1", true },  { "start.3", true },        { "start.4", true },
-};
+const set<string> blacklist_memory_clearing = { "address.0",      "address.2",      "address.3",      "address.4",
+                                                "float_exprs.59", "float_exprs.60", "float_memory.0", "float_memory.1",
+                                                "float_memory.2", "float_memory.3", "float_memory.4", "float_memory.5",
+                                                "memory.25",      "memory_trap.1",  "start.3",        "start.4" };
 
-map<string, bool> whitelist_force_check_throw = {
-   { "memory.6", true },
-   { "memory.7", true },
-};
+const set<string> whitelist_force_check_throw = { "memory.6", "memory.7" };
 
 const string include_eosio = "#include <eosio/eosio.hpp>\n\n";
 const string extern_c      = "extern \"C\" {\n";
@@ -59,16 +54,17 @@ void write_map_file(ofstream& file) {
    stringstream out;
 
    out << "{\n";
-   auto last = prev(func_name_to_index.end(), 1);
-   for (auto it = func_name_to_index.begin(); it != last; ++it) {
-      out << "  \"" << it->first << "\""
-          << " : " << it->second << ","
-          << "\n";
+   bool first = true;
+   for (const auto& [name, index] : func_name_to_index) {
+      if (first) {
+         first = false;
+      } else {
+         out << ",\n";
+      }
+      out << "  \"" << name << "\""
+          << " : " << index;
    }
-   auto it = func_name_to_index.rbegin();
-   out << "  \"" << it->first << "\""
-       << " : " << it->second << "\n";
-   out << "}\n";
+   out << "\n}\n";
 
    file << out.str();
    out.str("");
@@ -91,7 +87,7 @@ string c_type(string wasm_type) {
    return c_type;
 }
 
-bool check_exists(string function_name, vector<tuple<string, string>> params, tuple<string, string> expected_return) {
+bool check_exists(string function_name, vector<pair<string, string>> params, pair<string, string> expected_return) {
    stringstream func_hash;
    func_hash << function_name;
    for (auto p = params.begin(); p != params.end(); p++) {
@@ -109,30 +105,28 @@ bool check_exists(string function_name, vector<tuple<string, string>> params, tu
    }
 }
 
-vector<tuple<string, string>> get_params(picojson::object action) {
-   vector<tuple<string, string>> params = {};
+vector<pair<string, string>> get_params(picojson::object action) {
+   vector<pair<string, string>> params = {};
 
    auto args = action["args"].get<picojson::array>();
    for (auto a : args) {
       auto arg = a.get<picojson::object>();
 
-      string type  = arg["type"].to_str();
-      string value = arg["value"].to_str();
-      params.push_back(make_tuple(type, value));
+      params.emplace_back(arg["type"].to_str(), arg["value"].to_str());
    }
 
    return params;
 }
 
-tuple<string, string> get_expected_return(picojson::object test) {
-   tuple<string, string> expected_return;
+pair<string, string> get_expected_return(picojson::object test) {
+   pair<string, string> expected_return;
 
    auto expecteds = test["expected"].get<picojson::array>();
    for (auto e : expecteds) {
       auto   expect   = e.get<picojson::object>();
       string type     = expect["type"].to_str();
       string value    = expect["value"].to_str();
-      expected_return = make_tuple(type, value);
+      expected_return = make_pair(type, value);
    }
 
    return expected_return;
@@ -143,8 +137,8 @@ string write_test_function(string function_name, picojson::object test) {
 
    auto action = test["action"].get<picojson::object>();
 
-   vector<tuple<string, string>> params          = get_params(action);
-   tuple<string, string>         expected_return = get_expected_return(test);
+   vector<pair<string, string>> params          = get_params(action);
+   pair<string, string>         expected_return = get_expected_return(test);
 
    if (check_exists(function_name, params, expected_return)) {
       return "";
@@ -189,9 +183,9 @@ string write_test_function_call(string function_name, picojson::object test, int
    stringstream func_call;
    string       return_cast = "";
 
-   auto                          action          = test["action"].get<picojson::object>();
-   vector<tuple<string, string>> params          = get_params(action);
-   tuple<string, string>         expected_return = get_expected_return(test);
+   auto                         action          = test["action"].get<picojson::object>();
+   vector<pair<string, string>> params          = get_params(action);
+   pair<string, string>         expected_return = get_expected_return(test);
 
    auto [return_type, return_val] = expected_return;
 
@@ -236,31 +230,26 @@ string write_test_function_call(string function_name, picojson::object test, int
    func_call << function_name << "(";
 
    if (params.size() > 0) {
-      int param_index = 0;
-      for (auto p = params.begin(); p != params.end() - 1; p++) {
-         auto [type, value] = *p;
+      bool first       = true;
+      int  param_index = 0;
+      for (const auto& [type, value] : params) {
+         if (first) {
+            first = false;
+         } else {
+            func_call << ",";
+         }
+
          if (type == "f32") {
             func_call << "*(float*)&"
-                      << "y" << param_index << param_index_offset << ", ";
+                      << "y" << param_index << param_index_offset;
             param_index++;
          } else if (type == "f64") {
             func_call << "*(double*)&"
-                      << "y" << param_index << param_index_offset << ", ";
+                      << "y" << param_index << param_index_offset;
             param_index++;
          } else {
-            func_call << "(" << c_type(type) << ") " << value << ", ";
+            func_call << "(" << c_type(type) << ") " << value;
          }
-      }
-
-      auto [type, value] = *(params.end() - 1);
-      if (type == "f32") {
-         func_call << "*(float*)&"
-                   << "y" << param_index << param_index_offset;
-      } else if (type == "f64") {
-         func_call << "*(double*)&"
-                   << "y" << param_index << param_index_offset;
-      } else {
-         func_call << "(" << c_type(type) << ")" << value;
       }
    }
    func_call << ");";
@@ -383,7 +372,7 @@ int main(int argc, char** argv) {
          string type_test     = test["type"].to_str();
          auto   action        = test["action"].get<picojson::object>();
          string function_name = action["field"].to_str();
-         function_name        = "_" + normalize(function_name);
+         function_name        = "_" + convert_to_valid_cpp_identifier(function_name);
 
          test_funcs << write_test_function(function_name, test);
          int is_whitelisted = whitelist_force_check_throw.count(test_name);
@@ -398,7 +387,7 @@ int main(int argc, char** argv) {
       for (auto test : assert_trap_tests) {
          auto   action        = test["action"].get<picojson::object>();
          string function_name = action["field"].to_str();
-         function_name        = "_" + normalize(function_name);
+         function_name        = "_" + convert_to_valid_cpp_identifier(function_name);
 
          string name = "sub_apply_" + to_string(sub_apply_index);
          sub_applies.push_back(name);
@@ -412,7 +401,7 @@ int main(int argc, char** argv) {
 
       int assert_trap_end_index = sub_apply_index;
 
-      if (assert_return_tests.size() < 1 ) {
+      if (assert_return_tests.size() < 1) {
          cout << test_name << " -- NO ASSERT_RETURN" << endl;
       }
 
@@ -422,7 +411,7 @@ int main(int argc, char** argv) {
       for (auto test : assert_return_tests) {
          auto   action        = test["action"].get<picojson::object>();
          string function_name = action["field"].to_str();
-         function_name        = "_" + normalize(function_name);
+         function_name        = "_" + convert_to_valid_cpp_identifier(function_name);
 
          if (i % NUM_TESTS_PER_SUB_APPLY == 0 || i == length_tests) {
             string name = "sub_apply_" + to_string(sub_apply_index);
@@ -439,7 +428,7 @@ int main(int argc, char** argv) {
          ++i;
       }
 
-      spec_tests.push_back(spec_test{test_name, 0, assert_trap_end_index, assert_trap_end_index, sub_apply_index});
+      spec_tests.push_back(spec_test{ test_name, 0, assert_trap_end_index, assert_trap_end_index, sub_apply_index });
 
       int index = 0;
       apply_func << "      switch(test_to_run) {\n";

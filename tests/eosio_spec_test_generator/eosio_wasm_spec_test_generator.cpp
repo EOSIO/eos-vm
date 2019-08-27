@@ -12,7 +12,7 @@ using namespace std;
 const string test_includes = "#include <wasm_spec_tests.hpp>\n\n";
 const string boost_xrange  = "boost::unit_test::data::xrange";
 
-string normalize(string val) {
+string convert_to_valid_cpp_identifier(string val) {
    string ret_val = val;
    for (int i = 0; i <= val.size(); i++) {
       if (val[i] == '-' || val[i] == '.') {
@@ -78,7 +78,7 @@ void write_tests(vector<spec_test> tests) {
    for (const auto& t: tests) {
       file_name = t.name.substr(0, t.name.find_last_of('.'));
 
-      string name = normalize(t.name);
+      string name = convert_to_valid_cpp_identifier(t.name);
       test_ss << "const string wasm_str_" << name << " = base_dir + \"/wasm_spec_tests/wasms/" << t.name << ".wasm\";\n";
       test_ss << "std::vector<uint8_t> wasm_" << name << "= read_wasm(wasm_str_" << name << ".c_str());\n\n";
 

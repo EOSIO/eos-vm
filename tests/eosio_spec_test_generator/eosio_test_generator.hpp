@@ -11,6 +11,6 @@ struct spec_test {
    int assert_return_end_index;
 };
 
-std::string normalize(std::string val);
+std::string convert_to_valid_cpp_identifier(std::string val);
 
 void write_tests(std::vector<spec_test> tests);
