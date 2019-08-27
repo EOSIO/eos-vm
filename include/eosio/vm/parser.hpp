@@ -340,19 +340,33 @@ namespace eosio { namespace vm {
       };
 
       struct local_types_t {
-         local_types_t(const func_type& ft, const guarded_vector<local_entry>& locals_arg) {
-            for (uint32_t i = 0; i < ft.param_types.size(); ++i) {
-               locals.push_back(ft.param_types[i]);
-            }
+         local_types_t(const func_type& ft, const guarded_vector<local_entry>& locals_arg) :
+            _ft(ft), _locals(locals_arg) {
+            uint32_t count = ft.param_types.size();
+            _boundaries.push_back(count);
             for (uint32_t i = 0; i < locals_arg.size(); ++i) {
-               locals.insert(locals.end(), locals_arg[i].count, locals_arg[i].type);
+               // If we have more than 2^32 locals, ignore inaccessible locals.
+               // This test cannot overflow.
+               if (count > 0xFFFFFFFFu - locals_arg[i].count) {
+                  _unbounded = true;
+                  break;
+               }
+               count += locals_arg[i].count;
+               _boundaries.push_back(count);
             }
          }
          uint8_t operator[](uint32_t local_idx) const {
-            EOS_VM_ASSERT(local_idx < locals.size(), wasm_parse_exception, "undefined local");
-            return locals[local_idx];
+            EOS_VM_ASSERT(_unbounded || local_idx < _boundaries.back(), wasm_parse_exception, "undefined local");
+            auto pos = std::upper_bound(_boundaries.begin(), _boundaries.end(), local_idx);
+            if (pos == _boundaries.begin())
+               return _ft.param_types[local_idx];
+            else
+               return _locals[pos - _boundaries.begin() - 1].type;
          }
-         std::vector<value_type> locals;
+         const func_type& _ft;
+         const guarded_vector<local_entry>& _locals;
+         std::vector<uint32_t> _boundaries;
+         bool _unbounded = false;
       };
 
       void parse_function_body_code(wasm_code_ptr& code, size_t bounds, Writer& code_writer, const func_type& ft, const guarded_vector<local_entry>& locals) {
