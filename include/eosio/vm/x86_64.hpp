@@ -84,11 +84,13 @@ namespace eosio { namespace vm {
       }
       ~machine_code_writer() { _mod.allocator.end_code(_code_segment_base); }
 
+      static constexpr std::size_t max_prologue_size = 21;
+      static constexpr std::size_t max_epilogue_size = 10;
       void emit_prologue(const func_type& /*ft*/, const guarded_vector<local_entry>& locals, uint32_t funcnum) {
          _ft = &_mod.types[_mod.functions[funcnum]];
-         // FIXME: Guess at upper bound on function size.  This should be an upper bound
-         // except for the prologue and epilogue, but is not as tight as it could be.
-         std::size_t code_size = _mod.code[funcnum].size * 64;
+         // FIXME: This is not a tight upper bound
+         const std::size_t instruction_size_ratio_upper_bound = 64;
+         std::size_t code_size = max_prologue_size + _mod.code[funcnum].size * instruction_size_ratio_upper_bound + max_epilogue_size;
          _code_start = _mod.allocator.alloc<unsigned char>(code_size);
          _code_end = _code_start + code_size;
          code = _code_start;
@@ -97,28 +99,52 @@ namespace eosio { namespace vm {
          emit_bytes(0x55);
          // movq RSP, RBP
          emit_bytes(0x48, 0x89, 0xe5);
-         // xor %rax, %rax
-         emit_bytes(0x48, 0x31, 0xc0);
-         for(std::size_t i = 0; i < locals.size(); ++i) {
-            for(uint32_t j = 0; j < locals[i].count; ++j)
+         // maximum possible representable locals = 0xFFFFFFFF * 0xFFFFFFFF
+         // uint64_t is safe.
+         uint64_t count = 0;
+         for(uint32_t i = 0; i < locals.size(); ++i) {
+            count += locals[i].count;
+         }
+         // variables beyond this are inaccessible, so they can be dropped safely.
+         _local_count = std::min(count, static_cast<uint64_t>(0xFFFFFFFFu - _ft->param_types.size()));
+         if (_local_count > 0) {
+            if (_local_count > 17) { // only use a loop if it would save space
+               // xor %rax, %rax
+               emit_bytes(0x48, 0x31, 0xc0);
+               // mov $count, %ecx
+               emit_bytes(0xb9);
+               emit_operand32(_local_count);
+               // loop:
+               void* loop = code;
                // pushq %rax
                emit_bytes(0x50);
+               // dec %ecx
+               emit_bytes(0xff, 0xc9);
+               // jnz loop
+               emit_bytes(0x0f, 0x85);
+               fix_branch(emit_branch_target32(), loop);
+            } else {
+               for (uint32_t i = 0; i < _local_count; ++i) {
+                  // pushq %rax
+                  emit_bytes(0x50);
+               }
+            }
          }
+         assert((char*)code <= (char*)_code_start + max_prologue_size);
       }
       void emit_epilogue(const func_type& ft, const guarded_vector<local_entry>& locals, uint32_t /*funcnum*/) {
+         void * epilogue_start = code;
          if(ft.return_count != 0) {
             // pop RAX
             emit_bytes(0x58);
          }
-         uint32_t count = 0;
-         for(std::size_t i = 0; i < locals.size(); ++i) {
-            count += locals[i].count;
-         }
-         emit_multipop(count);
+         if (_local_count & 0xF0000000u) unimplemented();
+         emit_multipop(_local_count);
          // popq RBP
          emit_bytes(0x5d);
          // retq
          emit_bytes(0xc3);
+         assert((char*)code <= (char*)epilogue_start + max_epilogue_size);
       }
 
       void emit_unreachable() {
@@ -1624,6 +1650,7 @@ namespace eosio { namespace vm {
       void* type_error_handler;
       void* stack_overflow_handler;
       void* jmp_table;
+      uint32_t _local_count;
 
       void emit_byte(uint8_t val) { *code++ = val; }
       void emit_bytes() {}
