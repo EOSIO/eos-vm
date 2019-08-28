@@ -1,6 +1,7 @@
 #pragma once
 
 #include <eosio/vm/wasm_stack.hpp>
+#include <eosio/vm/utils.hpp>
 
 #include <cstddef>
 #include <functional>
@@ -142,7 +143,6 @@ namespace eosio { namespace vm {
    };
 
    namespace detail {
-
       template<typename T, typename U, typename... Args>
       auto from_wasm_type_impl(T (*)(U, Args...)) -> U;
       template<typename T>
@@ -217,47 +217,39 @@ namespace eosio { namespace vm {
          }
       };
 
-      struct maybe_void_t {
-         struct void_t {};
-         static void_t void_val;
-         inline constexpr auto operator[](void_t)const { return void_val; }
-         template <typename T>
-         inline constexpr auto operator[](T&& val)const { return std::forward<T>(val); } 
-         template <typename T>
-         inline constexpr friend auto operator, (T&& val, void_t) { return std::forward<T>(val); }
-      };
-
-      static maybe_void_t maybe_void;
-
       struct no_match_found_t {};
 
-      template <typename Funcs, size_t I>
-      constexpr auto _get_valid_func() {
+      template <typename Funcs, size_t I, typename Cls, typename FirstArg>
+      constexpr auto _get_first_valid_func() {
          if constexpr (I >= std::tuple_size_v<Funcs>)
             return no_match_found_t();
          else
             if constexpr (std::is_same_v<std::tuple_element_t<I, Funcs>, maybe_void_t::void_t>)
-               return _get_valid_func<Funcs, I+1>();
-            else
-               return std::get<I>(Funcs{});
+               return _get_first_valid_func<Funcs, I+1, Cls, FirstArg>();
+            else {
+               constexpr auto fptr = get_from_wasm_overload<Cls, std::tuple_element_t<I, Funcs>>();
+               using deduced_args_t = decltype(get_args(AUTO_PARAM_WORKAROUND(fptr)));
+               if constexpr (std::is_same_v<std::decay_t<std::tuple_element_t<0, deduced_args_t>>, FirstArg>)
+                  return fptr;
+               else
+                  return _get_first_valid_func<Funcs, I+1, Cls, FirstArg>();
+            }
       }
 
-      template <typename Funcs>
-      constexpr auto get_valid_func() { return _get_valid_func<Funcs, 0>(); }
+      template <typename Funcs, typename Cls, typename FirstArg>
+      constexpr auto get_first_valid_func() { return _get_first_valid_func<Funcs, 0, Cls, FirstArg>(); }
 
-      template <typename S, typename Args, size_t... Is>
+      template <typename S, typename Subtuples, size_t... Is>
       constexpr auto _match_from_wasm_args(std::index_sequence<Is...>) {
-         return std::make_tuple(maybe_void[match_from_wasm_args_impl<S, Args>::match(std::make_index_sequence<std::tuple_size_v<Args>-Is>()), maybe_void_t::void_val]...);
+         return std::make_tuple(maybe_void[match_from_wasm_args_impl<S, std::tuple_element_t<Is, Subtuples>>::match(
+                  std::make_index_sequence<std::tuple_size_v<std::tuple_element_t<Is, Subtuples>>>{}), maybe_void_t::void_val]...);
       }
 
-      template <typename S, typename Args, size_t... Is>
-      constexpr auto _match_from_wasm_args() {
-         return _match_from_wasm_args<S, Args>(std::make_index_sequence<std::tuple_size_v<Args>>());
+      template <typename S, typename Tuple>
+      constexpr auto match_from_wasm_args() {
+         using subtuples = generate_all_subtuples_t<Tuple>;
+         return _match_from_wasm_args<S, subtuples>(std::make_index_sequence<std::tuple_size_v<subtuples>>{});
       }
-
-      template <typename S, typename Args>
-      using match_from_wasm_args_t = decltype(get_valid_func<decltype(_match_from_wasm_args<S, Args>())>());
-      
 
       template<typename S, size_t I, typename Args, typename T, typename WAlloc, typename OS>
       constexpr auto get_value(WAlloc* alloc, OS&& os, T&& val) -> S {
@@ -272,15 +264,16 @@ namespace eosio { namespace vm {
          else if constexpr (std::is_pointer_v<S>)
             return reinterpret_cast<S>(alloc->template get_base_ptr<char>() + val.template get<i32_const_t>().data.ui);
          else {
-            using from_wasm_overload_t = match_from_wasm_args_t<S, Args>;
-            if constexpr (!std::is_same_v<from_wasm_overload_t, no_match_found_t>) {
+            using from_wasm_overload_t = decltype(match_from_wasm_args<S, Args>());
+            if constexpr (std::is_same_v<decltype(get_first_valid_func<from_wasm_overload_t, S, S>()), no_match_found_t>) {
+               return wasm_type_converter<S>::from_wasm(detail::get_value<from_wasm_type_impl_t<S>, I, Args>(alloc, std::forward<OS>(os), static_cast<T&&>(val)));
             } else {
+               return get_first_valid_func<from_wasm_overload_t, S, S>()(static_cast<T&&>(val));
             //using deduced_from_wasm_args = decltype(get_args(AUTO_PARAM_WORKAROUND(from_wasm_overload_t{})));
             //if constexpr (std::tuple_size_v<deduced_from_wasm_args> > 1) {
             //   using from_wasm_overload_t = match_from_wasm_args_t<S, Args>;
             //   //constexpr auto&& from_wasm_overload = 
             //   //using from_wasm_overloads = decltype(match_from_wasm_args<uint32
-               return wasm_type_converter<S>::from_wasm(detail::get_value<from_wasm_type_impl_t<S>, I, Args>(alloc, std::forward<OS>(os), static_cast<T&&>(val)));
             }
             
             //using deduced_args = decltype(get_args(AUTO_PARAM_WORKAROUND(&wasm_type_converter<S>::from_wasm)));
@@ -368,24 +361,16 @@ namespace eosio { namespace vm {
    template <typename T>
    using to_wasm_t = typename _to_wasm_t<to_wasm_type<T>()>::type;
 
-   static inline std::string demangle(const char* mangled_name) {
-      size_t                                          len    = 0;
-      int                                             status = 0;
-      ::std::unique_ptr<char, decltype(&::std::free)> ptr(
-            __cxxabiv1::__cxa_demangle(mangled_name, nullptr, &len, &status), &::std::free);
-      return ptr.get();
-   }
-
-
    template <auto F, typename Derived, typename Host, typename Walloc, typename Args, size_t... Is>
    auto invoke_with_host(Host* host, Walloc* walloc, operand_stack& os) {
       constexpr size_t args_end = sizeof...(Is)-1;
       if constexpr (std::is_same_v<Derived, nullptr_t>)
-         return detail::maybe_void[std::invoke(F, detail::get_value<std::tuple_element_t<Is, Args>, Is, Args>(walloc, &os, std::move(os.get_back(args_end - Is)))...),
-            detail::maybe_void_t::void_val];
+         return maybe_void[std::invoke(F, detail::get_value<std::tuple_element_t<Is, Args>, Is, Args>(walloc, &os, std::move(os.get_back(args_end - Is)))...),
+            maybe_void_t::void_val];
       else
-         return detail::maybe_void[std::invoke(F, construct_derived<Derived, Host>::value(*host), detail::get_value<std::tuple_element_t<Is, Args>, Is, Args>(walloc, &os, std::move(os.get_back(args_end - Is)))...),
-            detail::maybe_void_t::void_val];
+         return maybe_void[std::invoke(F, construct_derived<Derived, Host>::value(*host), 
+               detail::get_value<std::tuple_element_t<Is, Args>, Is, Args>(walloc, &os, std::move(os.get_back(args_end - Is)))...),
+            maybe_void_t::void_val];
    }
 
    // RAII type for handling results
@@ -411,7 +396,7 @@ namespace eosio { namespace vm {
 
    template <size_t TrimAmt, typename Res, typename Walloc>
    auto wrap_invoke(Walloc* walloc, operand_stack& os, Res&& res=Res()) {
-      if constexpr (std::is_same_v<Res, detail::maybe_void_t::void_t>)
+      if constexpr (std::is_same_v<Res, maybe_void_t::void_t>)
          return invoke_result_wrapper<void, Walloc, TrimAmt>(os, walloc);
       else
          return invoke_result_wrapper<Res, Walloc, TrimAmt>(std::forward<Res>(res), os, walloc);
@@ -421,8 +406,8 @@ namespace eosio { namespace vm {
    auto create_function(std::index_sequence<Is...>) {
       return std::function<void(Cls*, Walloc*, operand_stack&)>{ [](Cls* self, Walloc* walloc, operand_stack& os) {
          wrap_invoke<sizeof...(Is)>(
-               walloc, os, detail::maybe_void[invoke_with_host<F, Cls2, Cls, Walloc, Args, Is...>(
-                  self, walloc, os), detail::maybe_void_t::void_val]);
+               walloc, os, maybe_void[invoke_with_host<F, Cls2, Cls, Walloc, Args, Is...>(
+                  self, walloc, os), maybe_void_t::void_val]);
       } };
    }
 
