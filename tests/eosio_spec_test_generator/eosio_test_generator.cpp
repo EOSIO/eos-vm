@@ -26,6 +26,12 @@ const string mem_clear     = "      volatile uint64_t* r = (uint64_t*)0;\n      
 // NOTE: Changing this will likely break one or more tests.
 const int NUM_TESTS_PER_SUB_APPLY = 100;
 
+struct spec_test_function_state {
+   set<string> already_written_funcs;
+   map<string, int>  name_to_index;
+   int                    index = 0;
+};
+
 void write_file(ofstream& file, string test_name, string funcs, string sub_applies, string apply) {
    stringstream out;
    string       end_brace = "}";
@@ -118,11 +124,9 @@ string write_test_function(string function_name, picojson::object test, spec_tes
    vector<pair<string, string>> params          = get_params(action);
    pair<string, string>         expected_return = get_expected_return(test);
 
-   if (func_state.already_written_funcs.count(function_name)) {
+   if (!func_state.already_written_funcs.insert(function_name).second) {
       return "";
    }
-
-   func_state.already_written_funcs.insert(function_name);
 
    func_state.name_to_index[function_name] = func_state.index;
    ++func_state.index;
