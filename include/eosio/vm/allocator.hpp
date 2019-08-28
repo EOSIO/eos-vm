@@ -3,6 +3,7 @@
 #include <eosio/vm/constants.hpp>
 #include <eosio/vm/exceptions.hpp>
 
+#include <cassert>
 #include <csignal>
 #include <cstdint>
 #include <cstring>
