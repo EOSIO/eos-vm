@@ -136,16 +136,16 @@ namespace eosio { namespace vm {
 
       void parse_table_type(wasm_code_ptr& code, table_type& tt) {
          tt.element_type   = *code++;
+         EOS_VM_ASSERT(tt.element_type == types::anyfunc, wasm_parse_exception, "table must have type anyfunc");
+         EOS_VM_ASSERT(*code == 0x00 || *code == 0x01, wasm_parse_exception, "invalid table limits flag");
          tt.limits.flags   = *code++;
          tt.limits.initial = parse_varuint32(code);
          if (tt.limits.flags) {
             tt.limits.maximum = parse_varuint32(code);
-            tt.table          = decltype(tt.table){ _allocator, tt.limits.maximum };
-            for (int i = 0; i < tt.limits.maximum; i++) tt.table[i] = std::numeric_limits<uint32_t>::max();
-         } else {
-            tt.table = decltype(tt.table){ _allocator, tt.limits.initial };
-            for (int i = 0; i < tt.limits.initial; i++) tt.table[i] = std::numeric_limits<uint32_t>::max();
+            EOS_VM_ASSERT(tt.limits.initial <= tt.limits.maximum, wasm_parse_exception, "table max size less than min size");
          }
+         tt.table = decltype(tt.table){ _allocator, tt.limits.initial };
+         for (int i = 0; i < tt.limits.initial; i++) tt.table[i] = std::numeric_limits<uint32_t>::max();
       }
 
       void parse_global_variable(wasm_code_ptr& code, global_variable& gv) {

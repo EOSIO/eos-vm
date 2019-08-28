@@ -22,7 +22,7 @@ set( WASM_SPEC_TESTS_LOCATION "" CACHE STRING "The location of the webassembly s
 find_program(WAST2JSON wast2json)
 
 # These tests require manual maintenance
-set(SPEC_TESTS spec/binary_tests.cpp spec/elem_tests.cpp spec/func_ptrs_tests.cpp spec/globals_tests.cpp spec/memory_grow_tests.cpp spec/start_tests.cpp)
+set(SPEC_TESTS spec/binary_tests.cpp spec/elem_tests.cpp spec/func_ptrs_tests.cpp spec/globals_tests.cpp spec/memory_grow_tests.cpp spec/start_tests.cpp spec/names_tests.cpp)
 
 macro( add_spec_test_impl name source)
    list( APPEND SPEC_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/spec/${name}_tests.cpp )
@@ -54,7 +54,7 @@ foreach(testcase address align binary-leb128 block br br_if br_table break-drop 
                  fac float_exprs float_literals float_memory float_misc forward
                  func i32 i64 if int_exprs int_literals labels left-to-right
                  load local_get local_set local_tee loop memory
-                 memory_redundancy memory_size memory_trap names nop return
+                 memory_redundancy memory_size memory_trap nop return
                  select stack store switch traps type typecheck
                  unreachable unreached-invalid unwind
                  )
@@ -64,6 +64,7 @@ endforeach()
 add_spec_test_impl(e_function ${CMAKE_CURRENT_SOURCE_DIR}/spec/extra/function.wast)
 add_spec_test_impl(e_memory ${CMAKE_CURRENT_SOURCE_DIR}/spec/extra/memory.wast)
 add_spec_test_impl(e_module ${CMAKE_CURRENT_SOURCE_DIR}/spec/extra/module.wast)
+add_spec_test_impl(e_table ${CMAKE_CURRENT_SOURCE_DIR}/spec/extra/table.wast)
 
 #file(GLOB SPEC_TESTS "spec/*.cpp")
 add_executable( eos_vm_spec_tests main.cpp ${SPEC_TESTS} )
