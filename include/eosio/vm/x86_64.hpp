@@ -24,7 +24,7 @@ namespace eosio { namespace vm {
     public:
       machine_code_writer(growable_allocator& alloc, std::size_t source_bytes, module& mod) :
          _mod(mod), _code_segment_base(alloc.start_code()) {
-         std::size_t code_size = 4 * 16; // 4 error handler, each is 16 bytes.
+         const std::size_t code_size = 4 * 16; // 4 error handlers, each is 16 bytes.
          _code_start = _mod.allocator.alloc<unsigned char>(code_size);
          _code_end = _code_start + code_size;
          code = _code_start;
@@ -35,11 +35,11 @@ namespace eosio { namespace vm {
          type_error_handler = emit_error_handler(&on_type_error);
          stack_overflow_handler = emit_error_handler(&on_stack_overflow);
 
-         assert(code == _code_end);
+         assert(code == _code_end); // verify that the manual instruction count is correct
 
          // emit host functions
-         uint32_t num_imported = mod.get_imported_functions_size();
-         std::size_t host_functions_size = 40 * num_imported;
+         const uint32_t num_imported = mod.get_imported_functions_size();
+         const std::size_t host_functions_size = 40 * num_imported;
          _code_start = _mod.allocator.alloc<unsigned char>(host_functions_size);
          _code_end = _code_start + host_functions_size;
          // code already set
@@ -51,8 +51,11 @@ namespace eosio { namespace vm {
 
          jmp_table = code;
          if (_mod.tables.size() > 0) {
-            // emit table
-            std::size_t table_size = 17*_mod.tables[0].table.size();
+            // Each function table entry consumes exactly 17 bytes (counted
+            // manually).  The size must be constant, so that call_indirect
+            // can use random access
+            _table_element_size = 17;
+            const std::size_t table_size = _table_element_size*_mod.tables[0].table.size();
             _code_start = _mod.allocator.alloc<unsigned char>(table_size);
             _code_end = _code_start + table_size;
             // code already set
@@ -331,7 +334,8 @@ namespace eosio { namespace vm {
          emit_bytes(0x48, 0x8d, 0x15);
          fix_branch(emit_branch_target32(), jmp_table);
          // imul $17, %eax, %eax
-         emit_bytes(0x6b, 0xc0, 0x11);
+         assert(_table_element_size <= 127); // must fit in 8-bit signed value for imul
+         emit_bytes(0x6b, 0xc0, _table_element_size);
          // addq %rdx, %rax
          emit_bytes(0x48, 0x01, 0xd0);
          // mov $funtypeidx, %edx
@@ -1651,6 +1655,7 @@ namespace eosio { namespace vm {
       void* stack_overflow_handler;
       void* jmp_table;
       uint32_t _local_count;
+      uint32_t _table_element_size;
 
       void emit_byte(uint8_t val) { *code++ = val; }
       void emit_bytes() {}

@@ -148,10 +148,16 @@ namespace eosio { namespace vm {
          return result;
       }
 
+      inline void reset() {
+         base_type::reset();
+         _os.eat(0);
+      }
+
       template <typename... Args>
       inline std::optional<operand_stack_elem> execute(Host* host, jit_visitor, uint32_t func_index, Args... args) {
          auto saved_host = _host;
-         auto g = scope_guard([&](){ _host = saved_host; });
+         auto saved_os_size = _os.size();
+         auto g = scope_guard([&](){ _host = saved_host; _os.eat(saved_os_size); });
 
          _host = host;
 
