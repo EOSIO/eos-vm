@@ -212,7 +212,7 @@ namespace eosio { namespace vm {
             uint32_t index                     = parse_varuint32(code);
             tt->table[es.offset.value.i32 + i] = index; // FIXME: integer overflow?  Not possible because 0xFFFFFFFF is never a valid table address???
             elems.at(i)                        = index;
-            EOS_VM_ASSERT(index < _mod->functions.size(), wasm_parse_exception,  "elem for undefined function");
+            EOS_VM_ASSERT(index < _mod->get_functions_total(), wasm_parse_exception,  "elem for undefined function");
          }
          es.elems = std::move(elems);
       }
