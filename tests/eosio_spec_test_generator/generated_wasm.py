@@ -11,8 +11,33 @@ from wasm import WASM
 class GeneratedWASM(WASM):
     def __init__(self):
         super(GeneratedWASM, self).__init__()
+        self.base_funcs = []
         self.end_funcs = []
         self.imports_map = {}
+        self.num_imports_base_functions = 0
+
+    def shift_base_funcs(self, max_func):
+        max_import = self.get_max_import()
+
+        new_starting_index = 0
+        self.num_imports_base_functions = max_import
+        for f in self.funcs:
+            for l in f.split('\n'):
+                match = re.search(FUNC_REGEX, l)
+                if match:
+                    func_num = int(match.group(2))
+                    # The "base functions" are the 3 functions that always follow the imports.
+                    if func_num > int(max_import) and func_num <= int(max_import) + 3:
+                        new_func_num, new_func = self.shift_func(f, max_func)
+                        self.base_funcs.append(new_func)
+                        self.function_symbol_map[match.group(2)] = new_func_num
+
+                        new_starting_index += 1
+                        max_func = int(max_func) + 1
+                        self.num_imports_base_functions = int(self.num_imports_base_functions) + 1
+
+        self.funcs = self.funcs[new_starting_index:]
+        return max_func
 
     def shift_func(self, func, max_function_num):
         new_func_num = int(max_function_num) + 1
