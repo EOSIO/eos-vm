@@ -315,12 +315,9 @@ int main(int argc, char** argv) {
       std::cerr << "Cannot open file: " << argv[1] << std::endl;
       return EXIT_FAILURE;
    }
-   string s;
-   while (getline(ifs, s)) { ss << s; }
-   ifs.close();
 
    picojson::value v;
-   picojson::parse(v, ss.str());
+   picojson::parse(v, ifs);
    string test_suite_name;
 
    map<string, vector<picojson::object>> file_func_mappings = get_file_func_mappings(v);
