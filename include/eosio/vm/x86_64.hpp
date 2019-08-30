@@ -136,7 +136,9 @@ namespace eosio { namespace vm {
          assert((char*)code <= (char*)_code_start + max_prologue_size);
       }
       void emit_epilogue(const func_type& ft, const guarded_vector<local_entry>& locals, uint32_t /*funcnum*/) {
+#ifndef NDEBUG
          void * epilogue_start = code;
+#endif
          if(ft.return_count != 0) {
             // pop RAX
             emit_bytes(0x58);
