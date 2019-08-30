@@ -63,6 +63,7 @@ foreach(testcase address align binary-leb128 block br br_if br_table break-drop 
 endforeach()
 
 add_spec_test_impl(e_function ${CMAKE_CURRENT_SOURCE_DIR}/spec/extra/function.wast)
+add_spec_test_impl(e_globals ${CMAKE_CURRENT_SOURCE_DIR}/spec/extra/globals.wast)
 add_spec_test_impl(e_memory ${CMAKE_CURRENT_SOURCE_DIR}/spec/extra/memory.wast)
 add_spec_test_impl(e_module ${CMAKE_CURRENT_SOURCE_DIR}/spec/extra/module.wast)
 add_spec_test_impl(e_table ${CMAKE_CURRENT_SOURCE_DIR}/spec/extra/table.wast)

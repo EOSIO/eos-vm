@@ -154,8 +154,8 @@ namespace eosio { namespace vm {
          EOS_VM_ASSERT(ct == types::i32 || ct == types::i64 || ct == types::f32 || ct == types::f64,
                        wasm_parse_exception, "invalid global content type");
 
-         gv.type.mutability = *code++;
-         parse_init_expr(code, gv.init);
+         gv.type.mutability = parse_varuint1(code);
+         parse_init_expr(code, gv.init, ct);
          gv.current = gv.init;
       }
 
@@ -205,7 +205,7 @@ namespace eosio { namespace vm {
          EOS_VM_ASSERT(tt != nullptr, wasm_parse_exception, "table not declared");
          es.index = parse_varuint32(code);
          EOS_VM_ASSERT(es.index == 0, wasm_parse_exception, "only table index of 0 is supported");
-         parse_init_expr(code, es.offset);
+         parse_init_expr(code, es.offset, types::i32);
          uint32_t           size  = parse_varuint32(code);
          decltype(es.elems) elems = { _allocator, size };
          for (uint32_t i = 0; i < size; i++) {
@@ -217,16 +217,24 @@ namespace eosio { namespace vm {
          es.elems = std::move(elems);
       }
 
-      void parse_init_expr(wasm_code_ptr& code, init_expr& ie) {
+      void parse_init_expr(wasm_code_ptr& code, init_expr& ie, uint8_t type) {
          ie.opcode = *code++;
          switch (ie.opcode) {
-            case opcodes::i32_const: ie.value.i32 = parse_varint32(code); break;
-            case opcodes::i64_const: ie.value.i64 = parse_varint64(code); break;
+            case opcodes::i32_const:
+               ie.value.i32 = parse_varint32(code);
+               EOS_VM_ASSERT(type == types::i32, wasm_parse_exception, "expected i32 initializer");
+               break;
+            case opcodes::i64_const:
+               ie.value.i64 = parse_varint64(code);
+               EOS_VM_ASSERT(type == types::i64, wasm_parse_exception, "expected i64 initializer");
+               break;
             case opcodes::f32_const:
                ie.value.f32 = parse_raw<uint32_t>(code);
+               EOS_VM_ASSERT(type == types::f32, wasm_parse_exception, "expected f32 initializer");
                break;
             case opcodes::f64_const:
                ie.value.f64 = parse_raw<uint64_t>(code);
+               EOS_VM_ASSERT(type == types::f64, wasm_parse_exception, "expected f64 initializer");
                break;
             default:
                EOS_VM_ASSERT(false, wasm_parse_exception,
@@ -821,7 +829,7 @@ namespace eosio { namespace vm {
       void parse_data_segment(wasm_code_ptr& code, data_segment& ds) {
          EOS_VM_ASSERT(_mod->memories.size() != 0, wasm_parse_exception, "data requires memory");
          ds.index = parse_varuint32(code);
-         parse_init_expr(code, ds.offset);
+         parse_init_expr(code, ds.offset, types::i32);
          auto len =  parse_varuint32(code);
          auto guard = code.scoped_shrink_bounds(len);
          ds.data = decltype(ds.data){ _allocator, len};
