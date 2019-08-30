@@ -192,8 +192,12 @@ namespace eosio { namespace vm {
          ft.param_types  = std::move(param_types);
          ft.return_count = *code++;
          EOS_VM_ASSERT(ft.return_count < 2, wasm_parse_exception, "invalid function return count");
-         if (ft.return_count > 0)
-            ft.return_type = *code++;
+         if (ft.return_count > 0) {
+            uint8_t rt        = *code++;
+            ft.return_type = rt;
+            EOS_VM_ASSERT(rt == types::i32 || rt == types::i64 || rt == types::f32 || rt == types::f64,
+                          wasm_parse_exception, "invalid function return type");
+         }
       }
 
       void parse_elem_segment(wasm_code_ptr& code, elem_segment& es) {

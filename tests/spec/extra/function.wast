@@ -13,3 +13,14 @@
   )
   "function body too long"
 )
+
+(assert_invalid
+  (module binary
+    "\00asm" ;; magic
+    "\01\00\00\00" ;; version
+    "\01\05\01\60\00\01\40" ;; types
+    "\03\02\01\00"              ;; functions
+    "\0a\04" "\01\02\00\0b" ;; code
+  )
+  "incorrect return type"
+)
