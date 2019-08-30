@@ -85,7 +85,7 @@ namespace eosio { namespace vm {
             assert(code == _code_end);
          }
       }
-      ~machine_code_writer() { _mod.allocator.end_code(_code_segment_base); }
+      ~machine_code_writer() { _mod.allocator.end_code<true>(_code_segment_base); }
 
       static constexpr std::size_t max_prologue_size = 21;
       static constexpr std::size_t max_epilogue_size = 10;

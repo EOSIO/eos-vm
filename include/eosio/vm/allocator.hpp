@@ -90,11 +90,23 @@ namespace eosio { namespace vm {
          _offset = align_to_page(_offset);
          return _base + _offset;
       }
+      template<bool IsJit>
       void end_code(void * code_base) {
          assert((char*)code_base >= _base);
          assert((char*)code_base <= (_base+_offset));
          _offset = align_to_page(_offset);
-         mprotect(code_base, _offset - ((char*)code_base - _base), PROT_EXEC);
+         _code_base = (char*)code_base;
+         _code_size = _offset - ((char*)code_base - _base);
+         enable_code(IsJit);
+      }
+
+      // Sets protection on code pages to allow them to be executed.
+      void enable_code(bool is_jit) {
+         mprotect(_code_base, _code_size, is_jit?PROT_EXEC:PROT_READ);
+      }
+      // Make code pages unexecutable
+      void disable_code() {
+         mprotect(_code_base, _code_size, PROT_NONE);
       }
 
       /* different semantics than free,
@@ -114,6 +126,8 @@ namespace eosio { namespace vm {
       size_t _offset = 0;
       size_t _size   = 0;
       char*  _base;
+      char*  _code_base = nullptr;
+      size_t _code_size = 0;
    };
 
    template <typename T>

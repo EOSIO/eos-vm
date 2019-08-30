@@ -19,8 +19,10 @@ namespace eosio { namespace vm {
     public:
       explicit bitcode_writer(growable_allocator& alloc, std::size_t source_bytes, module& mod) :
          _allocator(alloc),
+         _code_segment_base(alloc.start_code()),
          fb(alloc, source_bytes),
          _mod(&mod) {}
+      ~bitcode_writer() { _allocator.end_code<false>(_code_segment_base); }
       void emit_unreachable() { fb[op_index++] = unreachable_t{}; };
       void emit_nop() { fb[op_index++] = nop_t{}; }
       uint32_t emit_end() { return op_index; }
@@ -299,6 +301,7 @@ namespace eosio { namespace vm {
     private:
 
       growable_allocator& _allocator;
+      void * _code_segment_base;
       std::size_t op_index = 0;
       guarded_vector<opcode> fb;
       module* _mod;
