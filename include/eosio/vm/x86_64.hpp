@@ -2083,7 +2083,7 @@ namespace eosio { namespace vm {
       static native_value invoke_impl(native_value* data, fn_type fun, void* context, void* linear_memory) {
          static_assert(sizeof(native_value) == 8, "8-bytes expected for native_value");
          native_value result;
-         unsigned stack_check = constants::max_call_depth;
+         unsigned stack_check = constants::max_call_depth + 1;
          asm volatile(
             "sub $0x90, %%rsp; " // red-zone + 16 bytes
             "stmxcsr 8(%%rsp); "
