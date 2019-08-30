@@ -21,17 +21,7 @@ namespace eosio { namespace vm {
       static auto value(Base& base) { return Derived(base); }
    };
 
-   template <typename T>
-   struct reduce_type {
-      using type = T;
-   };
-
-   template <>
-   struct reduce_type<bool> {
-      using type = uint32_t;
-   };
-
-   // Workaround for compiler bug handling C++17 auto template parameters.
+   // Workaround for compiler bug handling C++g17 auto template parameters.
    // The parameter is not treated as being type-dependent in all contexts,
    // causing early evaluation of the containing expression.
    // Tested at Apple LLVM version 10.0.1 (clang-1001.0.46.4)
@@ -95,161 +85,140 @@ namespace eosio { namespace vm {
       return std::tuple<std::decay_t<Args>...>{};
    }
 
-   template <typename T>
-   using reduce_type_t = typename reduce_type<T>::type;
-
-   template <typename T>
-   struct traits {
-      static constexpr uint8_t is_integral_offset = 0;
-      static constexpr uint8_t is_lval_ref_offset = 1;
-      static constexpr uint8_t is_ptr_offset      = 2;
-      static constexpr uint8_t is_float_offset    = 3;
-      static constexpr uint8_t is_4_bytes_offset  = 4;
-      static constexpr uint8_t value              = (std::is_integral_v<reduce_type_t<T>> << is_integral_offset) |
-                                       (std::is_lvalue_reference_v<reduce_type_t<T>> << is_lval_ref_offset) |
-                                       (std::is_pointer_v<reduce_type_t<T>> << is_ptr_offset) |
-                                       (std::is_floating_point_v<reduce_type_t<T>> << is_float_offset) |
-                                       ((sizeof(reduce_type_t<T>) == 4) << is_4_bytes_offset);
-      static constexpr uint8_t i32_value_i  = (1 << is_integral_offset) | (1 << is_4_bytes_offset);
-      static constexpr uint8_t i32_value_lv = (1 << is_lval_ref_offset) | (1 << is_4_bytes_offset);
-      static constexpr uint8_t i32_value_p  = (1 << is_ptr_offset) | (1 << is_4_bytes_offset);
-      static constexpr uint8_t i64_value_i  = (1 << is_integral_offset);
-      static constexpr uint8_t i64_value_lv = (1 << is_lval_ref_offset);
-      static constexpr uint8_t i64_value_p  = (1 << is_ptr_offset);
-      static constexpr uint8_t f32_value    = (1 << is_float_offset) | (1 << is_4_bytes_offset);
-      static constexpr uint8_t f64_value    = (1 << is_float_offset);
-   };
-
-   template <uint8_t Traits>
-   struct _to_wasm_t;
-
-   template <>
-   struct _to_wasm_t<traits<int>::i32_value_i> {
-      typedef i32_const_t type;
-   };
-
-   template <>
-   struct _to_wasm_t<traits<int>::i32_value_lv> {
-      typedef i32_const_t type;
-   };
-
-   template <>
-   struct _to_wasm_t<traits<int>::i32_value_p> {
-      typedef i32_const_t type;
-   };
-
-   template <>
-   struct _to_wasm_t<traits<int>::i64_value_i> {
-      typedef i64_const_t type;
-   };
-
-   template <>
-   struct _to_wasm_t<traits<int>::i64_value_lv> {
-      typedef i32_const_t type;
-   };
-
-   template <>
-   struct _to_wasm_t<traits<int>::i64_value_p> {
-      typedef i32_const_t type;
-   };
-
-   template <>
-   struct _to_wasm_t<traits<int>::f32_value> {
-      typedef f32_const_t type;
-   };
-
-   template <>
-   struct _to_wasm_t<traits<int>::f64_value> {
-      typedef f64_const_t type;
-   };
-
-   template <typename T>
-   using to_wasm_t = typename _to_wasm_t<traits<T>::value>::type;
-
    struct align_ptr_triple {
       void*  o = nullptr;
       void*  n = nullptr;
       size_t s;
    };
 
-   // TODO clean this up
-   template <typename S, typename Args, typename T, typename WAlloc>
-   constexpr auto get_value(WAlloc* alloc, T&& val)
-         -> std::enable_if_t<std::is_same_v<i32_const_t, T> && std::is_pointer_v<S>, S> {
-      return (std::remove_const_t<S>)(alloc->template get_base_ptr<char>() + val.data.ui);
-   }
+   // This class can be specialized to define a conversion to/from wasm.
+   template<typename T>
+   struct wasm_type_converter;
 
-   template <typename S, typename Args, typename T, typename WAlloc>
-   constexpr auto get_value(WAlloc* alloc, T&& val)
-         -> std::enable_if_t<std::is_same_v<i32_const_t, T> && std::is_lvalue_reference_v<S>, S> {
-      return *(std::remove_const_t<std::remove_reference_t<S>>*)(alloc->template get_base_ptr<uint8_t>() + val.data.ui);
-   }
+   namespace detail {
 
-   template <typename S, typename Args, typename T, typename WAlloc>
-   constexpr auto get_value(WAlloc* alloc, T&& val)
-         -> std::enable_if_t<std::is_same_v<i32_const_t, T> && std::is_fundamental_v<S> &&
-                                   (!std::is_lvalue_reference_v<S> && !std::is_pointer_v<S>),
-                             S> {
-      return val.data.ui;
-   }
+   template<typename T, typename U>
+   auto from_wasm_type_impl(T (*)(U)) -> U;
+   template<typename T>
+   using from_wasm_type_impl_t = decltype(detail::from_wasm_type_impl(&wasm_type_converter<T>::from_wasm));
 
-   template <typename S, typename Args, typename T, typename WAlloc>
-   constexpr auto get_value(WAlloc* walloc, T&& val)
-         -> std::enable_if_t<std::is_same_v<i64_const_t, T> && std::is_fundamental_v<S>, S> {
-      return val.data.ui;
-   }
+   template<typename T, typename U>
+   auto to_wasm_type_impl(T (*)(U)) -> T;
+   template<typename T>
+   using to_wasm_type_impl_t = decltype(detail::to_wasm_type_impl(&wasm_type_converter<T>::to_wasm));
 
-   template <typename S, typename Args, typename T, typename WAlloc>
-   constexpr auto get_value(WAlloc* alloc, T&& val) -> std::enable_if_t<std::is_same_v<f32_const_t, T>, S> {
-      return val.data.f;
-   }
+   // Extract the wasm type from wasm_type_converter and verify
+   // that if both from_wasm and to_wasm are defined, they use
+   // the same type.
+   template<typename T, typename HasFromWasm = void, typename HasToWasm = void>
+   struct get_wasm_type;
+   template<typename T, typename HasToWasm>
+   struct get_wasm_type<T, std::void_t<from_wasm_type_impl_t<T>>, HasToWasm> {
+      using type = from_wasm_type_impl_t<T>;
+   };
+   template<typename T, typename HasFromWasm>
+   struct get_wasm_type<T, HasFromWasm, std::void_t<from_wasm_type_impl_t<T>>> {
+      using type = to_wasm_type_impl_t<T>;
+   };
+   template<typename T>
+   struct get_wasm_type<T, std::void_t<from_wasm_type_impl_t<T>>, std::void_t<to_wasm_type_impl_t<T>>> {
+      static_assert(std::is_same_v<from_wasm_type_impl_t<T>, to_wasm_type_impl_t<T>>,
+                    "wasm_type_converter must use the same type for both from_wasm and to_wasm.");
+      using type = from_wasm_type_impl_t<T>;
+   };
 
-   template <typename S, typename Args, typename T, typename WAlloc>
-   constexpr auto get_value(WAlloc* alloc, T&& val) -> std::enable_if_t<std::is_same_v<f64_const_t, T>, S> {
-      return val.data.f;
-   }
-
-   template <typename T, typename WAlloc>
-   constexpr auto resolve_result(T&& res, WAlloc* alloc)
-         -> std::enable_if_t<std::is_pointer_v<T> || std::is_reference_v<T>, i32_const_t> {
-      if constexpr (std::is_reference_v<T>) {
-         return i32_const_t{ (uint32_t)((uintptr_t)&res - (uintptr_t)alloc->template get_base_ptr<uint8_t>()) };
-      } else {
-         return i32_const_t{ (uint32_t)((uintptr_t)res - (uintptr_t)alloc->template get_base_ptr<uint8_t>()) };
-      }
-   }
-
-   template <typename T, typename WAlloc>
-   constexpr auto resolve_result(T&& res, WAlloc*) -> std::enable_if_t<
-         !(std::is_pointer_v<T> || std::is_reference_v<T>)&&std::is_same_v<to_wasm_t<T>, i32_const_t>, i32_const_t> {
-      if constexpr (std::is_same_v<std::decay_t<T>, bool>) {
-         return i32_const_t{ res };
-      } else {
-         static_assert(sizeof(T) == sizeof(uint32_t));
-         return i32_const_t{ *(uint32_t*)&res };
-      }
+   template<typename S, typename T, typename WAlloc>
+   constexpr auto get_value(WAlloc* alloc, T&& val) -> S {
+      if constexpr (std::is_integral_v<S> && sizeof(S) == 4)
+         return val.template get<i32_const_t>().data.ui;
+      else if constexpr (std::is_integral_v<S> && sizeof(S) == 8)
+         return val.template get<i64_const_t>().data.ui;
+      else if constexpr (std::is_floating_point_v<S> && sizeof(S) == 4)
+         return val.template get<f32_const_t>().data.f;
+      else if constexpr (std::is_floating_point_v<S> && sizeof(S) == 8)
+         return val.template get<f64_const_t>().data.f;
+      else if constexpr (std::is_pointer_v<S>)
+         return reinterpret_cast<S>(alloc->template get_base_ptr<char>() + val.template get<i32_const_t>().data.ui);
+      else
+         return wasm_type_converter<S>::from_wasm(detail::get_value<from_wasm_type_impl_t<S>>(alloc, static_cast<T&&>(val)));
    }
 
    template <typename T, typename WAlloc>
-   constexpr auto resolve_result(T&& res, WAlloc*) -> std::enable_if_t<
-         !(std::is_pointer_v<T> || std::is_reference_v<T>)&&std::is_same_v<to_wasm_t<T>, i64_const_t>, i64_const_t> {
-      static_assert(sizeof(T) == sizeof(uint64_t));
-      return i64_const_t{ *(uint64_t*)&res };
+   constexpr auto resolve_result(T&& res, WAlloc* alloc) {
+      if constexpr (std::is_integral_v<T> && sizeof(T) == 4)
+         return i32_const_t{ static_cast<uint32_t>(res) };
+      else if constexpr (std::is_integral_v<T> && sizeof(T) == 8)
+         return i64_const_t{ static_cast<uint64_t>(res) };
+      else if constexpr (std::is_floating_point_v<T> && sizeof(T) == 4)
+         return f32_const_t{ static_cast<float>(res) };
+      else if constexpr (std::is_floating_point_v<T> && sizeof(T) == 8)
+         return f64_const_t{ static_cast<double>(res) };
+      else if constexpr (std::is_pointer_v<T>)
+         return i32_const_t{ static_cast<uint32_t>(reinterpret_cast<uintptr_t>(res) -
+                                                   reinterpret_cast<uintptr_t>(alloc->template get_base_ptr<char>())) };
+      else
+         return detail::resolve_result(wasm_type_converter<T>::to_wasm(static_cast<T&&>(res)), alloc);
    }
 
-   template <typename T, typename WAlloc>
-   constexpr auto resolve_result(T&& res, WAlloc*) -> std::enable_if_t<
-         !(std::is_pointer_v<T> || std::is_reference_v<T>)&&std::is_same_v<to_wasm_t<T>, f32_const_t>, f32_const_t> {
-      static_assert(sizeof(T) == sizeof(uint32_t));
-      return f32_const_t{ *(uint32_t*)&res };
    }
 
-   template <typename T, typename WAlloc>
-   constexpr auto resolve_result(T&& res, WAlloc*) -> std::enable_if_t<
-         !(std::is_pointer_v<T> || std::is_reference_v<T>)&&std::is_same_v<to_wasm_t<T>, f64_const_t>, f64_const_t> {
-      static_assert(sizeof(T) == sizeof(uint64_t));
-      return f64_const_t{ *(uint64_t*)&res };
+   template<>
+   struct wasm_type_converter<bool> {
+      static bool from_wasm(uint32_t val) { return val != 0; }
+      static uint32_t to_wasm(bool val) { return val? 1 : 0; }
+   };
+
+   template<typename T>
+   struct wasm_type_converter<T&> {
+      static T& from_wasm(T* ptr) { return *ptr; }
+      static T* to_wasm(T& ref) { return std::addressof(ref); }
+   };
+
+   template <typename T>
+   inline constexpr auto to_wasm_type() -> uint8_t {
+      if constexpr (std::is_same_v<T, void>)
+         return types::ret_void;
+      else if constexpr (std::is_same_v<T, bool>)
+         return types::i32;
+      else if constexpr (std::is_integral_v<T> && sizeof(T) == 4)
+         return types::i32;
+      else if constexpr (std::is_integral_v<T> && sizeof(T) == 8)
+         return types::i64;
+      else if constexpr (std::is_floating_point_v<T> && sizeof(T) == 4)
+         return types::f32;
+      else if constexpr (std::is_floating_point_v<T> && sizeof(T) == 8)
+         return types::f64;
+      else if constexpr (std::is_pointer_v<T> || std::is_reference_v<T>)
+         return types::i32;
+      else
+         return vm::to_wasm_type<typename detail::get_wasm_type<T>::type>();
    }
+
+   template <uint8_t Type>
+   struct _to_wasm_t;
+
+   template <>
+   struct _to_wasm_t<types::i32> {
+      typedef i32_const_t type;
+   };
+
+   template <>
+   struct _to_wasm_t<types::i64> {
+      typedef i64_const_t type;
+   };
+
+   template <>
+   struct _to_wasm_t<types::f32> {
+      typedef f32_const_t type;
+   };
+
+   template <>
+   struct _to_wasm_t<types::f64> {
+      typedef f64_const_t type;
+   };
+
+   template <typename T>
+   using to_wasm_t = typename _to_wasm_t<to_wasm_type<T>()>::type;
 
    static inline std::string demangle(const char* mangled_name) {
       size_t                                          len    = 0;
@@ -265,74 +234,29 @@ namespace eosio { namespace vm {
          size_t i = sizeof...(Is) - 1;
          if constexpr (!std::is_same_v<R, void>) {
             if constexpr (std::is_same_v<Cls2, std::nullptr_t>) {
-               R res = std::invoke(F, get_value<typename std::tuple_element<Is, Args>::type, Args>(
-                                            walloc, std::move(os.get_back(i - Is).get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>()))...);
+               R res = std::invoke(F, detail::get_value<typename std::tuple_element<Is, Args>::type>(
+                                            walloc, std::move(os.get_back(i - Is)))...);
                os.trim(sizeof...(Is));
-               os.push(resolve_result<R>(std::move(res), walloc));
+               os.push(detail::resolve_result(static_cast<R&&>(res), walloc));
             } else {
                R res = std::invoke(F, construct_derived<Cls2, Cls>::value(*self),
-                                   get_value<typename std::tuple_element<Is, Args>::type, Args>(
-                                         walloc, std::move(os.get_back(i - Is).get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>()))...);
+                                   detail::get_value<typename std::tuple_element<Is, Args>::type>(
+                                         walloc, std::move(os.get_back(i - Is)))...);
                os.trim(sizeof...(Is));
-               os.push(resolve_result<R>(std::move(res), walloc));
+               os.push(detail::resolve_result(static_cast<R&&>(res), walloc));
             }
          } else {
             if constexpr (std::is_same_v<Cls2, std::nullptr_t>) {
-               std::invoke(F, get_value<typename std::tuple_element<Is, Args>::type, Args>(
-                                    walloc, std::move(os.get_back(i - Is).get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>()))...);
+               std::invoke(F, detail::get_value<typename std::tuple_element<Is, Args>::type>(
+                                    walloc, std::move(os.get_back(i - Is)))...);
             } else {
                std::invoke(F, construct_derived<Cls2, Cls>::value(*self),
-                           get_value<typename std::tuple_element<Is, Args>::type, Args>(
-                                 walloc, std::move(os.get_back(i - Is).get<to_wasm_t<typename std::tuple_element<Is, Args>::type>>()))...);
+                           detail::get_value<typename std::tuple_element<Is, Args>::type>(
+                                 walloc, std::move(os.get_back(i - Is)))...);
             }
             os.trim(sizeof...(Is));
          }
       } };
-   }
-
-   template <typename T>
-   constexpr auto to_wasm_type() -> std::enable_if_t<std::is_integral<T>::value, uint8_t> {
-      if constexpr (sizeof(T) == 4)
-         return types::i32;
-      else if constexpr (sizeof(T) == 8)
-         return types::i64;
-      else
-         throw wasm_parse_exception{ "incompatible type" };
-   }
-
-   template <typename T>
-   constexpr auto to_wasm_type() -> std::enable_if_t<std::is_floating_point<T>::value, uint8_t> {
-      if constexpr (sizeof(T) == 4)
-         return types::f32;
-      else if constexpr (sizeof(T) == 8)
-         return types::f64;
-      else
-         throw wasm_parse_exception{ "incompatible type" };
-   }
-
-   template <typename T>
-   constexpr auto to_wasm_type() -> std::enable_if_t<std::is_lvalue_reference<T>::value, uint8_t> {
-      return types::i32;
-   }
-
-   template <typename T>
-   constexpr auto to_wasm_type() -> std::enable_if_t<std::is_rvalue_reference<T>::value, uint8_t> {
-      if constexpr (sizeof(std::decay_t<T>) == 4)
-         return types::i32;
-      else if constexpr (sizeof(std::decay_t<T>) == 8)
-         return types::i64;
-      else
-         throw wasm_parse_exception{ "incompatible type" };
-   }
-
-   template <typename T>
-   constexpr auto to_wasm_type() -> std::enable_if_t<std::is_pointer<T>::value, uint8_t> {
-      return types::i32;
-   }
-
-   template <typename T>
-   constexpr auto to_wasm_type() -> std::enable_if_t<std::is_same<T, void>::value, uint8_t> {
-      return types::ret_void;
    }
 
    template <typename T>

@@ -444,24 +444,10 @@ namespace eosio { namespace vm {
       }
 
     private:
-      template <typename Arg, typename... Args>
-      void _push_args(Arg&& arg, Args&&... args) {
-         if constexpr (to_wasm_type_v<std::decay_t<Arg>> == types::i32)
-            push_operand({ i32_const_t{ static_cast<uint32_t>(arg) } });
-         else if constexpr (to_wasm_type_v<std::decay_t<Arg>> == types::f32)
-            push_operand(f32_const_t{ static_cast<float>(arg) });
-         else if constexpr (to_wasm_type_v<std::decay_t<Arg>> == types::i64)
-            push_operand(i64_const_t{ static_cast<uint64_t>(arg) });
-         else
-            push_operand(f64_const_t{ static_cast<double>(arg) });
-         if constexpr (sizeof...(Args) > 0)
-            _push_args(args...);
-      }
 
       template <typename... Args>
       void push_args(Args&&... args) {
-         if constexpr (sizeof...(Args) > 0)
-            _push_args(args...);
+         (... , push_operand(detail::resolve_result(std::move(args), this->_wasm_alloc)));
       }
 
       inline void setup_locals(uint32_t index) {
