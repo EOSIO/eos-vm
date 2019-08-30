@@ -1634,12 +1634,6 @@ namespace eosio { namespace vm {
          body.jit_code = reinterpret_cast<fn_type>(_code_start);
       }
 
-      template<typename... Args>
-      static native_value invoke(fn_type fn, void* context, void* linear_memory, Args&... args) {
-         native_value args_raw[] = { transform_arg(args)... };
-         return invoke_impl<sizeof...(Args)>(args_raw, fn, context, linear_memory);
-      }
-
     private:
 
       module& _mod;
@@ -2062,63 +2056,6 @@ namespace eosio { namespace vm {
       static void on_call_indirect_error() { vm::throw_(wasm_interpreter_exception{ "call_indirect out of range" }); }
       static void on_type_error() { vm::throw_(wasm_interpreter_exception{ "call_indirect incorrect function type" }); }
       static void on_stack_overflow() { vm::throw_(wasm_interpreter_exception{ "stack overflow" }); }
-
-      template<typename T>
-      static native_value transform_arg(T value) {
-         // make sure that the garbage bits are always zero.
-         native_value result;
-         std::memset(&result, 0, sizeof(result));
-         auto transformed_value = transform_arg_impl(value);
-         std::memcpy(&result, &transformed_value, sizeof(transformed_value));
-         return result;
-      }
-
-      static uint32_t transform_arg_impl(bool value) { return value; }
-      static uint32_t transform_arg_impl(uint32_t value) { return value; }
-      static uint64_t transform_arg_impl(uint64_t value) { return value; }
-      static float    transform_arg_impl(float value) { return value; }
-      static double   transform_arg_impl(double value) { return value; }
-
-      template<int Count>
-      static native_value invoke_impl(native_value* data, fn_type fun, void* context, void* linear_memory) {
-         static_assert(sizeof(native_value) == 8, "8-bytes expected for native_value");
-         native_value result;
-         unsigned stack_check = constants::max_call_depth + 1;
-         asm volatile(
-            "sub $0x90, %%rsp; " // red-zone + 16 bytes
-            "stmxcsr 8(%%rsp); "
-            "mov $0x1f80, %%rax; "
-            "mov %%rax, (%%rsp); "
-            "ldmxcsr (%%rsp); "
-            "mov %[Count], %%rax; "
-            "test %%rax, %%rax; "
-            "jz 2f; "
-            "1: "
-            "movq (%[data]), %%r8; "
-            "lea 8(%[data]), %[data]; "
-            "pushq %%r8; "
-            "dec %%rax; "
-            "jnz 1b; "
-            "2: "
-            "callq *%[fun]; "
-            "add %[StackOffset], %%rsp; "
-            "ldmxcsr 8(%%rsp); "
-            "add $0x90, %%rsp; "
-            // Force explicit register allocation, because otherwise it's too hard to get the clobbers right.
-            : [result] "=&a" (result), // output, reused as a scratch register
-              [data] "+d" (data), [fun] "+c" (fun) // input only, but may be clobbered
-            : [context] "D" (context), [linear_memory] "S" (linear_memory),
-              [StackOffset] "n" (Count*8), [Count] "n" (Count), "b" (stack_check) // input
-            : "memory", "cc", // clobber
-              // call clobbered registers, that are not otherwise used
-              /*"rax", "rcx", "rdx", "rsi", "rdi",*/ "r8", "r9", "r10", "r11",
-              "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7",
-              "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15",
-              "mm0","mm1", "mm2", "mm3", "mm4", "mm5", "mm6", "mm6",
-              "st", "st(1)", "st(2)", "st(3)", "st(4)", "st(5)", "st(6)", "st(7)"
-         );
-         return result;
-      }
    };
    
 }}

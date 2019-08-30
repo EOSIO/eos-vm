@@ -128,7 +128,7 @@ wasm_code host_functions_tests_1_code{
    host_functions_tests_1_wasm + 0,
    host_functions_tests_1_wasm + sizeof(host_functions_tests_1_wasm)};
 
-template<class Functions, class Host, class Transform>
+template<class Functions, class Host, class Transform, class Impl>
 struct init_backend {
    init_backend(Host* host) : _host(host) {
       add<bool>("b");
@@ -164,7 +164,7 @@ struct init_backend {
    auto call(A&&... a) { return bkend.call(_host, static_cast<A&&>(a)...); }
    decltype(auto) get_context() { return bkend.get_context(); }
 
-   using backend_t = eosio::vm::backend<Host>;
+   using backend_t = eosio::vm::backend<Host, Impl>;
    using rhf_t     = eosio::vm::registered_host_functions<Host>;
    wasm_allocator wa;
    backend_t bkend{host_functions_tests_1_code};
@@ -172,7 +172,7 @@ struct init_backend {
 };
 
 // FIXME: allow direct calling of an imported and exported function
-const std::vector<std::string> fun_prefixes = { /*"",*/ "call.", "call_indirect." };
+const std::vector<std::string> fun_prefixes = { "", "call.", "call_indirect." };
 
 template<typename T>
 std::vector<T> test_values = { 0, 1, std::numeric_limits<T>::min(), std::numeric_limits<T>::max() };
@@ -280,14 +280,14 @@ void test_parameters(Backend&& bkend) {
    check_put_ref<const volatile char&>(bkend, "cvref");
 }
 
-TEST_CASE( "Test host function parameters", "[host_functions_parameters]" ) {
-   test_parameters(init_backend<static_host_function, nullptr_t, nullptr_t>{nullptr});
+BACKEND_TEST_CASE( "Test host function parameters", "[host_functions_parameters]" ) {
+   test_parameters(init_backend<static_host_function, nullptr_t, nullptr_t, TestType>{nullptr});
    member_host_function mhf;
-   test_parameters(init_backend<member_host_function, member_host_function, member_host_function>{&mhf});
+   test_parameters(init_backend<member_host_function, member_host_function, member_host_function, TestType>{&mhf});
    discard_host_function dhf;
-   test_parameters(init_backend<static_host_function, discard_host_function, nullptr_t>{&dhf});
+   test_parameters(init_backend<static_host_function, discard_host_function, nullptr_t, TestType>{&dhf});
    transform_host_function thf;
-   test_parameters(init_backend<member_host_function, transform_host_function, member_host_function>{&thf});
+   test_parameters(init_backend<member_host_function, transform_host_function, member_host_function, TestType>{&thf});
 }
 
 template<class Backend>
@@ -315,14 +315,14 @@ void test_results(Backend&& bkend) {
    check_get_ref<const volatile char&>(bkend, "cvref");
 }
 
-TEST_CASE( "Test host function results", "[host_functions_results]" ) {
-   test_results(init_backend<static_host_function, nullptr_t, nullptr_t>{nullptr});
+BACKEND_TEST_CASE( "Test host function results", "[host_functions_results]" ) {
+   test_results(init_backend<static_host_function, nullptr_t, nullptr_t, TestType>{nullptr});
    member_host_function mhf;
-   test_results(init_backend<member_host_function, member_host_function, member_host_function>{&mhf});
+   test_results(init_backend<member_host_function, member_host_function, member_host_function, TestType>{&mhf});
    discard_host_function dhf;
-   test_results(init_backend<static_host_function, discard_host_function, nullptr_t>{&dhf});
+   test_results(init_backend<static_host_function, discard_host_function, nullptr_t, TestType>{&dhf});
    transform_host_function thf;
-   test_results(init_backend<member_host_function, transform_host_function, member_host_function>{&thf});
+   test_results(init_backend<member_host_function, transform_host_function, member_host_function, TestType>{&thf});
 }
 
 BACKEND_TEST_CASE( "Test C-style host function system", "[C-style_host_functions_tests]") { 

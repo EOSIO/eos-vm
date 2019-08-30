@@ -161,15 +161,19 @@ namespace eosio { namespace vm {
 
          _host = host;
 
-         auto fn = _mod.code[func_index - _mod.get_imported_functions_size()].jit_code;
          const func_type& ft = _mod.get_function_type(func_index);
          native_value result;
+         native_value args_raw[] = { transform_arg(static_cast<Args&&>(args))... };
 
          try {
-            vm::invoke_with_signal_handler([&]() {
-               // FIXME: Move invoke out of machine_code_writer.
-               result = machine_code_writer<jit_execution_context>::invoke(fn, this, _linear_memory, args...);
-            }, &handle_signal);
+            if (func_index < _mod.get_imported_functions_size()) {
+               result = call_host_function(args_raw, func_index);
+            } else {
+               auto fn = _mod.code[func_index - _mod.get_imported_functions_size()].jit_code;
+               vm::invoke_with_signal_handler([&]() {
+                  result = execute<sizeof...(Args)>(args_raw, fn, this, _linear_memory);
+               }, &handle_signal);
+            }
          } catch(wasm_exit_exception&) {
             return {};
          }
@@ -186,6 +190,58 @@ namespace eosio { namespace vm {
          __builtin_unreachable();
       }
    protected:
+
+      template<typename T>
+      native_value transform_arg(T&& value) {
+         // make sure that the garbage bits are always zero.
+         native_value result;
+         std::memset(&result, 0, sizeof(result));
+         auto transformed_value = detail::resolve_result(static_cast<T&&>(value), this->_wasm_alloc).data;
+         std::memcpy(&result, &transformed_value, sizeof(transformed_value));
+         return result;
+      }
+
+      template<int Count>
+      static native_value execute(native_value* data, native_value (*fun)(void*, void*), void* context, void* linear_memory) {
+         static_assert(sizeof(native_value) == 8, "8-bytes expected for native_value");
+         native_value result;
+         unsigned stack_check = constants::max_call_depth + 1;
+         asm volatile(
+            "sub $0x90, %%rsp; " // red-zone + 16 bytes
+            "stmxcsr 8(%%rsp); "
+            "mov $0x1f80, %%rax; "
+            "mov %%rax, (%%rsp); "
+            "ldmxcsr (%%rsp); "
+            "mov %[Count], %%rax; "
+            "test %%rax, %%rax; "
+            "jz 2f; "
+            "1: "
+            "movq (%[data]), %%r8; "
+            "lea 8(%[data]), %[data]; "
+            "pushq %%r8; "
+            "dec %%rax; "
+            "jnz 1b; "
+            "2: "
+            "callq *%[fun]; "
+            "add %[StackOffset], %%rsp; "
+            "ldmxcsr 8(%%rsp); "
+            "add $0x90, %%rsp; "
+            // Force explicit register allocation, because otherwise it's too hard to get the clobbers right.
+            : [result] "=&a" (result), // output, reused as a scratch register
+              [data] "+d" (data), [fun] "+c" (fun) // input only, but may be clobbered
+            : [context] "D" (context), [linear_memory] "S" (linear_memory),
+              [StackOffset] "n" (Count*8), [Count] "n" (Count), "b" (stack_check) // input
+            : "memory", "cc", // clobber
+              // call clobbered registers, that are not otherwise used
+              /*"rax", "rcx", "rdx", "rsi", "rdi",*/ "r8", "r9", "r10", "r11",
+              "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7",
+              "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15",
+              "mm0","mm1", "mm2", "mm3", "mm4", "mm5", "mm6", "mm6",
+              "st", "st(1)", "st(2)", "st(3)", "st(4)", "st(5)", "st(6)", "st(7)"
+         );
+         return result;
+      }
+
       Host * _host = nullptr;
       // This is only needed because the host function api uses operand stack
       bounded_allocator _base_allocator = {
@@ -400,7 +456,6 @@ namespace eosio { namespace vm {
          execution_state saved_state = _state;
 
          _state.host             = host;
-         _state.pc               = _mod.get_function_pc(func_index);
          _state.as_index         = _as.size();
          _state.os_index         = _os.size();
 
@@ -414,15 +469,16 @@ namespace eosio { namespace vm {
 
          push_args(args...);
          push_call<true>(func_index);
-         type_check(_mod.types[_mod.functions[func_index - _mod.import_functions.size()]]);
-         setup_locals(func_index);
+         type_check(_mod.get_function_type(func_index));
 
-         try {
+         if (func_index < _mod.get_imported_functions_size()) {
+            _rhf(_state.host, *this, _mod.import_functions[func_index]);
+         } else {
+            _state.pc = _mod.get_function_pc(func_index);
+            setup_locals(func_index);
             vm::invoke_with_signal_handler([&]() {
                execute(visitor);
             }, &handle_signal);
-         } catch(wasm_exit_exception&) {
-            return {};
          }
 
          if (_mod.get_function_type(func_index).return_count && !_state.exiting) {
