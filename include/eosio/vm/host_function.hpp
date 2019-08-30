@@ -183,76 +183,137 @@ namespace eosio { namespace vm {
          return ret_ptr;
       }
 
-      template <typename T, typename... Args>
-      struct has_from_wasm {
-         template <typename C, typename = decltype(C::from_wasm(std::declval<Args>()...))>
-         static std::true_type test(int);
-         template <typename C>
-         static std::false_type test(...);
-         static constexpr bool value = decltype(test<wasm_type_converter<T>>(0))::value;
+      // Allow from_wasm to return a wrapper that holds extra data.
+      // StorageType must be implicitly convertible to T
+      template<typename T, typename StorageType>
+      struct cons_item {
+         template<typename F>
+         explicit cons_item(F&& f) : _value(f()) {}
+         StorageType _value;
+         T get() const { return value; }
       };
 
-      template <typename T, typename... Args>
-      inline constexpr auto has_from_wasm_v = has_from_wasm<T, Args...>::value;
+      template<typename Car, typename Cdr>
+      struct cons {
+         // Make sure that we get mandatory RVO, so that we can guarantee
+         // that user provided destructors run exactly once in the right sequence.
+         template<typename F, typename FTail>
+         cons(F&& f, FTail&& ftail) : cdr(ftail()), car(f(cdr)) {}
+         static constexpr size = Cdr::size + 1;
+         // Reverse order to get the order of construction and destruction right
+         // We want to construct in reverse order and destroy in forwards order.
+         Cdr cdr;
+         Car car;
+         // We need mandatory RVO.  deleting the copy constructor should
+         // cause an error if we messed that up.
+         cons(const cons&) = delete;
+         cons& operator=(const cons&) = delete;
+      };
 
-      template <typename S, typename Args, size_t... Is>
-      constexpr auto get_from_wasm_overload(bool) {
-         return []() constexpr -> S(*)(std::tuple_element_t<Is, Args>...) { return wasm_type_converter<S>::from_wasm; }();
+      template<>
+      struct cons<void, void> { static constexpr std::size_t size = 0; };
+      using nil_t = cons<void, void>;
+
+      template<std::size_t I, typename Car, typename Cdr>
+      decltype(auto) cons_get(const cons<Car, Cdr>& l) {
+         if constexpr (I == 0) {
+            return l.car.get();
+         } else {
+            return detail::cons_get<I-1>(l.cdr);
+         }
       }
 
-      template <typename S, typename FPtr>
-      constexpr auto get_from_wasm_overload() {
-         return []() constexpr -> FPtr { return wasm_type_converter<S>::from_wasm; }();
+      // get the type of the Ith element of the cons list.
+      template<std::size_t I, typename Cons>
+      using cons_item_t = decltype(detail::cons_get<I>(std::declval<Cons>()));
+
+      // Calls from_wasm with the correct arguments
+      template<typename A, typename SourceType, typename Tail, typename T, std::size_t... Is>
+      auto get_value_impl(std::index_sequence<Is...>, WAlloc* alloc, T&& val, const Tail& tail) {
+         return wasm_type_converter<A>::from_wasm(get_value<SourceType>(alloc, val, tail), cons_get<Is>(tail)...);
       }
-      
-      template <typename S, typename Args>
-      struct match_from_wasm_args_impl {
-         template <size_t... Is>
-         static constexpr auto match(std::index_sequence<Is...>) {
-            if constexpr (has_from_wasm_v<S, std::tuple_element_t<Is, Args>...>) {
-               return get_from_wasm_overload<S, Args, Is...>(false);
-            }
-            else
-               return void();
+
+      // Matches a specific overload of a function and deduces the first argument
+      template<typename... Rest>
+      struct match_from_wasm {
+         template<typename R, typename U>
+         static U apply(R(U, Rest...));
+      };
+
+      template<std::size_t LookaheadCount, typename SourceType>
+      struct value_getter {
+         template<typename A, typename WAlloc, typename Tail>
+         auto apply(WAlloc* alloc, T&& val, const Tail& tail) {
+            return get_value_impl<A, SourceType>(std::make_index_sequence<LookaheadCount>{}, alloc, static_cast<T&&>(val), tail);
          }
       };
 
-      struct no_match_found_t {};
+      // Detect whether there is a match of from_wasm with these arguments.
+      // returns a value_getter or void if it didn't match.
+      template<typename T, typename Cons, std::size_t... Is>
+      auto try_value_getter(std::index_sequence<Is...>)
+         -> value_getter<sizeof...(Is), decltype(match_from_wasm<cons_item_t<Is, Cons>...>::apply(&wasm_type_converter<T>::from_wasm))>;
+      // Fallback
+      auto try_value_getter(...) -> void;
 
-      template <typename Funcs, size_t I, typename Cls, typename FirstArg>
-      constexpr auto _get_first_valid_func() {
-         if constexpr (I >= std::tuple_size_v<Funcs>)
-            return no_match_found_t();
-         else
-            if constexpr (std::is_same_v<std::tuple_element_t<I, Funcs>, maybe_void_t::void_t>)
-               return _get_first_valid_func<Funcs, I+1, Cls, FirstArg>();
-            else {
-               constexpr auto fptr = get_from_wasm_overload<Cls, std::tuple_element_t<I, Funcs>>();
-               using deduced_args_t = decltype(get_args(AUTO_PARAM_WORKAROUND(fptr)));
-               if constexpr (std::is_same_v<std::decay_t<std::tuple_element_t<0, deduced_args_t>>, FirstArg>)
-                  return fptr;
-               else
-                  return _get_first_valid_func<Funcs, I+1, Cls, FirstArg>();
+      template<std::size_t N, typename T, typename Cons>
+      using try_value_getter_t = decltype(try_value_getter<T, Cons>(std::make_index_sequence<N>{}));
+
+      // Error type to hopefully make a somewhat understandable error message when
+      // the user did not provide a correct overload of from_wasm.
+      template<typename T, typename... Tail>
+      struct no_viable_overload_of_from_wasm {};
+
+      // Searches for a match of from_wasm following the principal of maximum munch.
+      template<std::size_t N, typename T, typename Tail>
+      constexpr auto make_value_getter_impl() {
+         if constexpr(std::is_same_v<try_value_getter_t<N, T, Tail>, void>) {
+            if constexpr (N == 0) {
+               return no_viable_overload_of_from_wasm<T>{};
+            } else {
+               return make_value_getter_impl<N-1, T, Tail>(arg);
             }
+         } else {
+            return try_value_getter_t<N, T, Tail>{};
+         }
       }
 
-      template <typename Funcs, typename Cls, typename FirstArg>
-      constexpr auto get_first_valid_func() { return _get_first_valid_func<Funcs, 0, Cls, FirstArg>(); }
-
-      template <typename S, typename Subtuples, size_t... Is>
-      constexpr auto _match_from_wasm_args(std::index_sequence<Is...>) {
-         return std::make_tuple(maybe_void[match_from_wasm_args_impl<S, std::tuple_element_t<Is, Subtuples>>::match(
-                  std::make_index_sequence<std::tuple_size_v<std::tuple_element_t<Is, Subtuples>>>{}), maybe_void_t::void_val]...);
+      template<typename T, typename Tail>
+      constexpr auto make_value_getter() {
+         return make_value_getter_impl<Tail::size, T, Tail>();
       }
 
-      template <typename S, typename Tuple>
-      constexpr auto match_from_wasm_args() {
-         using subtuples = generate_all_subtuples_t<Tuple>;
-         return _match_from_wasm_args<S, subtuples>(std::make_index_sequence<std::tuple_size_v<subtuples>>{});
+      // args should be a tuple
+      // Constructs a cons of the translated arguments given a list of
+      // argument types, a wasm stack, and a wasm allocator.
+      template<typename Args>
+      struct pack_args;
+
+      template<typename T, typename F>
+      auto make_cons_item(F&& f) {
+         return [=](auto& arg) { return cons_item<T, decltype(f(arg))>{[&]() { f(arg); }}; }
       }
 
-      template<typename S, size_t I, typename Args, typename T, typename WAlloc, typename OS>
-      constexpr auto get_value(WAlloc* alloc, OS&& os, T&& val) -> S {
+      template<typename T0, typename... T>
+      struct pack_args<std::tuple<T0, T...>> {
+         using next = std::tuple<T...>;
+         template<typename WAlloc, typename Os>
+         static auto apply(WAlloc* alloc, Os& os) {
+            using next_result = decltype(next::apply(alloc, os));
+            using result_type = cons<cons_item<T0, decltype(get_value<T0>(alloc, os.get_back(sizeof...(T)))>, std::declval<next_result&>()), next_result>;
+            return result_type(make_cons_item([&](auto& tail) {return get_value<T0>(alloc, os.get_back(sizeof...(T))), tail);}),
+              [&](){ return next::apply(alloc, os); } );
+         }
+      };
+
+      template<>
+      struct pack_args<std::tuple<>> {
+         template<typename WAlloc, typename Os>
+         static auto apply(WAlloc* alloc, Os& os) { return nil_t{}; }
+      };
+
+      template<typename S, typename T, typename WAlloc, typename Cons>
+      constexpr auto get_value(WAlloc* alloc, T&& val, Cons& tail) -> S {
          if constexpr (std::is_integral_v<S> && sizeof(S) == 4)
             return val.template get<i32_const_t>().data.ui;
          else if constexpr (std::is_integral_v<S> && sizeof(S) == 8)
@@ -264,23 +325,7 @@ namespace eosio { namespace vm {
          else if constexpr (std::is_pointer_v<S>)
             return reinterpret_cast<S>(alloc->template get_base_ptr<char>() + val.template get<i32_const_t>().data.ui);
          else {
-            using from_wasm_overload_t = decltype(match_from_wasm_args<S, Args>());
-            if constexpr (std::is_same_v<decltype(get_first_valid_func<from_wasm_overload_t, S, S>()), no_match_found_t>) {
-               return wasm_type_converter<S>::from_wasm(detail::get_value<from_wasm_type_impl_t<S>, I, Args>(alloc, std::forward<OS>(os), static_cast<T&&>(val)));
-            } else {
-               return get_first_valid_func<from_wasm_overload_t, S, S>()(static_cast<T&&>(val));
-            //using deduced_from_wasm_args = decltype(get_args(AUTO_PARAM_WORKAROUND(from_wasm_overload_t{})));
-            //if constexpr (std::tuple_size_v<deduced_from_wasm_args> > 1) {
-            //   using from_wasm_overload_t = match_from_wasm_args_t<S, Args>;
-            //   //constexpr auto&& from_wasm_overload = 
-            //   //using from_wasm_overloads = decltype(match_from_wasm_args<uint32
-            }
-            
-            //using deduced_args = decltype(get_args(AUTO_PARAM_WORKAROUND(&wasm_type_converter<S>::from_wasm)));
-            //   constexpr auto Is = std::make_index_sequence<std::tuple_size_v<deduced_args>>();
-            //   return detail::_get_value<S, T, Args, WAlloc, OS, deduced_args, I>(alloc, std::forward<OS>(os), Is);
-            //} else
-            //match_host_args<S, Args, I>(alloc, std::forward<OS>(os), std::make_index_sequence<std::tuple_size_v<Args>>{});
+            return detail::make_value_getter<S, Cons>().template apply<S>(alloc, static_cast<T&&>(val), tail);
          }
       }
 
@@ -361,53 +406,40 @@ namespace eosio { namespace vm {
    template <typename T>
    using to_wasm_t = typename _to_wasm_t<to_wasm_type<T>()>::type;
 
-   template <auto F, typename Derived, typename Host, typename Walloc, typename Args, size_t... Is>
-   auto invoke_with_host(Host* host, Walloc* walloc, operand_stack& os) {
+   template<auto F, typename Derived, typename... T>
+   auto invoke_with_host(Host* host, T&&... args) {
       constexpr size_t args_end = sizeof...(Is)-1;
       if constexpr (std::is_same_v<Derived, nullptr_t>)
-         return maybe_void[std::invoke(F, detail::get_value<std::tuple_element_t<Is, Args>, Is, Args>(walloc, &os, std::move(os.get_back(args_end - Is)))...),
-            maybe_void_t::void_val];
+         return std::invoke(F, static_cast<T&&>(args)...);
       else
-         return maybe_void[std::invoke(F, construct_derived<Derived, Host>::value(*host), 
-               detail::get_value<std::tuple_element_t<Is, Args>, Is, Args>(walloc, &os, std::move(os.get_back(args_end - Is)))...),
-            maybe_void_t::void_val];
+         return std::invoke(F, construct_derived<Derived, Host>::value(*host), static_cast<T&&>(args)...);
    }
 
-   // RAII type for handling results
-   template <typename Res, typename Walloc, size_t TrimAmt>
-   struct invoke_result_wrapper {
-      invoke_result_wrapper(Res&& res, operand_stack& os, Walloc* walloc) : result(std::move(res)), os(os), walloc(walloc) {}
-      ~invoke_result_wrapper() {
-         os.trim(TrimAmt);
-         os.push(detail::resolve_result(static_cast<Res&&>(result), walloc));
-      }
-      Res&& result;
-      operand_stack& os;
-      Walloc* walloc;
-   };
-   template <typename Walloc, size_t TrimAmt>
-   struct invoke_result_wrapper<void, Walloc, TrimAmt> {
-      invoke_result_wrapper(operand_stack& os, Walloc* walloc) : os(os) {}
-      ~invoke_result_wrapper() {
-         os.trim(TrimAmt);
-      }
-      operand_stack& os;
-   };
+   template<auto F, typename Derived, typename Cons>
+   auto invoke_with_cons(Host* host, Cons&& args, std::index_sequence<Is...>) {
+      return invoke_with_host<F, Derived>(host, detail::cons_get<Is>(args)...);
+   }
 
-   template <size_t TrimAmt, typename Res, typename Walloc>
-   auto wrap_invoke(Walloc* walloc, operand_stack& os, Res&& res=Res()) {
-      if constexpr (std::is_same_v<Res, maybe_void_t::void_t>)
-         return invoke_result_wrapper<void, Walloc, TrimAmt>(os, walloc);
-      else
-         return invoke_result_wrapper<Res, Walloc, TrimAmt>(std::forward<Res>(res), os, walloc);
+   template<typename F, typename Os>
+   auto wrap_invoke(F&& f, Os& os, std::size_t trim_amt) {
+      if constexpr std::is_same_v<decltype(f()), void> {
+         auto res = f();
+         os.trim(trim_amt);
+         os.push(res);
+      } else {
+         f();
+         os.trim(trim_amt);
+      }
    }
 
    template <typename Walloc, typename Cls, typename Cls2, auto F, typename R, typename Args, size_t... Is>
    auto create_function(std::index_sequence<Is...>) {
       return std::function<void(Cls*, Walloc*, operand_stack&)>{ [](Cls* self, Walloc* walloc, operand_stack& os) {
-         wrap_invoke<sizeof...(Is)>(
-               walloc, os, maybe_void[invoke_with_host<F, Cls2, Cls, Walloc, Args, Is...>(
-                  self, walloc, os), maybe_void_t::void_val]);
+         wrap_invoke([]() {
+               return invoke_with_cons<F, Cls2>(self, pack_args<Args>::apply(walloc, os), std::make_index_sequence<Is...>);
+            },
+            os,
+            sizeof...(Is));
       } };
    }
 
