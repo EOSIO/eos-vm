@@ -167,6 +167,7 @@ namespace eosio { namespace vm {
 
          try {
             if (func_index < _mod.get_imported_functions_size()) {
+               std::reverse(args_raw + 0, args_raw + sizeof...(Args));
                result = call_host_function(args_raw, func_index);
             } else {
                auto fn = _mod.code[func_index - _mod.get_imported_functions_size()].jit_code;
