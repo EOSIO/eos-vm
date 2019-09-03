@@ -386,6 +386,113 @@ BACKEND_TEST_CASE( "Testing host functions", "[host_functions_test]" ) {
    CHECK(bkend.call_with_return(&host, "env", "test.local-call", UINT32_C(5))->to_i32() == 147);
 }
 
+struct has_stateful_conversion {
+   uint32_t value;
+};
+
+struct stateful_conversion {
+   operator has_stateful_conversion() const { return { value }; }
+   uint32_t value;
+   stateful_conversion(const stateful_conversion&) = delete;
+};
+
+namespace eosio { namespace vm {
+
+   template<>
+   struct wasm_type_converter<has_stateful_conversion> {
+      static ::stateful_conversion from_wasm(uint32_t val) { return { val }; }
+   };
+
+}}
+
+struct host_functions_stateful_converter {
+   static int test(has_stateful_conversion x) { return x.value + 42; }
+   static int test2(has_stateful_conversion x) { return x.value * 42; }
+};
+
+BACKEND_TEST_CASE( "Testing stateful ", "[host_functions_stateful_converter]") {
+   host_functions_stateful_converter host;
+   registered_function<host_functions_stateful_converter, std::nullptr_t, &host_functions_stateful_converter::test>("host", "test");
+   registered_function<host_functions_stateful_converter, std::nullptr_t, &host_functions_stateful_converter::test2>("host", "test2");
+
+   using backend_t = backend<host_functions_stateful_converter, TestType>;
+
+   auto code = backend_t::read_wasm( host_wasm );
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+   registered_host_functions<host_functions_stateful_converter>::resolve(bkend.get_module());
+
+   bkend.initialize();
+   CHECK(bkend.call_with_return(&host, "env", "test", UINT32_C(5))->to_i32() == 49);
+   CHECK(bkend.call_with_return(&host, "env", "test.indirect", UINT32_C(5), UINT32_C(0))->to_i32() == 47);
+   CHECK(bkend.call_with_return(&host, "env", "test.indirect", UINT32_C(5), UINT32_C(1))->to_i32() == 210);
+   CHECK(bkend.call_with_return(&host, "env", "test.indirect", UINT32_C(5), UINT32_C(2))->to_i32() == 49);
+   CHECK_THROWS_AS(bkend.call(&host, "env", "test.indirect", UINT32_C(5), UINT32_C(3)), std::exception);
+   CHECK(bkend.call_with_return(&host, "env", "test.local-call", UINT32_C(5))->to_i32() == 147);
+}
+
+// Test overloaded frow_wasm and order of destruction of converters
+
+struct has_multi_converter {
+   uint32_t value;
+};
+static std::vector<int> multi_converter_destructor_order;
+struct multi_converter {
+   uint32_t value;
+   int num_trailing;
+   operator has_multi_converter() const { return { value }; }
+   ~multi_converter() { multi_converter_destructor_order.push_back(num_trailing); }
+};
+
+namespace eosio { namespace vm {
+
+   template<>
+   struct wasm_type_converter< ::has_multi_converter> {
+      static ::multi_converter from_wasm(uint32_t val) { return { val, 0 }; }
+      static ::multi_converter from_wasm(uint32_t val, has_multi_converter X0) {
+         return { val, 1 };
+      }
+      static ::multi_converter from_wasm(uint32_t val, has_multi_converter X0, has_multi_converter X1) {
+         return { val, 2 };
+      }
+   };
+
+}}
+
+struct host_functions_multi_converter {
+   static unsigned test(has_multi_converter x, has_multi_converter y, has_multi_converter z, has_multi_converter w) {
+      return 1*x.value + 10*y.value + 100*z.value + 1000*w.value;
+   }
+};
+
+BACKEND_TEST_CASE( "Testing multi ", "[host_functions_multi_converter]") {
+   host_functions_multi_converter host;
+   registered_function<host_functions_multi_converter, std::nullptr_t, &host_functions_multi_converter::test>("host", "test");
+
+   using backend_t = backend<host_functions_multi_converter, TestType>;
+
+   /*
+     (module
+       (func (export "test") (import "host" "test") (param i32 i32 i32 i32) (result i32))
+     )
+   */
+
+   wasm_code code = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09, 0x01, 0x60,
+      0x04, 0x7f, 0x7f, 0x7f, 0x7f, 0x01, 0x7f, 0x02, 0x0d, 0x01, 0x04, 0x68,
+      0x6f, 0x73, 0x74, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00, 0x00, 0x07, 0x08,
+      0x01, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00, 0x00
+   };
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+   registered_host_functions<host_functions_multi_converter>::resolve(bkend.get_module());
+
+   bkend.initialize();
+   multi_converter_destructor_order.clear();
+   CHECK(bkend.call_with_return(&host, "env", "test", UINT32_C(1), UINT32_C(2), UINT32_C(3), UINT32_C(4))->to_i32() == 4321);
+   CHECK(multi_converter_destructor_order == std::vector{2, 2, 1, 0});
+}
+
 struct test_exception {};
 
 struct host_functions_throw {
