@@ -190,7 +190,7 @@ namespace eosio { namespace vm {
          template<typename F>
          explicit cons_item(F&& f) : _value(f()) {}
          StorageType _value;
-         T get() const { return value; }
+         T get() const { return _value; }
       };
 
       template<typename Car, typename Cdr>
@@ -199,7 +199,7 @@ namespace eosio { namespace vm {
          // that user provided destructors run exactly once in the right sequence.
          template<typename F, typename FTail>
          cons(F&& f, FTail&& ftail) : cdr(ftail()), car(f(cdr)) {}
-         static constexpr size = Cdr::size + 1;
+         static constexpr std::size_t size = Cdr::size + 1;
          // Reverse order to get the order of construction and destruction right
          // We want to construct in reverse order and destroy in forwards order.
          Cdr cdr;
@@ -227,10 +227,13 @@ namespace eosio { namespace vm {
       template<std::size_t I, typename Cons>
       using cons_item_t = decltype(detail::cons_get<I>(std::declval<Cons>()));
 
+      template<typename S, typename T, typename WAlloc, typename Cons>
+      constexpr decltype(auto) get_value(WAlloc* alloc, T&& val, Cons& tail);
+
       // Calls from_wasm with the correct arguments
-      template<typename A, typename SourceType, typename Tail, typename T, std::size_t... Is>
-      auto get_value_impl(std::index_sequence<Is...>, WAlloc* alloc, T&& val, const Tail& tail) {
-         return wasm_type_converter<A>::from_wasm(get_value<SourceType>(alloc, val, tail), cons_get<Is>(tail)...);
+      template<typename A, typename SourceType, typename WAlloc, typename Tail, typename T, std::size_t... Is>
+      decltype(auto) get_value_impl(std::index_sequence<Is...>, WAlloc* alloc, T&& val, const Tail& tail) {
+         return wasm_type_converter<A>::from_wasm(get_value<SourceType>(alloc, static_cast<T&&>(val), tail), cons_get<Is>(tail)...);
       }
 
       // Matches a specific overload of a function and deduces the first argument
@@ -240,10 +243,12 @@ namespace eosio { namespace vm {
          static U apply(R(U, Rest...));
       };
 
+      // Encodes how to convert a value from wasm to native.  LookaheadCount is the number
+      // of extra arguments to pass to from_wasm.  SourceType is type to convert from.
       template<std::size_t LookaheadCount, typename SourceType>
       struct value_getter {
-         template<typename A, typename WAlloc, typename Tail>
-         auto apply(WAlloc* alloc, T&& val, const Tail& tail) {
+         template<typename A, typename WAlloc, typename T, typename Tail>
+         decltype(auto) apply(WAlloc* alloc, T&& val, const Tail& tail) {
             return get_value_impl<A, SourceType>(std::make_index_sequence<LookaheadCount>{}, alloc, static_cast<T&&>(val), tail);
          }
       };
@@ -254,6 +259,7 @@ namespace eosio { namespace vm {
       auto try_value_getter(std::index_sequence<Is...>)
          -> value_getter<sizeof...(Is), decltype(match_from_wasm<cons_item_t<Is, Cons>...>::apply(&wasm_type_converter<T>::from_wasm))>;
       // Fallback
+      template<typename T, typename Cons>
       auto try_value_getter(...) -> void;
 
       template<std::size_t N, typename T, typename Cons>
@@ -271,7 +277,7 @@ namespace eosio { namespace vm {
             if constexpr (N == 0) {
                return no_viable_overload_of_from_wasm<T>{};
             } else {
-               return make_value_getter_impl<N-1, T, Tail>(arg);
+               return make_value_getter_impl<N-1, T, Tail>();
             }
          } else {
             return try_value_getter_t<N, T, Tail>{};
@@ -291,17 +297,18 @@ namespace eosio { namespace vm {
 
       template<typename T, typename F>
       auto make_cons_item(F&& f) {
-         return [=](auto& arg) { return cons_item<T, decltype(f(arg))>{[&]() { f(arg); }}; }
+         return [=](auto& arg) { return cons_item<T, decltype(f(arg))>{[&]() -> decltype(auto) { return f(arg); }}; };
       }
 
       template<typename T0, typename... T>
       struct pack_args<std::tuple<T0, T...>> {
-         using next = std::tuple<T...>;
+         using next = pack_args<std::tuple<T...>>;
          template<typename WAlloc, typename Os>
          static auto apply(WAlloc* alloc, Os& os) {
             using next_result = decltype(next::apply(alloc, os));
-            using result_type = cons<cons_item<T0, decltype(get_value<T0>(alloc, os.get_back(sizeof...(T)))>, std::declval<next_result&>()), next_result>;
-            return result_type(make_cons_item([&](auto& tail) {return get_value<T0>(alloc, os.get_back(sizeof...(T))), tail);}),
+            auto item_maker = make_cons_item<T0>([&](auto& tail) -> decltype(auto) { return get_value<T0>(alloc, os.get_back(sizeof...(T)), tail); });
+            using result_type = cons<decltype(item_maker(std::declval<next_result&>())), next_result>;
+            return result_type(item_maker,
               [&](){ return next::apply(alloc, os); } );
          }
       };
@@ -312,16 +319,19 @@ namespace eosio { namespace vm {
          static auto apply(WAlloc* alloc, Os& os) { return nil_t{}; }
       };
 
+      template<typename T>
+      std::decay_t<T> as_value(T&& arg) { return static_cast<T&&>(arg); }
+
       template<typename S, typename T, typename WAlloc, typename Cons>
-      constexpr auto get_value(WAlloc* alloc, T&& val, Cons& tail) -> S {
+      constexpr decltype(auto) get_value(WAlloc* alloc, T&& val, Cons& tail) {
          if constexpr (std::is_integral_v<S> && sizeof(S) == 4)
-            return val.template get<i32_const_t>().data.ui;
+            return as_value(val.template get<i32_const_t>().data.ui);
          else if constexpr (std::is_integral_v<S> && sizeof(S) == 8)
-            return val.template get<i64_const_t>().data.ui;
+            return as_value(val.template get<i64_const_t>().data.ui);
          else if constexpr (std::is_floating_point_v<S> && sizeof(S) == 4)
-            return val.template get<f32_const_t>().data.f;
+            return as_value(val.template get<f32_const_t>().data.f);
          else if constexpr (std::is_floating_point_v<S> && sizeof(S) == 8)
-            return val.template get<f64_const_t>().data.f;
+            return as_value(val.template get<f64_const_t>().data.f);
          else if constexpr (std::is_pointer_v<S>)
             return reinterpret_cast<S>(alloc->template get_base_ptr<char>() + val.template get<i32_const_t>().data.ui);
          else {
@@ -406,28 +416,25 @@ namespace eosio { namespace vm {
    template <typename T>
    using to_wasm_t = typename _to_wasm_t<to_wasm_type<T>()>::type;
 
-   template<auto F, typename Derived, typename... T>
+   template<auto F, typename Derived, typename Host, typename... T>
    auto invoke_with_host(Host* host, T&&... args) {
-      constexpr size_t args_end = sizeof...(Is)-1;
       if constexpr (std::is_same_v<Derived, nullptr_t>)
          return std::invoke(F, static_cast<T&&>(args)...);
       else
          return std::invoke(F, construct_derived<Derived, Host>::value(*host), static_cast<T&&>(args)...);
    }
 
-   template<auto F, typename Derived, typename Cons>
+   template<auto F, typename Derived, typename Host, typename Cons, std::size_t... Is>
    auto invoke_with_cons(Host* host, Cons&& args, std::index_sequence<Is...>) {
       return invoke_with_host<F, Derived>(host, detail::cons_get<Is>(args)...);
    }
 
-   template<typename F, typename Os>
-   auto wrap_invoke(F&& f, Os& os, std::size_t trim_amt) {
-      if constexpr std::is_same_v<decltype(f()), void> {
-         auto res = f();
+   template<typename T, typename Os>
+   auto maybe_push_result(T&& res, Os& os, std::size_t trim_amt) {
+      if constexpr (std::is_same_v<T, maybe_void_t>) {
          os.trim(trim_amt);
-         os.push(res);
+         os.push(resolve_result(static_cast<T&&>(res)));
       } else {
-         f();
          os.trim(trim_amt);
       }
    }
@@ -435,9 +442,8 @@ namespace eosio { namespace vm {
    template <typename Walloc, typename Cls, typename Cls2, auto F, typename R, typename Args, size_t... Is>
    auto create_function(std::index_sequence<Is...>) {
       return std::function<void(Cls*, Walloc*, operand_stack&)>{ [](Cls* self, Walloc* walloc, operand_stack& os) {
-         wrap_invoke([]() {
-               return invoke_with_cons<F, Cls2>(self, pack_args<Args>::apply(walloc, os), std::make_index_sequence<Is...>);
-            },
+         maybe_push_result(
+            (invoke_with_cons<F, Cls2>(self, detail::pack_args<Args>::apply(walloc, os), std::index_sequence<Is...>{}), maybe_void),
             os,
             sizeof...(Is));
       } };

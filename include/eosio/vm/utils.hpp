@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <string>
 #include <cxxabi.h>
 
 #if !defined(LIKELY) && !defined(UNLIKELY)
