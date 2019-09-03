@@ -184,13 +184,8 @@ namespace eosio { namespace vm {
 
    // helpers for handling void returns
    struct maybe_void_t {
-      struct void_t {};
-      static void_t void_val;
-      inline constexpr auto operator[](void_t)const {return void_val;}
       template <typename T>
-      inline constexpr auto operator[](T&& val)const {return std::forward<T>(val); }
-      template <typename T>
-      inline constexpr friend auto operator, (T&& val, void_t) {return std::forward<T>(val);}
+      inline constexpr friend T&& operator, (T&& val, maybe_void_t) {return std::forward<T>(val);}
    };
 
    inline maybe_void_t maybe_void;

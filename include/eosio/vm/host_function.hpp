@@ -135,12 +135,8 @@ namespace eosio { namespace vm {
    };
 
    // This class can be specialized to define a conversion to/from wasm.
-   // generic pass through
    template <typename T>
-   struct wasm_type_converter {
-      static T&& from_wasm(T&& t) { return std::forward<T>(t); }
-      static T&& to_wasm(T&& t) { return std::forward<T>(t); }
-   };
+   struct wasm_type_converter {};
 
    namespace detail {
       template<typename T, typename U, typename... Args>
@@ -417,7 +413,7 @@ namespace eosio { namespace vm {
    using to_wasm_t = typename _to_wasm_t<to_wasm_type<T>()>::type;
 
    template<auto F, typename Derived, typename Host, typename... T>
-   auto invoke_with_host(Host* host, T&&... args) {
+   decltype(auto) invoke_with_host(Host* host, T&&... args) {
       if constexpr (std::is_same_v<Derived, nullptr_t>)
          return std::invoke(F, static_cast<T&&>(args)...);
       else
@@ -425,15 +421,15 @@ namespace eosio { namespace vm {
    }
 
    template<auto F, typename Derived, typename Host, typename Cons, std::size_t... Is>
-   auto invoke_with_cons(Host* host, Cons&& args, std::index_sequence<Is...>) {
+   decltype(auto) invoke_with_cons(Host* host, Cons&& args, std::index_sequence<Is...>) {
       return invoke_with_host<F, Derived>(host, detail::cons_get<Is>(args)...);
    }
 
-   template<typename T, typename Os>
-   auto maybe_push_result(T&& res, Os& os, std::size_t trim_amt) {
-      if constexpr (std::is_same_v<T, maybe_void_t>) {
+   template<typename T, typename Os, typename WAlloc>
+   void maybe_push_result(T&& res, Os& os, WAlloc* walloc, std::size_t trim_amt) {
+      if constexpr (!std::is_same_v<std::decay_t<T>, maybe_void_t>) {
          os.trim(trim_amt);
-         os.push(resolve_result(static_cast<T&&>(res)));
+         os.push(detail::resolve_result(static_cast<T&&>(res), walloc));
       } else {
          os.trim(trim_amt);
       }
@@ -445,6 +441,7 @@ namespace eosio { namespace vm {
          maybe_push_result(
             (invoke_with_cons<F, Cls2>(self, detail::pack_args<Args>::apply(walloc, os), std::index_sequence<Is...>{}), maybe_void),
             os,
+            walloc,
             sizeof...(Is));
       } };
    }
