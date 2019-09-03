@@ -98,40 +98,53 @@ namespace eosio { namespace vm {
       return std::tuple<std::decay_t<Args>...>{};
    }
 
-   template <typename T>
+   template <typename T, std::size_t Align>
    struct aligned_ptr_wrapper {
-      constexpr aligned_ptr_wrapper(T* ptr) : ptr(ptr) {
-         if (ptr % alignof(T) != 0) {
+      static_assert(Align % alignof(T) == 0, "Must align to at least the alignment of T");
+      aligned_ptr_wrapper(void* ptr) : ptr(ptr) {
+        if (reinterpret_cast<std::uintptr_t>(ptr) % Align != 0) {
             copy = T{};
-            memcpy( (void*)&(*copy), (void*)ptr, sizeof(T) );
+            memcpy( &(*copy), ptr, sizeof(T) );
          }
       }
       ~aligned_ptr_wrapper() {
          if constexpr (!std::is_const_v<T>)
             if (copy)
-               memcpy( (void*)ptr, (void*)&(*copy), sizeof(T) );
-      }
-      constexpr std::add_lvalue_reference_t<T> operator*() const { 
-         if (copy)
-            return *copy;
-         else
-            return *ptr;
-      }
-      constexpr T* operator->() const noexcept {
-         if (copy)
-            return &(*copy);
-         else
-            return ptr;
+               memcpy( ptr, &(*copy), sizeof(T) );
       }
       constexpr operator T*() const {
          if (copy)
             return &(*copy);
          else
-            return ptr;
+            return static_cast<T*>(ptr);
       }
 
-      T* ptr;
-      std::optional<T> copy;
+      void* ptr;
+      mutable std::optional<std::remove_cv_t<T>> copy;
+   };
+
+   template <typename T, std::size_t Align>
+   struct aligned_ref_wrapper {
+      constexpr aligned_ref_wrapper(void* ptr) : _impl(ptr) {}
+      constexpr operator T&() const {
+         return *static_cast<T*>(_impl);
+      }
+
+      aligned_ptr_wrapper<T, Align> _impl;
+   };
+
+   template<typename T, std::size_t Align = alignof(T)>
+   struct aligned_ptr {
+      aligned_ptr(const aligned_ptr_wrapper<T, Align>& wrapper) : _ptr(wrapper) {}
+      operator T*() const { return _ptr; }
+      T* _ptr;
+   };
+
+   template<typename T, std::size_t Align = alignof(T)>
+   struct aligned_ref {
+      aligned_ref(const aligned_ptr_wrapper<T, Align>& wrapper) : _ptr(wrapper) {}
+      operator T&() const { return *_ptr; }
+      T* _ptr;
    };
 
    // This class can be specialized to define a conversion to/from wasm.
@@ -328,7 +341,7 @@ namespace eosio { namespace vm {
             return as_value(val.template get<f32_const_t>().data.f);
          else if constexpr (std::is_floating_point_v<S> && sizeof(S) == 8)
             return as_value(val.template get<f64_const_t>().data.f);
-         else if constexpr (std::is_pointer_v<S>)
+         else if constexpr (std::is_void_v<std::decay_t<std::remove_pointer_t<S>>>)
             return reinterpret_cast<S>(alloc->template get_base_ptr<char>() + val.template get<i32_const_t>().data.ui);
          else {
             return detail::make_value_getter<S, Cons>().template apply<S>(alloc, static_cast<T&&>(val), tail);
@@ -359,12 +372,27 @@ namespace eosio { namespace vm {
       static uint32_t to_wasm(bool val) { return val? 1 : 0; }
    };
 
-   template <typename T>
-   struct wasm_type_converter<T&> {
-      static T& from_wasm(T* ptr) { return *ptr; }
-      static T* to_wasm(T& ref) { return std::addressof(ref); }
+   template <>
+   struct wasm_type_converter<char*> {
+      static char* from_wasm(void* val) { return static_cast<char*>(val); }
+      static void* to_wasm(char* val) { return val; }
    };
-  
+
+   template <>
+   struct wasm_type_converter<const char*> {
+      static const char* from_wasm(const void* val) { return static_cast<const char*>(val); }
+      static const void* to_wasm(const char* val) { return val; }
+   };
+
+   template<typename T, std::size_t Align>
+   struct wasm_type_converter<aligned_ptr<T, Align>> {
+      aligned_ptr_wrapper<T, Align> from_wasm(void* ptr) { return {ptr}; }
+   };
+
+   template<typename T, std::size_t Align>
+   struct wasm_type_converter<aligned_ref<T, Align>> {
+      aligned_ptr_wrapper<T, Align> from_wasm(void* ptr) { return {ptr}; }
+   };
 
    template <typename T>
    inline constexpr auto to_wasm_type() -> uint8_t {

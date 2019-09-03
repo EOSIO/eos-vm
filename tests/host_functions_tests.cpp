@@ -84,6 +84,29 @@ void c_style_host_function_4(const state_t& ss) {
 // - calling into a different execution context
 // - wasm1/wasm2 mixed -> native -> exit wasm2
 
+
+namespace eosio { namespace vm {
+   template<typename T>
+   struct wasm_type_converter<T*> {
+      static T* from_wasm(void* val) {
+         return (T*)val;
+      }
+      static void* to_wasm(T* val) {
+         return (void*)val;
+      }
+   };
+
+   template<typename T>
+   struct wasm_type_converter<T&> {
+      static T& from_wasm(T* val) {
+         return *val;
+      }
+      static T* to_wasm(T& val) {
+        return std::addressof(val);
+      }
+   };
+}}
+
 namespace {
 
 template<typename T>
