@@ -3,6 +3,7 @@
 #include <eosio/vm/constants.hpp>
 #include <eosio/vm/exceptions.hpp>
 
+#include <cassert>
 #include <csignal>
 #include <cstdint>
 #include <cstring>
@@ -12,6 +13,7 @@
 #include <vector>
 
 #include <sys/mman.h>
+#include <unistd.h>
 
 namespace eosio { namespace vm {
    class bounded_allocator {
@@ -44,11 +46,19 @@ namespace eosio { namespace vm {
       template<std::size_t align_amt>
       static constexpr size_t align_offset(size_t offset) { return (offset + align_amt - 1) & ~(align_amt - 1); }
 
+      static std::size_t align_to_page(std::size_t offset) {
+         std::size_t pagesize = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
+         assert(max_memory_size % page_size == 0);
+         return (offset + pagesize - 1) & ~(pagesize - 1);
+      }
+
       // size in bytes
       growable_allocator(size_t size) {
+         EOS_VM_ASSERT(size <= max_memory_size, wasm_bad_alloc, "Too large initial memory size");
          _base = (char*)mmap(NULL, max_memory_size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+         EOS_VM_ASSERT(_base != MAP_FAILED, wasm_bad_alloc, "mmap failed.");
          if (size != 0) {
-            size_t chunks_to_alloc = (size / chunk_size) + 1;
+            size_t chunks_to_alloc = (align_offset<chunk_size>(size) / chunk_size);
             _size += (chunk_size * chunks_to_alloc);
             mprotect((char*)_base, _size, PROT_READ | PROT_WRITE);
          }
@@ -59,10 +69,14 @@ namespace eosio { namespace vm {
       // TODO use Outcome library
       template <typename T>
       T* alloc(size_t size = 0) {
+         static_assert(max_memory_size % alignof(T) == 0, "alignment must divide max_memory_size.");
          _offset = align_offset<alignof(T)>(_offset);
+         // Evaluating the inequality in this form cannot cause integer overflow.
+         // Once this assertion passes, the rest of the function is safe.
+         EOS_VM_ASSERT ((max_memory_size - _offset) / sizeof(T) >= size, wasm_bad_alloc, "Allocated too much memory");
          size_t aligned = (sizeof(T) * size) + _offset;
-         if (aligned >= _size) {
-            size_t chunks_to_alloc = aligned / chunk_size;
+         if (aligned > _size) {
+            size_t chunks_to_alloc = align_offset<chunk_size>(aligned - _size) / chunk_size;
             mprotect((char*)_base + _size, (chunk_size * chunks_to_alloc), PROT_READ | PROT_WRITE);
             _size += (chunk_size * chunks_to_alloc);
          }
@@ -70,6 +84,29 @@ namespace eosio { namespace vm {
          T* ptr  = (T*)(_base + _offset);
          _offset = aligned;
          return ptr;
+      }
+
+      void * start_code() {
+         _offset = align_to_page(_offset);
+         return _base + _offset;
+      }
+      template<bool IsJit>
+      void end_code(void * code_base) {
+         assert((char*)code_base >= _base);
+         assert((char*)code_base <= (_base+_offset));
+         _offset = align_to_page(_offset);
+         _code_base = (char*)code_base;
+         _code_size = _offset - ((char*)code_base - _base);
+         enable_code(IsJit);
+      }
+
+      // Sets protection on code pages to allow them to be executed.
+      void enable_code(bool is_jit) {
+         mprotect(_code_base, _code_size, is_jit?PROT_EXEC:PROT_READ);
+      }
+      // Make code pages unexecutable
+      void disable_code() {
+         mprotect(_code_base, _code_size, PROT_NONE);
       }
 
       /* different semantics than free,
@@ -89,6 +126,8 @@ namespace eosio { namespace vm {
       size_t _offset = 0;
       size_t _size   = 0;
       char*  _base;
+      char*  _code_base = nullptr;
+      size_t _code_size = 0;
    };
 
    template <typename T>

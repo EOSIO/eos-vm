@@ -12,9 +12,9 @@
 using namespace eosio;
 using namespace eosio::vm;
 extern wasm_allocator wa;
-using backend_t = backend<std::nullptr_t>;
 
-TEST_CASE( "Testing wasm <float_memory_0_wasm>", "[float_memory_0_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <float_memory_0_wasm>", "[float_memory_0_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_memory.0.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -36,7 +36,8 @@ bkend(nullptr, "env", "i32.store");
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.load")->to_f32()) == UINT32_C(2141192192));
 }
 
-TEST_CASE( "Testing wasm <float_memory_1_wasm>", "[float_memory_1_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <float_memory_1_wasm>", "[float_memory_1_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_memory.1.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -58,7 +59,8 @@ bkend(nullptr, "env", "i64.store");
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.load")->to_f64()) == UINT64_C(9219994337134247936));
 }
 
-TEST_CASE( "Testing wasm <float_memory_2_wasm>", "[float_memory_2_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <float_memory_2_wasm>", "[float_memory_2_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_memory.2.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -80,7 +82,8 @@ bkend(nullptr, "env", "i32.store");
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.load")->to_f32()) == UINT32_C(2141192192));
 }
 
-TEST_CASE( "Testing wasm <float_memory_3_wasm>", "[float_memory_3_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <float_memory_3_wasm>", "[float_memory_3_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_memory.3.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -102,7 +105,8 @@ bkend(nullptr, "env", "i64.store");
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.load")->to_f64()) == UINT64_C(9219994337134247936));
 }
 
-TEST_CASE( "Testing wasm <float_memory_4_wasm>", "[float_memory_4_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <float_memory_4_wasm>", "[float_memory_4_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_memory.4.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -124,7 +128,8 @@ bkend(nullptr, "env", "i32.store");
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.load")->to_f32()) == UINT32_C(2144337921));
 }
 
-TEST_CASE( "Testing wasm <float_memory_5_wasm>", "[float_memory_5_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <float_memory_5_wasm>", "[float_memory_5_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "float_memory.5.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );

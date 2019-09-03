@@ -12,9 +12,9 @@
 using namespace eosio;
 using namespace eosio::vm;
 extern wasm_allocator wa;
-using backend_t = backend<std::nullptr_t>;
 
-TEST_CASE( "Testing wasm <memory_grow_0_wasm>", "[memory_grow_0_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <memory_grow_0_wasm>", "[memory_grow_0_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "memory_grow.0.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -42,7 +42,8 @@ TEST_CASE( "Testing wasm <memory_grow_0_wasm>", "[memory_grow_0_wasm_tests]" ) {
    CHECK(bkend.call_with_return(nullptr, "env", "load_at_page_size")->to_ui32() == UINT32_C(3));
 }
 
-TEST_CASE( "Testing wasm <memory_grow_1_wasm>", "[memory_grow_1_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <memory_grow_1_wasm>", "[memory_grow_1_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "memory_grow.1.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -58,7 +59,8 @@ TEST_CASE( "Testing wasm <memory_grow_1_wasm>", "[memory_grow_1_wasm_tests]" ) {
    //CHECK(bkend.call_with_return(nullptr, "env", "grow", UINT32_C(1))->to_ui32() == UINT32_C(803));
 }
 
-TEST_CASE( "Testing wasm <memory_grow_2_wasm>", "[memory_grow_2_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <memory_grow_2_wasm>", "[memory_grow_2_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "memory_grow.2.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -74,7 +76,8 @@ TEST_CASE( "Testing wasm <memory_grow_2_wasm>", "[memory_grow_2_wasm_tests]" ) {
    CHECK(bkend.call_with_return(nullptr, "env", "grow", UINT32_C(65536))->to_ui32() == UINT32_C(4294967295));
 }
 
-TEST_CASE( "Testing wasm <memory_grow_3_wasm>", "[memory_grow_3_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <memory_grow_3_wasm>", "[memory_grow_3_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "memory_grow.3.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -93,7 +96,8 @@ TEST_CASE( "Testing wasm <memory_grow_3_wasm>", "[memory_grow_3_wasm_tests]" ) {
    CHECK(bkend.call_with_return(nullptr, "env", "check-memory-zero", UINT32_C(327680), UINT32_C(393215))->to_ui32() == UINT32_C(0));
 }
 
-TEST_CASE( "Testing wasm <memory_grow_4_wasm>", "[memory_grow_4_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <memory_grow_4_wasm>", "[memory_grow_4_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "memory_grow.4.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );

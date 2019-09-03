@@ -85,6 +85,7 @@ namespace eosio { namespace vm {
     public:
       template<typename F>
       null_watchdog scoped_run(F&&) { return *this; }
+      ~null_watchdog() {} // avoid unused variable warnings
    };
 
 }} // namespace eosio::vm

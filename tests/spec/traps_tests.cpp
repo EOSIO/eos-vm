@@ -12,9 +12,9 @@
 using namespace eosio;
 using namespace eosio::vm;
 extern wasm_allocator wa;
-using backend_t = backend<std::nullptr_t>;
 
-TEST_CASE( "Testing wasm <traps_0_wasm>", "[traps_0_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <traps_0_wasm>", "[traps_0_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "traps.0.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -28,7 +28,8 @@ TEST_CASE( "Testing wasm <traps_0_wasm>", "[traps_0_wasm_tests]" ) {
    CHECK_THROWS_AS(bkend(nullptr, "env", "no_dce.i64.div_s", UINT64_C(9223372036854775808), UINT64_C(18446744073709551615)), std::exception);
 }
 
-TEST_CASE( "Testing wasm <traps_1_wasm>", "[traps_1_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <traps_1_wasm>", "[traps_1_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "traps.1.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -40,7 +41,8 @@ TEST_CASE( "Testing wasm <traps_1_wasm>", "[traps_1_wasm_tests]" ) {
    CHECK_THROWS_AS(bkend(nullptr, "env", "no_dce.i64.rem_u", UINT64_C(1), UINT64_C(0)), std::exception);
 }
 
-TEST_CASE( "Testing wasm <traps_2_wasm>", "[traps_2_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <traps_2_wasm>", "[traps_2_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "traps.2.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -56,7 +58,8 @@ TEST_CASE( "Testing wasm <traps_2_wasm>", "[traps_2_wasm_tests]" ) {
    CHECK_THROWS_AS(bkend(nullptr, "env", "no_dce.i64.trunc_f64_u", bit_cast<double>(UINT64_C(9221120237041090560))), std::exception);
 }
 
-TEST_CASE( "Testing wasm <traps_3_wasm>", "[traps_3_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <traps_3_wasm>", "[traps_3_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "traps.3.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );

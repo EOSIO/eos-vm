@@ -203,4 +203,11 @@ namespace eosio { namespace vm {
             __cxxabiv1::__cxa_demangle(mangled_name, nullptr, &len, &status), &::std::free);
       return ptr.get();
    }
+
+   template<typename F>
+   struct scope_guard {
+      scope_guard(F&& f) : _f(static_cast<F&&>(f)) {}
+      ~scope_guard() { _f(); }
+      F _f;
+   };
 }} // namespace eosio::vm

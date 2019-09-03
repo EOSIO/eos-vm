@@ -12,9 +12,9 @@
 using namespace eosio;
 using namespace eosio::vm;
 extern wasm_allocator wa;
-using backend_t = backend<std::nullptr_t>;
 
-TEST_CASE( "Testing wasm <f64_0_wasm>", "[f64_0_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <f64_0_wasm>", "[f64_0_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "f64.0.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -1609,5 +1609,71 @@ TEST_CASE( "Testing wasm <f64_0_wasm>", "[f64_0_wasm_tests]" ) {
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "nearest", bit_cast<double>(UINT64_C(9218868437227405311)))->to_f64()) == UINT64_C(9218868437227405311));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "nearest", bit_cast<double>(UINT64_C(18442240474082181120)))->to_f64()) == UINT64_C(18442240474082181120));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "nearest", bit_cast<double>(UINT64_C(9218868437227405312)))->to_f64()) == UINT64_C(9218868437227405312));
+}
+
+BACKEND_TEST_CASE( "Testing wasm <f64_1_wasm>", "[f64_1_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "f64.1.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
+BACKEND_TEST_CASE( "Testing wasm <f64_10_wasm>", "[f64_10_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "f64.10.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
+BACKEND_TEST_CASE( "Testing wasm <f64_11_wasm>", "[f64_11_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "f64.11.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
+BACKEND_TEST_CASE( "Testing wasm <f64_2_wasm>", "[f64_2_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "f64.2.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
+BACKEND_TEST_CASE( "Testing wasm <f64_3_wasm>", "[f64_3_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "f64.3.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
+BACKEND_TEST_CASE( "Testing wasm <f64_4_wasm>", "[f64_4_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "f64.4.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
+BACKEND_TEST_CASE( "Testing wasm <f64_5_wasm>", "[f64_5_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "f64.5.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
+BACKEND_TEST_CASE( "Testing wasm <f64_6_wasm>", "[f64_6_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "f64.6.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
+BACKEND_TEST_CASE( "Testing wasm <f64_7_wasm>", "[f64_7_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "f64.7.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
+BACKEND_TEST_CASE( "Testing wasm <f64_8_wasm>", "[f64_8_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "f64.8.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
+BACKEND_TEST_CASE( "Testing wasm <f64_9_wasm>", "[f64_9_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "f64.9.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
 }
 

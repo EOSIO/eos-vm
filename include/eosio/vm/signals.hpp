@@ -10,6 +10,7 @@
 namespace eosio { namespace vm {
 
    inline thread_local std::atomic<sigjmp_buf*> signal_dest = ATOMIC_VAR_INIT(nullptr);
+   inline thread_local std::exception_ptr saved_exception{nullptr};
    template<int Sig>
    inline struct sigaction prev_signal_handler;
 
@@ -22,6 +23,7 @@ namespace eosio { namespace vm {
          switch(sig) {
             case SIGSEGV: prev_action = &prev_signal_handler<SIGSEGV>; break;
             case SIGBUS: prev_action = &prev_signal_handler<SIGBUS>; break;
+            case SIGFPE: prev_action = &prev_signal_handler<SIGFPE>; break;
             default: std::abort();
          }
          if (!prev_action) std::abort();
@@ -43,6 +45,23 @@ namespace eosio { namespace vm {
       }
    }
 
+   // only valid inside invoke_with_signal_handler.
+   // This is a workaround for the fact that it
+   // is currently unsafe to throw an exception through
+   // a jit frame.
+   [[noreturn]] inline void throw_() {
+      saved_exception = std::current_exception();
+      sigjmp_buf* dest = std::atomic_load(&signal_dest);
+      siglongjmp(*dest, -1);
+   }
+
+   template<typename E>
+   [[noreturn]] inline void throw_(E&& e) {
+      saved_exception = std::make_exception_ptr(static_cast<E&&>(e));
+      sigjmp_buf* dest = std::atomic_load(&signal_dest);
+      siglongjmp(*dest, -1);
+   }
+
    inline void setup_signal_handler_impl() {
       struct sigaction sa;
       sa.sa_sigaction = &signal_handler;
@@ -50,10 +69,15 @@ namespace eosio { namespace vm {
       sa.sa_flags = SA_NODEFER | SA_SIGINFO;
       sigaction(SIGSEGV, &sa, &prev_signal_handler<SIGSEGV>);
       sigaction(SIGBUS, &sa, &prev_signal_handler<SIGBUS>);
+      sigaction(SIGFPE, &sa, &prev_signal_handler<SIGBUS>);
    }
+
+   template<typename T>
+   void ignore_unused_variable_warning(T&) {}
 
    inline void setup_signal_handler() {
       static int init_helper = (setup_signal_handler_impl(), 0);
+      ignore_unused_variable_warning(init_helper);
       EOS_VM_ASSERT(signal_dest.is_lock_free(), wasm_interpreter_exception, "Atomic pointers must be lock-free to be async signal safe.");
    }
 
@@ -87,6 +111,7 @@ namespace eosio { namespace vm {
          sigemptyset(&unblock_mask);
          sigaddset(&unblock_mask, SIGSEGV);
          sigaddset(&unblock_mask, SIGBUS);
+         sigaddset(&unblock_mask, SIGFPE);
          pthread_sigmask(SIG_UNBLOCK, &unblock_mask, &old_sigmask);
          try {
             f();
@@ -98,10 +123,16 @@ namespace eosio { namespace vm {
             throw;
          }
       } else {
-        if (old_signal_handler) {
+         if (old_signal_handler) {
             std::atomic_store(&signal_dest, old_signal_handler);
          }
-         e(sig);
+         if (sig == -1) {
+            std::exception_ptr exception = std::move(saved_exception);
+            saved_exception = nullptr;
+            std::rethrow_exception(exception);
+         } else {
+            e(sig);
+         }
       }
    }
 

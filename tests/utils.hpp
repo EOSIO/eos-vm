@@ -39,6 +39,9 @@ T bit_cast(const U& u) {
    return result;
 }
 
+#define BACKEND_TEST_CASE(name, tags) \
+  TEMPLATE_TEST_CASE(name, tags, eosio::vm::interpreter, eosio::vm::jit)
+
 inline std::vector<uint8_t> read_wasm(const std::string& fname) {
    std::ifstream wasm_file(fname, std::ios::binary);
    if (!wasm_file.is_open())

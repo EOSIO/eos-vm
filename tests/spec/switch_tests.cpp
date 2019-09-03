@@ -12,9 +12,9 @@
 using namespace eosio;
 using namespace eosio::vm;
 extern wasm_allocator wa;
-using backend_t = backend<std::nullptr_t>;
 
-TEST_CASE( "Testing wasm <switch_0_wasm>", "[switch_0_wasm_tests]" ) {
+BACKEND_TEST_CASE( "Testing wasm <switch_0_wasm>", "[switch_0_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "switch.0.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
@@ -46,5 +46,11 @@ TEST_CASE( "Testing wasm <switch_0_wasm>", "[switch_0_wasm_tests]" ) {
    CHECK(bkend.call_with_return(nullptr, "env", "arg", UINT32_C(7))->to_ui32() == UINT32_C(1124));
    CHECK(bkend.call_with_return(nullptr, "env", "arg", UINT32_C(8))->to_ui32() == UINT32_C(126));
    CHECK(bkend.call_with_return(nullptr, "env", "corner")->to_ui32() == UINT32_C(1));
+}
+
+BACKEND_TEST_CASE( "Testing wasm <switch_1_wasm>", "[switch_1_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "switch.1.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
 }
 
