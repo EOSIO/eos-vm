@@ -111,9 +111,9 @@ namespace eosio { namespace vm {
          // variables beyond this are inaccessible, so they can be dropped safely.
          _local_count = std::min(count, static_cast<uint64_t>(0xFFFFFFFFu - _ft->param_types.size()));
          if (_local_count > 0) {
+            // xor %rax, %rax
+            emit_bytes(0x48, 0x31, 0xc0);
             if (_local_count > 17) { // only use a loop if it would save space
-               // xor %rax, %rax
-               emit_bytes(0x48, 0x31, 0xc0);
                // mov $count, %ecx
                emit_bytes(0xb9);
                emit_operand32(_local_count);
