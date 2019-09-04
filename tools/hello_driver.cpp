@@ -10,6 +10,15 @@ using namespace eosio::vm;
 
 #include "hello.wasm.hpp"
 
+namespace eosio { namespace vm {
+
+   template <>
+   struct wasm_type_converter<const char*> {
+      static const char* from_wasm(const void* val) { validate_c_str(val); return static_cast<const char*>(val); }
+   };
+
+}}
+
 // example of host function as a raw C style function
 void eosio_assert(bool test, const char* msg) {
    if (!test) {

@@ -98,10 +98,24 @@ namespace eosio { namespace vm {
       return std::tuple<std::decay_t<Args>...>{};
    }
 
+   // try the pointer to force segfault early
+   template <typename T>
+   void validate_ptr( const void* ptr, uint32_t len ) {
+      EOS_VM_ASSERT( len <= std::numeric_limits<std::uint32_t>::max() / (uint32_t)sizeof(T), wasm_interpreter_exception, "length will overflow" );
+      uint32_t bytes = len * sizeof(T);
+      // check the pointer
+      volatile auto ret_val = *(reinterpret_cast<const char*>(ptr) + (bytes ? bytes-1 : 0));
+   }
+
+   inline void validate_c_str(const void* ptr) {
+      volatile auto check = std::strlen(reinterpret_cast<const char*>(ptr));
+   }
+
    template <typename T, std::size_t Align>
    struct aligned_ptr_wrapper {
       static_assert(Align % alignof(T) == 0, "Must align to at least the alignment of T");
       aligned_ptr_wrapper(void* ptr) : ptr(ptr) {
+        validate_ptr<T>(ptr, 1);
         if (reinterpret_cast<std::uintptr_t>(ptr) % Align != 0) {
             copy = T{};
             memcpy( &(*copy), ptr, sizeof(T) );
@@ -181,16 +195,6 @@ namespace eosio { namespace vm {
                        "wasm_type_converter must use the same type for both from_wasm and to_wasm.");
          using type = from_wasm_type_impl_t<T>;
       };
-      
-      // try the pointer to force segfault early
-      template <typename WAlloc, typename T>
-      constexpr T* validate_ptr( WAlloc&& alloc, uint32_t offset, uint32_t len ) {
-         EOS_VM_ASSERT( len < INT_MAX / (uint32_t)sizeof(T), wasm_interpreter_exception, "length will overflow" );
-         T* ret_ptr = reinterpret_cast<T>(alloc.template get_base_ptr<char>() + offset);
-         // check the pointer
-         volatile auto ret_val = *(ret_ptr + (len ? len-1 : 0));
-         return ret_ptr;
-      }
 
       // Allow from_wasm to return a wrapper that holds extra data.
       // StorageType must be implicitly convertible to T
@@ -370,18 +374,6 @@ namespace eosio { namespace vm {
    struct wasm_type_converter<bool> {
       static bool from_wasm(uint32_t val) { return val != 0; }
       static uint32_t to_wasm(bool val) { return val? 1 : 0; }
-   };
-
-   template <>
-   struct wasm_type_converter<char*> {
-      static char* from_wasm(void* val) { return static_cast<char*>(val); }
-      static void* to_wasm(char* val) { return val; }
-   };
-
-   template <>
-   struct wasm_type_converter<const char*> {
-      static const char* from_wasm(const void* val) { return static_cast<const char*>(val); }
-      static const void* to_wasm(const char* val) { return val; }
    };
 
    template<typename T, std::size_t Align>
