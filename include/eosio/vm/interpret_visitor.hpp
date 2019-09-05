@@ -32,6 +32,16 @@ namespace eosio { namespace vm {
             return addr;
          }
       }
+      template<typename T>
+      static inline T read_unaligned(const void* addr) {
+         T result;
+         std::memcpy(&result, addr, sizeof(T));
+         return result;
+      }
+      template<typename T>
+      static void write_unaligned(void* addr, T value) {
+         std::memcpy(addr, &value, sizeof(T));
+      }
 
       [[gnu::always_inline]] inline void operator()(const unreachable_t& op) {
          context.inc_pc();
@@ -117,175 +127,134 @@ namespace eosio { namespace vm {
          const auto& oper = context.pop_operand();
          context.set_global(op.index, oper);
       }
+      template<typename Op>
+      inline void * pop_memop_addr(const Op& op) {
+         const auto& ptr  = context.pop_operand();
+         return align_address((context.linear_memory() + op.offset + ptr.to_ui32()), op.flags_align);
+      }
       [[gnu::always_inline]] inline void operator()(const i32_load_t& op) {
          context.inc_pc();
-         const auto& ptr  = context.pop_operand();
-         uint32_t*   _ptr = (uint32_t*)align_address((uint32_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                   op.flags_align);
-         context.push_operand(i32_const_t{ *_ptr });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(i32_const_t{ read_unaligned<uint32_t>(_ptr) });
       }
       [[gnu::always_inline]] inline void operator()(const i32_load8_s_t& op) {
          context.inc_pc();
-         const auto& ptr = context.pop_operand();
-         int8_t*     _ptr =
-               (int8_t*)align_address((int8_t*)(context.linear_memory() + op.offset + ptr.to_ui32()), op.flags_align);
-         context.push_operand(i32_const_t{ static_cast<int32_t>(*_ptr) });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(i32_const_t{ static_cast<int32_t>(read_unaligned<int8_t>(_ptr) ) });
       }
       [[gnu::always_inline]] inline void operator()(const i32_load16_s_t& op) {
          context.inc_pc();
-         const auto& ptr = context.pop_operand();
-         int16_t*    _ptr =
-               (int16_t*)align_address((int16_t*)(context.linear_memory() + op.offset + ptr.to_ui32()), op.flags_align);
-         context.push_operand(i32_const_t{ static_cast<int32_t>(*_ptr) });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(i32_const_t{ static_cast<int32_t>( read_unaligned<int16_t>(_ptr) ) });
       }
       [[gnu::always_inline]] inline void operator()(const i32_load8_u_t& op) {
          context.inc_pc();
-         const auto& ptr = context.pop_operand();
-         uint8_t*    _ptr =
-               (uint8_t*)align_address((uint8_t*)(context.linear_memory() + op.offset + ptr.to_ui32()), op.flags_align);
-         context.push_operand(i32_const_t{ static_cast<uint32_t>(*_ptr) });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(i32_const_t{ static_cast<uint32_t>( read_unaligned<uint8_t>(_ptr) ) });
       }
       [[gnu::always_inline]] inline void operator()(const i32_load16_u_t& op) {
          context.inc_pc();
-         const auto& ptr  = context.pop_operand();
-         uint16_t*   _ptr = (uint16_t*)align_address((uint16_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                   op.flags_align);
-         context.push_operand(i32_const_t{ static_cast<uint32_t>(*_ptr) });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(i32_const_t{ static_cast<uint32_t>( read_unaligned<uint16_t>(_ptr) ) });
       }
       [[gnu::always_inline]] inline void operator()(const i64_load_t& op) {
          context.inc_pc();
-         const auto& ptr  = context.pop_operand();
-         uint64_t*   _ptr = (uint64_t*)align_address((uint64_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                   op.flags_align);
-         context.push_operand(i64_const_t{ static_cast<uint64_t>(*_ptr) });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(i64_const_t{ static_cast<uint64_t>( read_unaligned<uint64_t>(_ptr) ) });
       }
       [[gnu::always_inline]] inline void operator()(const i64_load8_s_t& op) {
          context.inc_pc();
-         const auto& ptr = context.pop_operand();
-         int8_t*     _ptr =
-               (int8_t*)align_address((int8_t*)(context.linear_memory() + op.offset + ptr.to_ui32()), op.flags_align);
-         context.push_operand(i64_const_t{ static_cast<int64_t>(*_ptr) });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(i64_const_t{ static_cast<int64_t>( read_unaligned<int8_t>(_ptr) ) });
       }
       [[gnu::always_inline]] inline void operator()(const i64_load16_s_t& op) {
          context.inc_pc();
-         const auto& ptr = context.pop_operand();
-         int16_t*    _ptr =
-               (int16_t*)align_address((int16_t*)(context.linear_memory() + op.offset + ptr.to_ui32()), op.flags_align);
-         context.push_operand(i64_const_t{ static_cast<int64_t>(*_ptr) });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(i64_const_t{ static_cast<int64_t>( read_unaligned<int16_t>(_ptr) ) });
       }
       [[gnu::always_inline]] inline void operator()(const i64_load32_s_t& op) {
          context.inc_pc();
-         const auto& ptr = context.pop_operand();
-         int32_t*    _ptr =
-               (int32_t*)align_address((int32_t*)(context.linear_memory() + op.offset + ptr.to_ui32()), op.flags_align);
-         context.push_operand(i64_const_t{ static_cast<int64_t>(*_ptr) });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(i64_const_t{ static_cast<int64_t>( read_unaligned<int32_t>(_ptr) ) });
       }
       [[gnu::always_inline]] inline void operator()(const i64_load8_u_t& op) {
          context.inc_pc();
-         const auto& ptr = context.pop_operand();
-         uint8_t*    _ptr =
-               (uint8_t*)align_address((uint8_t*)(context.linear_memory() + op.offset + ptr.to_ui32()), op.flags_align);
-         context.push_operand(i64_const_t{ static_cast<uint64_t>(*_ptr) });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(i64_const_t{ static_cast<uint64_t>( read_unaligned<uint8_t>(_ptr) ) });
       }
       [[gnu::always_inline]] inline void operator()(const i64_load16_u_t& op) {
          context.inc_pc();
-         const auto& ptr  = context.pop_operand();
-         uint16_t*   _ptr = (uint16_t*)align_address((uint16_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                   op.flags_align);
-         context.push_operand(i64_const_t{ static_cast<uint64_t>(*_ptr) });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(i64_const_t{ static_cast<uint64_t>( read_unaligned<uint16_t>(_ptr) ) });
       }
       [[gnu::always_inline]] inline void operator()(const i64_load32_u_t& op) {
          context.inc_pc();
-         const auto& ptr  = context.pop_operand();
-         uint32_t*   _ptr = (uint32_t*)align_address((uint32_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                   op.flags_align);
-         context.push_operand(i64_const_t{ static_cast<uint64_t>(*_ptr) });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(i64_const_t{ static_cast<uint64_t>( read_unaligned<uint32_t>(_ptr) ) });
       }
       [[gnu::always_inline]] inline void operator()(const f32_load_t& op) {
          context.inc_pc();
-         const auto& ptr  = context.pop_operand();
-         uint32_t*   _ptr = (uint32_t*)align_address((uint32_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                   op.flags_align);
-         context.push_operand(f32_const_t{ *_ptr });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(f32_const_t{ read_unaligned<uint32_t>(_ptr) });
       }
       [[gnu::always_inline]] inline void operator()(const f64_load_t& op) {
          context.inc_pc();
-         const auto& ptr  = context.pop_operand();
-         uint64_t*   _ptr = (uint64_t*)align_address((uint64_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                   op.flags_align);
-         context.push_operand(f64_const_t{ *_ptr });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(f64_const_t{ read_unaligned<uint64_t>(_ptr) });
       }
       [[gnu::always_inline]] inline void operator()(const i32_store_t& op) {
          context.inc_pc();
          const auto& val     = context.pop_operand();
-         const auto& ptr     = context.pop_operand();
-         uint32_t* store_loc = (uint32_t*)align_address((uint32_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                        op.flags_align);
-         *store_loc          = val.to_ui32();
+         void* store_loc     = pop_memop_addr(op);
+         write_unaligned(store_loc, val.to_ui32());
       }
       [[gnu::always_inline]] inline void operator()(const i32_store8_t& op) {
          context.inc_pc();
          const auto& val = context.pop_operand();
-         const auto& ptr = context.pop_operand();
-         uint8_t*    store_loc =
-               (uint8_t*)align_address((uint8_t*)(context.linear_memory() + op.offset + ptr.to_ui32()), op.flags_align);
-         *store_loc = static_cast<uint8_t>(val.to_ui32());
+         void* store_loc = pop_memop_addr(op);
+         write_unaligned(store_loc, static_cast<uint8_t>(val.to_ui32()));
       }
       [[gnu::always_inline]] inline void operator()(const i32_store16_t& op) {
          context.inc_pc();
          const auto& val     = context.pop_operand();
-         const auto& ptr     = context.pop_operand();
-         uint16_t* store_loc = (uint16_t*)align_address((uint16_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                        op.flags_align);
-         *store_loc          = static_cast<uint16_t>(val.to_ui32());
+         void* store_loc     = pop_memop_addr(op);
+         write_unaligned(store_loc, static_cast<uint16_t>(val.to_ui32()));
       }
       [[gnu::always_inline]] inline void operator()(const i64_store_t& op) {
          context.inc_pc();
          const auto& val     = context.pop_operand();
-         const auto& ptr     = context.pop_operand();
-         uint64_t* store_loc = (uint64_t*)align_address((uint64_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                        op.flags_align);
-         *store_loc          = static_cast<uint64_t>(val.to_ui64());
+         void* store_loc     = pop_memop_addr(op);
+         write_unaligned(store_loc, static_cast<uint64_t>(val.to_ui64()));
       }
       [[gnu::always_inline]] inline void operator()(const i64_store8_t& op) {
          context.inc_pc();
          const auto& val = context.pop_operand();
-         const auto& ptr = context.pop_operand();
-         uint8_t*    store_loc =
-               (uint8_t*)align_address((uint8_t*)(context.linear_memory() + op.offset + ptr.to_ui32()), op.flags_align);
-         *store_loc = static_cast<uint8_t>(val.to_ui64());
+         void* store_loc = pop_memop_addr(op);
+         write_unaligned(store_loc, static_cast<uint8_t>(val.to_ui64()));
       }
       [[gnu::always_inline]] inline void operator()(const i64_store16_t& op) {
          context.inc_pc();
          const auto& val     = context.pop_operand();
-         const auto& ptr     = context.pop_operand();
-         uint16_t* store_loc = (uint16_t*)align_address((uint16_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                        op.flags_align);
-         *store_loc          = static_cast<uint16_t>(val.to_ui64());
+         void* store_loc     = pop_memop_addr(op);
+         write_unaligned(store_loc, static_cast<uint16_t>(val.to_ui64()));
       }
       [[gnu::always_inline]] inline void operator()(const i64_store32_t& op) {
          context.inc_pc();
          const auto& val     = context.pop_operand();
-         const auto& ptr     = context.pop_operand();
-         uint32_t* store_loc = (uint32_t*)align_address((uint32_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                        op.flags_align);
-         *store_loc          = static_cast<uint32_t>(val.to_ui64());
+         void* store_loc     = pop_memop_addr(op);
+         write_unaligned(store_loc, static_cast<uint32_t>(val.to_ui64()));
       }
       [[gnu::always_inline]] inline void operator()(const f32_store_t& op) {
          context.inc_pc();
          const auto& val     = context.pop_operand();
-         const auto& ptr     = context.pop_operand();
-         uint32_t* store_loc = (uint32_t*)align_address((uint32_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                        op.flags_align);
-         *store_loc          = static_cast<uint32_t>(val.to_fui32());
+         void* store_loc     = pop_memop_addr(op);
+         write_unaligned(store_loc, static_cast<uint32_t>(val.to_fui32()));
       }
       [[gnu::always_inline]] inline void operator()(const f64_store_t& op) {
          context.inc_pc();
          const auto& val     = context.pop_operand();
-         const auto& ptr     = context.pop_operand();
-         uint64_t* store_loc = (uint64_t*)align_address((uint64_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                        op.flags_align);
-         *store_loc          = static_cast<uint64_t>(val.to_fui64());
+         void* store_loc     = pop_memop_addr(op);
+         write_unaligned(store_loc, static_cast<uint64_t>(val.to_fui64()));
       }
       [[gnu::always_inline]] inline void operator()(const current_memory_t& op) {
          context.inc_pc();
