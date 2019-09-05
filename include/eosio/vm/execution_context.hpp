@@ -23,8 +23,8 @@ namespace eosio { namespace vm {
 
       inline int32_t grow_linear_memory(int32_t pages) {
          const int32_t sz = _wasm_alloc->get_current_page();
-         if (pages < 0 || !_mod.memories.size() || max_pages < sz + pages ||
-             (_mod.memories[0].limits.flags && (_mod.memories[0].limits.maximum < sz + pages)))
+         if (pages < 0 || !_mod.memories.size() || max_pages - sz < pages ||
+             (_mod.memories[0].limits.flags && (static_cast<int32_t>(_mod.memories[0].limits.maximum) - sz < pages)))
             return -1;
          _wasm_alloc->alloc<char>(pages);
          return sz;
@@ -50,7 +50,7 @@ namespace eosio { namespace vm {
             grow_linear_memory(_mod.memories[0].limits.initial - _wasm_alloc->get_current_page());
          }
 
-         for (int i = 0; i < _mod.data.size(); i++) {
+         for (uint32_t i = 0; i < _mod.data.size(); i++) {
             const auto& data_seg = _mod.data[i];
             // TODO validate only use memory idx 0 in parse
             auto addr = _linear_memory + data_seg.offset.value.i32;
@@ -58,7 +58,7 @@ namespace eosio { namespace vm {
          }
 
          // reset the mutable globals
-         for (int i = 0; i < _mod.globals.size(); i++) {
+         for (uint32_t i = 0; i < _mod.globals.size(); i++) {
             if (_mod.globals[i].type.mutability)
                _mod.globals[i].current = _mod.globals[i].init;
          }
@@ -265,7 +265,7 @@ namespace eosio { namespace vm {
          _mod.function_sizes.resize(_mod.get_functions_total());
          const size_t import_size  = _mod.get_imported_functions_size();
          uint32_t     total_so_far = 0;
-         for (int i = _mod.get_imported_functions_size(); i < _mod.function_sizes.size(); i++) {
+         for (uint32_t i = _mod.get_imported_functions_size(); i < _mod.function_sizes.size(); i++) {
             _mod.function_sizes[i] = total_so_far;
             total_so_far += _mod.code[i - import_size].size;
          }
@@ -385,7 +385,7 @@ namespace eosio { namespace vm {
       }
 
       inline void type_check(const func_type& ft) {
-         for (int i = 0; i < ft.param_types.size(); i++) {
+         for (uint32_t i = 0; i < ft.param_types.size(); i++) {
             const auto& op = peek_operand((ft.param_types.size() - 1) - i);
             visit(overloaded{ [&](const i32_const_t&) {
                                      EOS_VM_ASSERT(ft.param_types[i] == types::i32, wasm_interpreter_exception,
@@ -509,8 +509,8 @@ namespace eosio { namespace vm {
 
       inline void setup_locals(uint32_t index) {
          const auto& fn = _mod.code[index - _mod.get_imported_functions_size()];
-         for (int i = 0; i < fn.locals.size(); i++) {
-            for (int j = 0; j < fn.locals[i].count; j++)
+         for (uint32_t i = 0; i < fn.locals.size(); i++) {
+            for (uint32_t j = 0; j < fn.locals[i].count; j++)
                switch (fn.locals[i].type) {
                   case types::i32: push_operand(i32_const_t{ (uint32_t)0 }); break;
                   case types::i64: push_operand(i64_const_t{ (uint64_t)0 }); break;

@@ -11,7 +11,7 @@ namespace eosio { namespace vm {
       guarded_ptr( T* rp, size_t bnds ) : raw_ptr(rp), orig_ptr(rp), bnds(rp + bnds) {}
 
       inline guarded_ptr& operator+=(size_t i) {
-         EOS_VM_ASSERT(i <= bnds - raw_ptr, guarded_ptr_exception, "overbounding pointer");
+         EOS_VM_ASSERT(i <= static_cast<std::size_t>(bnds - raw_ptr), guarded_ptr_exception, "overbounding pointer");
          raw_ptr += i;
          return *this;
       }
@@ -61,7 +61,7 @@ namespace eosio { namespace vm {
 
       // reduces the bounds for the lifetime of the returned object
       auto scoped_shrink_bounds(std::size_t n) {
-         EOS_VM_ASSERT(n <= (bnds - raw_ptr), guarded_ptr_exception, "guarded ptr out of bounds");
+         EOS_VM_ASSERT(n <= static_cast<std::size_t>(bnds - raw_ptr), guarded_ptr_exception, "guarded ptr out of bounds");
          T* old_bnds = bnds;
          bnds = raw_ptr + n;
          return scope_guard{ [this, old_bnds](){ bnds = old_bnds; } };
@@ -69,7 +69,7 @@ namespace eosio { namespace vm {
       // verifies that the pointer is advanced by exactly n before
       // the returned object is destroyed.
       auto scoped_consume_items(std::size_t n) {
-         EOS_VM_ASSERT(n <= (bnds - raw_ptr), guarded_ptr_exception, "guarded ptr out of bounds");
+         EOS_VM_ASSERT(n <= static_cast<std::size_t>(bnds - raw_ptr), guarded_ptr_exception, "guarded ptr out of bounds");
          int exceptions = std::uncaught_exceptions();
          T* old_bnds = bnds;
          bnds = raw_ptr + n;
@@ -84,7 +84,7 @@ namespace eosio { namespace vm {
       }
 
       inline T at(size_t index) const {
-         EOS_VM_ASSERT(index < bnds - raw_ptr, guarded_ptr_exception, "accessing out of bounds");
+         EOS_VM_ASSERT(index < static_cast<std::size_t>(bnds - raw_ptr), guarded_ptr_exception, "accessing out of bounds");
          return raw_ptr[index];
       }
       

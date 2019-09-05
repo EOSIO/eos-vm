@@ -21,3 +21,6 @@
   )
   "invalid type"
 )
+
+;; Try to cause overflow.  Unfortunately, this fails on allocation first.
+;; (module (table 0x80000000 funcref))

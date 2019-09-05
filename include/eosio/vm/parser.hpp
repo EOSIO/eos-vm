@@ -145,7 +145,7 @@ namespace eosio { namespace vm {
             EOS_VM_ASSERT(tt.limits.initial <= tt.limits.maximum, wasm_parse_exception, "table max size less than min size");
          }
          tt.table = decltype(tt.table){ _allocator, tt.limits.initial };
-         for (int i = 0; i < tt.limits.initial; i++) tt.table[i] = std::numeric_limits<uint32_t>::max();
+         for (uint32_t i = 0; i < tt.limits.initial; i++) tt.table[i] = std::numeric_limits<uint32_t>::max();
       }
 
       void parse_global_variable(wasm_code_ptr& code, global_variable& gv) {

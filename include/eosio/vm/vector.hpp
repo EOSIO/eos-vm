@@ -83,8 +83,7 @@ namespace eosio { namespace vm {
          constexpr inline void set( T* data, size_t size, size_t index=-1 ) { _size = size; _data = data; _index = index == -1 ? size - 1 : index; }
          constexpr inline void copy( T* data, size_t size ) {
            resize(size);
-           for (int i=0; i < size; i++)
-             _data[i] = data[i];
+           std::copy_n(data, size, _data);
            _index = size-1;
          }
 

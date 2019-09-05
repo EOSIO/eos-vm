@@ -114,8 +114,8 @@ namespace eosio { namespace vm {
        */
       template <typename T>
       void reclaim(const T* ptr, size_t size=0) {
-         EOS_VM_ASSERT( _offset - size >= 0, wasm_bad_alloc, "reclaimed too much memory" );
-         EOS_VM_ASSERT( size == 0 || ( (char*)(ptr + size) - _base ) == _offset, wasm_bad_alloc, "reclaiming memory must be strictly LIFO");
+         EOS_VM_ASSERT( _offset / sizeof(T) >= size, wasm_bad_alloc, "reclaimed too much memory" );
+         EOS_VM_ASSERT( size == 0 || (char*)(ptr + size) == (_base + _offset), wasm_bad_alloc, "reclaiming memory must be strictly LIFO");
          if ( size != 0 )
             _offset = ((char*)ptr - _base);
       }
@@ -157,7 +157,7 @@ namespace eosio { namespace vm {
     public:
       template <typename T>
       T* alloc(size_t size = 1 /*in pages*/) {
-         EOS_VM_ASSERT(page + size <= max_pages, wasm_bad_alloc, "exceeded max number of pages");
+         EOS_VM_ASSERT(size <= max_pages - page, wasm_bad_alloc, "exceeded max number of pages");
          mprotect(raw + (page_size * page), (page_size * size), PROT_READ | PROT_WRITE);
          T* ptr    = (T*)(raw + (page_size * page));
          memset(ptr, 0, page_size * size);

@@ -2045,11 +2045,11 @@ namespace eosio { namespace vm {
          }
       }
 
-      static uint32_t current_memory(Context* context /*rdi*/) {
+      static int32_t current_memory(Context* context /*rdi*/) {
          return context->current_linear_memory();
       }
 
-      static uint32_t grow_memory(Context* context /*rdi*/, uint32_t pages) {
+      static int32_t grow_memory(Context* context /*rdi*/, int32_t pages) {
          return context->grow_linear_memory(pages);
       }
 

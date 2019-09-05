@@ -170,7 +170,7 @@ namespace eosio { namespace vm {
 
       uint32_t get_imported_functions_size() const {
          uint32_t number_of_imports = 0;
-         for (int i = 0; i < imports.size(); i++) {
+         for (uint32_t i = 0; i < imports.size(); i++) {
             if (imports[i].kind == external_kind::Function)
                number_of_imports++;
          }
@@ -200,7 +200,7 @@ namespace eosio { namespace vm {
 
       uint32_t get_exported_function(const std::string_view str) {
          uint32_t index = std::numeric_limits<uint32_t>::max();
-         for (int i = 0; i < exports.size(); i++) {
+         for (uint32_t i = 0; i < exports.size(); i++) {
             if (exports[i].kind == external_kind::Function && exports[i].field_str.size() == str.size() &&
                 memcmp((const char*)str.data(), (const char*)exports[i].field_str.raw(), exports[i].field_str.size()) ==
                       0) {
