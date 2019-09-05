@@ -465,18 +465,30 @@ namespace eosio { namespace vm {
                } break;
                case opcodes::block: {
                   uint32_t expected_result = *code++;
+                  EOS_VM_ASSERT(expected_result == types::i32 || expected_result == types::i64 ||
+                                expected_result == types::f32 || expected_result == types::f64 ||
+                                expected_result == types::pseudo, wasm_parse_exception,
+                                "Invalid type code in block");
                   pc_stack.push_back({op_stack.depth(), expected_result, expected_result, false, std::vector<branch_t>{}});
                   code_writer.emit_block();
                   op_stack.push_scope();
                } break;
                case opcodes::loop: {
                   uint32_t expected_result = *code++;
+                  EOS_VM_ASSERT(expected_result == types::i32 || expected_result == types::i64 ||
+                                expected_result == types::f32 || expected_result == types::f64 ||
+                                expected_result == types::pseudo, wasm_parse_exception,
+                                "Invalid type code in loop");
                   auto pos = code_writer.emit_loop();
                   pc_stack.push_back({op_stack.depth(), expected_result, types::pseudo, false, pos});
                   op_stack.push_scope();
                } break;
                case opcodes::if_: {
                   uint32_t expected_result = *code++;
+                  EOS_VM_ASSERT(expected_result == types::i32 || expected_result == types::i64 ||
+                                expected_result == types::f32 || expected_result == types::f64 ||
+                                expected_result == types::pseudo, wasm_parse_exception,
+                                "Invalid type code in if");
                   auto branch = code_writer.emit_if();
                   op_stack.pop(types::i32);
                   pc_stack.push_back({op_stack.depth(), expected_result, expected_result, true, std::vector{branch}});
