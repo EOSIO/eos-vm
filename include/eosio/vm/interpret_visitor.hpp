@@ -608,21 +608,24 @@ namespace eosio { namespace vm {
       }
       [[gnu::always_inline]] inline void operator()(const i32_shl_t& op) {
          context.inc_pc();
+         static constexpr uint32_t mask = (8 * sizeof(uint32_t) - 1);
          const auto& rhs = context.pop_operand().to_ui32();
          auto&       lhs = context.peek_operand().to_ui32();
-         lhs <<= rhs;
+         lhs <<= (rhs & mask);
       }
       [[gnu::always_inline]] inline void operator()(const i32_shr_s_t& op) {
          context.inc_pc();
+         static constexpr uint32_t mask = (8 * sizeof(uint32_t) - 1);
          const auto& rhs = context.pop_operand().to_ui32();
          auto&       lhs = context.peek_operand().to_i32();
-         lhs >>= rhs;
+         lhs >>= (rhs & mask);
       }
       [[gnu::always_inline]] inline void operator()(const i32_shr_u_t& op) {
          context.inc_pc();
+         static constexpr uint32_t mask = (8 * sizeof(uint32_t) - 1);
          const auto& rhs = context.pop_operand().to_ui32();
          auto&       lhs = context.peek_operand().to_ui32();
-         lhs >>= rhs;
+         lhs >>= (rhs & mask);
       }
       [[gnu::always_inline]] inline void operator()(const i32_rotl_t& op) {
 
@@ -731,21 +734,24 @@ namespace eosio { namespace vm {
       }
       [[gnu::always_inline]] inline void operator()(const i64_shl_t& op) {
          context.inc_pc();
+         static constexpr uint64_t mask = (8 * sizeof(uint64_t) - 1);
          const auto& rhs = context.pop_operand().to_ui64();
          auto&       lhs = context.peek_operand().to_ui64();
-         lhs <<= rhs;
+         lhs <<= (rhs & mask);
       }
       [[gnu::always_inline]] inline void operator()(const i64_shr_s_t& op) {
          context.inc_pc();
+         static constexpr uint64_t mask = (8 * sizeof(uint64_t) - 1);
          const auto& rhs = context.pop_operand().to_ui64();
          auto&       lhs = context.peek_operand().to_i64();
-         lhs >>= rhs;
+         lhs >>= (rhs & mask);
       }
       [[gnu::always_inline]] inline void operator()(const i64_shr_u_t& op) {
          context.inc_pc();
+         static constexpr uint64_t mask = (8 * sizeof(uint64_t) - 1);
          const auto& rhs = context.pop_operand().to_ui64();
          auto&       lhs = context.peek_operand().to_ui64();
-         lhs >>= rhs;
+         lhs >>= (rhs & mask);
       }
       [[gnu::always_inline]] inline void operator()(const i64_rotl_t& op) {
          context.inc_pc();
