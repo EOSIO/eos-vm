@@ -10,3 +10,8 @@
 )
 
 (assert_return (invoke "local-zero-init") (i64.const 0))
+
+;; 15-17 locals broke jit due to incorrect allocation size.
+(module
+  (func $16-locals (local i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64))
+)

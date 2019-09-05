@@ -113,7 +113,7 @@ namespace eosio { namespace vm {
          if (_local_count > 0) {
             // xor %rax, %rax
             emit_bytes(0x48, 0x31, 0xc0);
-            if (_local_count > 17) { // only use a loop if it would save space
+            if (_local_count > 14) { // only use a loop if it would save space
                // mov $count, %ecx
                emit_bytes(0xb9);
                emit_operand32(_local_count);

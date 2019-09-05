@@ -23,3 +23,12 @@ BACKEND_TEST_CASE( "Testing wasm <e_locals_0_wasm>", "[e_locals_0_wasm_tests]" )
    CHECK(bkend.call_with_return(nullptr, "env", "local-zero-init")->to_ui64() == UINT32_C(0));
 }
 
+BACKEND_TEST_CASE( "Testing wasm <e_locals_1_wasm>", "[e_locals_1_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "e_locals.1.wasm");
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+   bkend.initialize(nullptr);
+
+}
+
