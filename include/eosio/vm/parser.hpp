@@ -137,8 +137,7 @@ namespace eosio { namespace vm {
       void parse_table_type(wasm_code_ptr& code, table_type& tt) {
          tt.element_type   = *code++;
          EOS_VM_ASSERT(tt.element_type == types::anyfunc, wasm_parse_exception, "table must have type anyfunc");
-         EOS_VM_ASSERT(*code == 0x00 || *code == 0x01, wasm_parse_exception, "invalid table limits flag");
-         tt.limits.flags   = *code++;
+         tt.limits.flags   = (parse_varuint32(code) & 0x1);
          tt.limits.initial = parse_varuint32(code);
          if (tt.limits.flags) {
             tt.limits.maximum = parse_varuint32(code);
@@ -160,8 +159,7 @@ namespace eosio { namespace vm {
       }
 
       void parse_memory_type(wasm_code_ptr& code, memory_type& mt) {
-         EOS_VM_ASSERT(*code == 0x00 || *code == 0x01, wasm_parse_exception, "memory type flags must be 0 or 1.");
-         mt.limits.flags   = *code++;
+         mt.limits.flags   = (parse_varuint32(code) & 0x1);
          mt.limits.initial = parse_varuint32(code);
          EOS_VM_ASSERT(mt.limits.initial <= 65536u, wasm_parse_exception, "initial memory out of range");
          if (mt.limits.flags) {

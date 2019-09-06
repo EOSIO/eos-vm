@@ -28,7 +28,7 @@ macro( add_spec_test_impl name source)
    list( APPEND SPEC_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/spec/${name}_tests.cpp )
    if ( WAST2JSON )
       add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/spec/${name}.json
-         COMMAND ${WAST2JSON} ${source}  -o ${name}.json && mv ${name}.json ${CMAKE_CURRENT_BINARY_DIR}/spec/${name}.json
+         COMMAND ${WAST2JSON} --no-check ${source}  -o ${name}.json && mv ${name}.json ${CMAKE_CURRENT_BINARY_DIR}/spec/${name}.json
          WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/wasms
          DEPENDS ${source}
       )
