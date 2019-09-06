@@ -55,3 +55,12 @@
   )
   "Invalid section id at end of module"
 )
+
+(assert_malformed
+  (module binary
+    "\00asm" "\01\00\00\00"
+    "\03\02\00" ;; function
+    "\0a\01\00" ;; code
+  )
+  "incorrect section size"
+)

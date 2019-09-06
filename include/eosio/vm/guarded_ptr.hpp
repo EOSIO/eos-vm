@@ -73,7 +73,9 @@ namespace eosio { namespace vm {
          int exceptions = std::uncaught_exceptions();
          T* old_bnds = bnds;
          bnds = raw_ptr + n;
-         return scope_guard{ [this, old_bnds, exceptions](){
+         struct throwing_destructor { ~throwing_destructor() noexcept(false) {} };
+         throwing_destructor x;
+         return scope_guard{ [this, old_bnds, exceptions, x](){
             EOS_VM_ASSERT(exceptions != std::uncaught_exceptions() || raw_ptr == bnds, guarded_ptr_exception, "guarded_ptr not advanced");
             bnds = old_bnds;
          } };
