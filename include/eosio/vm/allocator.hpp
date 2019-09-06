@@ -157,6 +157,7 @@ namespace eosio { namespace vm {
     public:
       template <typename T>
       T* alloc(size_t size = 1 /*in pages*/) {
+         EOS_VM_ASSERT(size != -1, wasm_bad_alloc, "require memory to allocate");
          EOS_VM_ASSERT(size <= max_pages - page, wasm_bad_alloc, "exceeded max number of pages");
          mprotect(raw + (page_size * page), (page_size * size), PROT_READ | PROT_WRITE);
          T* ptr    = (T*)(raw + (page_size * page));
@@ -164,18 +165,39 @@ namespace eosio { namespace vm {
          page += size;
          return ptr;
       }
-      void free() { munmap(raw, max_memory); }
+      void free() {
+         std::size_t syspagesize = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
+         munmap(raw - syspagesize, max_memory + 2*syspagesize);
+      }
       wasm_allocator() {
-         raw  = (char*)mmap(NULL, max_memory, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+         std::size_t syspagesize = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
+         raw  = (char*)mmap(NULL, max_memory + 2*syspagesize, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
          EOS_VM_ASSERT( raw != MAP_FAILED, wasm_bad_alloc, "mmap failed to alloca pages" );
+         mprotect(raw, syspagesize, PROT_READ);
+         raw -= syspagesize;
          page = 0;
       }
       void reset(uint32_t new_pages) {
-         memset(raw, '\0', page_size * page); // zero the memory
+         if (page != -1) {
+            memset(raw, '\0', page_size * page); // zero the memory
+         } else {
+            std::size_t syspagesize = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
+            mprotect(raw - syspagesize, syspagesize, PROT_READ);
+         }
          // no need to mprotect if the size hasn't changed
-         if (new_pages != page)
+         if (new_pages != page) {
             mprotect(raw, page_size * page, PROT_NONE); // protect the entire region of memory
+         }
          page = 0;
+      }
+      // Signal no memory defined
+      void reset() {
+         if (page != -1) {
+            std::size_t syspagesize = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
+            memset(raw, '\0', page_size * page); // zero the memory
+            mprotect(raw - syspagesize, page_size * page + syspagesize, PROT_NONE);
+         }
+         page = -1;
       }
       template <typename T>
       inline T* get_base_ptr() const {

@@ -98,24 +98,25 @@ namespace eosio { namespace vm {
       return std::tuple<std::decay_t<Args>...>{};
    }
 
-   // try the pointer to force segfault early
-   template <typename T>
-   void validate_ptr( const void* ptr, uint32_t len ) {
-      EOS_VM_ASSERT( len <= std::numeric_limits<std::uint32_t>::max() / (uint32_t)sizeof(T), wasm_interpreter_exception, "length will overflow" );
-      uint32_t bytes = len * sizeof(T);
-      // check the pointer
-      volatile auto ret_val = *(reinterpret_cast<const char*>(ptr) + (bytes ? bytes-1 : 0));
-   }
+   namespace detail {
+      // try the pointer to force segfault early
+      template <typename T>
+      void validate_ptr( const void* ptr, uint32_t len ) {
+         EOS_VM_ASSERT( len <= std::numeric_limits<std::uint32_t>::max() / (uint32_t)sizeof(T), wasm_interpreter_exception, "length will overflow" );
+         uint32_t bytes = len * sizeof(T);
+         // check the pointer
+         volatile auto ret_val = *(reinterpret_cast<const char*>(ptr) + bytes-1);
+      }
 
-   inline void validate_c_str(const void* ptr) {
-      volatile auto check = std::strlen(reinterpret_cast<const char*>(ptr));
+      inline void validate_c_str(const void* ptr) {
+         volatile auto check = std::strlen(reinterpret_cast<const char*>(ptr));
+      }
    }
 
    template <typename T, std::size_t Align>
    struct aligned_ptr_wrapper {
       static_assert(Align % alignof(T) == 0, "Must align to at least the alignment of T");
       aligned_ptr_wrapper(void* ptr) : ptr(ptr) {
-        validate_ptr<T>(ptr, 1);
         if (reinterpret_cast<std::uintptr_t>(ptr) % Align != 0) {
             copy = T{};
             memcpy( &(*copy), ptr, sizeof(T) );
@@ -135,6 +136,35 @@ namespace eosio { namespace vm {
 
       void* ptr;
       mutable std::optional<std::remove_cv_t<T>> copy;
+   };
+
+   template <typename T, std::size_t Align>
+   struct aligned_array_wrapper {
+      static_assert(Align % alignof(T) == 0, "Must align to at least the alignment of T");
+      aligned_array_wrapper(void* ptr, uint32_t size) : ptr(ptr), size(size) {
+         if (reinterpret_cast<std::uintptr_t>(ptr) % Align != 0) {
+            copy.reset(new std::remove_cv_t<T>[size]);
+            memcpy( copy.get(), ptr, sizeof(T) * size );
+         }
+      }
+      ~aligned_array_wrapper() {
+         if constexpr (!std::is_const_v<T>)
+            if (copy)
+               memcpy( ptr, copy.get(), sizeof(T) * size);
+      }
+      constexpr operator T*() const {
+         if (copy)
+            return copy.get();
+         else
+            return static_cast<T*>(ptr);
+      }
+      constexpr operator eosio::chain::array_ptr<T>() const {
+        return eosio::chain::array_ptr<T>{static_cast<T*>(*this)};
+      }
+
+      void* ptr;
+      std::unique_ptr<std::remove_cv_t<T>[]> copy = nullptr;
+      std::size_t size;
    };
 
    template <typename T, std::size_t Align>
@@ -164,6 +194,20 @@ namespace eosio { namespace vm {
    // This class can be specialized to define a conversion to/from wasm.
    template <typename T>
    struct wasm_type_converter {};
+
+   struct linear_memory_access {
+      void* get_ptr(uint32_t val) const {
+         return _alloc->template get_base_ptr<char>() + val;
+      }
+      template<typename T>
+      void validate_ptr(const void* ptr, uint32_t len) {
+         eosio::vm::detail::validate_ptr<T>(ptr, len);
+      }
+      void validate_c_str(const void* ptr) {
+         eosio::vm::detail::validate_c_str(ptr);
+      }
+      wasm_allocator* _alloc;
+   };
 
    namespace detail {
       template<typename T, typename U, typename... Args>
@@ -243,10 +287,23 @@ namespace eosio { namespace vm {
       template<typename S, typename T, typename WAlloc, typename Cons>
       constexpr decltype(auto) get_value(WAlloc* alloc, T&& val, Cons& tail);
 
+      template<typename WAlloc>
+      void maybe_add_linear_memory_access(linear_memory_access* arg, WAlloc* walloc) {
+         arg->_alloc = walloc;
+      }
+      inline void maybe_add_linear_memory_access(void*, void*) {}
+
+      template<typename Converter, typename WAlloc>
+      Converter&& init_wasm_type_converter(Converter&& c, WAlloc* walloc) {
+         ::eosio::vm::detail::maybe_add_linear_memory_access(&c, walloc);
+         return static_cast<Converter&&>(c);
+      }
+
       // Calls from_wasm with the correct arguments
       template<typename A, typename SourceType, typename WAlloc, typename Tail, typename T, std::size_t... Is>
       decltype(auto) get_value_impl(std::index_sequence<Is...>, WAlloc* alloc, T&& val, const Tail& tail) {
-         return wasm_type_converter<A>::from_wasm(get_value<SourceType>(alloc, static_cast<T&&>(val), tail), cons_get<Is>(tail)...);
+         return detail::init_wasm_type_converter(wasm_type_converter<A>{}, alloc)
+            .from_wasm(get_value<SourceType>(alloc, static_cast<T&&>(val), tail), cons_get<Is>(tail)...);
       }
 
       // Matches a specific overload of a function and deduces the first argument
@@ -254,6 +311,10 @@ namespace eosio { namespace vm {
       struct match_from_wasm {
          template<typename R, typename U>
          static U apply(R(U, Rest...));
+         template<typename R, typename C, typename U>
+         static U apply(R (C::*)(U, Rest...));
+         template<typename R, typename C, typename U>
+         static U apply(R (C::*)(U, Rest...) const);
       };
 
       // Encodes how to convert a value from wasm to native.  LookaheadCount is the number
@@ -362,11 +423,12 @@ namespace eosio { namespace vm {
             return f32_const_t{ static_cast<float>(res) };
          else if constexpr (std::is_floating_point_v<T> && sizeof(T) == 8)
             return f64_const_t{ static_cast<double>(res) };
-         else if constexpr (std::is_pointer_v<T>)
+         else if constexpr (std::is_void_v<std::decay_t<std::remove_pointer_t<T>>>)
             return i32_const_t{ static_cast<uint32_t>(reinterpret_cast<uintptr_t>(res) -
                                                       reinterpret_cast<uintptr_t>(alloc->template get_base_ptr<char>())) };
          else
-            return detail::resolve_result(wasm_type_converter<T>::to_wasm(static_cast<T&&>(res)), alloc);
+            return detail::resolve_result(detail::init_wasm_type_converter(wasm_type_converter<T>{}, alloc)
+                                          .to_wasm(static_cast<T&&>(res)), alloc);
       }
    } //ns detail
 

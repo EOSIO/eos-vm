@@ -13,8 +13,8 @@ using namespace eosio::vm;
 namespace eosio { namespace vm {
 
    template <>
-   struct wasm_type_converter<const char*> {
-      static const char* from_wasm(const void* val) { validate_c_str(val); return static_cast<const char*>(val); }
+   struct wasm_type_converter<const char*> : linear_memory_access {
+      const char* from_wasm(const void* val) { validate_c_str(val); return static_cast<const char*>(val); }
    };
 
 }}
