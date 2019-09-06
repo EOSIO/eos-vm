@@ -51,7 +51,8 @@ macro( add_spec_test name )
 endmacro()
 
 foreach(testcase address align binary-leb128 block br br_if br_table break-drop call_indirect
-                 call const conversions custom endianness f32 f32_bitwise f32_cmp f64 f64_bitwise f64_cmp
+                 call const conversions custom data
+                 endianness f32 f32_bitwise f32_cmp f64 f64_bitwise f64_cmp
                  fac float_exprs float_literals float_memory float_misc forward
                  func i32 i64 if int_exprs int_literals labels left-to-right
                  load local_get local_set local_tee loop memory

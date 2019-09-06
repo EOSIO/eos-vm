@@ -52,8 +52,11 @@ namespace eosio { namespace vm {
 
          for (uint32_t i = 0; i < _mod.data.size(); i++) {
             const auto& data_seg = _mod.data[i];
-            // TODO validate only use memory idx 0 in parse
-            auto addr = _linear_memory + data_seg.offset.value.i32;
+            uint32_t offset = data_seg.offset.value.i32; // force to unsigned
+            auto available_memory =  _mod.memories[0].limits.initial * static_cast<uint64_t>(page_size);
+            auto required_memory = static_cast<uint64_t>(offset) + data_seg.data.size();
+            EOS_VM_ASSERT(required_memory <= available_memory, wasm_memory_exception, "data out of range");
+            auto addr = _linear_memory + offset;
             memcpy((char*)(addr), data_seg.data.raw(), data_seg.data.size());
          }
 

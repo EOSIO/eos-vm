@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -1238,6 +1239,14 @@ string generate_call(picojson::object obj) {
    return ss.str();
 }
 
+// Tests that should be skipped because they use unsupported imports.
+const std::set<std::string> blacklist = {
+   "data.2.wasm",
+   "data.4.wasm", "data.5.wasm", "data.6.wasm", "data.7.wasm", "data.8.wasm", "data.10.wasm",
+   "data.13.wasm", "data.17.wasm", "data.19.wasm", "data.20.wasm", "data.21.wasm",
+   "data.22.wasm", "data.23.wasm", "data.24.wasm", "data.30.wasm", "data.32.wasm", "data.36.wasm", "data.38.wasm"
+};
+
 void generate_tests(const map<string, vector<picojson::object>>& mappings) {
    stringstream unit_tests;
    string       exp_t, exp_v;
@@ -1248,7 +1257,7 @@ void generate_tests(const map<string, vector<picojson::object>>& mappings) {
    };
 
    for (const auto& [tsn_file, cmds] : mappings) {
-      if(tsn_file.empty()) continue;
+      if(tsn_file.empty() || blacklist.count(tsn_file)) continue;
       auto tsn = tsn_file;
       std::replace(tsn.begin(), tsn.end(), '.', '_');
       unit_tests << "BACKEND_TEST_CASE( \"Testing wasm <" << tsn << ">\", \"[" << tsn << "_tests]\" ) {\n";
@@ -1256,9 +1265,16 @@ void generate_tests(const map<string, vector<picojson::object>>& mappings) {
 
       if(!cmds.empty() && [](picojson::object cmd) {
                             return (cmd["type"].to_str() == "assert_invalid" ||
-                                    cmd["type"].to_str() == "assert_malformed") &&
+                                    cmd["type"].to_str() == "assert_malformed" ||
+                                    cmd["type"].to_str() == "assert_unlinkable") &&
                               cmd["module_type"].to_str() == "binary"; }(cmds.front())) {
-         unit_tests << "   CHECK_THROWS_AS(backend_t(code), std::exception);\n";
+         if (picojson::object(cmds.front())["type"].to_str() == "assert_unlinkable") {
+            unit_tests << "   backend_t bkend( code );\n";
+            unit_tests << "   bkend.set_wasm_allocator( &wa );\n";
+            unit_tests << "   CHECK_THROWS_AS(bkend.initialize(nullptr), std::exception);\n";
+         } else {
+            unit_tests << "   CHECK_THROWS_AS(backend_t(code), std::exception);\n";
+         }
       } else {
          unit_tests << "   " << test_preamble_1 << "\n\n";
 
@@ -1318,7 +1334,7 @@ int main(int argc, char** argv) {
       if (i->first == "commands") {
          for (const auto& o : i->second.get<picojson::array>()) {
             picojson::object obj = o.get<picojson::object>();
-            if (obj["type"].to_str() == "module" || obj["type"].to_str() == "assert_invalid" || (obj["type"].to_str() == "assert_malformed" && obj["module_type"].to_str() == "binary")) {
+            if (obj["type"].to_str() == "module" || obj["type"].to_str() == "assert_invalid" || (obj["type"].to_str() == "assert_malformed" && obj["module_type"].to_str() == "binary") || obj["type"].to_str() == "assert_unlinkable" ) {
                test_suite_name = obj["filename"].to_str();
                test_mappings[test_suite_name] = {};
             }
