@@ -156,7 +156,8 @@ namespace eosio { namespace vm {
 
     public:
       template <typename T>
-      T* alloc(size_t size = 1 /*in pages*/) {
+      void alloc(size_t size = 1 /*in pages*/) {
+         if (size == 0) return;
          EOS_VM_ASSERT(size != -1, wasm_bad_alloc, "require memory to allocate");
          EOS_VM_ASSERT(size <= max_pages - page, wasm_bad_alloc, "exceeded max number of pages");
          int err = mprotect(raw + (page_size * page), (page_size * size), PROT_READ | PROT_WRITE);
@@ -164,7 +165,6 @@ namespace eosio { namespace vm {
          T* ptr    = (T*)(raw + (page_size * page));
          memset(ptr, 0, page_size * size);
          page += size;
-         return ptr;
       }
       void free() {
          std::size_t syspagesize = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
@@ -188,7 +188,7 @@ namespace eosio { namespace vm {
             EOS_VM_ASSERT(err == 0, wasm_bad_alloc, "mprotect failed");
          }
          // no need to mprotect if the size hasn't changed
-         if (new_pages != page) {
+         if (new_pages != page && page > 0) {
             int err = mprotect(raw, page_size * page, PROT_NONE); // protect the entire region of memory
             EOS_VM_ASSERT(err == 0, wasm_bad_alloc, "mprotect failed");
          }
@@ -199,7 +199,8 @@ namespace eosio { namespace vm {
          if (page != -1) {
             std::size_t syspagesize = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
             memset(raw, '\0', page_size * page); // zero the memory
-            mprotect(raw - syspagesize, page_size * page + syspagesize, PROT_NONE);
+            int err = mprotect(raw - syspagesize, page_size * page + syspagesize, PROT_NONE);
+            EOS_VM_ASSERT(err == 0, wasm_bad_alloc, "mprotect failed");
          }
          page = -1;
       }
