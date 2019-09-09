@@ -176,7 +176,7 @@ namespace eosio { namespace vm {
          EOS_VM_ASSERT( raw != MAP_FAILED, wasm_bad_alloc, "mmap failed to alloca pages" );
          int err = mprotect(raw, syspagesize, PROT_READ);
          EOS_VM_ASSERT(err == 0, wasm_bad_alloc, "mprotect failed");
-         raw -= syspagesize;
+         raw += syspagesize;
          page = 0;
       }
       void reset(uint32_t new_pages) {
