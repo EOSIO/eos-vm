@@ -423,7 +423,7 @@ namespace eosio { namespace vm {
 
    template<>
    struct wasm_type_converter<has_stateful_conversion> {
-      static ::stateful_conversion from_wasm(uint32_t val) { return { val }; }
+      ::stateful_conversion from_wasm(uint32_t val) { return { val }; }
    };
 
 }}

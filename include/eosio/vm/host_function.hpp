@@ -136,6 +136,8 @@ namespace eosio { namespace vm {
 
       void* ptr;
       mutable std::optional<std::remove_cv_t<T>> copy;
+
+      aligned_ptr_wrapper(const aligned_ptr_wrapper&) = delete;
    };
 
    template <typename T, std::size_t Align>
@@ -165,6 +167,8 @@ namespace eosio { namespace vm {
       void* ptr;
       std::unique_ptr<std::remove_cv_t<T>[]> copy = nullptr;
       std::size_t size;
+
+      aligned_array_wrapper(const aligned_array_wrapper&) = delete;
    };
 
    template <typename T, std::size_t Align>
