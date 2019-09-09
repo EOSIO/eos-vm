@@ -159,7 +159,8 @@ namespace eosio { namespace vm {
       T* alloc(size_t size = 1 /*in pages*/) {
          EOS_VM_ASSERT(size != -1, wasm_bad_alloc, "require memory to allocate");
          EOS_VM_ASSERT(size <= max_pages - page, wasm_bad_alloc, "exceeded max number of pages");
-         mprotect(raw + (page_size * page), (page_size * size), PROT_READ | PROT_WRITE);
+         int err = mprotect(raw + (page_size * page), (page_size * size), PROT_READ | PROT_WRITE);
+         EOS_VM_ASSERT(err == 0, wasm_bad_alloc, "mprotect failed");
          T* ptr    = (T*)(raw + (page_size * page));
          memset(ptr, 0, page_size * size);
          page += size;
@@ -173,7 +174,8 @@ namespace eosio { namespace vm {
          std::size_t syspagesize = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
          raw  = (char*)mmap(NULL, max_memory + 2*syspagesize, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
          EOS_VM_ASSERT( raw != MAP_FAILED, wasm_bad_alloc, "mmap failed to alloca pages" );
-         mprotect(raw, syspagesize, PROT_READ);
+         int err = mprotect(raw, syspagesize, PROT_READ);
+         EOS_VM_ASSERT(err == 0, wasm_bad_alloc, "mprotect failed");
          raw -= syspagesize;
          page = 0;
       }
@@ -182,11 +184,13 @@ namespace eosio { namespace vm {
             memset(raw, '\0', page_size * page); // zero the memory
          } else {
             std::size_t syspagesize = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
-            mprotect(raw - syspagesize, syspagesize, PROT_READ);
+            int err = mprotect(raw - syspagesize, syspagesize, PROT_READ);
+            EOS_VM_ASSERT(err == 0, wasm_bad_alloc, "mprotect failed");
          }
          // no need to mprotect if the size hasn't changed
          if (new_pages != page) {
-            mprotect(raw, page_size * page, PROT_NONE); // protect the entire region of memory
+            int err = mprotect(raw, page_size * page, PROT_NONE); // protect the entire region of memory
+            EOS_VM_ASSERT(err == 0, wasm_bad_alloc, "mprotect failed");
          }
          page = 0;
       }
