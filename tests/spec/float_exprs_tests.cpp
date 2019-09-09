@@ -53,6 +53,8 @@ BACKEND_TEST_CASE( "Testing wasm <float_exprs_10_wasm>", "[float_exprs_10_wasm_t
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
 
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_neg0_sub", bit_cast<float>(UINT32_C(2141192192)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_neg0_sub", bit_cast<double>(UINT64_C(9219994337134247936)))));
 }
 
 BACKEND_TEST_CASE( "Testing wasm <float_exprs_11_wasm>", "[float_exprs_11_wasm_tests]" ) {
@@ -62,6 +64,8 @@ BACKEND_TEST_CASE( "Testing wasm <float_exprs_11_wasm>", "[float_exprs_11_wasm_t
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
 
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_neg1_mul", bit_cast<float>(UINT32_C(2141192192)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_neg1_mul", bit_cast<double>(UINT64_C(9219994337134247936)))));
 }
 
 BACKEND_TEST_CASE( "Testing wasm <float_exprs_12_wasm>", "[float_exprs_12_wasm_tests]" ) {
@@ -93,6 +97,10 @@ BACKEND_TEST_CASE( "Testing wasm <float_exprs_14_wasm>", "[float_exprs_14_wasm_t
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
 
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_sub_self", bit_cast<float>(UINT32_C(2139095040)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_sub_self", bit_cast<float>(UINT32_C(2143289344)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_sub_self", bit_cast<double>(UINT64_C(9218868437227405312)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_sub_self", bit_cast<double>(UINT64_C(9221120237041090560)))));
 }
 
 BACKEND_TEST_CASE( "Testing wasm <float_exprs_15_wasm>", "[float_exprs_15_wasm_tests]" ) {
@@ -102,6 +110,14 @@ BACKEND_TEST_CASE( "Testing wasm <float_exprs_15_wasm>", "[float_exprs_15_wasm_t
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
 
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_div_self", bit_cast<float>(UINT32_C(2139095040)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_div_self", bit_cast<float>(UINT32_C(2143289344)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_div_self", bit_cast<float>(UINT32_C(0)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_div_self", bit_cast<float>(UINT32_C(2147483648)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_self", bit_cast<double>(UINT64_C(9218868437227405312)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_self", bit_cast<double>(UINT64_C(9221120237041090560)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_self", bit_cast<double>(UINT64_C(0)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_self", bit_cast<double>(UINT64_C(9223372036854775808)))));
 }
 
 BACKEND_TEST_CASE( "Testing wasm <float_exprs_16_wasm>", "[float_exprs_16_wasm_tests]" ) {
@@ -189,6 +205,8 @@ BACKEND_TEST_CASE( "Testing wasm <float_exprs_2_wasm>", "[float_exprs_2_wasm_tes
 
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_add_zero", bit_cast<float>(UINT32_C(2147483648)))->to_f32()) == UINT32_C(0));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_add_zero", bit_cast<double>(UINT64_C(9223372036854775808)))->to_f64()) == UINT64_C(0));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_add_zero", bit_cast<float>(UINT32_C(2141192192)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_add_zero", bit_cast<double>(UINT64_C(9219994337134247936)))));
 }
 
 BACKEND_TEST_CASE( "Testing wasm <float_exprs_20_wasm>", "[float_exprs_20_wasm_tests]" ) {
@@ -259,10 +277,18 @@ BACKEND_TEST_CASE( "Testing wasm <float_exprs_23_wasm>", "[float_exprs_23_wasm_t
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_div_0", bit_cast<float>(UINT32_C(3212836864)))->to_f32()) == UINT32_C(4286578688));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_div_0", bit_cast<float>(UINT32_C(2139095040)))->to_f32()) == UINT32_C(2139095040));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_div_0", bit_cast<float>(UINT32_C(4286578688)))->to_f32()) == UINT32_C(4286578688));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_div_0", bit_cast<float>(UINT32_C(0)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_div_0", bit_cast<float>(UINT32_C(2147483648)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_div_0", bit_cast<float>(UINT32_C(2141192192)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_div_0", bit_cast<float>(UINT32_C(2143289344)))));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_0", bit_cast<double>(UINT64_C(4607182418800017408)))->to_f64()) == UINT64_C(9218868437227405312));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_0", bit_cast<double>(UINT64_C(13830554455654793216)))->to_f64()) == UINT64_C(18442240474082181120));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_0", bit_cast<double>(UINT64_C(9218868437227405312)))->to_f64()) == UINT64_C(9218868437227405312));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_0", bit_cast<double>(UINT64_C(18442240474082181120)))->to_f64()) == UINT64_C(18442240474082181120));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_0", bit_cast<double>(UINT64_C(0)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_0", bit_cast<double>(UINT64_C(9223372036854775808)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_0", bit_cast<double>(UINT64_C(9221120237041090560)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_0", bit_cast<double>(UINT64_C(9219994337134247936)))));
 }
 
 BACKEND_TEST_CASE( "Testing wasm <float_exprs_24_wasm>", "[float_exprs_24_wasm_tests]" ) {
@@ -276,10 +302,18 @@ BACKEND_TEST_CASE( "Testing wasm <float_exprs_24_wasm>", "[float_exprs_24_wasm_t
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_div_neg0", bit_cast<float>(UINT32_C(3212836864)))->to_f32()) == UINT32_C(2139095040));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_div_neg0", bit_cast<float>(UINT32_C(2139095040)))->to_f32()) == UINT32_C(4286578688));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_div_neg0", bit_cast<float>(UINT32_C(4286578688)))->to_f32()) == UINT32_C(2139095040));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_div_neg0", bit_cast<float>(UINT32_C(0)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_div_neg0", bit_cast<float>(UINT32_C(2147483648)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_div_neg0", bit_cast<float>(UINT32_C(2141192192)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_div_neg0", bit_cast<float>(UINT32_C(2143289344)))));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_neg0", bit_cast<double>(UINT64_C(4607182418800017408)))->to_f64()) == UINT64_C(18442240474082181120));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_neg0", bit_cast<double>(UINT64_C(13830554455654793216)))->to_f64()) == UINT64_C(9218868437227405312));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_neg0", bit_cast<double>(UINT64_C(9218868437227405312)))->to_f64()) == UINT64_C(18442240474082181120));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_neg0", bit_cast<double>(UINT64_C(18442240474082181120)))->to_f64()) == UINT64_C(9218868437227405312));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_neg0", bit_cast<double>(UINT64_C(0)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_neg0", bit_cast<double>(UINT64_C(9223372036854775808)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_neg0", bit_cast<double>(UINT64_C(9221120237041090560)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_neg0", bit_cast<double>(UINT64_C(9219994337134247936)))));
 }
 
 BACKEND_TEST_CASE( "Testing wasm <float_exprs_25_wasm>", "[float_exprs_25_wasm_tests]" ) {
@@ -378,6 +412,8 @@ BACKEND_TEST_CASE( "Testing wasm <float_exprs_3_wasm>", "[float_exprs_3_wasm_tes
 
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_zero_sub", bit_cast<float>(UINT32_C(0)))->to_f32()) == UINT32_C(0));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_zero_sub", bit_cast<double>(UINT64_C(0)))->to_f64()) == UINT64_C(0));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_zero_sub", bit_cast<float>(UINT32_C(2141192192)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_zero_sub", bit_cast<double>(UINT64_C(9219994337134247936)))));
 }
 
 BACKEND_TEST_CASE( "Testing wasm <float_exprs_30_wasm>", "[float_exprs_30_wasm_tests]" ) {
@@ -488,6 +524,7 @@ BACKEND_TEST_CASE( "Testing wasm <float_exprs_36_wasm>", "[float_exprs_36_wasm_t
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
 
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "no_fold_promote_demote", bit_cast<float>(UINT32_C(2141192192)))));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "no_fold_promote_demote", bit_cast<float>(UINT32_C(0)))->to_f32()) == UINT32_C(0));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "no_fold_promote_demote", bit_cast<float>(UINT32_C(2147483648)))->to_f32()) == UINT32_C(2147483648));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "no_fold_promote_demote", bit_cast<float>(UINT32_C(1)))->to_f32()) == UINT32_C(1));
@@ -583,6 +620,8 @@ BACKEND_TEST_CASE( "Testing wasm <float_exprs_4_wasm>", "[float_exprs_4_wasm_tes
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
 
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_sub_zero", bit_cast<float>(UINT32_C(2141192192)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_sub_zero", bit_cast<double>(UINT64_C(9219994337134247936)))));
 }
 
 BACKEND_TEST_CASE( "Testing wasm <float_exprs_40_wasm>", "[float_exprs_40_wasm_tests]" ) {
@@ -875,9 +914,11 @@ BACKEND_TEST_CASE( "Testing wasm <float_exprs_5_wasm>", "[float_exprs_5_wasm_tes
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_mul_zero", bit_cast<float>(UINT32_C(2147483648)))->to_f32()) == UINT32_C(2147483648));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_mul_zero", bit_cast<float>(UINT32_C(3212836864)))->to_f32()) == UINT32_C(2147483648));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_mul_zero", bit_cast<float>(UINT32_C(3221225472)))->to_f32()) == UINT32_C(2147483648));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_mul_zero", bit_cast<float>(UINT32_C(2141192192)))));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_mul_zero", bit_cast<double>(UINT64_C(9223372036854775808)))->to_f64()) == UINT64_C(9223372036854775808));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_mul_zero", bit_cast<double>(UINT64_C(13830554455654793216)))->to_f64()) == UINT64_C(9223372036854775808));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_mul_zero", bit_cast<double>(UINT64_C(13835058055282163712)))->to_f64()) == UINT64_C(9223372036854775808));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_mul_zero", bit_cast<double>(UINT64_C(9219994337134247936)))));
 }
 
 BACKEND_TEST_CASE( "Testing wasm <float_exprs_50_wasm>", "[float_exprs_50_wasm_tests]" ) {
@@ -1029,6 +1070,8 @@ BACKEND_TEST_CASE( "Testing wasm <float_exprs_6_wasm>", "[float_exprs_6_wasm_tes
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
 
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_mul_one", bit_cast<float>(UINT32_C(2141192192)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_mul_one", bit_cast<double>(UINT64_C(9219994337134247936)))));
 }
 
 BACKEND_TEST_CASE( "Testing wasm <float_exprs_60_wasm>", "[float_exprs_60_wasm_tests]" ) {
@@ -1127,8 +1170,12 @@ BACKEND_TEST_CASE( "Testing wasm <float_exprs_66_wasm>", "[float_exprs_66_wasm_t
 
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_add_neg", bit_cast<float>(UINT32_C(0)))->to_f32()) == UINT32_C(0));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_add_neg", bit_cast<float>(UINT32_C(2147483648)))->to_f32()) == UINT32_C(0));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_add_neg", bit_cast<float>(UINT32_C(2139095040)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_add_neg", bit_cast<float>(UINT32_C(4286578688)))));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_add_neg", bit_cast<double>(UINT64_C(0)))->to_f64()) == UINT64_C(0));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_add_neg", bit_cast<double>(UINT64_C(9223372036854775808)))->to_f64()) == UINT64_C(0));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_add_neg", bit_cast<double>(UINT64_C(9218868437227405312)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_add_neg", bit_cast<double>(UINT64_C(18442240474082181120)))));
 }
 
 BACKEND_TEST_CASE( "Testing wasm <float_exprs_67_wasm>", "[float_exprs_67_wasm_tests]" ) {
@@ -1195,6 +1242,14 @@ BACKEND_TEST_CASE( "Testing wasm <float_exprs_7_wasm>", "[float_exprs_7_wasm_tes
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
 
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_zero_div", bit_cast<float>(UINT32_C(0)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_zero_div", bit_cast<float>(UINT32_C(2147483648)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_zero_div", bit_cast<float>(UINT32_C(2143289344)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_zero_div", bit_cast<float>(UINT32_C(2141192192)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_zero_div", bit_cast<double>(UINT64_C(0)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_zero_div", bit_cast<double>(UINT64_C(9223372036854775808)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_zero_div", bit_cast<double>(UINT64_C(9221120237041090560)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_zero_div", bit_cast<double>(UINT64_C(9219994337134247936)))));
 }
 
 BACKEND_TEST_CASE( "Testing wasm <float_exprs_70_wasm>", "[float_exprs_70_wasm_tests]" ) {
@@ -1242,10 +1297,12 @@ BACKEND_TEST_CASE( "Testing wasm <float_exprs_72_wasm>", "[float_exprs_72_wasm_t
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
 
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_mul_sqrts", bit_cast<float>(UINT32_C(24047316)), bit_cast<float>(UINT32_C(2517821717)))));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_mul_sqrts", bit_cast<float>(UINT32_C(295749258)), bit_cast<float>(UINT32_C(803416494)))->to_f32()) == UINT32_C(549395357));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_mul_sqrts", bit_cast<float>(UINT32_C(329708528)), bit_cast<float>(UINT32_C(1120042892)))->to_f32()) == UINT32_C(724841268));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_mul_sqrts", bit_cast<float>(UINT32_C(1916535951)), bit_cast<float>(UINT32_C(994115420)))->to_f32()) == UINT32_C(1455324620));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_mul_sqrts", bit_cast<float>(UINT32_C(598482176)), bit_cast<float>(UINT32_C(990534933)))->to_f32()) == UINT32_C(794443079));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_mul_sqrts", bit_cast<double>(UINT64_C(10974446854152441278)), bit_cast<double>(UINT64_C(13797896470155574122)))));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_mul_sqrts", bit_cast<double>(UINT64_C(1712959863583927241)), bit_cast<double>(UINT64_C(2792003944717853898)))->to_f64()) == UINT64_C(2252469008297979510));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_mul_sqrts", bit_cast<double>(UINT64_C(4208351758938831157)), bit_cast<double>(UINT64_C(497361189565243603)))->to_f64()) == UINT64_C(2352856462697312748));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_mul_sqrts", bit_cast<double>(UINT64_C(2976792199849816182)), bit_cast<double>(UINT64_C(2030444188042608984)))->to_f64()) == UINT64_C(2503613111125550255));
@@ -1259,10 +1316,12 @@ BACKEND_TEST_CASE( "Testing wasm <float_exprs_73_wasm>", "[float_exprs_73_wasm_t
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
 
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_div_sqrts", bit_cast<float>(UINT32_C(3428799709)), bit_cast<float>(UINT32_C(2733489079)))));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_div_sqrts", bit_cast<float>(UINT32_C(1339867611)), bit_cast<float>(UINT32_C(1296568207)))->to_f32()) == UINT32_C(1086203643));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_div_sqrts", bit_cast<float>(UINT32_C(65679161)), bit_cast<float>(UINT32_C(1196795110)))->to_f32()) == UINT32_C(498959746));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_div_sqrts", bit_cast<float>(UINT32_C(1566143010)), bit_cast<float>(UINT32_C(816694667)))->to_f32()) == UINT32_C(1439333972));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.no_fold_div_sqrts", bit_cast<float>(UINT32_C(130133331)), bit_cast<float>(UINT32_C(208189588)))->to_f32()) == UINT32_C(1025844032));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_sqrts", bit_cast<double>(UINT64_C(10629913473787695463)), bit_cast<double>(UINT64_C(12991130264919696663)))));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_sqrts", bit_cast<double>(UINT64_C(1966780663211935584)), bit_cast<double>(UINT64_C(7043916066229883379)))->to_f64()) == UINT64_C(2068364230648818889));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_sqrts", bit_cast<double>(UINT64_C(6965599900716272009)), bit_cast<double>(UINT64_C(4118781927977980600)))->to_f64()) == UINT64_C(6030491425828883991));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_sqrts", bit_cast<double>(UINT64_C(962551478168675351)), bit_cast<double>(UINT64_C(5918292176617055751)))->to_f64()) == UINT64_C(2129092583060403799));
@@ -1373,6 +1432,8 @@ BACKEND_TEST_CASE( "Testing wasm <float_exprs_8_wasm>", "[float_exprs_8_wasm_tes
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
 
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_div_one", bit_cast<float>(UINT32_C(2141192192)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_one", bit_cast<double>(UINT64_C(9219994337134247936)))));
 }
 
 BACKEND_TEST_CASE( "Testing wasm <float_exprs_80_wasm>", "[float_exprs_80_wasm_tests]" ) {
@@ -1541,6 +1602,8 @@ BACKEND_TEST_CASE( "Testing wasm <float_exprs_9_wasm>", "[float_exprs_9_wasm_tes
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
 
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.no_fold_div_neg1", bit_cast<float>(UINT32_C(2141192192)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.no_fold_div_neg1", bit_cast<double>(UINT64_C(9219994337134247936)))));
 }
 
 BACKEND_TEST_CASE( "Testing wasm <float_exprs_90_wasm>", "[float_exprs_90_wasm_tests]" ) {

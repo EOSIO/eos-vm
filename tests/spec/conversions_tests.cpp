@@ -319,6 +319,10 @@ BACKEND_TEST_CASE( "Testing wasm <conversions_0_wasm>", "[conversions_0_wasm_tes
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.promote_f32", bit_cast<float>(UINT32_C(2118632255)))->to_f64()) == UINT64_C(5172657297058430976));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.promote_f32", bit_cast<float>(UINT32_C(2139095040)))->to_f64()) == UINT64_C(9218868437227405312));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.promote_f32", bit_cast<float>(UINT32_C(4286578688)))->to_f64()) == UINT64_C(18442240474082181120));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.promote_f32", bit_cast<float>(UINT32_C(2143289344)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.promote_f32", bit_cast<float>(UINT32_C(2141192192)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.promote_f32", bit_cast<float>(UINT32_C(4290772992)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.promote_f32", bit_cast<float>(UINT32_C(4288675840)))));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.demote_f64", bit_cast<double>(UINT64_C(0)))->to_f32()) == UINT32_C(0));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.demote_f64", bit_cast<double>(UINT64_C(9223372036854775808)))->to_f32()) == UINT32_C(2147483648));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.demote_f64", bit_cast<double>(UINT64_C(1)))->to_f32()) == UINT32_C(0));
@@ -361,6 +365,10 @@ BACKEND_TEST_CASE( "Testing wasm <conversions_0_wasm>", "[conversions_0_wasm_tes
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.demote_f64", bit_cast<double>(UINT64_C(4038806939559600639)))->to_f32()) == UINT32_C(7529997));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.demote_f64", bit_cast<double>(UINT64_C(13836913116900734306)))->to_f32()) == UINT32_C(3224680794));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.demote_f64", bit_cast<double>(UINT64_C(14338315240173327556)))->to_f32()) == UINT32_C(4158615026));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.demote_f64", bit_cast<double>(UINT64_C(9221120237041090560)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.demote_f64", bit_cast<double>(UINT64_C(9219994337134247936)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.demote_f64", bit_cast<double>(UINT64_C(18444492273895866368)))));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f32.demote_f64", bit_cast<double>(UINT64_C(18443366373989023744)))));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.demote_f64", bit_cast<double>(UINT64_C(4503599627370496)))->to_f32()) == UINT32_C(0));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.demote_f64", bit_cast<double>(UINT64_C(9227875636482146304)))->to_f32()) == UINT32_C(2147483648));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "f32.demote_f64", bit_cast<double>(UINT64_C(3931642474694443008)))->to_f32()) == UINT32_C(0));

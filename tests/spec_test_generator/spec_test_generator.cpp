@@ -1195,6 +1195,30 @@ string generate_test_call(picojson::object obj, string expected_t, string expect
    return ss.str();
 }
 
+
+string generate_test_call_nan(picojson::object obj) {
+   stringstream ss;
+
+   ss << "check_nan(bkend.call_with_return(nullptr, \"env\", ";
+
+   ss << cpp_string(obj["field"]);
+
+   for (picojson::value argv : obj["args"].get<picojson::array>()) {
+      ss << ", ";
+      picojson::object arg = argv.get<picojson::object>();
+      if (arg["type"].to_str() == "i32")
+         ss << "UINT32_C(" << arg["value"].to_str() << ")";
+      else if (arg["type"].to_str() == "i64")
+         ss << "UINT64_C(" << arg["value"].to_str() << ")";
+      else if (arg["type"].to_str() == "f32")
+         ss << "bit_cast<float>(UINT32_C(" << arg["value"].to_str() << "))";
+      else
+         ss << "bit_cast<double>(UINT64_C(" << arg["value"].to_str() << "))";
+   }
+   ss << "))";
+   return ss.str();
+}
+
 string generate_trap_call(picojson::object obj) {
    stringstream ss;
 
@@ -1294,6 +1318,10 @@ void generate_tests(const map<string, vector<picojson::object>>& mappings) {
                unit_tests << generate_trap_call(cmd["action"].get<picojson::object>()) << ");\n";
             } else if (cmd["type"].to_str() == "action") {
                unit_tests << generate_call(cmd["action"].get<picojson::object>()) << ";\n";
+            } else if (cmd["type"].to_str() == "assert_return_canonical_nan" ||
+                       cmd["type"].to_str() == "assert_return_arithmetic_nan") {
+               unit_tests << "   CHECK(";
+               unit_tests << generate_test_call_nan(cmd["action"].get<picojson::object>()) << ");\n";
             }
          }
       }

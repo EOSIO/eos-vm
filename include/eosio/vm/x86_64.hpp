@@ -906,8 +906,6 @@ namespace eosio { namespace vm {
          emit_f64_relop(0x02, CHOOSE_FN(_eosio_f64_le), true, false);
       }
 
-#undef CHOOSE_FN
-
       // --------------- i32 unops ----------------------
 
       // FIXME: detect whether lzcnt/tzcnt are supported
@@ -1120,6 +1118,10 @@ namespace eosio { namespace vm {
       void emit_f32_mul() { emit_f32_binop(0x59); }
       void emit_f32_div() { emit_f32_binop(0x5e); }
       void emit_f32_min() {
+        if(use_softfloat) {
+           emit_f32_binop_softfloat(CHOOSE_FN(_eosio_f32_min));
+           return;
+        }
         // mov (%rsp), %eax
         emit_bytes(0x8b, 0x04, 0x24);
         // test %eax, %eax
@@ -1148,6 +1150,10 @@ namespace eosio { namespace vm {
         emit_bytes(0xf3, 0x0f, 0x11, 0x04, 0x24);
       }
       void emit_f32_max() {
+        if(use_softfloat) {
+           emit_f32_binop_softfloat(CHOOSE_FN(_eosio_f32_max));
+           return;
+        }
         // mov (%rsp), %eax
         emit_bytes(0x8b, 0x04, 0x24);
         // test %eax, %eax
@@ -1261,6 +1267,10 @@ namespace eosio { namespace vm {
       void emit_f64_mul() { emit_f64_binop(0x59); }
       void emit_f64_div() { emit_f64_binop(0x5e); }
       void emit_f64_min() {
+        if(use_softfloat) {
+           emit_f64_binop_softfloat(CHOOSE_FN(_eosio_f64_min));
+           return;
+        }
          // mov (%rsp), %rax
          emit_bytes(0x48, 0x8b, 0x04, 0x24);
          // test %rax, %rax
@@ -1289,6 +1299,10 @@ namespace eosio { namespace vm {
          emit_bytes(0xf2, 0x0f, 0x11, 0x04, 0x24);
       }
       void emit_f64_max() {
+        if(use_softfloat) {
+           emit_f64_binop_softfloat(CHOOSE_FN(_eosio_f64_max));
+           return;
+        }
          // mov (%rsp), %rax
          emit_bytes(0x48, 0x8b, 0x04, 0x24);
          // test %rax, %rax
@@ -1612,6 +1626,8 @@ namespace eosio { namespace vm {
       void emit_f32_reinterpret_i32() { /* Nothing to do */ }
       void emit_f64_reinterpret_i64() { /* Nothing to do */ }
 
+#undef CHOOSE_FN
+
       void emit_error() { unimplemented(); }
 
       // --------------- random  ------------------------
@@ -1784,6 +1800,58 @@ namespace eosio { namespace vm {
          emit_bytes(0x0f, opcode, 0xc2);
          // pushq %rdx
          emit_bytes(0x52);
+      }
+
+      void emit_f32_binop_softfloat(uint64_t (*softfloatfun)(float32_t, float32_t)) {
+         // pushq %rdi
+         emit_bytes(0x57);
+         // pushq %rsi
+         emit_bytes(0x56);
+         // movq 16(%rsp), %esi
+         emit_bytes(0x8b, 0x74, 0x24, 0x10);
+         // movq 24(%rsp), %edi
+         emit_bytes(0x8b, 0x7c, 0x24, 0x18);
+         emit_align_stack();
+         // movabsq $softfloatfun, %rax
+         emit_bytes(0x48, 0xb8);
+         emit_operand_ptr(softfloatfun);
+         // callq *%rax
+         emit_bytes(0xff, 0xd0);
+         emit_restore_stack();
+         // popq %rsi
+         emit_bytes(0x5e);
+         // popq %rdi
+         emit_bytes(0x5f);
+         // addq $8, %rsp
+         emit_bytes(0x48, 0x83, 0xc4, 0x08);
+         // movq %rax, (%rsp)
+         emit_bytes(0x48, 0x89, 0x04, 0x24);
+      }
+
+      void emit_f64_binop_softfloat(float64_t (*softfloatfun)(float64_t, float64_t)) {
+         // pushq %rdi
+         emit_bytes(0x57);
+         // pushq %rsi
+         emit_bytes(0x56);
+         // movq 16(%rsp), %rsi
+         emit_bytes(0x48, 0x8b, 0x74, 0x24, 0x10);
+         // movq 24(%rsp), %rdi
+         emit_bytes(0x48, 0x8b, 0x7c, 0x24, 0x18);
+         emit_align_stack();
+         // movabsq $softfloatfun, %rax
+         emit_bytes(0x48, 0xb8);
+         emit_operand_ptr(softfloatfun);
+         // callq *%rax
+         emit_bytes(0xff, 0xd0);
+         emit_restore_stack();
+         // popq %rsi
+         emit_bytes(0x5e);
+         // popq %rdi
+         emit_bytes(0x5f);
+         // addq $8, %rsp
+         emit_bytes(0x48, 0x83, 0xc4, 0x08);
+         // movq %rax, (%rsp)
+         emit_bytes(0x48, 0x89, 0x04, 0x24);
       }
 
       void emit_f32_relop(uint8_t opcode, uint64_t (*softfloatfun)(float32_t, float32_t), bool switch_params, bool flip_result) {

@@ -387,6 +387,7 @@ BACKEND_TEST_CASE( "Testing wasm <float_misc_0_wasm>", "[float_misc_0_wasm_tests
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.sqrt", bit_cast<double>(UINT64_C(8954101765007123282)))->to_f64()) == UINT64_C(6780419764181964566));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.sqrt", bit_cast<double>(UINT64_C(4405641787023763989)))->to_f64()) == UINT64_C(4506213966714545194));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.sqrt", bit_cast<double>(UINT64_C(2394824404681191749)))->to_f64()) == UINT64_C(3500764341454448999));
+   CHECK(check_nan(bkend.call_with_return(nullptr, "env", "f64.sqrt", bit_cast<double>(UINT64_C(9494538992465685200)))));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.sqrt", bit_cast<double>(UINT64_C(5074882158241187075)))->to_f64()) == UINT64_C(4841025724322244342));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.sqrt", bit_cast<double>(UINT64_C(1187437724299488295)))->to_f64()) == UINT64_C(2897120674751402313));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return(nullptr, "env", "f64.sqrt", bit_cast<double>(UINT64_C(3368223178643061438)))->to_f64()) == UINT64_C(3987382964717611901));
