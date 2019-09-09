@@ -12,26 +12,37 @@
 using namespace eosio;
 using namespace eosio::vm;
 extern wasm_allocator wa;
-using backend_t = backend<std::nullptr_t>;
 
-TEST_CASE( "Testing wasm <memory_0_wasm>", "[memory_0_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( memory_0_wasm );
+BACKEND_TEST_CASE( "Testing wasm <memory_0_wasm>", "[memory_0_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "memory.0.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
 
 }
 
-TEST_CASE( "Testing wasm <memory_1_wasm>", "[memory_1_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( memory_1_wasm );
+BACKEND_TEST_CASE( "Testing wasm <memory_1_wasm>", "[memory_1_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "memory.1.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
 
 }
 
-TEST_CASE( "Testing wasm <memory_25_wasm>", "[memory_25_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( memory_25_wasm );
+BACKEND_TEST_CASE( "Testing wasm <memory_2_wasm>", "[memory_2_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "memory.2.wasm");
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+   bkend.initialize(nullptr);
+
+}
+
+BACKEND_TEST_CASE( "Testing wasm <memory_25_wasm>", "[memory_25_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "memory.25.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -80,24 +91,18 @@ TEST_CASE( "Testing wasm <memory_25_wasm>", "[memory_25_wasm_tests]" ) {
    CHECK(bkend.call_with_return(nullptr, "env", "i64_load32_u", UINT64_C(3771275841602506223))->to_ui64() == UINT32_C(2562379247));
 }
 
-TEST_CASE( "Testing wasm <memory_2_wasm>", "[memory_2_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( memory_2_wasm );
+BACKEND_TEST_CASE( "Testing wasm <memory_3_wasm>", "[memory_3_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "memory.3.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
 
 }
 
-TEST_CASE( "Testing wasm <memory_3_wasm>", "[memory_3_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( memory_3_wasm );
-   backend_t bkend( code );
-   bkend.set_wasm_allocator( &wa );
-   bkend.initialize(nullptr);
-
-}
-
-TEST_CASE( "Testing wasm <memory_6_wasm>", "[memory_6_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( memory_6_wasm );
+BACKEND_TEST_CASE( "Testing wasm <memory_6_wasm>", "[memory_6_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "memory.6.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -105,8 +110,9 @@ TEST_CASE( "Testing wasm <memory_6_wasm>", "[memory_6_wasm_tests]" ) {
    CHECK(bkend.call_with_return(nullptr, "env", "memsize")->to_ui32() == UINT32_C(0));
 }
 
-TEST_CASE( "Testing wasm <memory_7_wasm>", "[memory_7_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( memory_7_wasm );
+BACKEND_TEST_CASE( "Testing wasm <memory_7_wasm>", "[memory_7_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "memory.7.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
@@ -114,8 +120,9 @@ TEST_CASE( "Testing wasm <memory_7_wasm>", "[memory_7_wasm_tests]" ) {
    CHECK(bkend.call_with_return(nullptr, "env", "memsize")->to_ui32() == UINT32_C(0));
 }
 
-TEST_CASE( "Testing wasm <memory_8_wasm>", "[memory_8_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( memory_8_wasm );
+BACKEND_TEST_CASE( "Testing wasm <memory_8_wasm>", "[memory_8_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "memory.8.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);

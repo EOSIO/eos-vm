@@ -12,14 +12,14 @@
 using namespace eosio;
 using namespace eosio::vm;
 extern wasm_allocator wa;
-using backend_t = backend<std::nullptr_t>;
 
-TEST_CASE( "Testing wasm <call_indirect_0_wasm>", "[call_indirect_0_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( call_indirect_0_wasm );
+BACKEND_TEST_CASE( "Testing wasm <call_indirect_0_wasm>", "[call_indirect_0_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "call_indirect.0.wasm");
    backend_t bkend( code );
    bkend.set_wasm_allocator( &wa );
    bkend.initialize(nullptr);
-/*
+
    CHECK(bkend.call_with_return(nullptr, "env", "type-i32")->to_ui32() == UINT32_C(306));
    CHECK(bkend.call_with_return(nullptr, "env", "type-i64")->to_ui64() == UINT32_C(356));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return(nullptr, "env", "type-f32")->to_f32()) == UINT32_C(1165172736));
@@ -87,9 +87,7 @@ TEST_CASE( "Testing wasm <call_indirect_0_wasm>", "[call_indirect_0_wasm_tests]"
    CHECK(bkend.call_with_return(nullptr, "env", "fib-i64", UINT64_C(1))->to_ui64() == UINT32_C(1));
    CHECK(bkend.call_with_return(nullptr, "env", "fib-i64", UINT64_C(2))->to_ui64() == UINT32_C(2));
    CHECK(bkend.call_with_return(nullptr, "env", "fib-i64", UINT64_C(5))->to_ui64() == UINT32_C(8));
-*/
    CHECK(bkend.call_with_return(nullptr, "env", "fib-i64", UINT64_C(20))->to_ui64() == UINT32_C(10946));
-   return;
    CHECK(bkend.call_with_return(nullptr, "env", "fib-i32", UINT32_C(0))->to_ui32() == UINT32_C(1));
    CHECK(bkend.call_with_return(nullptr, "env", "fib-i32", UINT32_C(1))->to_ui32() == UINT32_C(1));
    CHECK(bkend.call_with_return(nullptr, "env", "fib-i32", UINT32_C(2))->to_ui32() == UINT32_C(2));

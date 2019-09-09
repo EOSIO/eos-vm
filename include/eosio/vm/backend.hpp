@@ -1,6 +1,7 @@
 #pragma once
 
 #include <eosio/vm/allocator.hpp>
+#include <eosio/vm/bitcode_writer.hpp>
 #include <eosio/vm/config.hpp>
 #include <eosio/vm/debug_visitor.hpp>
 #include <eosio/vm/execution_context.hpp>
@@ -8,6 +9,8 @@
 #include <eosio/vm/parser.hpp>
 #include <eosio/vm/signals.hpp>
 #include <eosio/vm/types.hpp>
+#include <eosio/vm/x86_64.hpp>
+#include <eosio/vm/memory_dump.hpp>
 
 #include <fstream>
 #include <optional>
@@ -15,13 +18,28 @@
 #include <vector>
 
 namespace eosio { namespace vm {
-   template <typename Host>
+
+   struct jit {
+      template<typename Host>
+      using context = jit_execution_context<Host>;
+      template<typename Host>
+      using parser = binary_parser<machine_code_writer<jit_execution_context<Host>>>;
+   };
+
+   struct interpreter {
+      template<typename Host>
+      using context = execution_context<Host>;
+      template<typename Host>
+      using parser = binary_parser<bitcode_writer>;
+   };
+
+   template <typename Host, typename Impl = interpreter>
    class backend {
     public:
       using host_t = Host;
 
-      backend(wasm_code& code) : _ctx(binary_parser{ _mod.allocator }.parse_module(code, _mod)) {}
-      backend(wasm_code_ptr& ptr, size_t sz) : _ctx(binary_parser{ _mod.allocator }.parse_module2(ptr, sz, _mod)) {}
+      backend(wasm_code& code) : _ctx(typename Impl::template parser<Host>{ _mod.allocator }.parse_module(code, _mod)) {}
+      backend(wasm_code_ptr& ptr, size_t sz) : _ctx(typename Impl::template parser<Host>{ _mod.allocator }.parse_module2(ptr, sz, _mod)) {}
 
       template <typename... Args>
       inline bool operator()(Host* host, const std::string_view& mod, const std::string_view& func, Args... args) {
@@ -29,8 +47,8 @@ namespace eosio { namespace vm {
       }
 
       inline backend& initialize(Host* host=nullptr) { 
-         _walloc->reset(); 
-	      _ctx.reset();
+         _walloc->reset(_mod.memories.size()?_mod.memories[0].limits.initial:0);
+         _ctx.reset();
          _ctx.execute_start(host, interpret_visitor(_ctx));
 	      return *this;
       }
@@ -39,7 +57,8 @@ namespace eosio { namespace vm {
       inline bool call_indirect(Host* host, uint32_t func_index, Args... args) {
          try {
             if constexpr (eos_vm_debug) {
-               _ctx.execute_func_table(host, debug_visitor(_ctx), func_index, args...);
+               //_ctx.execute_func_table(host, debug_visitor(_ctx), func_index, args...);
+               _ctx.execute_func_table(host, interpret_visitor(_ctx), func_index, args...);
             } else {
                _ctx.execute_func_table(host, interpret_visitor(_ctx), func_index, args...);
             }
@@ -54,7 +73,8 @@ namespace eosio { namespace vm {
       inline bool call(Host* host, uint32_t func_index, Args... args) {
          try {
             if constexpr (eos_vm_debug) {
-               _ctx.execute(host, debug_visitor(_ctx), func_index, args...);
+               //_ctx.execute(host, debug_visitor(_ctx), func_index, args...);
+               _ctx.execute(host, interpret_visitor(_ctx), func_index, args...);
             } else {
                _ctx.execute(host, interpret_visitor(_ctx), func_index, args...);
             }
@@ -69,7 +89,8 @@ namespace eosio { namespace vm {
       inline bool call(Host* host, const std::string_view& mod, const std::string_view& func, Args... args) {
          try {
             if constexpr (eos_vm_debug) {
-               _ctx.execute(host, debug_visitor(_ctx), func, args...);
+               //_ctx.execute(host, debug_visitor(_ctx), func, args...);
+               _ctx.execute(host, interpret_visitor(_ctx), func, args...);
             } else {
                _ctx.execute(host, interpret_visitor(_ctx), func, args...);
             }
@@ -85,7 +106,8 @@ namespace eosio { namespace vm {
                                    Args... args) {
          try {
             if constexpr (eos_vm_debug) {
-               return _ctx.execute(host, debug_visitor(_ctx), func, args...);
+               //return _ctx.execute(host, debug_visitor(_ctx), func, args...);
+               return _ctx.execute(host, interpret_visitor(_ctx), func, args...);
             } else {
                return _ctx.execute(host, interpret_visitor(_ctx), func, args...);
             }
@@ -93,6 +115,21 @@ namespace eosio { namespace vm {
             initialize(host);
             throw;
          }
+      }
+
+      void print_result(const std::optional<operand_stack_elem>& result) {
+         if(result) {
+            std::cout << "result: ";
+            if (result->is_a<i32_const_t>())
+               std::cout << "i32:" << result->to_ui32();
+            else if (result->is_a<i64_const_t>())
+               std::cout << "i64:" << result->to_ui64();
+            else if (result->is_a<f32_const_t>())
+               std::cout << "f32:" << result->to_f32();
+            else if (result->is_a<f64_const_t>())
+              std::cout << "f64:" << result->to_f64();
+            std::cout << std::endl;
+        }
       }
 
       template <typename Watchdog>
@@ -106,7 +143,7 @@ namespace eosio { namespace vm {
                if (_mod.exports[i].kind == external_kind::Function) {
                   std::string s{ (const char*)_mod.exports[i].field_str.raw(), _mod.exports[i].field_str.size() };
 	          if constexpr (eos_vm_debug) {
-	             _ctx.execute(host, debug_visitor(_ctx), s);
+                     print_result(_ctx.execute(host, debug_visitor(_ctx), s));
 	          } else {
 	             _ctx.execute(host, interpret_visitor(_ctx), s);
 	          }
@@ -151,7 +188,7 @@ namespace eosio { namespace vm {
     private:
       wasm_allocator*         _walloc = nullptr; // non owning pointer
       module                  _mod;
-      execution_context<Host> _ctx;
+      typename Impl::template context<Host> _ctx;
       std::atomic<bool>       _timed_out;
    };
 }} // namespace eosio::vm

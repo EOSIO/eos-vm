@@ -47,11 +47,11 @@ namespace eosio { namespace vm {
       struct dispatcher<false, Ret> {
          template <std::size_t I, typename Vis, typename Var>
          static constexpr Ret _case(Vis&&, Var&&) {
-            __builtin_unreachable();
+            throw wasm_interpreter_exception("variant visit shouldn't be here");
          }
          template <std::size_t I, typename Vis, typename Var>
          static constexpr Ret _switch(Vis&&, Var&&) {
-            __builtin_unreachable();
+            throw wasm_interpreter_exception("variant visit shouldn't be here");
          }
       };
 
@@ -237,7 +237,7 @@ namespace eosio { namespace vm {
       }
 
       template <typename Alt>
-      inline constexpr bool is_a() {
+      inline constexpr bool is_a() const {
          return _which == detail::get_alternatives_index_v<Alt, Alternatives...>;
       }
       inline constexpr void toggle_exiting_which() { _which ^= 0x100; }
