@@ -173,9 +173,13 @@ namespace eosio { namespace vm {
          entry.field_str = parse_utf8_string(code);
          entry.kind  = (external_kind)(*code++);
          entry.index = parse_varuint32(code);
-	 if (entry.kind == external_kind::Function) {
-             _export_indices.insert(entry.index);
-	 }
+         switch(entry.kind) {
+            case external_kind::Function: EOS_VM_ASSERT(entry.index < _mod->get_functions_total(), wasm_parse_exception, "function export out of range"); break;
+            case external_kind::Table: EOS_VM_ASSERT(entry.index < _mod->tables.size(), wasm_parse_exception, "table export out of range"); break;
+            case external_kind::Memory: EOS_VM_ASSERT(entry.index < _mod->memories.size(), wasm_parse_exception, "memory export out of range"); break;
+            case external_kind::Global: EOS_VM_ASSERT(entry.index < _mod->globals.size(), wasm_parse_exception, "global export out of range"); break;
+            default: EOS_VM_ASSERT(false, wasm_parse_exception, "Unknown export kind"); break;
+         }
       }
 
       void parse_func_type(wasm_code_ptr& code, func_type& ft) {
@@ -951,7 +955,6 @@ namespace eosio { namespace vm {
       growable_allocator& _allocator;
       module*             _mod; // non-owning weak pointer
       int64_t             _current_function_index = -1;
-      std::set<uint32_t>  _export_indices;
       std::vector<wasm_code_ptr>  _function_bodies;
    };
 }} // namespace eosio::vm
