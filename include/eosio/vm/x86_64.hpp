@@ -1500,7 +1500,7 @@ namespace eosio { namespace vm {
          emit_bytes(0x48, 0x0f, 0xba, 0xe2, 0x3f);
          // jc FP_ERROR_HANDLER
          emit_bytes(0x0f, 0x82);
-         fix_branch(fpe_handler, emit_branch_target32());
+         fix_branch(emit_branch_target32(), fpe_handler);
       }
 
       void emit_f32_convert_s_i32() {
