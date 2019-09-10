@@ -15,3 +15,14 @@
 (module
   (func $16-locals (local i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64))
 )
+
+(assert_invalid
+  (module binary
+    "\00asm"                    ;; magic
+    "\01\00\00\00"              ;; version
+    "\01\04\01\60\00\00"        ;; types
+    "\03\02\01\00"              ;; functions
+    "\0a\06" "\01\04\01\01\32\0b" ;; code
+  )
+  "incorrect local type"
+)

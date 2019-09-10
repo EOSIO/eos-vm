@@ -32,3 +32,9 @@ BACKEND_TEST_CASE( "Testing wasm <e_locals_1_wasm>", "[e_locals_1_wasm_tests]" )
 
 }
 
+BACKEND_TEST_CASE( "Testing wasm <e_locals_2_wasm>", "[e_locals_2_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "e_locals.2.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+

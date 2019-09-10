@@ -254,6 +254,8 @@ namespace eosio { namespace vm {
          // parse the local entries
          for (size_t i = 0; i < local_cnt; i++) {
             locals.at(i).count = parse_varuint32(code);
+            EOS_VM_ASSERT(*code == types::i32 || *code == types::i64 || *code == types::f32 || *code == types::f64,
+                          wasm_parse_exception, "invalid local type");
             locals.at(i).type  = *code++;
          }
          fb.locals = std::move(locals);
