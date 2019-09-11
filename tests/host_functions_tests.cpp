@@ -465,17 +465,18 @@ struct multi_converter {
    int num_trailing;
    operator has_multi_converter() const { return { value }; }
    ~multi_converter() { multi_converter_destructor_order.push_back(num_trailing); }
+   multi_converter(const multi_converter&) = delete;
 };
 
 namespace eosio { namespace vm {
 
    template<>
    struct wasm_type_converter< ::has_multi_converter> {
-      static ::multi_converter from_wasm(uint32_t val) { return { val, 0 }; }
-      static ::multi_converter from_wasm(uint32_t val, has_multi_converter X0) {
+      ::multi_converter from_wasm(uint32_t val) { return { val, 0 }; }
+      ::multi_converter from_wasm(uint32_t val, has_multi_converter X0) {
          return { val, 1 };
       }
-      static ::multi_converter from_wasm(uint32_t val, has_multi_converter X0, has_multi_converter X1) {
+      ::multi_converter from_wasm(uint32_t val, has_multi_converter X0, has_multi_converter X1) {
          return { val, 2 };
       }
    };
