@@ -129,7 +129,10 @@ namespace eosio { namespace vm {
          entry.kind = (external_kind)(*code++);
          auto type  = parse_varuint32(code);
          switch ((uint8_t)entry.kind) {
-            case external_kind::Function: entry.type.func_t = type; break;
+            case external_kind::Function:
+               entry.type.func_t = type;
+               EOS_VM_ASSERT(type < _mod->types.size(), wasm_parse_exception, "Invalid function type");
+               break;
             default: EOS_VM_ASSERT(false, wasm_unsupported_import_exception, "only function imports are supported");
          }
       }
