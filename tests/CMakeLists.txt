@@ -59,6 +59,7 @@ foreach(testcase address align binary-leb128 block br br_if br_table break-drop 
                  memory_redundancy memory_size memory_trap nop return
                  select stack store switch traps type typecheck
                  unreachable unreached-invalid unwind
+                 utf8-custom-section-id utf8-import-field utf8-import-module utf8-invalid-encoding
                  )
    add_spec_test(${testcase})
 endforeach()

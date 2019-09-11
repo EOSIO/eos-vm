@@ -33,12 +33,63 @@ namespace eosio { namespace vm {
 
       static inline int64_t parse_varint64(wasm_code_ptr& code) { return varint<64>(code).to(); }
 
+      int validate_utf8_code_point(wasm_code_ptr& code) {
+         unsigned char ch = *code++;
+         if (ch < 0x80) {
+            return 1;
+         } else if(ch < 0xE0) {
+           EOS_VM_ASSERT((ch & 0xC0) == 0xC0, wasm_parse_exception, "invalid utf8 encoding");
+            unsigned char b2 = *code++;
+            EOS_VM_ASSERT((b2 & 0xC0) == 0x80, wasm_parse_exception, "invalid utf8 encoding");
+            uint32_t code_point =
+              (static_cast<uint32_t>(ch - 0xC0u) << 6u) +
+              (static_cast<uint32_t>(b2 - 0x80u));
+            EOS_VM_ASSERT(0x80 <= code_point && code_point < 0x800, wasm_parse_exception, "invalid utf8 encoding");
+            return 2;
+         } else if(ch < 0xF0) {
+            unsigned char b2 = *code++;
+            EOS_VM_ASSERT((b2 & 0xC0) == 0x80, wasm_parse_exception, "invalid utf8 encoding");
+            unsigned char b3 = *code++;
+            EOS_VM_ASSERT((b3 & 0xC0) == 0x80, wasm_parse_exception, "invalid utf8 encoding");
+            uint32_t code_point =
+              (static_cast<uint32_t>(ch - 0xE0u) << 12u) +
+              (static_cast<uint32_t>(b2 - 0x80u) << 6u) +
+              (static_cast<uint32_t>(b3 - 0x80u));
+            EOS_VM_ASSERT((0x800 <= code_point && code_point < 0xD800) ||
+                          (0xE000 <= code_point && code_point < 0x10000),
+                          wasm_parse_exception, "invalid utf8 encoding");
+            return 3;
+         } else if (ch < 0xF8) {
+            unsigned char b2 = *code++;
+            EOS_VM_ASSERT((b2 & 0xC0) == 0x80, wasm_parse_exception, "invalid utf8 encoding");
+            unsigned char b3 = *code++;
+            EOS_VM_ASSERT((b3 & 0xC0) == 0x80, wasm_parse_exception, "invalid utf8 encoding");
+            unsigned char b4 = *code++;
+            EOS_VM_ASSERT((b4 & 0xC0) == 0x80, wasm_parse_exception, "invalid utf8 encoding");
+            uint32_t code_point =
+              (static_cast<uint32_t>(ch - 0xF0u) << 18u) +
+              (static_cast<uint32_t>(b2 - 0x80u) << 12u) +
+              (static_cast<uint32_t>(b3 - 0x80u) << 6u) +
+              (static_cast<uint32_t>(b4 - 0x80u));
+            EOS_VM_ASSERT((0x10000 <= code_point && code_point < 0x110000),
+                          wasm_parse_exception, "invalid utf8 encoding");
+            return 4;
+         }
+         EOS_VM_ASSERT(false, wasm_parse_exception, "invalid utf8 encoding");
+      }
+
+      void validate_utf8_string(wasm_code_ptr& code, uint32_t bytes) {
+         while(bytes != 0) {
+            bytes -= validate_utf8_code_point(code);
+         }
+      }
+
       guarded_vector<uint8_t> parse_utf8_string(wasm_code_ptr& code) {
          auto len        = parse_varuint32(code);
          auto guard = code.scoped_shrink_bounds(len);
          auto result = guarded_vector<uint8_t>{ _allocator, len };
          result.copy(code.raw(), len);
-         code += len;
+         validate_utf8_string(code, len);
          return result;
       }
 
