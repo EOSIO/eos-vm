@@ -2106,11 +2106,11 @@ namespace eosio { namespace vm {
       static native_value call_host_function(Context* context /*rdi*/, native_value* stack /*rsi*/, uint32_t idx /*edx*/) {
          // It's currently unsafe to throw through a jit frame, because we don't set up
          // the exception tables for them.
-         try {
-            return context->call_host_function(stack, idx);
-         } catch(...) {
-            vm::throw_();
-         }
+         native_value result;
+         vm::longjmp_on_exception([&]() {
+            result = context->call_host_function(stack, idx);
+         });
+         return result;
       }
 
       static int32_t current_memory(Context* context /*rdi*/) {
@@ -2121,11 +2121,11 @@ namespace eosio { namespace vm {
          return context->grow_linear_memory(pages);
       }
 
-      static void on_unreachable() { vm::throw_(wasm_interpreter_exception{ "unreachable" }); }
-      static void on_fp_error() { vm::throw_(wasm_interpreter_exception{ "floating point error" }); }
-      static void on_call_indirect_error() { vm::throw_(wasm_interpreter_exception{ "call_indirect out of range" }); }
-      static void on_type_error() { vm::throw_(wasm_interpreter_exception{ "call_indirect incorrect function type" }); }
-      static void on_stack_overflow() { vm::throw_(wasm_interpreter_exception{ "stack overflow" }); }
+      static void on_unreachable() { vm::throw_<wasm_interpreter_exception>( "unreachable" ); }
+      static void on_fp_error() { vm::throw_<wasm_interpreter_exception>( "floating point error" ); }
+      static void on_call_indirect_error() { vm::throw_<wasm_interpreter_exception>( "call_indirect out of range" ); }
+      static void on_type_error() { vm::throw_<wasm_interpreter_exception>( "call_indirect incorrect function type" ); }
+      static void on_stack_overflow() { vm::throw_<wasm_interpreter_exception>( "stack overflow" ); }
    };
    
 }}

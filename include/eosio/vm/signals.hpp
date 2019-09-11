@@ -49,15 +49,27 @@ namespace eosio { namespace vm {
    // This is a workaround for the fact that it
    // is currently unsafe to throw an exception through
    // a jit frame.
-   [[noreturn]] inline void throw_() {
-      saved_exception = std::current_exception();
-      sigjmp_buf* dest = std::atomic_load(&signal_dest);
-      siglongjmp(*dest, -1);
+   template<typename F>
+   inline void longjmp_on_exception(F&& f) {
+      static_assert(std::is_trivially_destructible_v<std::decay_t<F>>, "longjmp has undefined behavior when it bypasses destructors.");
+      bool caught_exception = false;
+      try {
+         f();
+      } catch(...) {
+         saved_exception = std::current_exception();
+         // Cannot safely longjmp from inside the catch,
+         // as that will leak the exception.
+         caught_exception = true;
+      }
+      if (caught_exception) {
+         sigjmp_buf* dest = std::atomic_load(&signal_dest);
+         siglongjmp(*dest, -1);
+      }
    }
 
    template<typename E>
-   [[noreturn]] inline void throw_(E&& e) {
-      saved_exception = std::make_exception_ptr(static_cast<E&&>(e));
+   [[noreturn]] inline void throw_(const char* msg) {
+      saved_exception = std::make_exception_ptr(E{msg});
       sigjmp_buf* dest = std::atomic_load(&signal_dest);
       siglongjmp(*dest, -1);
    }
