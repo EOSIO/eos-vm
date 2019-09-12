@@ -251,7 +251,7 @@ namespace eosio { namespace vm {
       bounded_allocator _base_allocator = {
          constants::max_stack_size * sizeof(operand_stack_elem)
       };
-      operand_stack                   _os = { _base_allocator };
+      operand_stack                   _os = { nullptr };
    };
 
    template <typename Host>
