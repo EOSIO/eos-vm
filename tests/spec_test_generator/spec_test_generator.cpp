@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -1126,6 +1127,27 @@ const string test_includes = "#include <algorithm>\n#include <vector>\n#include 
 const string test_preamble_0 = "using backend_t = backend<std::nullptr_t, TestType>;\n   auto code = backend_t::read_wasm( ";
 const string test_preamble_1 = "backend_t bkend( code );\n   bkend.set_wasm_allocator( &wa );\n   bkend.initialize(nullptr);";
 
+std::string cpp_string(const picojson::value& x) {
+   std::string result = "\"";
+   for(unsigned char ch : x.to_str()) {
+     if ((unsigned char)ch < 0x20 || (unsigned char)ch > 0x7F) {
+         // Use a three digit octal escape, because that won't
+         // accidentally consume the following characters.
+         result += '\\';
+         result += (((unsigned char)ch >> 6) & 0x07) + '0';
+         result += (((unsigned char)ch >> 3) & 0x07) + '0';
+         result += (((unsigned char)ch >> 0) & 0x07) + '0';
+      } else if(ch == '\\' || ch == '\"') {
+         result += '\\';
+         result += ch;
+      } else {
+         result += ch;
+      }
+   }
+   result += "\"";
+   return result;
+}
+
 string generate_test_call(picojson::object obj, string expected_t, string expected_v) {
    stringstream ss;
 
@@ -1141,7 +1163,7 @@ string generate_test_call(picojson::object obj, string expected_t, string expect
       ss << "!bkend.call_with_return(nullptr, \"env\", ";
    }
 
-   ss << "\"" << obj["field"].to_str() << "\"";
+   ss << cpp_string(obj["field"]);
 
    for (picojson::value argv : obj["args"].get<picojson::array>()) {
       ss << ", ";
@@ -1173,11 +1195,35 @@ string generate_test_call(picojson::object obj, string expected_t, string expect
    return ss.str();
 }
 
+
+string generate_test_call_nan(picojson::object obj) {
+   stringstream ss;
+
+   ss << "check_nan(bkend.call_with_return(nullptr, \"env\", ";
+
+   ss << cpp_string(obj["field"]);
+
+   for (picojson::value argv : obj["args"].get<picojson::array>()) {
+      ss << ", ";
+      picojson::object arg = argv.get<picojson::object>();
+      if (arg["type"].to_str() == "i32")
+         ss << "UINT32_C(" << arg["value"].to_str() << ")";
+      else if (arg["type"].to_str() == "i64")
+         ss << "UINT64_C(" << arg["value"].to_str() << ")";
+      else if (arg["type"].to_str() == "f32")
+         ss << "bit_cast<float>(UINT32_C(" << arg["value"].to_str() << "))";
+      else
+         ss << "bit_cast<double>(UINT64_C(" << arg["value"].to_str() << "))";
+   }
+   ss << "))";
+   return ss.str();
+}
+
 string generate_trap_call(picojson::object obj) {
    stringstream ss;
 
    ss << "bkend(nullptr, \"env\", ";
-   ss << "\"" << obj["field"].to_str() << "\"";
+   ss << cpp_string(obj["field"]);
 
    for (picojson::value argv : obj["args"].get<picojson::array>()) {
       ss << ", ";
@@ -1199,7 +1245,7 @@ string generate_call(picojson::object obj) {
    stringstream ss;
 
    ss << "bkend(nullptr, \"env\", ";
-   ss << "\"" << obj["field"].to_str() << "\"";
+   ss << cpp_string(obj["field"]);
 
    for (picojson::value argv : obj["args"].get<picojson::array>()) {
       ss << ", ";
@@ -1216,6 +1262,15 @@ string generate_call(picojson::object obj) {
    ss << ")";
    return ss.str();
 }
+
+// Tests that should be skipped because they use unsupported imports.
+const std::set<std::string> blacklist = {
+   "data.2.wasm",
+   "data.4.wasm", "data.5.wasm", "data.6.wasm", "data.7.wasm", "data.8.wasm", "data.10.wasm",
+   "data.13.wasm", "data.17.wasm", "data.19.wasm", "data.20.wasm", "data.21.wasm",
+   "data.22.wasm", "data.23.wasm", "data.24.wasm", "data.30.wasm", "data.32.wasm", "data.36.wasm", "data.38.wasm"
+};
+
 void generate_tests(const map<string, vector<picojson::object>>& mappings) {
    stringstream unit_tests;
    string       exp_t, exp_v;
@@ -1226,29 +1281,48 @@ void generate_tests(const map<string, vector<picojson::object>>& mappings) {
    };
 
    for (const auto& [tsn_file, cmds] : mappings) {
-      if(tsn_file.empty()) continue;
+      if(tsn_file.empty() || blacklist.count(tsn_file)) continue;
       auto tsn = tsn_file;
       std::replace(tsn.begin(), tsn.end(), '.', '_');
       unit_tests << "BACKEND_TEST_CASE( \"Testing wasm <" << tsn << ">\", \"[" << tsn << "_tests]\" ) {\n";
       unit_tests << "   " << test_preamble_0 << "std::string(wasm_directory) + \"" <<  tsn_file << "\");\n";
-      unit_tests << "   " << test_preamble_1 << "\n\n";
 
-      for (picojson::object cmd : cmds) {
-         if (cmd["type"].to_str() == "assert_return") {
-            unit_tests << "   CHECK(";
-            exp_t = "";
-            exp_v = "";
-            if (cmd["expected"].get<picojson::array>().size() > 0) {
-               grab_expected(cmd["expected"].get<picojson::array>()[0].get<picojson::object>());
-               unit_tests << generate_test_call(cmd["action"].get<picojson::object>(), exp_t, exp_v) << ");\n";
-            } else {
-               unit_tests << generate_test_call(cmd["action"].get<picojson::object>(), exp_t, exp_v) << ");\n";
+      if(!cmds.empty() && [](picojson::object cmd) {
+                            return (cmd["type"].to_str() == "assert_invalid" ||
+                                    cmd["type"].to_str() == "assert_malformed" ||
+                                    cmd["type"].to_str() == "assert_unlinkable") &&
+                              cmd["module_type"].to_str() == "binary"; }(cmds.front())) {
+         if (picojson::object(cmds.front())["type"].to_str() == "assert_unlinkable") {
+            unit_tests << "   backend_t bkend( code );\n";
+            unit_tests << "   bkend.set_wasm_allocator( &wa );\n";
+            unit_tests << "   CHECK_THROWS_AS(bkend.initialize(nullptr), std::exception);\n";
+         } else {
+            unit_tests << "   CHECK_THROWS_AS(backend_t(code), std::exception);\n";
+         }
+      } else {
+         unit_tests << "   " << test_preamble_1 << "\n\n";
+
+         for (picojson::object cmd : cmds) {
+            if (cmd["type"].to_str() == "assert_return") {
+               unit_tests << "   CHECK(";
+               exp_t = "";
+               exp_v = "";
+               if (cmd["expected"].get<picojson::array>().size() > 0) {
+                  grab_expected(cmd["expected"].get<picojson::array>()[0].get<picojson::object>());
+                  unit_tests << generate_test_call(cmd["action"].get<picojson::object>(), exp_t, exp_v) << ");\n";
+               } else {
+                  unit_tests << generate_test_call(cmd["action"].get<picojson::object>(), exp_t, exp_v) << ");\n";
+               }
+            } else if (cmd["type"].to_str() == "assert_trap") {
+               unit_tests << "   CHECK_THROWS_AS(";
+               unit_tests << generate_trap_call(cmd["action"].get<picojson::object>()) << ");\n";
+            } else if (cmd["type"].to_str() == "action") {
+               unit_tests << generate_call(cmd["action"].get<picojson::object>()) << ";\n";
+            } else if (cmd["type"].to_str() == "assert_return_canonical_nan" ||
+                       cmd["type"].to_str() == "assert_return_arithmetic_nan") {
+               unit_tests << "   CHECK(";
+               unit_tests << generate_test_call_nan(cmd["action"].get<picojson::object>()) << ");\n";
             }
-         } else if (cmd["type"].to_str() == "assert_trap") {
-            unit_tests << "   CHECK_THROWS_AS(";
-            unit_tests << generate_trap_call(cmd["action"].get<picojson::object>()) << ");\n";
-         } else if (cmd["type"].to_str() == "action") {
-            unit_tests << generate_call(cmd["action"].get<picojson::object>()) << ";\n";
          }
       }
       unit_tests << "}\n\n";
@@ -1288,7 +1362,7 @@ int main(int argc, char** argv) {
       if (i->first == "commands") {
          for (const auto& o : i->second.get<picojson::array>()) {
             picojson::object obj = o.get<picojson::object>();
-            if (obj["type"].to_str() == "module") {
+            if (obj["type"].to_str() == "module" || obj["type"].to_str() == "assert_invalid" || (obj["type"].to_str() == "assert_malformed" && obj["module_type"].to_str() == "binary") || obj["type"].to_str() == "assert_unlinkable" ) {
                test_suite_name = obj["filename"].to_str();
                test_mappings[test_suite_name] = {};
             }

@@ -5,6 +5,8 @@
 #include <iterator>
 #include <string>
 #include <vector>
+#include <eosio/vm/stack_elem.hpp>
+#include <eosio/vm/utils.hpp>
 
 struct type_converter32 {
    union {
@@ -37,6 +39,14 @@ T bit_cast(const U& u) {
    T result;
    std::memcpy(&result, &u, sizeof(T));
    return result;
+}
+
+
+inline bool check_nan(const std::optional<eosio::vm::operand_stack_elem>& v) {
+   return visit(eosio::vm::overloaded{[](eosio::vm::i32_const_t){ return false; },
+                                      [](eosio::vm::i64_const_t){ return false; },
+                                      [](eosio::vm::f32_const_t f) { return std::isnan(f.data.f); },
+                                      [](eosio::vm::f64_const_t f) { return std::isnan(f.data.f); }}, *v);
 }
 
 #define BACKEND_TEST_CASE(name, tags) \

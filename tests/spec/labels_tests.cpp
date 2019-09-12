@@ -47,3 +47,21 @@ BACKEND_TEST_CASE( "Testing wasm <labels_0_wasm>", "[labels_0_wasm_tests]" ) {
    CHECK(bkend.call_with_return(nullptr, "env", "redefinition")->to_ui32() == UINT32_C(5));
 }
 
+BACKEND_TEST_CASE( "Testing wasm <labels_1_wasm>", "[labels_1_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "labels.1.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
+BACKEND_TEST_CASE( "Testing wasm <labels_2_wasm>", "[labels_2_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "labels.2.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
+BACKEND_TEST_CASE( "Testing wasm <labels_3_wasm>", "[labels_3_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "labels.3.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+

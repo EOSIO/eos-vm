@@ -23,8 +23,8 @@ namespace eosio { namespace vm {
 
       inline int32_t grow_linear_memory(int32_t pages) {
          const int32_t sz = _wasm_alloc->get_current_page();
-         if (pages < 0 || !_mod.memories.size() || max_pages < sz + pages ||
-             (_mod.memories[0].limits.flags && (_mod.memories[0].limits.maximum < sz + pages)))
+         if (pages < 0 || !_mod.memories.size() || max_pages - sz < pages ||
+             (_mod.memories[0].limits.flags && (static_cast<int32_t>(_mod.memories[0].limits.maximum) - sz < pages)))
             return -1;
          _wasm_alloc->alloc<char>(pages);
          return sz;
@@ -50,15 +50,18 @@ namespace eosio { namespace vm {
             grow_linear_memory(_mod.memories[0].limits.initial - _wasm_alloc->get_current_page());
          }
 
-         for (int i = 0; i < _mod.data.size(); i++) {
+         for (uint32_t i = 0; i < _mod.data.size(); i++) {
             const auto& data_seg = _mod.data[i];
-            // TODO validate only use memory idx 0 in parse
-            auto addr = _linear_memory + data_seg.offset.value.i32;
+            uint32_t offset = data_seg.offset.value.i32; // force to unsigned
+            auto available_memory =  _mod.memories[0].limits.initial * static_cast<uint64_t>(page_size);
+            auto required_memory = static_cast<uint64_t>(offset) + data_seg.data.size();
+            EOS_VM_ASSERT(required_memory <= available_memory, wasm_memory_exception, "data out of range");
+            auto addr = _linear_memory + offset;
             memcpy((char*)(addr), data_seg.data.raw(), data_seg.data.size());
          }
 
          // reset the mutable globals
-         for (int i = 0; i < _mod.globals.size(); i++) {
+         for (uint32_t i = 0; i < _mod.globals.size(); i++) {
             if (_mod.globals[i].type.mutability)
                _mod.globals[i].current = _mod.globals[i].init;
          }
@@ -161,15 +164,20 @@ namespace eosio { namespace vm {
 
          _host = host;
 
-         auto fn = _mod.code[func_index - _mod.get_imported_functions_size()].jit_code;
          const func_type& ft = _mod.get_function_type(func_index);
          native_value result;
+         native_value args_raw[] = { transform_arg(static_cast<Args&&>(args))... };
 
          try {
-            vm::invoke_with_signal_handler([&]() {
-               // FIXME: Move invoke out of machine_code_writer.
-               result = machine_code_writer<jit_execution_context>::invoke(fn, this, _linear_memory, args...);
-            }, &handle_signal);
+            if (func_index < _mod.get_imported_functions_size()) {
+               std::reverse(args_raw + 0, args_raw + sizeof...(Args));
+               result = call_host_function(args_raw, func_index);
+            } else {
+               auto fn = _mod.code[func_index - _mod.get_imported_functions_size()].jit_code;
+               vm::invoke_with_signal_handler([&]() {
+                  result = execute<sizeof...(Args)>(args_raw, fn, this, _linear_memory);
+               }, &handle_signal);
+            }
          } catch(wasm_exit_exception&) {
             return {};
          }
@@ -186,6 +194,58 @@ namespace eosio { namespace vm {
          __builtin_unreachable();
       }
    protected:
+
+      template<typename T>
+      native_value transform_arg(T&& value) {
+         // make sure that the garbage bits are always zero.
+         native_value result;
+         std::memset(&result, 0, sizeof(result));
+         auto transformed_value = detail::resolve_result(static_cast<T&&>(value), this->_wasm_alloc).data;
+         std::memcpy(&result, &transformed_value, sizeof(transformed_value));
+         return result;
+      }
+
+      template<int Count>
+      static native_value execute(native_value* data, native_value (*fun)(void*, void*), void* context, void* linear_memory) {
+         static_assert(sizeof(native_value) == 8, "8-bytes expected for native_value");
+         native_value result;
+         unsigned stack_check = constants::max_call_depth + 1;
+         asm volatile(
+            "sub $0x90, %%rsp; " // red-zone + 16 bytes
+            "stmxcsr 8(%%rsp); "
+            "mov $0x1f80, %%rax; "
+            "mov %%rax, (%%rsp); "
+            "ldmxcsr (%%rsp); "
+            "mov %[Count], %%rax; "
+            "test %%rax, %%rax; "
+            "jz 2f; "
+            "1: "
+            "movq (%[data]), %%r8; "
+            "lea 8(%[data]), %[data]; "
+            "pushq %%r8; "
+            "dec %%rax; "
+            "jnz 1b; "
+            "2: "
+            "callq *%[fun]; "
+            "add %[StackOffset], %%rsp; "
+            "ldmxcsr 8(%%rsp); "
+            "add $0x90, %%rsp; "
+            // Force explicit register allocation, because otherwise it's too hard to get the clobbers right.
+            : [result] "=&a" (result), // output, reused as a scratch register
+              [data] "+d" (data), [fun] "+c" (fun) // input only, but may be clobbered
+            : [context] "D" (context), [linear_memory] "S" (linear_memory),
+              [StackOffset] "n" (Count*8), [Count] "n" (Count), "b" (stack_check) // input
+            : "memory", "cc", // clobber
+              // call clobbered registers, that are not otherwise used
+              /*"rax", "rcx", "rdx", "rsi", "rdi",*/ "r8", "r9", "r10", "r11",
+              "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7",
+              "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15",
+              "mm0","mm1", "mm2", "mm3", "mm4", "mm5", "mm6", "mm6",
+              "st", "st(1)", "st(2)", "st(3)", "st(4)", "st(5)", "st(6)", "st(7)"
+         );
+         return result;
+      }
+
       Host * _host = nullptr;
       // This is only needed because the host function api uses operand stack
       bounded_allocator _base_allocator = {
@@ -208,7 +268,7 @@ namespace eosio { namespace vm {
          _mod.function_sizes.resize(_mod.get_functions_total());
          const size_t import_size  = _mod.get_imported_functions_size();
          uint32_t     total_so_far = 0;
-         for (int i = _mod.get_imported_functions_size(); i < _mod.function_sizes.size(); i++) {
+         for (uint32_t i = _mod.get_imported_functions_size(); i < _mod.function_sizes.size(); i++) {
             _mod.function_sizes[i] = total_so_far;
             total_so_far += _mod.code[i - import_size].size;
          }
@@ -328,7 +388,7 @@ namespace eosio { namespace vm {
       }
 
       inline void type_check(const func_type& ft) {
-         for (int i = 0; i < ft.param_types.size(); i++) {
+         for (uint32_t i = 0; i < ft.param_types.size(); i++) {
             const auto& op = peek_operand((ft.param_types.size() - 1) - i);
             visit(overloaded{ [&](const i32_const_t&) {
                                      EOS_VM_ASSERT(ft.param_types[i] == types::i32, wasm_interpreter_exception,
@@ -400,7 +460,6 @@ namespace eosio { namespace vm {
          execution_state saved_state = _state;
 
          _state.host             = host;
-         _state.pc               = _mod.get_function_pc(func_index);
          _state.as_index         = _as.size();
          _state.os_index         = _os.size();
 
@@ -414,15 +473,16 @@ namespace eosio { namespace vm {
 
          push_args(args...);
          push_call<true>(func_index);
-         type_check(_mod.types[_mod.functions[func_index - _mod.import_functions.size()]]);
-         setup_locals(func_index);
+         type_check(_mod.get_function_type(func_index));
 
-         try {
+         if (func_index < _mod.get_imported_functions_size()) {
+            _rhf(_state.host, *this, _mod.import_functions[func_index]);
+         } else {
+            _state.pc = _mod.get_function_pc(func_index);
+            setup_locals(func_index);
             vm::invoke_with_signal_handler([&]() {
                execute(visitor);
             }, &handle_signal);
-         } catch(wasm_exit_exception&) {
-            return {};
          }
 
          if (_mod.get_function_type(func_index).return_count && !_state.exiting) {
@@ -444,30 +504,16 @@ namespace eosio { namespace vm {
       }
 
     private:
-      template <typename Arg, typename... Args>
-      void _push_args(Arg&& arg, Args&&... args) {
-         if constexpr (to_wasm_type_v<std::decay_t<Arg>> == types::i32)
-            push_operand({ i32_const_t{ static_cast<uint32_t>(arg) } });
-         else if constexpr (to_wasm_type_v<std::decay_t<Arg>> == types::f32)
-            push_operand(f32_const_t{ static_cast<float>(arg) });
-         else if constexpr (to_wasm_type_v<std::decay_t<Arg>> == types::i64)
-            push_operand(i64_const_t{ static_cast<uint64_t>(arg) });
-         else
-            push_operand(f64_const_t{ static_cast<double>(arg) });
-         if constexpr (sizeof...(Args) > 0)
-            _push_args(args...);
-      }
 
       template <typename... Args>
       void push_args(Args&&... args) {
-         if constexpr (sizeof...(Args) > 0)
-            _push_args(args...);
+         (... , push_operand(detail::resolve_result(std::move(args), this->_wasm_alloc)));
       }
 
       inline void setup_locals(uint32_t index) {
          const auto& fn = _mod.code[index - _mod.get_imported_functions_size()];
-         for (int i = 0; i < fn.locals.size(); i++) {
-            for (int j = 0; j < fn.locals[i].count; j++)
+         for (uint32_t i = 0; i < fn.locals.size(); i++) {
+            for (uint32_t j = 0; j < fn.locals[i].count; j++)
                switch (fn.locals[i].type) {
                   case types::i32: push_operand(i32_const_t{ (uint32_t)0 }); break;
                   case types::i64: push_operand(i64_const_t{ (uint64_t)0 }); break;
@@ -550,7 +596,7 @@ namespace eosio { namespace vm {
       };
 
       bounded_allocator _base_allocator = {
-         (constants::max_stack_size + constants::max_call_depth) * (std::max(sizeof(operand_stack_elem), sizeof(activation_frame)))
+         (constants::max_stack_size + constants::max_call_depth + 1) * (std::max(sizeof(operand_stack_elem), sizeof(activation_frame)))
       };
       execution_state _state;
       uint16_t                        _last_op_index    = 0;

@@ -24,6 +24,7 @@ namespace eosio { namespace vm {
       using context = jit_execution_context<Host>;
       template<typename Host>
       using parser = binary_parser<machine_code_writer<jit_execution_context<Host>>>;
+      static constexpr bool is_jit = true;
    };
 
    struct interpreter {
@@ -31,6 +32,7 @@ namespace eosio { namespace vm {
       using context = execution_context<Host>;
       template<typename Host>
       using parser = binary_parser<bitcode_writer>;
+      static constexpr bool is_jit = false;
    };
 
    template <typename Host, typename Impl = interpreter>
@@ -46,8 +48,11 @@ namespace eosio { namespace vm {
          return call(host, mod, func, args...);
       }
 
-      inline backend& initialize(Host* host=nullptr) { 
-         _walloc->reset(_mod.memories.size()?_mod.memories[0].limits.initial:0);
+      inline backend& initialize(Host* host=nullptr) {
+         if(_mod.memories.size())
+            _walloc->reset(_mod.memories[0].limits.initial);
+         else
+            _walloc->reset();
          _ctx.reset();
          _ctx.execute_start(host, interpret_visitor(_ctx));
 	      return *this;
@@ -132,13 +137,32 @@ namespace eosio { namespace vm {
         }
       }
 
+      template<typename Watchdog, typename F>
+      void timed_run(Watchdog&& wd, F&& f) {
+         std::atomic<bool>       _timed_out = false;
+         auto reenable_code = scope_guard{[&](){
+            if (_timed_out) {
+               _mod.allocator.enable_code(Impl::is_jit);
+            }
+         }};
+         try {
+            auto wd_guard = wd.scoped_run([this,&_timed_out]() {
+               _timed_out = true;
+               _mod.allocator.disable_code();
+            });
+            static_cast<F&&>(f)();
+         } catch(wasm_memory_exception&) {
+            if (_timed_out) {
+               throw timeout_exception{ "execution timed out" };
+            } else {
+               throw;
+            }
+         }
+      }
+
       template <typename Watchdog>
       inline void execute_all(Watchdog&& wd, Host* host = nullptr) {
-         auto wd_guard = wd.scoped_run([this]() {
-            _timed_out = true;
-            mprotect(_mod.allocator._base, _mod.allocator._size, PROT_NONE);
-         });
-         try {
+         timed_run(static_cast<Watchdog&&>(wd), [&]() {
             for (int i = 0; i < _mod.exports.size(); i++) {
                if (_mod.exports[i].kind == external_kind::Function) {
                   std::string s{ (const char*)_mod.exports[i].field_str.raw(), _mod.exports[i].field_str.size() };
@@ -149,14 +173,7 @@ namespace eosio { namespace vm {
 	          }
                }
             }
-         } catch(wasm_memory_exception&) {
-            if (_timed_out) {
-               mprotect(_mod.allocator._base, _mod.allocator._size, PROT_READ | PROT_WRITE);
-               throw timeout_exception{ "execution timed out" };
-            } else {
-               throw;
-            }
-         }
+         });
       }
 
       inline void set_wasm_allocator(wasm_allocator* walloc) {
@@ -189,6 +206,5 @@ namespace eosio { namespace vm {
       wasm_allocator*         _walloc = nullptr; // non owning pointer
       module                  _mod;
       typename Impl::template context<Host> _ctx;
-      std::atomic<bool>       _timed_out;
    };
 }} // namespace eosio::vm

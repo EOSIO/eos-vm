@@ -47,10 +47,15 @@ namespace eosio { namespace vm {
          
          inline constexpr void from( guarded_ptr<uint8_t>& code ) {
             uint8_t cnt = 0;
-            for (; cnt < bytes_needed<N>(); cnt++) {
+            for (;; cnt++) {
+               EOS_VM_ASSERT( cnt < bytes_needed<N>(), wasm_interpreter_exception, "incorrect leb128 encoding" );
                EOS_VM_ASSERT( code.offset()+cnt < code.bounds(), wasm_interpreter_exception, "pointer out of bounds" );
                storage[cnt] = code[cnt];
                if ((storage[cnt] & 0x80) == 0) {
+                  if( cnt + 1 == bytes_needed<N>() ) {
+                     uint8_t mask = static_cast<uint8_t>(~(uint32_t)0 << uint32_t(N - 7*(bytes_needed<N>()-1))) & 0x7F;
+                     EOS_VM_ASSERT((mask & storage[cnt]) == 0, wasm_parse_exception, "unused bits of unsigned leb128 must be 0");
+                  }
                   break;
                }
             }
@@ -114,10 +119,17 @@ namespace eosio { namespace vm {
          
          inline constexpr void from( guarded_ptr<uint8_t>& code ) {
             uint8_t cnt = 0;
-            for (; cnt < bytes_needed<N>(); cnt++) {
+            for (;; cnt++) {
+               EOS_VM_ASSERT( cnt < bytes_needed<N>(), wasm_interpreter_exception, "incorrect leb128 encoding" );
                EOS_VM_ASSERT( code.offset()+cnt < code.bounds(), wasm_interpreter_exception, "pointer out of bounds" );
                storage[cnt] = code[cnt];
                if ((storage[cnt] & 0x80) == 0) {
+                  if( cnt + 1 == bytes_needed<N>() ) {
+                    uint32_t offset = N - 7*(bytes_needed<N>()-1);
+                     uint8_t mask = static_cast<uint8_t>(~(uint32_t)0 << offset) & 0x7F;
+                     uint8_t expected = (storage[cnt] & (uint32_t(1) << uint32_t(offset - 1)))? mask : 0;
+                     EOS_VM_ASSERT((mask & storage[cnt]) == expected, wasm_parse_exception, "unused bits of signed leb128 must be the same as the sign bit");
+                  }
                   break;
                }
             }

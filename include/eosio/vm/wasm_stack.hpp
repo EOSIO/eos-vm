@@ -46,6 +46,6 @@ namespace eosio { namespace vm {
    };
 
    using operand_stack = fixed_stack<constants::max_stack_size, operand_stack_elem, bounded_allocator>;
-   using call_stack    = fixed_stack<constants::max_call_depth, activation_frame,   bounded_allocator>;
+   using call_stack    = fixed_stack<constants::max_call_depth + 1, activation_frame,   bounded_allocator>;
 
 }} // namespace eosio::vm
