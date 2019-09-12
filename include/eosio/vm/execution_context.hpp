@@ -600,8 +600,8 @@ namespace eosio { namespace vm {
       };
       execution_state _state;
       uint16_t                        _last_op_index    = 0;
-      operand_stack                   _os = { _base_allocator };
-      call_stack                      _as = { _base_allocator };
+      operand_stack                   _os = { nullptr };
+      call_stack                      _as = { &_base_allocator };
       opcode                          _halt;
    };
 }} // namespace eosio::vm
