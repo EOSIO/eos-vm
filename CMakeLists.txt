@@ -70,6 +70,16 @@ if(ENABLE_MEMORY_OPS_ALIGNMENT)
 endif()
 
 # ##################################################################################################
+# Fix for missing atomic reference libstdc++ and clang.
+# ##################################################################################################
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+   # would be nice to detect if using libstdc++ or libc++
+   if(UNIX AND NOT APPLE)
+      target_link_libraries(eos-vm INTERFACE atomic)
+   endif()
+endif()
+
+# ##################################################################################################
 # Build eos-vm tools.
 # ##################################################################################################
 if(ENABLE_TOOLS)
