@@ -374,10 +374,10 @@ BACKEND_TEST_CASE( "Test C-style host function system", "[C-style_host_functions
    CHECK(c_style_host_function_state == 3);
 
    float f = 2.4f;
-   bkend.call(nullptr, "env", "apply", (uint64_t)3, (uint64_t)2, *(uint64_t*)&f);
+   bkend.call(nullptr, "env", "apply", (uint64_t)3, (uint64_t)2, (uint64_t)bit_cast<uint32_t>(f));
    CHECK(c_style_host_function_state == 0x40199980);
 
-   bkend.call(nullptr, "env", "apply", (uint64_t)4, (uint64_t)5, *(uint64_t*)&f);
+   bkend.call(nullptr, "env", "apply", (uint64_t)4, (uint64_t)5, (uint64_t)bit_cast<uint32_t>(f));
    CHECK(c_style_host_function_state == 5);
 }
 
