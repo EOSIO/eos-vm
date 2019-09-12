@@ -32,6 +32,16 @@ namespace eosio { namespace vm {
             return addr;
          }
       }
+      template<typename T>
+      static inline T read_unaligned(const void* addr) {
+         T result;
+         std::memcpy(&result, addr, sizeof(T));
+         return result;
+      }
+      template<typename T>
+      static void write_unaligned(void* addr, T value) {
+         std::memcpy(addr, &value, sizeof(T));
+      }
 
       [[gnu::always_inline]] inline void operator()(const unreachable_t& op) {
          context.inc_pc();
@@ -40,20 +50,18 @@ namespace eosio { namespace vm {
 
       [[gnu::always_inline]] inline void operator()(const nop_t& op) { context.inc_pc(); }
 
-      [[gnu::always_inline]] inline void operator()(const fend_t& op) { context.apply_pop_call(); }
-
       [[gnu::always_inline]] inline void operator()(const end_t& op) { context.inc_pc(); }
-      [[gnu::always_inline]] inline void operator()(const return__t& op) { context.jump(op.data, op.pc); }
+      [[gnu::always_inline]] inline void operator()(const return_t& op) { context.apply_pop_call(op.data, op.pc); }
       [[gnu::always_inline]] inline void operator()(block_t& op) { context.inc_pc(); }
       [[gnu::always_inline]] inline void operator()(loop_t& op) { context.inc_pc(); }
-      [[gnu::always_inline]] inline void operator()(if__t& op) {
+      [[gnu::always_inline]] inline void operator()(if_t& op) {
          context.inc_pc();
          const auto& oper = context.pop_operand();
          if (!oper.to_ui32()) {
             context.set_relative_pc(op.pc);
          }
       }
-      [[gnu::always_inline]] inline void operator()(const else__t& op) { context.set_relative_pc(op.pc); }
+      [[gnu::always_inline]] inline void operator()(const else_t& op) { context.set_relative_pc(op.pc); }
       [[gnu::always_inline]] inline void operator()(const br_t& op) { context.jump(op.data, op.pc); }
       [[gnu::always_inline]] inline void operator()(const br_if_t& op) {
          const auto& val = context.pop_operand();
@@ -63,6 +71,10 @@ namespace eosio { namespace vm {
             context.inc_pc();
          }
       }
+
+      [[gnu::always_inline]] inline void operator()(const br_table_data_t& op) {
+         context.inc_pc(op.index);
+      }
       [[gnu::always_inline]] inline void operator()(const br_table_t& op) {
          const auto& in = context.pop_operand().to_ui32();
          const auto& entry = op.table[std::min(in, op.size)]; 
@@ -70,12 +82,14 @@ namespace eosio { namespace vm {
       }
       [[gnu::always_inline]] inline void operator()(const call_t& op) {
          context.call(op.index);
-         // TODO place these in parser
-         // EOS_WB_ASSERT(b.index < funcs_size, wasm_interpreter_exception, "call index out of bounds");
       }
       [[gnu::always_inline]] inline void operator()(const call_indirect_t& op) {
          const auto& index = context.pop_operand().to_ui32();
-         context.call(context.table_elem(index));
+         uint32_t fn = context.table_elem(index);
+         const auto& expected_type = context.get_module().types.at(op.index);
+         const auto& actual_type = context.get_module().get_function_type(fn);
+         EOS_VM_ASSERT(actual_type == expected_type, wasm_interpreter_exception, "bad call_indirect type");
+         context.call(fn);
       }
       [[gnu::always_inline]] inline void operator()(const drop_t& op) {
          context.pop_operand();
@@ -113,175 +127,134 @@ namespace eosio { namespace vm {
          const auto& oper = context.pop_operand();
          context.set_global(op.index, oper);
       }
+      template<typename Op>
+      inline void * pop_memop_addr(const Op& op) {
+         const auto& ptr  = context.pop_operand();
+         return align_address((context.linear_memory() + op.offset + ptr.to_ui32()), op.flags_align);
+      }
       [[gnu::always_inline]] inline void operator()(const i32_load_t& op) {
          context.inc_pc();
-         const auto& ptr  = context.pop_operand();
-         uint32_t*   _ptr = (uint32_t*)align_address((uint32_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                   op.flags_align);
-         context.push_operand(i32_const_t{ *_ptr });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(i32_const_t{ read_unaligned<uint32_t>(_ptr) });
       }
       [[gnu::always_inline]] inline void operator()(const i32_load8_s_t& op) {
          context.inc_pc();
-         const auto& ptr = context.pop_operand();
-         int8_t*     _ptr =
-               (int8_t*)align_address((int8_t*)(context.linear_memory() + op.offset + ptr.to_ui32()), op.flags_align);
-         context.push_operand(i32_const_t{ static_cast<int32_t>(*_ptr) });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(i32_const_t{ static_cast<int32_t>(read_unaligned<int8_t>(_ptr) ) });
       }
       [[gnu::always_inline]] inline void operator()(const i32_load16_s_t& op) {
          context.inc_pc();
-         const auto& ptr = context.pop_operand();
-         int16_t*    _ptr =
-               (int16_t*)align_address((int16_t*)(context.linear_memory() + op.offset + ptr.to_ui32()), op.flags_align);
-         context.push_operand(i32_const_t{ static_cast<int32_t>(*_ptr) });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(i32_const_t{ static_cast<int32_t>( read_unaligned<int16_t>(_ptr) ) });
       }
       [[gnu::always_inline]] inline void operator()(const i32_load8_u_t& op) {
          context.inc_pc();
-         const auto& ptr = context.pop_operand();
-         uint8_t*    _ptr =
-               (uint8_t*)align_address((uint8_t*)(context.linear_memory() + op.offset + ptr.to_ui32()), op.flags_align);
-         context.push_operand(i32_const_t{ static_cast<uint32_t>(*_ptr) });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(i32_const_t{ static_cast<uint32_t>( read_unaligned<uint8_t>(_ptr) ) });
       }
       [[gnu::always_inline]] inline void operator()(const i32_load16_u_t& op) {
          context.inc_pc();
-         const auto& ptr  = context.pop_operand();
-         uint16_t*   _ptr = (uint16_t*)align_address((uint16_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                   op.flags_align);
-         context.push_operand(i32_const_t{ static_cast<uint32_t>(*_ptr) });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(i32_const_t{ static_cast<uint32_t>( read_unaligned<uint16_t>(_ptr) ) });
       }
       [[gnu::always_inline]] inline void operator()(const i64_load_t& op) {
          context.inc_pc();
-         const auto& ptr  = context.pop_operand();
-         uint64_t*   _ptr = (uint64_t*)align_address((uint64_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                   op.flags_align);
-         context.push_operand(i64_const_t{ static_cast<uint64_t>(*_ptr) });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(i64_const_t{ static_cast<uint64_t>( read_unaligned<uint64_t>(_ptr) ) });
       }
       [[gnu::always_inline]] inline void operator()(const i64_load8_s_t& op) {
          context.inc_pc();
-         const auto& ptr = context.pop_operand();
-         int8_t*     _ptr =
-               (int8_t*)align_address((int8_t*)(context.linear_memory() + op.offset + ptr.to_ui32()), op.flags_align);
-         context.push_operand(i64_const_t{ static_cast<int64_t>(*_ptr) });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(i64_const_t{ static_cast<int64_t>( read_unaligned<int8_t>(_ptr) ) });
       }
       [[gnu::always_inline]] inline void operator()(const i64_load16_s_t& op) {
          context.inc_pc();
-         const auto& ptr = context.pop_operand();
-         int16_t*    _ptr =
-               (int16_t*)align_address((int16_t*)(context.linear_memory() + op.offset + ptr.to_ui32()), op.flags_align);
-         context.push_operand(i64_const_t{ static_cast<int64_t>(*_ptr) });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(i64_const_t{ static_cast<int64_t>( read_unaligned<int16_t>(_ptr) ) });
       }
       [[gnu::always_inline]] inline void operator()(const i64_load32_s_t& op) {
          context.inc_pc();
-         const auto& ptr = context.pop_operand();
-         int32_t*    _ptr =
-               (int32_t*)align_address((int32_t*)(context.linear_memory() + op.offset + ptr.to_ui32()), op.flags_align);
-         context.push_operand(i64_const_t{ static_cast<int64_t>(*_ptr) });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(i64_const_t{ static_cast<int64_t>( read_unaligned<int32_t>(_ptr) ) });
       }
       [[gnu::always_inline]] inline void operator()(const i64_load8_u_t& op) {
          context.inc_pc();
-         const auto& ptr = context.pop_operand();
-         uint8_t*    _ptr =
-               (uint8_t*)align_address((uint8_t*)(context.linear_memory() + op.offset + ptr.to_ui32()), op.flags_align);
-         context.push_operand(i64_const_t{ static_cast<uint64_t>(*_ptr) });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(i64_const_t{ static_cast<uint64_t>( read_unaligned<uint8_t>(_ptr) ) });
       }
       [[gnu::always_inline]] inline void operator()(const i64_load16_u_t& op) {
          context.inc_pc();
-         const auto& ptr  = context.pop_operand();
-         uint16_t*   _ptr = (uint16_t*)align_address((uint16_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                   op.flags_align);
-         context.push_operand(i64_const_t{ static_cast<uint64_t>(*_ptr) });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(i64_const_t{ static_cast<uint64_t>( read_unaligned<uint16_t>(_ptr) ) });
       }
       [[gnu::always_inline]] inline void operator()(const i64_load32_u_t& op) {
          context.inc_pc();
-         const auto& ptr  = context.pop_operand();
-         uint32_t*   _ptr = (uint32_t*)align_address((uint32_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                   op.flags_align);
-         context.push_operand(i64_const_t{ static_cast<uint64_t>(*_ptr) });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(i64_const_t{ static_cast<uint64_t>( read_unaligned<uint32_t>(_ptr) ) });
       }
       [[gnu::always_inline]] inline void operator()(const f32_load_t& op) {
          context.inc_pc();
-         const auto& ptr  = context.pop_operand();
-         uint32_t*   _ptr = (uint32_t*)align_address((uint32_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                   op.flags_align);
-         context.push_operand(f32_const_t{ *_ptr });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(f32_const_t{ read_unaligned<uint32_t>(_ptr) });
       }
       [[gnu::always_inline]] inline void operator()(const f64_load_t& op) {
          context.inc_pc();
-         const auto& ptr  = context.pop_operand();
-         uint64_t*   _ptr = (uint64_t*)align_address((uint64_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                   op.flags_align);
-         context.push_operand(f64_const_t{ *_ptr });
+         void* _ptr = pop_memop_addr(op);
+         context.push_operand(f64_const_t{ read_unaligned<uint64_t>(_ptr) });
       }
       [[gnu::always_inline]] inline void operator()(const i32_store_t& op) {
          context.inc_pc();
          const auto& val     = context.pop_operand();
-         const auto& ptr     = context.pop_operand();
-         uint32_t* store_loc = (uint32_t*)align_address((uint32_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                        op.flags_align);
-         *store_loc          = val.to_ui32();
+         void* store_loc     = pop_memop_addr(op);
+         write_unaligned(store_loc, val.to_ui32());
       }
       [[gnu::always_inline]] inline void operator()(const i32_store8_t& op) {
          context.inc_pc();
          const auto& val = context.pop_operand();
-         const auto& ptr = context.pop_operand();
-         uint8_t*    store_loc =
-               (uint8_t*)align_address((uint8_t*)(context.linear_memory() + op.offset + ptr.to_ui32()), op.flags_align);
-         *store_loc = static_cast<uint8_t>(val.to_ui32());
+         void* store_loc = pop_memop_addr(op);
+         write_unaligned(store_loc, static_cast<uint8_t>(val.to_ui32()));
       }
       [[gnu::always_inline]] inline void operator()(const i32_store16_t& op) {
          context.inc_pc();
          const auto& val     = context.pop_operand();
-         const auto& ptr     = context.pop_operand();
-         uint16_t* store_loc = (uint16_t*)align_address((uint16_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                        op.flags_align);
-         *store_loc          = static_cast<uint16_t>(val.to_ui32());
+         void* store_loc     = pop_memop_addr(op);
+         write_unaligned(store_loc, static_cast<uint16_t>(val.to_ui32()));
       }
       [[gnu::always_inline]] inline void operator()(const i64_store_t& op) {
          context.inc_pc();
          const auto& val     = context.pop_operand();
-         const auto& ptr     = context.pop_operand();
-         uint64_t* store_loc = (uint64_t*)align_address((uint64_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                        op.flags_align);
-         *store_loc          = static_cast<uint64_t>(val.to_ui64());
+         void* store_loc     = pop_memop_addr(op);
+         write_unaligned(store_loc, static_cast<uint64_t>(val.to_ui64()));
       }
       [[gnu::always_inline]] inline void operator()(const i64_store8_t& op) {
          context.inc_pc();
          const auto& val = context.pop_operand();
-         const auto& ptr = context.pop_operand();
-         uint8_t*    store_loc =
-               (uint8_t*)align_address((uint8_t*)(context.linear_memory() + op.offset + ptr.to_ui32()), op.flags_align);
-         *store_loc = static_cast<uint8_t>(val.to_ui64());
+         void* store_loc = pop_memop_addr(op);
+         write_unaligned(store_loc, static_cast<uint8_t>(val.to_ui64()));
       }
       [[gnu::always_inline]] inline void operator()(const i64_store16_t& op) {
          context.inc_pc();
          const auto& val     = context.pop_operand();
-         const auto& ptr     = context.pop_operand();
-         uint16_t* store_loc = (uint16_t*)align_address((uint16_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                        op.flags_align);
-         *store_loc          = static_cast<uint16_t>(val.to_ui64());
+         void* store_loc     = pop_memop_addr(op);
+         write_unaligned(store_loc, static_cast<uint16_t>(val.to_ui64()));
       }
       [[gnu::always_inline]] inline void operator()(const i64_store32_t& op) {
          context.inc_pc();
          const auto& val     = context.pop_operand();
-         const auto& ptr     = context.pop_operand();
-         uint32_t* store_loc = (uint32_t*)align_address((uint32_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                        op.flags_align);
-         *store_loc          = static_cast<uint32_t>(val.to_ui64());
+         void* store_loc     = pop_memop_addr(op);
+         write_unaligned(store_loc, static_cast<uint32_t>(val.to_ui64()));
       }
       [[gnu::always_inline]] inline void operator()(const f32_store_t& op) {
          context.inc_pc();
          const auto& val     = context.pop_operand();
-         const auto& ptr     = context.pop_operand();
-         uint32_t* store_loc = (uint32_t*)align_address((uint32_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                        op.flags_align);
-         *store_loc          = static_cast<uint32_t>(val.to_fui32());
+         void* store_loc     = pop_memop_addr(op);
+         write_unaligned(store_loc, static_cast<uint32_t>(val.to_fui32()));
       }
       [[gnu::always_inline]] inline void operator()(const f64_store_t& op) {
          context.inc_pc();
          const auto& val     = context.pop_operand();
-         const auto& ptr     = context.pop_operand();
-         uint64_t* store_loc = (uint64_t*)align_address((uint64_t*)(context.linear_memory() + op.offset + ptr.to_ui32()),
-                                                        op.flags_align);
-         *store_loc          = static_cast<uint64_t>(val.to_fui64());
+         void* store_loc     = pop_memop_addr(op);
+         write_unaligned(store_loc, static_cast<uint64_t>(val.to_fui64()));
       }
       [[gnu::always_inline]] inline void operator()(const current_memory_t& op) {
          context.inc_pc();
@@ -586,8 +559,8 @@ namespace eosio { namespace vm {
          context.inc_pc();
          const auto& rhs = context.pop_operand().to_i32();
          auto&       lhs = context.peek_operand().to_i32();
-         EOS_WB_ASSERT(rhs != 0, wasm_interpreter_exception, "i32.div_s divide by zero");
-         EOS_WB_ASSERT(!(lhs == std::numeric_limits<int32_t>::min() && rhs == -1), wasm_interpreter_exception,
+         EOS_VM_ASSERT(rhs != 0, wasm_interpreter_exception, "i32.div_s divide by zero");
+         EOS_VM_ASSERT(!(lhs == std::numeric_limits<int32_t>::min() && rhs == -1), wasm_interpreter_exception,
                        "i32.div_s traps when I32_MAX/-1");
          lhs /= rhs;
       }
@@ -595,14 +568,14 @@ namespace eosio { namespace vm {
          context.inc_pc();
          const auto& rhs = context.pop_operand().to_ui32();
          auto&       lhs = context.peek_operand().to_ui32();
-         EOS_WB_ASSERT(rhs != 0, wasm_interpreter_exception, "i32.div_u divide by zero");
+         EOS_VM_ASSERT(rhs != 0, wasm_interpreter_exception, "i32.div_u divide by zero");
          lhs /= rhs;
       }
       [[gnu::always_inline]] inline void operator()(const i32_rem_s_t& op) {
          context.inc_pc();
          const auto& rhs = context.pop_operand().to_i32();
          auto&       lhs = context.peek_operand().to_i32();
-         EOS_WB_ASSERT(rhs != 0, wasm_interpreter_exception, "i32.rem_s divide by zero");
+         EOS_VM_ASSERT(rhs != 0, wasm_interpreter_exception, "i32.rem_s divide by zero");
          if (UNLIKELY(lhs == std::numeric_limits<int32_t>::min() && rhs == -1))
             lhs = 0;
          else
@@ -612,7 +585,7 @@ namespace eosio { namespace vm {
          context.inc_pc();
          const auto& rhs = context.pop_operand().to_ui32();
          auto&       lhs = context.peek_operand().to_ui32();
-         EOS_WB_ASSERT(rhs != 0, wasm_interpreter_exception, "i32.rem_u divide by zero");
+         EOS_VM_ASSERT(rhs != 0, wasm_interpreter_exception, "i32.rem_u divide by zero");
          lhs %= rhs;
       }
       [[gnu::always_inline]] inline void operator()(const i32_and_t& op) {
@@ -635,21 +608,24 @@ namespace eosio { namespace vm {
       }
       [[gnu::always_inline]] inline void operator()(const i32_shl_t& op) {
          context.inc_pc();
+         static constexpr uint32_t mask = (8 * sizeof(uint32_t) - 1);
          const auto& rhs = context.pop_operand().to_ui32();
          auto&       lhs = context.peek_operand().to_ui32();
-         lhs <<= rhs;
+         lhs <<= (rhs & mask);
       }
       [[gnu::always_inline]] inline void operator()(const i32_shr_s_t& op) {
          context.inc_pc();
+         static constexpr uint32_t mask = (8 * sizeof(uint32_t) - 1);
          const auto& rhs = context.pop_operand().to_ui32();
          auto&       lhs = context.peek_operand().to_i32();
-         lhs >>= rhs;
+         lhs >>= (rhs & mask);
       }
       [[gnu::always_inline]] inline void operator()(const i32_shr_u_t& op) {
          context.inc_pc();
+         static constexpr uint32_t mask = (8 * sizeof(uint32_t) - 1);
          const auto& rhs = context.pop_operand().to_ui32();
          auto&       lhs = context.peek_operand().to_ui32();
-         lhs >>= rhs;
+         lhs >>= (rhs & mask);
       }
       [[gnu::always_inline]] inline void operator()(const i32_rotl_t& op) {
 
@@ -709,8 +685,8 @@ namespace eosio { namespace vm {
          context.inc_pc();
          const auto& rhs = context.pop_operand().to_i64();
          auto&       lhs = context.peek_operand().to_i64();
-         EOS_WB_ASSERT(rhs != 0, wasm_interpreter_exception, "i64.div_s divide by zero");
-         EOS_WB_ASSERT(!(lhs == std::numeric_limits<int64_t>::min() && rhs == -1), wasm_interpreter_exception,
+         EOS_VM_ASSERT(rhs != 0, wasm_interpreter_exception, "i64.div_s divide by zero");
+         EOS_VM_ASSERT(!(lhs == std::numeric_limits<int64_t>::min() && rhs == -1), wasm_interpreter_exception,
                        "i64.div_s traps when I64_MAX/-1");
          lhs /= rhs;
       }
@@ -718,14 +694,14 @@ namespace eosio { namespace vm {
          context.inc_pc();
          const auto& rhs = context.pop_operand().to_ui64();
          auto&       lhs = context.peek_operand().to_ui64();
-         EOS_WB_ASSERT(rhs != 0, wasm_interpreter_exception, "i64.div_u divide by zero");
+         EOS_VM_ASSERT(rhs != 0, wasm_interpreter_exception, "i64.div_u divide by zero");
          lhs /= rhs;
       }
       [[gnu::always_inline]] inline void operator()(const i64_rem_s_t& op) {
          context.inc_pc();
          const auto& rhs = context.pop_operand().to_i64();
          auto&       lhs = context.peek_operand().to_i64();
-         EOS_WB_ASSERT(rhs != 0, wasm_interpreter_exception, "i64.rem_s divide by zero");
+         EOS_VM_ASSERT(rhs != 0, wasm_interpreter_exception, "i64.rem_s divide by zero");
          if (UNLIKELY(lhs == std::numeric_limits<int64_t>::min() && rhs == -1))
             lhs = 0;
          else
@@ -735,7 +711,7 @@ namespace eosio { namespace vm {
          context.inc_pc();
          const auto& rhs = context.pop_operand().to_ui64();
          auto&       lhs = context.peek_operand().to_ui64();
-         EOS_WB_ASSERT(rhs != 0, wasm_interpreter_exception, "i64.rem_s divide by zero");
+         EOS_VM_ASSERT(rhs != 0, wasm_interpreter_exception, "i64.rem_s divide by zero");
          lhs %= rhs;
       }
       [[gnu::always_inline]] inline void operator()(const i64_and_t& op) {
@@ -758,21 +734,24 @@ namespace eosio { namespace vm {
       }
       [[gnu::always_inline]] inline void operator()(const i64_shl_t& op) {
          context.inc_pc();
+         static constexpr uint64_t mask = (8 * sizeof(uint64_t) - 1);
          const auto& rhs = context.pop_operand().to_ui64();
          auto&       lhs = context.peek_operand().to_ui64();
-         lhs <<= rhs;
+         lhs <<= (rhs & mask);
       }
       [[gnu::always_inline]] inline void operator()(const i64_shr_s_t& op) {
          context.inc_pc();
+         static constexpr uint64_t mask = (8 * sizeof(uint64_t) - 1);
          const auto& rhs = context.pop_operand().to_ui64();
          auto&       lhs = context.peek_operand().to_i64();
-         lhs >>= rhs;
+         lhs >>= (rhs & mask);
       }
       [[gnu::always_inline]] inline void operator()(const i64_shr_u_t& op) {
          context.inc_pc();
+         static constexpr uint64_t mask = (8 * sizeof(uint64_t) - 1);
          const auto& rhs = context.pop_operand().to_ui64();
          auto&       lhs = context.peek_operand().to_ui64();
-         lhs >>= rhs;
+         lhs >>= (rhs & mask);
       }
       [[gnu::always_inline]] inline void operator()(const i64_rotl_t& op) {
          context.inc_pc();
@@ -1043,8 +1022,8 @@ namespace eosio { namespace vm {
             oper = i32_const_t{ _eosio_f32_trunc_i32s(oper.to_f32()) };
          } else {
             float af = oper.to_f32();
-            EOS_WB_ASSERT(!((af >= 2147483648.0f) || (af < -2147483648.0f)), wasm_interpreter_exception, "Error, f32.trunc_s/i32 overflow" );
-            EOS_WB_ASSERT(!__builtin_isnan(af), wasm_interpreter_exception, "Error, f32.trunc_s/i32 unrepresentable");
+            EOS_VM_ASSERT(!((af >= 2147483648.0f) || (af < -2147483648.0f)), wasm_interpreter_exception, "Error, f32.trunc_s/i32 overflow" );
+            EOS_VM_ASSERT(!__builtin_isnan(af), wasm_interpreter_exception, "Error, f32.trunc_s/i32 unrepresentable");
             oper = i32_const_t{ static_cast<int32_t>(af) };
          }
       }
@@ -1055,8 +1034,8 @@ namespace eosio { namespace vm {
             oper = i32_const_t{ _eosio_f32_trunc_i32u(oper.to_f32()) };
          } else {
             float af = oper.to_f32();
-            EOS_WB_ASSERT(!((af >= 4294967296.0f) || (af <= -1.0f)),wasm_interpreter_exception, "Error, f32.trunc_u/i32 overflow");
-            EOS_WB_ASSERT(!__builtin_isnan(af), wasm_interpreter_exception, "Error, f32.trunc_u/i32 unrepresentable");
+            EOS_VM_ASSERT(!((af >= 4294967296.0f) || (af <= -1.0f)),wasm_interpreter_exception, "Error, f32.trunc_u/i32 overflow");
+            EOS_VM_ASSERT(!__builtin_isnan(af), wasm_interpreter_exception, "Error, f32.trunc_u/i32 unrepresentable");
             oper = i32_const_t{ static_cast<uint32_t>(af) };
          }
       }
@@ -1067,8 +1046,8 @@ namespace eosio { namespace vm {
             oper = i32_const_t{ _eosio_f64_trunc_i32s(oper.to_f64()) };
          } else {
             double af = oper.to_f64();
-            EOS_WB_ASSERT(!((af >= 2147483648.0) || (af < -2147483648.0)), wasm_interpreter_exception, "Error, f64.trunc_s/i32 overflow");
-            EOS_WB_ASSERT(!__builtin_isnan(af), wasm_interpreter_exception, "Error, f64.trunc_s/i32 unrepresentable");
+            EOS_VM_ASSERT(!((af >= 2147483648.0) || (af < -2147483648.0)), wasm_interpreter_exception, "Error, f64.trunc_s/i32 overflow");
+            EOS_VM_ASSERT(!__builtin_isnan(af), wasm_interpreter_exception, "Error, f64.trunc_s/i32 unrepresentable");
             oper = i32_const_t{ static_cast<int32_t>(af) };
          }
       }
@@ -1079,8 +1058,8 @@ namespace eosio { namespace vm {
             oper = i32_const_t{ _eosio_f64_trunc_i32u(oper.to_f64()) };
          } else {
             double af = oper.to_f64();
-            EOS_WB_ASSERT(!((af >= 4294967296.0) || (af <= -1.0)), wasm_interpreter_exception, "Error, f64.trunc_u/i32 overflow");
-            EOS_WB_ASSERT(!__builtin_isnan(af), wasm_interpreter_exception, "Error, f64.trunc_u/i32 unrepresentable");
+            EOS_VM_ASSERT(!((af >= 4294967296.0) || (af <= -1.0)), wasm_interpreter_exception, "Error, f64.trunc_u/i32 overflow");
+            EOS_VM_ASSERT(!__builtin_isnan(af), wasm_interpreter_exception, "Error, f64.trunc_u/i32 unrepresentable");
             oper = i32_const_t{ static_cast<uint32_t>(af) };
          }
       }
@@ -1101,8 +1080,8 @@ namespace eosio { namespace vm {
             oper = i64_const_t{ _eosio_f32_trunc_i64s(oper.to_f32()) };
          } else {
             float af = oper.to_f32();
-            EOS_WB_ASSERT(!((af >= 9223372036854775808.0f) || (af < -9223372036854775808.0f)), wasm_interpreter_exception, "Error, f32.trunc_s/i64 overflow");
-            EOS_WB_ASSERT(!__builtin_isnan(af), wasm_interpreter_exception, "Error, f32.trunc_s/i64 unrepresentable");
+            EOS_VM_ASSERT(!((af >= 9223372036854775808.0f) || (af < -9223372036854775808.0f)), wasm_interpreter_exception, "Error, f32.trunc_s/i64 overflow");
+            EOS_VM_ASSERT(!__builtin_isnan(af), wasm_interpreter_exception, "Error, f32.trunc_s/i64 unrepresentable");
             oper = i64_const_t{ static_cast<int64_t>(af) };
          }
       }
@@ -1113,8 +1092,8 @@ namespace eosio { namespace vm {
             oper = i64_const_t{ _eosio_f32_trunc_i64u(oper.to_f32()) };
          } else {
             float af = oper.to_f32();
-            EOS_WB_ASSERT(!((af >= 18446744073709551616.0f) || (af <= -1.0f)), wasm_interpreter_exception, "Error, f32.trunc_u/i64 overflow");
-            EOS_WB_ASSERT(!__builtin_isnan(af), wasm_interpreter_exception, "Error, f32.trunc_u/i64 unrepresentable");
+            EOS_VM_ASSERT(!((af >= 18446744073709551616.0f) || (af <= -1.0f)), wasm_interpreter_exception, "Error, f32.trunc_u/i64 overflow");
+            EOS_VM_ASSERT(!__builtin_isnan(af), wasm_interpreter_exception, "Error, f32.trunc_u/i64 unrepresentable");
             oper = i64_const_t{ static_cast<uint64_t>(af) };
          }
       }
@@ -1125,8 +1104,8 @@ namespace eosio { namespace vm {
             oper = i64_const_t{ _eosio_f64_trunc_i64s(oper.to_f64()) };
          } else {
             double af = oper.to_f64();
-            EOS_WB_ASSERT(!((af >= 9223372036854775808.0) || (af < -9223372036854775808.0)), wasm_interpreter_exception, "Error, f64.trunc_s/i64 overflow");
-            EOS_WB_ASSERT(!__builtin_isnan(af), wasm_interpreter_exception, "Error, f64.trunc_s/i64 unrepresentable");
+            EOS_VM_ASSERT(!((af >= 9223372036854775808.0) || (af < -9223372036854775808.0)), wasm_interpreter_exception, "Error, f64.trunc_s/i64 overflow");
+            EOS_VM_ASSERT(!__builtin_isnan(af), wasm_interpreter_exception, "Error, f64.trunc_s/i64 unrepresentable");
             oper = i64_const_t{ static_cast<int64_t>(af) };
          }
       }
@@ -1137,8 +1116,8 @@ namespace eosio { namespace vm {
             oper = i64_const_t{ _eosio_f64_trunc_i64u(oper.to_f64()) };
          } else {
             double af = oper.to_f64();
-            EOS_WB_ASSERT(!((af >= 18446744073709551616.0) || (af <= -1.0)), wasm_interpreter_exception, "Error, f64.trunc_u/i64 overflow");
-            EOS_WB_ASSERT(!__builtin_isnan(af), wasm_interpreter_exception, "Error, f64.trunc_u/i64 unrepresentable");
+            EOS_VM_ASSERT(!((af >= 18446744073709551616.0) || (af <= -1.0)), wasm_interpreter_exception, "Error, f64.trunc_u/i64 overflow");
+            EOS_VM_ASSERT(!__builtin_isnan(af), wasm_interpreter_exception, "Error, f64.trunc_u/i64 unrepresentable");
             oper = i64_const_t{ static_cast<uint64_t>(af) };
          }
       }

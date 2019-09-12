@@ -6,7 +6,6 @@
 #include <string>
 
 namespace eosio { namespace vm {
-   
    template <typename T, typename Allocator> 
    class managed_vector {
       public:
@@ -36,17 +35,19 @@ namespace eosio { namespace vm {
                T* ptr = _allocator->template alloc<T>( size );
                if (_size == 0)
                  _data = ptr;
+            } else {
+               _allocator->template reclaim<T>( _data + size, _size - size );
             }
             _size = size;
          }
 
          constexpr inline void push_back( const T& val ) {
-            EOS_WB_ASSERT( _index < _size, wasm_vector_oob_exception, "vector write out of bounds" );
+            EOS_VM_ASSERT( _index < _size, wasm_vector_oob_exception, "vector write out of bounds" );
             _data[_index++] = val;
          }
 
          constexpr inline void emplace_back( T&& val ) {
-            EOS_WB_ASSERT( _index < _size, wasm_vector_oob_exception, "vector write out of bounds" );
+            EOS_VM_ASSERT( _index < _size, wasm_vector_oob_exception, "vector write out of bounds" );
             _data[_index++] = std::move(val);
          }
 
@@ -55,16 +56,16 @@ namespace eosio { namespace vm {
          }
 
          constexpr inline void pop_back() {
-            EOS_WB_ASSERT( _index >= 0, wasm_vector_oob_exception, "vector pop out of bounds" );
+            EOS_VM_ASSERT( _index >= 0, wasm_vector_oob_exception, "vector pop out of bounds" );
          }
 
          constexpr inline T& at( size_t i ) {
-            EOS_WB_ASSERT( i < _size, wasm_vector_oob_exception, "vector read out of bounds" );
+            EOS_VM_ASSERT( i < _size, wasm_vector_oob_exception, "vector read out of bounds" );
             return _data[i];
          }
 
          constexpr inline T& at( size_t i )const {
-            EOS_WB_ASSERT( i < _size, wasm_vector_oob_exception, "vector read out of bounds" );
+            EOS_VM_ASSERT( i < _size, wasm_vector_oob_exception, "vector read out of bounds" );
             return _data[i];
          }
 
@@ -79,11 +80,10 @@ namespace eosio { namespace vm {
          constexpr inline T& operator[] (size_t i) const { return at(i); }
          constexpr inline T* raw() const { return _data; }
          constexpr inline size_t size() const { return _size; }
-         constexpr inline void set( T* data, size_t size ) { _size = size; _data = data; _index = size-1; }
+         constexpr inline void set( T* data, size_t size, size_t index=-1 ) { _size = size; _data = data; _index = index == -1 ? size - 1 : index; }
          constexpr inline void copy( T* data, size_t size ) {
            resize(size);
-           for (int i=0; i < size; i++)
-             _data[i] = data[i];
+           std::copy_n(data, size, _data);
            _index = size-1;
          }
 

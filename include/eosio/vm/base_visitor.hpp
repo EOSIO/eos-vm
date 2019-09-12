@@ -11,14 +11,13 @@ namespace eosio { namespace vm {
    struct base_visitor {
       [[gnu::always_inline]] inline void operator()(const unreachable_t& ) {}
       [[gnu::always_inline]] inline void operator()(const nop_t& ) {}
-      [[gnu::always_inline]] inline void operator()(const fend_t& ) {}
       [[gnu::always_inline]] inline void operator()(const exit_t& ) {}
       [[gnu::always_inline]] inline void operator()(const end_t& ) {}
-      [[gnu::always_inline]] inline void operator()(const return__t& ) {}
+      [[gnu::always_inline]] inline void operator()(const return_t& ) {}
       [[gnu::always_inline]] inline void operator()(block_t& ) {}
       [[gnu::always_inline]] inline void operator()(loop_t& ) {}
-      [[gnu::always_inline]] inline void operator()(if__t& ) {}
-      [[gnu::always_inline]] inline void operator()(const else__t& ) {}
+      [[gnu::always_inline]] inline void operator()(if_t& ) {}
+      [[gnu::always_inline]] inline void operator()(const else_t& ) {}
       [[gnu::always_inline]] inline void operator()(const br_t& ) {}
       [[gnu::always_inline]] inline void operator()(const br_if_t& ) {}
       [[gnu::always_inline]] inline void operator()(const br_table_t& ) {}

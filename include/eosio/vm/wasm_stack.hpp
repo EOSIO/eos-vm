@@ -18,15 +18,20 @@ namespace eosio { namespace vm {
       fixed_stack(Allocator& alloc) : _s(managed_vector<ElemT, Allocator>{ alloc, Elems }) {}
       void        push(ElemT e) { _s[_index++] = e; }
       ElemT& get(uint32_t index) const {
-         EOS_WB_ASSERT(index <= _index, wasm_interpreter_exception, "invalid stack index");
+         EOS_VM_ASSERT(index <= _index, wasm_interpreter_exception, "invalid stack index");
          return _s[index];
       }
       void set(uint32_t index, const ElemT& el) {
-         EOS_WB_ASSERT(index <= _index, wasm_interpreter_exception, "invalid stack index");
+         EOS_VM_ASSERT(index <= _index, wasm_interpreter_exception, "invalid stack index");
          _s[index] = el;
       }
       ElemT        pop() { return _s[--_index]; }
       void         eat(uint32_t index) { _index = index; }
+      // compact the last element to the element pointed to by index
+      void         compact(uint32_t index) { 
+         _s[index] = _s[_index-1];
+         _index = index+1;
+      }
       uint16_t     current_index() const { return _index; }
       ElemT&       peek() { return _s[_index - 1]; }
       const ElemT& peek() const { return _s[_index - 1]; }
@@ -37,11 +42,10 @@ namespace eosio { namespace vm {
 
     private:
       managed_vector<ElemT, Allocator> _s;
-      uint16_t                              _index = 0;
+      uint16_t                         _index = 0;
    };
 
-   using control_stack = fixed_stack<constants::max_nested_structures, control_stack_elem, bounded_allocator>;
-   using operand_stack = fixed_stack<constants::max_stack_size,        operand_stack_elem, bounded_allocator>;
-   using call_stack    = fixed_stack<constants::max_call_depth,        activation_frame,   bounded_allocator>;
+   using operand_stack = fixed_stack<constants::max_stack_size, operand_stack_elem, bounded_allocator>;
+   using call_stack    = fixed_stack<constants::max_call_depth + 1, activation_frame,   bounded_allocator>;
 
 }} // namespace eosio::vm
