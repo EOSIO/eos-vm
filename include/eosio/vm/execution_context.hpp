@@ -480,9 +480,10 @@ namespace eosio { namespace vm {
          } else {
             _state.pc = _mod.get_function_pc(func_index);
             setup_locals(func_index);
-            vm::invoke_with_signal_handler([&]() {
-               execute(visitor);
-            }, &handle_signal);
+            execute(visitor);
+//            vm::invoke_with_signal_handler([&]() {
+//               execute(visitor);
+//            }, &handle_signal);
          }
 
          if (_mod.get_function_type(func_index).return_count && !_state.exiting) {

@@ -12,17 +12,21 @@
 #include <eosio/vm/vector.hpp>
 
 namespace eosio { namespace vm {
-   template <typename ElemT, typename Allocator = nullptr_t, size_t Elems = std::numeric_limits<size_t>::max() >
+   template <typename ElemT, size_t ElemSz, typename Allocator = nullptr_t >
    class stack {
     public:
       template <typename Alloc=Allocator, typename = std::enable_if_t<std::is_same_v<Alloc, nullptr_t>, int>>
       stack(Alloc) 
-         : _store(std::vector<ElemT>{ constants::max_stack_size }) {}
+         : _store(std::vector<ElemT>{ ElemSz }) {}
 
       template <typename Alloc=Allocator, typename = std::enable_if_t<!std::is_same_v<Alloc, nullptr_t>, int>>
       stack(Alloc* alloc) 
-         : _store(managed_vector<ElemT, Alloc>{*alloc, Elems }) {}
-      void   push(ElemT e) { _store[_index++] = e; }
+         : _store(managed_vector<ElemT, Alloc>{*alloc, ElemSz }) {}
+      void   push(ElemT e) { 
+         if constexpr (std::is_same_v<Allocator, nullptr_t>)
+            std::cout << "Size " << _index << "\n";
+         _store[_index++] = e; 
+      }
 
       ElemT& get(uint32_t index) const {
          EOS_VM_ASSERT(index <= _index, wasm_interpreter_exception, "invalid stack index");
@@ -32,10 +36,10 @@ namespace eosio { namespace vm {
          EOS_VM_ASSERT(index <= _index, wasm_interpreter_exception, "invalid stack index");
          _store[index] = el;
       }
-      ElemT        pop() { return _store[--_index]; }
-      void         eat(uint32_t index) { _index = index; }
+      ElemT pop() { return _store[--_index]; }
+      void  eat(uint32_t index) { _index = index; }
       // compact the last element to the element pointed to by index
-      void         compact(uint32_t index) { 
+      void  compact(uint32_t index) { 
          _store[index] = _store[_index-1];
          _index = index+1;
       }
@@ -48,22 +52,23 @@ namespace eosio { namespace vm {
       uint16_t     size() const { return _index; }
 
     private:
-      template <bool WhichVector, typename Elem, typename Alloc>
-      struct base_data_store {
-         using type = std::vector<Elem>;
-      };
       template <typename Elem, typename Alloc>
-      struct base_data_store<false, Elem, Alloc> {
+      struct base_data_store {
          using type = managed_vector<Elem, Alloc>;
       };
+      template <typename Elem>
+      struct base_data_store <Elem, nullptr_t> {
+         using type = std::vector<Elem>;
+      };
 
-      using base_data_store_t = typename base_data_store<Elems == std::numeric_limits<size_t>::max() && std::is_same_v<Allocator, nullptr_t>, ElemT, Allocator>::type;
+      using base_data_store_t = typename base_data_store<ElemT, Allocator>::type;
 
       base_data_store_t _store;
       uint16_t          _index = 0;
    };
 
-   using operand_stack = stack<operand_stack_elem>;
-   using call_stack    = stack<activation_frame,   bounded_allocator, constants::max_call_depth + 1 >;
+   using operand_stack = stack<operand_stack_elem, constants::max_stack_size>;
+   //using operand_stack = stack<operand_stack_elem, constants::max_stack_size, bounded_allocator>;
+   using call_stack    = stack<activation_frame,   constants::max_call_depth + 1, bounded_allocator >;
 
 }} // namespace eosio::vm

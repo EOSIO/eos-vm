@@ -87,6 +87,7 @@ add_executable(unit_tests main.cpp
                           host_functions_tests.cpp
                           reentry_tests.cpp
                           signals_tests.cpp
+                          stack_restriction_tests.cpp
                           watchdog_tests.cpp
                           implementation_limits_tests.cpp)
 target_link_libraries(unit_tests eos-vm Catch2::Catch2)
