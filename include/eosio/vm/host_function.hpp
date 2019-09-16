@@ -102,7 +102,6 @@ namespace eosio { namespace vm {
       // try the pointer to force segfault early
       template <typename T>
       void validate_ptr( const void* ptr, uint32_t len ) {
-         std::cout << "PTR " << ptr << " " << len << "\n";
          EOS_VM_ASSERT( len <= std::numeric_limits<std::uint32_t>::max() / (uint32_t)sizeof(T), wasm_interpreter_exception, "length will overflow" );
          uint32_t bytes = len * sizeof(T);
          // check the pointer
