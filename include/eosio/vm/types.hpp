@@ -233,5 +233,4 @@ namespace eosio { namespace vm {
          }
       }
    };
-
 }} // namespace eosio::vm

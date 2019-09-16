@@ -251,7 +251,7 @@ namespace eosio { namespace vm {
       bounded_allocator _base_allocator = {
          constants::max_stack_size * sizeof(operand_stack_elem)
       };
-      operand_stack                   _os = { nullptr };
+      operand_stack _os;
    };
 
    template <typename Host>
@@ -480,10 +480,9 @@ namespace eosio { namespace vm {
          } else {
             _state.pc = _mod.get_function_pc(func_index);
             setup_locals(func_index);
-            execute(visitor);
-//            vm::invoke_with_signal_handler([&]() {
-//               execute(visitor);
-//            }, &handle_signal);
+            vm::invoke_with_signal_handler([&]() {
+               execute(visitor);
+            }, &handle_signal);
          }
 
          if (_mod.get_function_type(func_index).return_count && !_state.exiting) {
@@ -601,8 +600,8 @@ namespace eosio { namespace vm {
       };
       execution_state _state;
       uint16_t                        _last_op_index    = 0;
-      operand_stack                   _os = { nullptr };
-      call_stack                      _as = { &_base_allocator };
+      operand_stack                   _os;
+      call_stack                      _as = { _base_allocator };
       opcode                          _halt;
    };
 }} // namespace eosio::vm

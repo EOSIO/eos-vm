@@ -7,7 +7,6 @@
 #include <eosio/vm/allocator.hpp>
 #include <eosio/vm/exceptions.hpp>
 #include <eosio/vm/stack_elem.hpp>
-#include <eosio/vm/types.hpp>
 #include <eosio/vm/utils.hpp>
 #include <eosio/vm/vector.hpp>
 
@@ -16,15 +15,14 @@ namespace eosio { namespace vm {
    class stack {
     public:
       template <typename Alloc=Allocator, typename = std::enable_if_t<std::is_same_v<Alloc, nullptr_t>, int>>
-      stack(Alloc) 
-         : _store(std::vector<ElemT>{ ElemSz }) {}
+      stack() 
+         : _store(unmanaged_vector<ElemT>{ ElemSz }) {}
 
       template <typename Alloc=Allocator, typename = std::enable_if_t<!std::is_same_v<Alloc, nullptr_t>, int>>
-      stack(Alloc* alloc) 
-         : _store(managed_vector<ElemT, Alloc>{*alloc, ElemSz }) {}
-      void   push(ElemT e) { 
-         if constexpr (std::is_same_v<Allocator, nullptr_t>)
-            std::cout << "Size " << _index << "\n";
+      stack(Alloc& alloc) 
+         : _store(managed_vector<ElemT, Alloc>{alloc, ElemSz }) {}
+
+      void push(ElemT e) { 
          _store[_index++] = e; 
       }
 
@@ -39,7 +37,7 @@ namespace eosio { namespace vm {
       ElemT pop() { return _store[--_index]; }
       void  eat(uint32_t index) { _index = index; }
       // compact the last element to the element pointed to by index
-      void  compact(uint32_t index) { 
+      void compact(uint32_t index) { 
          _store[index] = _store[_index-1];
          _index = index+1;
       }
@@ -58,7 +56,7 @@ namespace eosio { namespace vm {
       };
       template <typename Elem>
       struct base_data_store <Elem, nullptr_t> {
-         using type = std::vector<Elem>;
+         using type = unmanaged_vector<Elem>;
       };
 
       using base_data_store_t = typename base_data_store<ElemT, Allocator>::type;
@@ -68,7 +66,6 @@ namespace eosio { namespace vm {
    };
 
    using operand_stack = stack<operand_stack_elem, constants::max_stack_size>;
-   //using operand_stack = stack<operand_stack_elem, constants::max_stack_size, bounded_allocator>;
    using call_stack    = stack<activation_frame,   constants::max_call_depth + 1, bounded_allocator >;
 
 }} // namespace eosio::vm
