@@ -173,9 +173,20 @@ namespace eosio { namespace vm {
                std::reverse(args_raw + 0, args_raw + sizeof...(Args));
                result = call_host_function(args_raw, func_index);
             } else {
+               constexpr std::size_t stack_cutoff = std::max(252144, SIGSTKSZ);
+               std::size_t maximum_stack_usage =
+                  (_mod.maximum_stack + 2 /*frame ptr + return ptr*/) * (constants::max_call_depth + 1) +
+                 sizeof...(Args) + 4 /* scratch space */;
+               void* stack = nullptr;
+               std::unique_ptr<native_value[]> alt_stack;
+               if (maximum_stack_usage > stack_cutoff/sizeof(native_value) || true) {
+                  maximum_stack_usage += SIGSTKSZ/sizeof(native_value);
+                  alt_stack.reset(new native_value[maximum_stack_usage + 3]);
+                  stack = alt_stack.get() + maximum_stack_usage;
+               }
                auto fn = _mod.code[func_index - _mod.get_imported_functions_size()].jit_code;
                vm::invoke_with_signal_handler([&]() {
-                  result = execute<sizeof...(Args)>(args_raw, fn, this, _linear_memory);
+                  result = execute<sizeof...(Args)>(args_raw, fn, this, _linear_memory, stack);
                }, &handle_signal);
             }
          } catch(wasm_exit_exception&) {
@@ -206,16 +217,26 @@ namespace eosio { namespace vm {
       }
 
       template<int Count>
-      static native_value execute(native_value* data, native_value (*fun)(void*, void*), void* context, void* linear_memory) {
+      static native_value execute(native_value* data, native_value (*fun)(void*, void*), jit_execution_context* context, void* linear_memory, void* stack) {
          static_assert(sizeof(native_value) == 8, "8-bytes expected for native_value");
          native_value result;
          unsigned stack_check = constants::max_call_depth + 1;
+         register void* stack_top asm ("r12") = stack;
          asm volatile(
-            "sub $0x90, %%rsp; " // red-zone + 16 bytes
-            "stmxcsr 8(%%rsp); "
+            "test %[stack_top], %[stack_top]; "
+            "jnz 3f; "
+            "mov %%rsp, %[stack_top]; "
+            "sub 0x98, %%rsp; " // red-zone + 24 bytes
+            "mov %[stack_top], (%%rsp); "
+            "jmp 4f; "
+            "3: "
+            "mov %%rsp, (%[stack_top]); "
+            "mov %[stack_top], %%rsp; "
+            "4: "
+            "stmxcsr 16(%%rsp); "
             "mov $0x1f80, %%rax; "
-            "mov %%rax, (%%rsp); "
-            "ldmxcsr (%%rsp); "
+            "mov %%rax, 8(%%rsp); "
+            "ldmxcsr 8(%%rsp); "
             "mov %[Count], %%rax; "
             "test %%rax, %%rax; "
             "jz 2f; "
@@ -228,11 +249,11 @@ namespace eosio { namespace vm {
             "2: "
             "callq *%[fun]; "
             "add %[StackOffset], %%rsp; "
-            "ldmxcsr 8(%%rsp); "
-            "add $0x90, %%rsp; "
+            "ldmxcsr 16(%%rsp); "
+            "mov (%%rsp), %%rsp; "
             // Force explicit register allocation, because otherwise it's too hard to get the clobbers right.
             : [result] "=&a" (result), // output, reused as a scratch register
-              [data] "+d" (data), [fun] "+c" (fun) // input only, but may be clobbered
+              [data] "+d" (data), [fun] "+c" (fun), [stack_top] "+r" (stack_top) // input only, but may be clobbered
             : [context] "D" (context), [linear_memory] "S" (linear_memory),
               [StackOffset] "n" (Count*8), [Count] "n" (Count), "b" (stack_check) // input
             : "memory", "cc", // clobber
