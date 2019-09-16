@@ -179,7 +179,7 @@ namespace eosio { namespace vm {
                  sizeof...(Args) + 4 /* scratch space */;
                void* stack = nullptr;
                std::unique_ptr<native_value[]> alt_stack;
-               if (maximum_stack_usage > stack_cutoff/sizeof(native_value) || true) {
+               if (maximum_stack_usage > stack_cutoff/sizeof(native_value)) {
                   maximum_stack_usage += SIGSTKSZ/sizeof(native_value);
                   alt_stack.reset(new native_value[maximum_stack_usage + 3]);
                   stack = alt_stack.get() + maximum_stack_usage;
