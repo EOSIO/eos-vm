@@ -185,6 +185,7 @@ namespace eosio { namespace vm {
                   stack = alt_stack.get() + maximum_stack_usage;
                }
                auto fn = _mod.code[func_index - _mod.get_imported_functions_size()].jit_code;
+
                vm::invoke_with_signal_handler([&]() {
                   result = execute<sizeof...(Args)>(args_raw, fn, this, _linear_memory, stack);
                }, &handle_signal);
@@ -216,12 +217,14 @@ namespace eosio { namespace vm {
          return result;
       }
 
+      /* TODO abstract this and clean this up a bit */
       template<int Count>
       static native_value execute(native_value* data, native_value (*fun)(void*, void*), jit_execution_context* context, void* linear_memory, void* stack) {
          static_assert(sizeof(native_value) == 8, "8-bytes expected for native_value");
          native_value result;
          unsigned stack_check = constants::max_call_depth + 1;
          register void* stack_top asm ("r12") = stack;
+         // 0x1f80 is the default MXCSR value
          asm volatile(
             "test %[stack_top], %[stack_top]; "
             "jnz 3f; "
@@ -268,6 +271,7 @@ namespace eosio { namespace vm {
       }
 
       Host * _host = nullptr;
+
       // This is only needed because the host function api uses operand stack
       bounded_allocator _base_allocator = {
          constants::max_stack_size * sizeof(operand_stack_elem)
