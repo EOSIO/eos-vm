@@ -226,7 +226,7 @@ namespace eosio { namespace vm {
             "test %[stack_top], %[stack_top]; "
             "jnz 3f; "
             "mov %%rsp, %[stack_top]; "
-            "sub 0x98, %%rsp; " // red-zone + 24 bytes
+            "sub $0x98, %%rsp; " // red-zone + 24 bytes
             "mov %[stack_top], (%%rsp); "
             "jmp 4f; "
             "3: "
