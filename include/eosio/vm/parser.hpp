@@ -349,11 +349,13 @@ namespace eosio { namespace vm {
          static constexpr uint8_t unreachable_tag = 0x80;
          static constexpr uint8_t scope_tag = 0x81;
          uint32_t operand_depth = 0;
+         uint32_t maximum_operand_depth = 0;
          void push(uint8_t type) {
             assert(type != unreachable_tag && type != scope_tag);
             assert(type == types::i32 || type == types::i64 || type == types::f32 || type == types::f64 || type == any_type);
             EOS_VM_ASSERT(operand_depth < std::numeric_limits<uint32_t>::max(), wasm_parse_exception, "integer overflow in operand depth");
             ++operand_depth;
+            maximum_operand_depth = std::max(operand_depth, maximum_operand_depth);
             state.push_back(type);
          }
          void pop(uint8_t expected) {
@@ -437,6 +439,10 @@ namespace eosio { namespace vm {
                return _ft.param_types[local_idx];
             else
                return _locals[pos - _boundaries.begin() - 1].type;
+         }
+         uint64_t locals_count() {
+            uint64_t total = _unbounded? uint64_t(1) << 32 : _boundaries.back();
+            return total - _ft.param_types.size();
          }
          const func_type& _ft;
          const guarded_vector<local_entry>& _locals;
@@ -898,6 +904,7 @@ namespace eosio { namespace vm {
             }
          }
          EOS_VM_ASSERT( pc_stack.empty(), wasm_parse_exception, "function body too long" );
+         _mod->maximum_stack = std::max(_mod->maximum_stack, static_cast<uint64_t>(op_stack.maximum_operand_depth) + local_types.locals_count());
       }
 
       void parse_data_segment(wasm_code_ptr& code, data_segment& ds) {
@@ -1009,6 +1016,7 @@ namespace eosio { namespace vm {
       growable_allocator& _allocator;
       module*             _mod; // non-owning weak pointer
       int64_t             _current_function_index = -1;
+      uint64_t            _maximum_function_stack_usage = 0; // non-parameter locals + stack
       std::vector<wasm_code_ptr>  _function_bodies;
    };
 }} // namespace eosio::vm

@@ -167,6 +167,7 @@ namespace eosio { namespace vm {
       guarded_vector<uint32_t> function_sizes   = { allocator, 0 };
       guarded_vector<uint32_t> type_aliases     = { allocator, 0 };
       guarded_vector<uint32_t> fast_functions   = { allocator, 0 };
+      uint64_t                 maximum_stack = 0;
 
       uint32_t get_imported_functions_size() const {
          uint32_t number_of_imports = 0;
