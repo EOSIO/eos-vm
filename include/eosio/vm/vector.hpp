@@ -26,13 +26,13 @@ namespace eosio { namespace vm {
 
          constexpr inline void push_back( const T& val ) {
             if ( _index >= _data.size() )
-               resize( _data.size() * 2 );
+               resize( _data.size() ? _data.size() * 2 : 1 );
             _data[_index++] = val;
          }
 
          constexpr inline void emplace_back( T&& val ) {
             if ( _index >= _data.size() )
-               resize( _data.size() * 2 );
+               resize( _data.size() ? _data.size() * 2 : 1 );
             _data[_index++] = std::move(val);
          }
 
@@ -49,7 +49,7 @@ namespace eosio { namespace vm {
             // this is the usage pattern currently by eos-vm, a better solution will be created for the abstraction
             // of the various points of validation
             if ( i >= _data.size() )
-               resize( _data.size()*2 );
+               resize( _data.size() ? _data.size()*2 : 1);
             return _data[i];
          }
 
