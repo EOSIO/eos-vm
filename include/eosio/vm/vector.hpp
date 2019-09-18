@@ -10,51 +10,45 @@ namespace eosio { namespace vm {
    template <typename T>
    class unmanaged_vector {
       public:
-         constexpr unmanaged_vector(size_t size=0) : _data(size) {}
-         constexpr unmanaged_vector(const unmanaged_vector& v) = delete;
-         constexpr unmanaged_vector(unmanaged_vector&& v) : _data(std::move(v._data)), _index(v._index) {}
-
-         constexpr unmanaged_vector& operator=(unmanaged_vector&& v) {
-            _data = std::move(v._data);
-            _index = v._index;
-            return *this;
+         constexpr unmanaged_vector(size_t size=0) {
+            _data.reserve(size);
          }
+         constexpr unmanaged_vector(const unmanaged_vector& v) = delete;
+         constexpr unmanaged_vector(unmanaged_vector&& v) = default;
+         constexpr unmanaged_vector& operator=(unmanaged_vector&& v) = default;
 
          constexpr inline void resize( size_t size ) {
-            _data.resize(size);
+            _data.reserve(size);
          }
 
          constexpr inline void push_back( const T& val ) {
-            if ( _index >= _data.size() )
-               resize( _data.size() ? _data.size() * 2 : 1 );
-            _data[_index++] = val;
+            _data.push_back(val);
          }
 
          constexpr inline void emplace_back( T&& val ) {
-            if ( _index >= _data.size() )
-               resize( _data.size() ? _data.size() * 2 : 1 );
-            _data[_index++] = std::move(val);
+            _data.emplace_back(std::move(val));
          }
 
          constexpr inline void back() {
-            return _data[_index];
+            return _data.back();
          }
 
          constexpr inline void pop_back() {
-            EOS_VM_ASSERT( _index-- > 0, wasm_vector_oob_exception, "vector pop out of bounds" );
+            return _data.pop_back();
          }
 
          constexpr inline T& at( size_t i ) {
+            EOS_VM_ASSERT( i < _data.capacity(), wasm_vector_oob_exception, "vector read out of bounds" );
             // TODO: fix this to be more robust, assuming that the read 'i' will be in close to the max index
             // this is the usage pattern currently by eos-vm, a better solution will be created for the abstraction
             // of the various points of validation
-            if ( i >= _data.size() )
-               resize( _data.size() ? _data.size()*2 : 1);
+            //if ( i >= _data.size() )
+            //   resize( _data.size() ? _data.size()*2 : 1);
             return _data[i];
          }
 
          constexpr inline const T& at( size_t i )const {
-            EOS_VM_ASSERT( i < _data.size(), wasm_vector_oob_exception, "vector read out of bounds" );
+            EOS_VM_ASSERT( i < _data.capacity(), wasm_vector_oob_exception, "vector read out of bounds" );
             return _data[i];
          }
 
@@ -65,7 +59,6 @@ namespace eosio { namespace vm {
 
       private:
          std::vector<T> _data;
-         size_t _index = 0;
    };
 
    template <typename T, typename Allocator> 
@@ -118,7 +111,8 @@ namespace eosio { namespace vm {
          }
 
          constexpr inline void pop_back() {
-            EOS_VM_ASSERT( _index-- > 0, wasm_vector_oob_exception, "vector pop out of bounds" );
+            EOS_VM_ASSERT( _index >= 0, wasm_vector_oob_exception, "vector pop out of bounds" );
+            _index--;
          }
 
          constexpr inline T& at( size_t i ) {

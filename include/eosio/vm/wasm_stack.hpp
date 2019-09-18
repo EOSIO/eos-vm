@@ -22,8 +22,16 @@ namespace eosio { namespace vm {
       stack(Alloc& alloc) 
          : _store(managed_vector<ElemT, Alloc>{alloc, ElemSz }) {}
 
-      void push(ElemT e) { 
-         _store[_index++] = e; 
+      void push( const ElemT& e) { 
+         //_store[_index++] = e; 
+         _store.push_back(e);
+         _index++;
+      }
+
+      void push(ElemT&& e) {
+         //_store[_index++] = std::move(e);
+         _store.emplace_back(std::move(e));
+         _index++;
       }
 
       ElemT& get(uint32_t index) const {
@@ -50,16 +58,7 @@ namespace eosio { namespace vm {
       uint16_t     size() const { return _index; }
 
     private:
-      template <typename Elem, typename Alloc>
-      struct base_data_store {
-         using type = managed_vector<Elem, Alloc>;
-      };
-      template <typename Elem>
-      struct base_data_store <Elem, nullptr_t> {
-         using type = unmanaged_vector<Elem>;
-      };
-
-      using base_data_store_t = typename base_data_store<ElemT, Allocator>::type;
+      using base_data_store_t = std::conditional_t<std::is_same_v<Allocator, nullptr_t>, unmanaged_vector<ElemT>, managed_vector<ElemT, Allocator>>;
 
       base_data_store_t _store;
       uint16_t          _index = 0;
