@@ -277,13 +277,11 @@ BACKEND_TEST_CASE( "Testing wasm <binary_46_wasm>", "[binary_46_wasm_tests]" ) {
    CHECK_THROWS_AS(backend_t(code), std::exception);
 }
 
-/*
 BACKEND_TEST_CASE( "Testing wasm <binary_47_wasm>", "[binary_47_wasm_tests]" ) {
    using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "binary.47.wasm");
    CHECK_THROWS_AS(backend_t(code), std::exception);
 }
-*/
 
 BACKEND_TEST_CASE( "Testing wasm <binary_48_wasm>", "[binary_48_wasm_tests]" ) {
    using backend_t = backend<std::nullptr_t, TestType>;
