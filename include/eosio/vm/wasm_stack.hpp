@@ -42,7 +42,11 @@ namespace eosio { namespace vm {
          EOS_VM_ASSERT(index <= _index, wasm_interpreter_exception, "invalid stack index");
          _store[index] = el;
       }
-      ElemT pop() { return _store[--_index]; }
+      ElemT pop() { 
+         const auto& retval = _store[--_index]; 
+         _store.pop_back(); 
+         return retval;
+      } //_store[--_index]; }
       void  eat(uint32_t index) { _index = index; }
       // compact the last element to the element pointed to by index
       void compact(uint32_t index) { 

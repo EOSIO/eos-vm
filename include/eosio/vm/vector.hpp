@@ -39,11 +39,6 @@ namespace eosio { namespace vm {
 
          constexpr inline T& at( size_t i ) {
             EOS_VM_ASSERT( i < _data.capacity(), wasm_vector_oob_exception, "vector read out of bounds" );
-            // TODO: fix this to be more robust, assuming that the read 'i' will be in close to the max index
-            // this is the usage pattern currently by eos-vm, a better solution will be created for the abstraction
-            // of the various points of validation
-            //if ( i >= _data.size() )
-            //   resize( _data.size() ? _data.size()*2 : 1);
             return _data[i];
          }
 
