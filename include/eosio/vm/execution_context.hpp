@@ -334,13 +334,15 @@ namespace eosio { namespace vm {
 
       inline operand_stack& get_operand_stack() { return _os; }
       inline uint32_t       table_elem(uint32_t i) { return _mod.tables[0].table[i]; }
-      inline void           push_operand(const operand_stack_elem& el) { _os.push(el); }
+      inline void           push_operand(operand_stack_elem el) { _os.push(std::move(el)); }
+      //inline void           push_operand(operand_stack_elem&& el) { _os.push(std::move(el)); }
       inline operand_stack_elem     get_operand(uint16_t index) const { return _os.get(_last_op_index + index); }
       inline void           eat_operands(uint16_t index) { _os.eat(index); }
       inline void           compact_operand(uint16_t index) { _os.compact(index); }
       inline void           set_operand(uint16_t index, const operand_stack_elem& el) { _os.set(_last_op_index + index, el); }
       inline uint16_t       current_operands_index() const { return _os.current_index(); }
       inline void           push_call(const activation_frame& el) { _as.push(el); }
+      inline void           push_call(activation_frame&& el) { _as.push(std::move(el)); }
       inline activation_frame     pop_call() { return _as.pop(); }
       inline uint32_t       call_depth()const { return _as.size(); }
       template <bool Should_Exit=false>

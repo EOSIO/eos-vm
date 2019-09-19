@@ -33,14 +33,9 @@ namespace eosio { namespace vm {
                _size = size;
             }
 
-            constexpr inline void push_back( const T& val ) {
-               EOS_VM_ASSERT( _index < _size, wasm_vector_oob_exception, "vector write out of bounds" );
-               _data[_index++] = val;
-            }
-
             constexpr inline void emplace_back( T&& val ) {
                EOS_VM_ASSERT( _index < _size, wasm_vector_oob_exception, "vector write out of bounds" );
-               _data[_index++] = std::move(val);
+               _data[_index++] = std::forward<T>(val);
             }
 
             constexpr inline void back() {
@@ -71,6 +66,7 @@ namespace eosio { namespace vm {
             }
 
             constexpr inline T& operator[] (size_t i) const { return at(i); }
+            constexpr inline T& operator[] (size_t i) { return at(i); }
             constexpr inline T* raw() const { return _data; }
             constexpr inline size_t size() const { return _size; }
             constexpr inline void set( T* data, size_t size, size_t index=-1 ) { _size = size; _data = data; _index = index == -1 ? size - 1 : index; }
@@ -86,6 +82,12 @@ namespace eosio { namespace vm {
             T*     _data  = nullptr;
             size_t _index = 0;
       };
+
+      struct unmanaged_base_member {
+         using allocator = contiguous_allocator;
+         unmanaged_base_member(size_t sz) : alloc(sz) {}
+         allocator alloc;
+      };
    } // ns detail
 
    template <typename T, typename Allocator>
@@ -96,14 +98,13 @@ namespace eosio { namespace vm {
    };
 
    template <typename T>
-   class unmanaged_vector : public detail::vector<T, contiguous_allocator> {
-      using Alloc = contiguous_allocator;
+   class unmanaged_vector : public detail::unmanaged_base_member, public detail::vector<T, detail::unmanaged_base_member::allocator> {
+      using Alloc = detail::unmanaged_base_member::allocator;
       public:
          using detail::vector<T, Alloc>::vector;
-         unmanaged_vector(size_t size) : alloc(Alloc(size)), detail::vector<T, Alloc>(alloc, size) {
-         }
-      private:
-         Alloc alloc;
+         unmanaged_vector(size_t size) : 
+            detail::unmanaged_base_member(size),
+            detail::vector<T, Alloc>(detail::unmanaged_base_member::alloc, size) {}
    };
 
    template <typename T>

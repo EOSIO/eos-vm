@@ -22,8 +22,12 @@ namespace eosio { namespace vm {
       stack(Alloc&& alloc) 
          : _store(alloc, ElemSz) {}
 
-      void push( const ElemT& e) { _store[_index++] = e; }
-      void push(ElemT&& e) { _store[_index++] = std::move(e); }
+      void push(ElemT&& e) { 
+         if (_index >= _store.size())
+            _store.resize(_store.size()*2);
+         _store[_index++] = std::forward<ElemT>(e); 
+      }
+
       ElemT pop() { return _store[--_index]; }
 
       ElemT& get(uint32_t index) const {
