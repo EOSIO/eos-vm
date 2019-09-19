@@ -72,12 +72,12 @@ add_spec_test_impl(e_memory ${CMAKE_CURRENT_SOURCE_DIR}/spec/extra/memory.wast)
 add_spec_test_impl(e_module ${CMAKE_CURRENT_SOURCE_DIR}/spec/extra/module.wast)
 add_spec_test_impl(e_table ${CMAKE_CURRENT_SOURCE_DIR}/spec/extra/table.wast)
 
-add_executable( eos_vm_spec_tests main.cpp ${SPEC_TESTS} )
-target_link_libraries( eos_vm_spec_tests eos-vm Catch2::Catch2 )
-
-target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} )
-target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include )
-target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/spec )
+#add_executable( eos_vm_spec_tests main.cpp ${SPEC_TESTS} )
+#target_link_libraries( eos_vm_spec_tests eos-vm Catch2::Catch2 )
+#
+#target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} )
+#target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include )
+#target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/spec )
 
 add_executable(unit_tests main.cpp
                           allocator_tests.cpp
@@ -89,17 +89,19 @@ add_executable(unit_tests main.cpp
                           signals_tests.cpp
                           stack_restriction_tests.cpp
                           watchdog_tests.cpp
-                          implementation_limits_tests.cpp)
+                          implementation_limits_tests.cpp
+                          vector_tests.cpp)
+
 target_link_libraries(unit_tests eos-vm Catch2::Catch2)
 
 # ##############
 # disable catch2 from installing it's own signal handlers
 # ##############
-target_compile_definitions(eos_vm_spec_tests PUBLIC -DCATCH_CONFIG_NO_POSIX_SIGNALS)
+#target_compile_definitions(eos_vm_spec_tests PUBLIC -DCATCH_CONFIG_NO_POSIX_SIGNALS)
 target_compile_definitions(unit_tests PUBLIC -DCATCH_CONFIG_NO_POSIX_SIGNALS)
 
 add_executable( spec_test_generator ${CMAKE_CURRENT_SOURCE_DIR}/spec_test_generator/spec_test_generator.cpp )
 
-catch_discover_tests( eos_vm_spec_tests )
-
-add_test(NAME unit_tests COMMAND unit_tests)
+#catch_discover_tests( eos_vm_spec_tests )
+catch_discover_tests( unit_tests )
+#add_test(NAME unit_tests COMMAND unit_tests)

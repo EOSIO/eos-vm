@@ -32,10 +32,18 @@ namespace eosio { namespace vm {
                }
                _size = size;
             }
-
+            template <typename U, typename = std::enable_if_t<std::is_same_v<T, std::decay_t<U>>, int>> 
+            constexpr inline void push_back( U&& val ) {
+               // if the vector is unbounded don't assert
+              if ( _index >= _size )
+                  resize( _size * 2 );
+               _data[_index++] = std::forward<U>(val);
+            }
             constexpr inline void emplace_back( T&& val ) {
-               EOS_VM_ASSERT( _index < _size, wasm_vector_oob_exception, "vector write out of bounds" );
-               _data[_index++] = std::forward<T>(val);
+               // if the vector is unbounded don't assert
+              if ( _index >= _size )
+                  resize( _size * 2 );
+               _data[_index++] = std::move(val);
             }
 
             constexpr inline void back() {
@@ -94,7 +102,7 @@ namespace eosio { namespace vm {
    class managed_vector : public detail::vector<T, Allocator> {
       public:
          using detail::vector<T, Allocator>::vector;
-         constexpr inline void set_owner( Allocator& alloc ) { detail::vector<T, Allocator>::_allocator = &alloc;; }
+         constexpr inline void set_owner( Allocator& alloc ) { detail::vector<T, Allocator>::_allocator = &alloc; }
    };
 
    template <typename T>

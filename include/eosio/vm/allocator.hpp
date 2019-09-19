@@ -29,6 +29,10 @@ namespace eosio { namespace vm {
          index += sizeof(T) * size;
          return ret;
       }
+
+      template <typename T>
+      void reclaim(const T* ptr, size_t size=0) { /* noop for now */ }
+
       void free() {
          EOS_VM_ASSERT(index > 0, wasm_double_free, "double free");
          index = 0;
@@ -73,6 +77,9 @@ namespace eosio { namespace vm {
             _offset = aligned;
             return ptr;
          }
+         template <typename T>
+         void reclaim(const T* ptr, size_t size=0) { /* noop for now */ }
+         void free() { /* noop for now */ }
 
       private:
          size_t _offset = 0;

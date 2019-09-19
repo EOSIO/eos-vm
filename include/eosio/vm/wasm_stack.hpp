@@ -23,8 +23,10 @@ namespace eosio { namespace vm {
          : _store(alloc, ElemSz) {}
 
       void push(ElemT&& e) { 
-         if (_index >= _store.size())
-            _store.resize(_store.size()*2);
+         if constexpr (std::is_same_v<Allocator, nullptr_t>) {
+            if (_index >= _store.size())
+               _store.resize(_store.size()*2);
+         }
          _store[_index++] = std::forward<ElemT>(e); 
       }
 
