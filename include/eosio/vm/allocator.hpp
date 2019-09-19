@@ -39,6 +39,47 @@ namespace eosio { namespace vm {
       size_t                     index = 0;
    };
 
+   class contiguous_allocator {
+      public:
+         template<std::size_t align_amt>
+         static constexpr size_t align_offset(size_t offset) { return (offset + align_amt - 1) & ~(align_amt - 1); }
+
+         static std::size_t align_to_page(std::size_t offset) {
+            std::size_t pagesize = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
+            return (offset + pagesize - 1) & ~(pagesize - 1);
+         }
+
+         contiguous_allocator(size_t size) {
+            _size = align_to_page(size);
+            _base = (char*)mmap(NULL, _size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+            EOS_VM_ASSERT(_base != MAP_FAILED, wasm_bad_alloc, "mmap failed.");
+         }
+         ~contiguous_allocator() { munmap(_base, align_to_page(_size)); }
+
+         template <typename T>
+         T* alloc(size_t size = 0) {
+            _offset = align_offset<alignof(T)>(_offset);
+            size_t aligned = (sizeof(T) * size) + _offset;
+            if (aligned > _size) {
+               size_t new_size = align_to_page(aligned);
+               char* new_base = (char*)mmap(NULL, new_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+               EOS_VM_ASSERT(new_base != MAP_FAILED, wasm_bad_alloc, "mmap failed.");
+               memcpy(new_base, _base, _size);
+               munmap(_base, _size);
+               _size = new_size;
+               _base = new_base;
+            }
+            T* ptr = (T*)(_base + _offset);
+            _offset = aligned;
+            return ptr;
+         }
+
+      private:
+         size_t _offset = 0;
+         size_t _size   = 0;
+         char*  _base;
+   };
+
    class growable_allocator {
     public:
       static constexpr size_t max_memory_size = 1024 * 1024 * 1024; // 1GB

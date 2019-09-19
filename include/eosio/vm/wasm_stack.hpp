@@ -16,23 +16,15 @@ namespace eosio { namespace vm {
     public:
       template <typename Alloc=Allocator, typename = std::enable_if_t<std::is_same_v<Alloc, nullptr_t>, int>>
       stack() 
-         : _store(unmanaged_vector<ElemT>{ ElemSz }) {}
+         : _store(ElemSz) {}
 
       template <typename Alloc=Allocator, typename = std::enable_if_t<!std::is_same_v<Alloc, nullptr_t>, int>>
-      stack(Alloc& alloc) 
-         : _store(managed_vector<ElemT, Alloc>{alloc, ElemSz }) {}
+      stack(Alloc&& alloc) 
+         : _store(alloc, ElemSz) {}
 
-      void push( const ElemT& e) { 
-         //_store[_index++] = e; 
-         _store.push_back(e);
-         _index++;
-      }
-
-      void push(ElemT&& e) {
-         //_store[_index++] = std::move(e);
-         _store.emplace_back(std::move(e));
-         _index++;
-      }
+      void push( const ElemT& e) { _store[_index++] = e; }
+      void push(ElemT&& e) { _store[_index++] = std::move(e); }
+      ElemT pop() { return _store[--_index]; }
 
       ElemT& get(uint32_t index) const {
          EOS_VM_ASSERT(index <= _index, wasm_interpreter_exception, "invalid stack index");
@@ -42,33 +34,28 @@ namespace eosio { namespace vm {
          EOS_VM_ASSERT(index <= _index, wasm_interpreter_exception, "invalid stack index");
          _store[index] = el;
       }
-      ElemT pop() { 
-         const auto& retval = _store[--_index]; 
-         _store.pop_back(); 
-         return retval;
-      } //_store[--_index]; }
       void  eat(uint32_t index) { _index = index; }
       // compact the last element to the element pointed to by index
       void compact(uint32_t index) { 
          _store[index] = _store[_index-1];
          _index = index+1;
       }
-      uint16_t     current_index() const { return _index; }
+      size_t       current_index() const { return _index; }
       ElemT&       peek() { return _store[_index - 1]; }
       const ElemT& peek() const { return _store[_index - 1]; }
       ElemT&       peek(size_t i) { return _store[_index - 1 - i]; }
       ElemT        get_back(size_t i) { return _store[_index - 1 - i]; }
       void         trim(size_t amt) { _index -= amt; }
-      uint16_t     size() const { return _index; }
+      size_t       size() const { return _index; }
 
     private:
       using base_data_store_t = std::conditional_t<std::is_same_v<Allocator, nullptr_t>, unmanaged_vector<ElemT>, managed_vector<ElemT, Allocator>>;
 
       base_data_store_t _store;
-      uint16_t          _index = 0;
+      size_t          _index = 0;
    };
 
    using operand_stack = stack<operand_stack_elem, constants::max_stack_size>;
-   using call_stack    = stack<activation_frame,   constants::max_call_depth + 1, bounded_allocator >;
+   using call_stack    = stack<activation_frame,   constants::max_call_depth + 1, bounded_allocator>;
 
 }} // namespace eosio::vm
