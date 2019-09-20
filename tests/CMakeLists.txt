@@ -22,7 +22,7 @@ set( WASM_SPEC_TESTS_LOCATION "" CACHE STRING "The location of the webassembly s
 find_program(WAST2JSON wast2json)
 
 # These tests require manual maintenance
-set(SPEC_TESTS spec/binary_tests.cpp spec/elem_tests.cpp spec/func_ptrs_tests.cpp spec/globals_tests.cpp spec/memory_grow_tests.cpp spec/start_tests.cpp spec/names_tests.cpp)
+set(SPEC_TESTS spec/elem_tests.cpp spec/func_ptrs_tests.cpp spec/globals_tests.cpp spec/memory_grow_tests.cpp spec/start_tests.cpp spec/names_tests.cpp)
 
 macro( add_spec_test_impl name source)
    list( APPEND SPEC_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/spec/${name}_tests.cpp )
@@ -50,7 +50,7 @@ macro( add_spec_test name )
    endif()
 endmacro()
 
-foreach(testcase address align binary-leb128 block br br_if br_table break-drop call_indirect
+foreach(testcase address align binary binary-leb128 block br br_if br_table break-drop call_indirect
                  call const conversions custom data
                  endianness f32 f32_bitwise f32_cmp f64 f64_bitwise f64_cmp
                  fac float_exprs float_literals float_memory float_misc forward
