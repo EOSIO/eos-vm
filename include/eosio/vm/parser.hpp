@@ -1,14 +1,19 @@
 #pragma once
 
+#include <eosio/vm/allocator.hpp>
 #include <eosio/vm/constants.hpp>
-#include <eosio/vm/outcome.hpp>
+#include <eosio/vm/exceptions.hpp>
+#include <eosio/vm/leb128.hpp>
 #include <eosio/vm/sections.hpp>
 #include <eosio/vm/types.hpp>
 #include <eosio/vm/utils.hpp>
 #include <eosio/vm/vector.hpp>
 
-#include <set>
-#include <stack>
+#include <algorithm>
+#include <cassert>
+#include <cstdint>
+#include <utility>
+#include <variant>
 #include <vector>
 
 namespace eosio { namespace vm {

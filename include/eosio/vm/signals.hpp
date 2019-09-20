@@ -5,6 +5,8 @@
 
 #include <atomic>
 #include <cstdlib>
+#include <exception>
+#include <utility>
 #include <signal.h>
 #include <setjmp.h>
 

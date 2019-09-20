@@ -1,6 +1,5 @@
 #pragma once
 #include <eosio/vm/opcodes_def.hpp>
-#include <eosio/vm/vector.hpp>
 #include <eosio/vm/variant.hpp>
 
 #include <map>

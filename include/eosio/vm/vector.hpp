@@ -2,6 +2,7 @@
 
 #include <eosio/vm/exceptions.hpp>
 
+#include <algorithm>
 #include <utility>
 #include <string>
 

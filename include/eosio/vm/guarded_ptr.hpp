@@ -1,6 +1,9 @@
 #pragma once
 
 #include <eosio/vm/exceptions.hpp>
+#include <eosio/vm/utils.hpp>
+
+#include <cstddef>
 
 namespace eosio { namespace vm {
    template <typename T>

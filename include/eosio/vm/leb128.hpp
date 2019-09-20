@@ -3,8 +3,11 @@
 #include <eosio/vm/exceptions.hpp>
 #include <eosio/vm/guarded_ptr.hpp>
 
-#include <iostream>
 #include <array>
+#include <cstddef>
+#include <cstdint>
+#include <iostream>
+#include <type_traits>
 
 namespace eosio { namespace vm {
    template <size_t N>

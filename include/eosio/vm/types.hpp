@@ -6,16 +6,15 @@
 
 #include <eosio/vm/allocator.hpp>
 #include <eosio/vm/guarded_ptr.hpp>
-#include <eosio/vm/leb128.hpp>
 #include <eosio/vm/opcodes.hpp>
-#include <eosio/vm/utils.hpp>
 #include <eosio/vm/vector.hpp>
 
+#include <algorithm>
+#include <cstdint>
 #include <cstring>
 #include <limits>
-#include <string>
+#include <string_view>
 #include <vector>
-#include <unordered_map>
 
 namespace eosio { namespace vm {
    enum types { i32 = 0x7f, i64 = 0x7e, f32 = 0x7d, f64 = 0x7c, anyfunc = 0x70, func = 0x60, pseudo = 0x40, ret_void };

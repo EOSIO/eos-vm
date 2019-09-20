@@ -1,19 +1,21 @@
 #pragma once
 
+#include <eosio/vm/allocator.hpp>
 #include <eosio/vm/wasm_stack.hpp>
 #include <eosio/vm/utils.hpp>
 
 #include <cstddef>
+#include <cstdint>
 #include <functional>
+#include <limits>
+#include <memory>
 #include <optional>
-#include <string_view>
+#include <string>
+#include <tuple>
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
-
-#include <cxxabi.h>
-#include <memory>
-#include <string>
+#include <vector>
 
 // forward declaration of array_ptr
 namespace eosio { namespace chain {

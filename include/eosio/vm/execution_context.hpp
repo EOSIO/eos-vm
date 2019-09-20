@@ -1,16 +1,26 @@
 #pragma once
 
+#include <eosio/vm/allocator.hpp>
+#include <eosio/vm/constants.hpp>
+#include <eosio/vm/exceptions.hpp>
 #include <eosio/vm/host_function.hpp>
+#include <eosio/vm/opcodes.hpp>
 #include <eosio/vm/signals.hpp>
 #include <eosio/vm/types.hpp>
+#include <eosio/vm/utils.hpp>
 #include <eosio/vm/wasm_stack.hpp>
-#include <eosio/vm/watchdog.hpp>
-#include <eosio/vm/x86_64.hpp>
-#include <eosio/vm/memory_dump.hpp>
 
-#include <fstream>
+#include <algorithm>
+#include <cassert>
+#include <signal.h>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <iostream>
+#include <limits>
 #include <optional>
-#include <string>
+#include <string_view>
+#include <system_error>
 #include <utility>
 
 namespace eosio { namespace vm {

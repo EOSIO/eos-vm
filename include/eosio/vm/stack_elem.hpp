@@ -1,11 +1,9 @@
 #pragma once
 
-#include <eosio/vm/types.hpp>
+#include <eosio/vm/opcodes.hpp>
 #include <eosio/vm/variant.hpp>
 
 #include <cstdint>
-#include <string>
-#include <variant>
 
 namespace eosio { namespace vm {
 
