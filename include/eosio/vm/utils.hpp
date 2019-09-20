@@ -52,4 +52,7 @@ namespace eosio { namespace vm {
       ~scope_guard() { _f(); }
       F _f;
    };
+
+   template<typename T>
+   void ignore_unused_variable_warning(T&) {}
 }} // namespace eosio::vm

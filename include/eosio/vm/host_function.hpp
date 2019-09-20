@@ -105,11 +105,13 @@ namespace eosio { namespace vm {
          EOS_VM_ASSERT( len <= std::numeric_limits<std::uint32_t>::max() / (uint32_t)sizeof(T), wasm_interpreter_exception, "length will overflow" );
          uint32_t bytes = len * sizeof(T);
          // check the pointer
-         volatile auto ret_val = *(reinterpret_cast<const char*>(ptr) + bytes-1);
+         volatile auto check = *(reinterpret_cast<const char*>(ptr) + bytes-1);
+         ignore_unused_variable_warning(check);
       }
 
       inline void validate_c_str(const void* ptr) {
          volatile auto check = std::strlen(reinterpret_cast<const char*>(ptr));
+         ignore_unused_variable_warning(check);
       }
    }
 
