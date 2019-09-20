@@ -58,7 +58,7 @@ namespace eosio { namespace vm {
       using base_data_store_t = std::conditional_t<std::is_same_v<Allocator, nullptr_t>, unmanaged_vector<ElemT>, managed_vector<ElemT, Allocator>>;
 
       base_data_store_t _store;
-      size_t          _index = 0;
+      size_t            _index = 0;
    };
 
    using operand_stack = stack<operand_stack_elem, constants::max_stack_size>;
