@@ -106,14 +106,7 @@ namespace eosio { namespace vm {
    };
 
    template <typename T>
-   class unmanaged_vector : public detail::unmanaged_base_member, public detail::vector<T, detail::unmanaged_base_member::allocator> {
-      using Alloc = detail::unmanaged_base_member::allocator;
-      public:
-         using detail::vector<T, Alloc>::vector;
-         unmanaged_vector(size_t size) : 
-            detail::unmanaged_base_member(size),
-            detail::vector<T, Alloc>(detail::unmanaged_base_member::alloc, size) {}
-   };
+   using unmanaged_vector = std::vector<T>;
 
    template <typename T>
    std::string vector_to_string( T&& vec ) {
