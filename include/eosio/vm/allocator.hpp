@@ -4,13 +4,9 @@
 #include <eosio/vm/exceptions.hpp>
 
 #include <cassert>
-#include <csignal>
 #include <cstdint>
 #include <cstring>
-#include <iostream>
 #include <memory>
-#include <string>
-#include <vector>
 
 #include <sys/mman.h>
 #include <unistd.h>

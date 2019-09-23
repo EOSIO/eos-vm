@@ -1,9 +1,18 @@
 #pragma once
 
 #include <eosio/vm/allocator.hpp>
+#include <eosio/vm/exceptions.hpp>
+#include <eosio/vm/signals.hpp>
+#include <eosio/vm/softfloat.hpp>
 #include <eosio/vm/types.hpp>
 
-#include <eosio/vm/softfloat.hpp>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <variant>
+#include <vector>
+
 
 namespace eosio { namespace vm {
 

@@ -2,8 +2,8 @@
 
 #include <eosio/vm/utils.hpp>
 
+#include <cstdint>
 #include <exception>
-#include <string>
 
 #define EOS_VM_ASSERT( expr, exc_type, msg ) \
    if (!UNLIKELY(expr)) {                    \
