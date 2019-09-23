@@ -566,41 +566,6 @@ namespace eosio { namespace vm {
       return function_types_provider<Ret, Args...>();
    }
 
-   template <char... Str>
-   struct host_function_name {
-      static constexpr const char value[] = { Str... };
-      static constexpr size_t     len     = sizeof...(Str);
-      static constexpr bool       is_same(const char* nm, size_t l) {
-         if (len == l) {
-            bool is_not_same = false;
-            for (int i = 0; i < len; i++) { is_not_same |= nm[i] != value[i]; }
-            return !is_not_same;
-         }
-         return false;
-      }
-   };
-
-#if defined __clang__
-#   pragma clang diagnostic push
-#   pragma clang diagnostic ignored "-Wgnu-string-literal-operator-template"
-#endif
-   template <typename T, T... Str>
-   static constexpr host_function_name<Str...> operator""_hfn() {
-      constexpr auto hfn = host_function_name<Str...>{};
-      return hfn;
-   }
-#if defined __clang__
-#   pragma clang diagnostic pop
-#endif
-
-   template <typename C, auto C::*MP, typename Name>
-   struct registered_member_function {
-      static constexpr auto function  = MP;
-      static constexpr auto name      = Name{};
-      using name_t                    = Name;
-      static constexpr bool is_member = true;
-   };
-
    using host_func_pair = std::pair<std::string, std::string>;
    struct host_func_pair_hash {
       template <class T, class U>
