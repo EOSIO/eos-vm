@@ -54,6 +54,6 @@ namespace eosio { namespace vm {
       F _f;
    };
 
-   template<typename T>
-   void ignore_unused_variable_warning(T&) {}
+   template<typename... T>
+   void ignore_unused_variable_warning(T&...) {}
 }} // namespace eosio::vm

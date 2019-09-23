@@ -44,61 +44,23 @@ namespace eosio { namespace vm {
    inline constexpr U&& make_dependent(U&& u) { return static_cast<U&&>(u); }
 #define AUTO_PARAM_WORKAROUND(X) make_dependent<decltype(X)>(X)
 
-   template <typename... Args, size_t... Is>
-   auto get_args_full(std::index_sequence<Is...>) {
-      std::tuple<std::decay_t<Args>...> tup;
-      return std::tuple<Args...>{ std::get<Is>(tup)... };
-   }
+   template <typename R, typename... Args>
+   auto get_args_full(R(Args...)) -> std::tuple<Args...>;
+
+   template <typename R, typename Cls, typename... Args>
+   auto get_args_full(R (Cls::*)(Args...)) -> std::tuple<Args...>;
+
+   template <typename R, typename Cls, typename... Args>
+   auto get_args_full(R (Cls::*)(Args...) const) -> std::tuple<Args...>;
 
    template <typename R, typename... Args>
-   auto get_args_full(R(Args...)) {
-      return get_args_full<Args...>(std::index_sequence_for<Args...>{});
-   }
+   auto get_return_t(R(Args...)) -> R;
 
    template <typename R, typename Cls, typename... Args>
-   auto get_args_full(R (Cls::*)(Args...)) {
-      return get_args_full<Args...>(std::index_sequence_for<Args...>{});
-   }
+   auto get_return_t(R (Cls::*)(Args...)) -> R;
 
    template <typename R, typename Cls, typename... Args>
-   auto get_args_full(R (Cls::*)(Args...) const) {
-      return get_args_full<Args...>(std::index_sequence_for<Args...>{});
-   }
-
-   template <typename T>
-   struct return_type_wrapper {
-      using type = T;
-   };
-
-   template <typename R, typename... Args>
-   auto get_return_t(R(Args...)) {
-      return return_type_wrapper<R>{};
-   }
-
-   template <typename R, typename Cls, typename... Args>
-   auto get_return_t(R (Cls::*)(Args...)) {
-      return return_type_wrapper<R>{};
-   }
-
-   template <typename R, typename Cls, typename... Args>
-   auto get_return_t(R (Cls::*)(Args...) const) {
-      return return_type_wrapper<R>{};
-   }
-
-   template <typename R, typename... Args>
-   auto get_args(R(Args...)) {
-      return std::tuple<std::decay_t<Args>...>{};
-   }
-
-   template <typename R, typename Cls, typename... Args>
-   auto get_args(R (Cls::*)(Args...)) {
-      return std::tuple<std::decay_t<Args>...>{};
-   }
-
-   template <typename R, typename Cls, typename... Args>
-   auto get_args(R (Cls::*)(Args...) const) {
-      return std::tuple<std::decay_t<Args>...>{};
-   }
+   auto get_return_t(R (Cls::*)(Args...) const) -> R;
 
    namespace detail {
       // try the pointer to force segfault early
@@ -566,41 +528,6 @@ namespace eosio { namespace vm {
       return function_types_provider<Ret, Args...>();
    }
 
-   template <char... Str>
-   struct host_function_name {
-      static constexpr const char value[] = { Str... };
-      static constexpr size_t     len     = sizeof...(Str);
-      static constexpr bool       is_same(const char* nm, size_t l) {
-         if (len == l) {
-            bool is_not_same = false;
-            for (int i = 0; i < len; i++) { is_not_same |= nm[i] != value[i]; }
-            return !is_not_same;
-         }
-         return false;
-      }
-   };
-
-#if defined __clang__
-#   pragma clang diagnostic push
-#   pragma clang diagnostic ignored "-Wgnu-string-literal-operator-template"
-#endif
-   template <typename T, T... Str>
-   static constexpr host_function_name<Str...> operator""_hfn() {
-      constexpr auto hfn = host_function_name<Str...>{};
-      return hfn;
-   }
-#if defined __clang__
-#   pragma clang diagnostic pop
-#endif
-
-   template <typename C, auto C::*MP, typename Name>
-   struct registered_member_function {
-      static constexpr auto function  = MP;
-      static constexpr auto name      = Name{};
-      using name_t                    = Name;
-      static constexpr bool is_member = true;
-   };
-
    using host_func_pair = std::pair<std::string, std::string>;
    struct host_func_pair_hash {
       template <class T, class U>
@@ -628,9 +555,8 @@ namespace eosio { namespace vm {
       template <typename Cls2, auto Func, typename WAlloc>
       static void add(const std::string& mod, const std::string& name) {
          using deduced_full_ts                         = decltype(get_args_full(AUTO_PARAM_WORKAROUND(Func)));
-         using deduced_ts                              = decltype(get_args(AUTO_PARAM_WORKAROUND(Func)));
-         using res_t                                   = typename decltype(get_return_t(AUTO_PARAM_WORKAROUND(Func)))::type;
-         static constexpr auto is                      = std::make_index_sequence<std::tuple_size_v<deduced_ts>>();
+         using res_t                                   = decltype(get_return_t(AUTO_PARAM_WORKAROUND(Func)));
+         static constexpr auto is                      = std::make_index_sequence<std::tuple_size_v<deduced_full_ts>>();
          auto&                 current_mappings        = get_mappings<WAlloc>();
          current_mappings.named_mapping[{ mod, name }] = current_mappings.current_index++;
          current_mappings.functions.push_back(create_function<WAlloc, Cls, Cls2, Func, res_t, deduced_full_ts>(is));

@@ -5,6 +5,7 @@
 #include <eosio/vm/signals.hpp>
 #include <eosio/vm/softfloat.hpp>
 #include <eosio/vm/types.hpp>
+#include <eosio/vm/utils.hpp>
 
 #include <cassert>
 #include <cstddef>
@@ -2025,6 +2026,7 @@ namespace eosio { namespace vm {
 #ifdef EOS_VM_VALIDATE_JIT_SIZE
             assert(code == expected_code);
 #endif
+            ignore_unused_variable_warning(code, expected_code);
          }};
       }
       auto variable_size_instr(std::size_t min, std::size_t max) {
@@ -2032,6 +2034,7 @@ namespace eosio { namespace vm {
 #ifdef EOS_VM_VALIDATE_JIT_SIZE
             assert(min_code <= code && code <= max_code);
 #endif
+            ignore_unused_variable_warning(code, min_code, max_code);
          }};
       }
       auto softfloat_instr(std::size_t hard_expected, std::size_t soft_expected) {
