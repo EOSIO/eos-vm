@@ -2,6 +2,7 @@
 #include <vector>
 
 #include <eosio/vm/backend.hpp>
+#include <eosio/vm/watchdog.hpp>
 
 #include "utils.hpp"
 #include <catch2/catch.hpp>
