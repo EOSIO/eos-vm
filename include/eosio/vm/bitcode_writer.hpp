@@ -3,9 +3,11 @@
 #include <eosio/vm/allocator.hpp>
 #include <eosio/vm/opcodes.hpp>
 #include <eosio/vm/types.hpp>
+#include <eosio/vm/vector.hpp>
 
 #include <cstddef>
 #include <cstdint>
+#include <type_traits>
 
 namespace eosio { namespace vm {
 

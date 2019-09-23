@@ -4,13 +4,9 @@
 #include <eosio/vm/exceptions.hpp>
 
 #include <cassert>
-#include <csignal>
 #include <cstdint>
 #include <cstring>
-#include <iostream>
 #include <memory>
-#include <string>
-#include <vector>
 
 #include <sys/mman.h>
 #include <unistd.h>
@@ -206,13 +202,22 @@ namespace eosio { namespace vm {
       template <typename T>
       void alloc(size_t size = 1 /*in pages*/) {
          if (size == 0) return;
-         EOS_VM_ASSERT(size != -1, wasm_bad_alloc, "require memory to allocate");
+         EOS_VM_ASSERT(page != -1, wasm_bad_alloc, "require memory to allocate");
          EOS_VM_ASSERT(size <= max_pages - page, wasm_bad_alloc, "exceeded max number of pages");
          int err = mprotect(raw + (page_size * page), (page_size * size), PROT_READ | PROT_WRITE);
          EOS_VM_ASSERT(err == 0, wasm_bad_alloc, "mprotect failed");
          T* ptr    = (T*)(raw + (page_size * page));
          memset(ptr, 0, page_size * size);
          page += size;
+      }
+      template <typename T>
+      void free(std::size_t size) {
+         if (size == 0) return;
+         EOS_VM_ASSERT(page != -1, wasm_bad_alloc, "require memory to deallocate");
+         EOS_VM_ASSERT(size <= page, wasm_bad_alloc, "freed too many pages");
+         page -= size;
+         int err = mprotect(raw + (page_size * page), (page_size * size), PROT_NONE);
+         EOS_VM_ASSERT(err == 0, wasm_bad_alloc, "mprotect failed");
       }
       void free() {
          std::size_t syspagesize = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));

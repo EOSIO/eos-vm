@@ -3,6 +3,7 @@
 #include <eosio/vm/exceptions.hpp>
 #include <eosio/vm/allocator.hpp>
 
+#include <algorithm>
 #include <utility>
 #include <string>
 #include <vector>

@@ -1,10 +1,7 @@
 #pragma once
 
-#include <eosio/vm/execution_context.hpp>
+#include <eosio/vm/exceptions.hpp>
 #include <eosio/vm/opcodes.hpp>
-
-#include <eosio/vm/config.hpp>
-#include <eosio/vm/softfloat.hpp>
 
 namespace eosio { namespace vm {
 

@@ -1,18 +1,18 @@
 #pragma once
 
+#include <eosio/vm/config.hpp>
 #include <eosio/vm/base_visitor.hpp>
-#include <eosio/vm/execution_context.hpp>
+#include <eosio/vm/exceptions.hpp>
 #include <eosio/vm/opcodes.hpp>
+#include <eosio/vm/softfloat.hpp>
 #include <eosio/vm/stack_elem.hpp>
 #include <eosio/vm/utils.hpp>
 #include <eosio/vm/wasm_stack.hpp>
 
-#include <iostream>
-#include <sstream>
-#include <variant>
-
-#include <eosio/vm/config.hpp>
-#include <eosio/vm/softfloat.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <limits>
 
 namespace eosio { namespace vm {
 
