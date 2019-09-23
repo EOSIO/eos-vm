@@ -637,29 +637,29 @@ namespace eosio { namespace vm {
                } break;
                case opcodes::get_local: {
                   uint32_t local_idx = parse_varuint32(code);
-                  code_writer.emit_get_local(local_idx);
                   op_stack.push(local_types[local_idx]);
+                  code_writer.emit_get_local(local_idx);
                } break;
                case opcodes::set_local: {
                   uint32_t local_idx = parse_varuint32(code);
-                  code_writer.emit_set_local(local_idx);
                   op_stack.pop(local_types[local_idx]);
+                  code_writer.emit_set_local(local_idx);
                } break;
                case opcodes::tee_local: {
                   uint32_t local_idx = parse_varuint32(code);
-                  code_writer.emit_tee_local(local_idx);
                   op_stack.top(local_types[local_idx]);
+                  code_writer.emit_tee_local(local_idx);
                } break;
                case opcodes::get_global: {
                   uint32_t global_idx = parse_varuint32(code);
-                  code_writer.emit_get_global(global_idx);
                   op_stack.push(_mod->globals.at(global_idx).type.content_type);
+                  code_writer.emit_get_global(global_idx);
                } break;
                case opcodes::set_global: {
                   uint32_t global_idx = parse_varuint32(code);
-                  code_writer.emit_set_global(global_idx);
                   EOS_VM_ASSERT(_mod->globals.at(global_idx).type.mutability, wasm_parse_exception, "cannot set const global");
                   op_stack.pop(_mod->globals.at(global_idx).type.content_type);
+                  code_writer.emit_set_global(global_idx);
                } break;
 #define LOAD_OP(op_name, max_align, type)                            \
                case opcodes::op_name: {                              \
@@ -667,9 +667,9 @@ namespace eosio { namespace vm {
                   uint32_t alignment = parse_varuint32(code);        \
                   uint32_t offset = parse_varuint32(code);           \
                   EOS_VM_ASSERT(alignment <= uint32_t(max_align), wasm_parse_exception, "alignment cannot be greater than size."); \
-                  code_writer.emit_ ## op_name( alignment, offset ); \
                   op_stack.pop(types::i32);                          \
                   op_stack.push(types::type);                        \
+                  code_writer.emit_ ## op_name( alignment, offset ); \
                } break;
 
                LOAD_OP(i32_load, 2, i32)
@@ -695,9 +695,9 @@ namespace eosio { namespace vm {
                   uint32_t alignment = parse_varuint32(code);        \
                   uint32_t offset = parse_varuint32(code);           \
                   EOS_VM_ASSERT(alignment <= uint32_t(max_align), wasm_parse_exception, "alignment cannot be greater than size."); \
-                  code_writer.emit_ ## op_name( alignment, offset ); \
                   op_stack.pop(types::type);                         \
                   op_stack.pop(types::i32);                          \
+                  code_writer.emit_ ## op_name( alignment, offset ); \
                } break;
 
                STORE_OP(i32_store, 2, i32)
@@ -714,18 +714,18 @@ namespace eosio { namespace vm {
 
                case opcodes::current_memory:
                   EOS_VM_ASSERT(_mod->memories.size() != 0, wasm_parse_exception, "memory.size requires memory");
-                  code_writer.emit_current_memory();
                   op_stack.push(types::i32);
                   EOS_VM_ASSERT(*code == 0, wasm_parse_exception, "memory.size must end with 0x00");
                   code++;
+                  code_writer.emit_current_memory();
                   break;
                case opcodes::grow_memory:
                   EOS_VM_ASSERT(_mod->memories.size() != 0, wasm_parse_exception, "memory.grow requires memory");
-                  code_writer.emit_grow_memory();
                   op_stack.pop(types::i32);
                   op_stack.push(types::i32);
                   EOS_VM_ASSERT(*code == 0, wasm_parse_exception, "memory.grow must end with 0x00");
                   code++;
+                  code_writer.emit_grow_memory();
                   break;
                case opcodes::i32_const: code_writer.emit_i32_const( parse_varint32(code) ); op_stack.push(types::i32); break;
                case opcodes::i64_const: code_writer.emit_i64_const( parse_varint64(code) ); op_stack.push(types::i64); break;
