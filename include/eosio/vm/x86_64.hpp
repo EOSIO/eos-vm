@@ -102,14 +102,13 @@ namespace eosio { namespace vm {
          emit_bytes(0x55);
          // movq RSP, RBP
          emit_bytes(0x48, 0x89, 0xe5);
-         // maximum possible representable locals = 0xFFFFFFFF * 0xFFFFFFFF
-         // uint64_t is safe.
-         uint64_t count = 0;
+         // No more than 2^32-1 locals.  Already validated by the parser.
+         uint32_t count = 0;
          for(uint32_t i = 0; i < locals.size(); ++i) {
+            assert(uint64_t(count) + locals[i].count <= 0xFFFFFFFFu);
             count += locals[i].count;
          }
-         // variables beyond this are inaccessible, so they can be dropped safely.
-         _local_count = std::min(count, static_cast<uint64_t>(0xFFFFFFFFu - _ft->param_types.size()));
+         _local_count = count;
          if (_local_count > 0) {
             // xor %rax, %rax
             emit_bytes(0x48, 0x31, 0xc0);

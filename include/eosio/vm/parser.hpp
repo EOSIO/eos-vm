@@ -422,35 +422,30 @@ namespace eosio { namespace vm {
             uint32_t count = ft.param_types.size();
             _boundaries.push_back(count);
             for (uint32_t i = 0; i < locals_arg.size(); ++i) {
-               // If we have more than 2^32 locals, ignore inaccessible locals.
                // This test cannot overflow.
-               if (count > 0xFFFFFFFFu - locals_arg[i].count) {
-                  _unbounded = true;
-                  break;
-               }
+               EOS_VM_ASSERT (count <= 0xFFFFFFFFu - locals_arg[i].count, wasm_parse_exception, "too many locals");
                count += locals_arg[i].count;
                _boundaries.push_back(count);
             }
          }
          uint8_t operator[](uint32_t local_idx) const {
-            EOS_VM_ASSERT(_unbounded || local_idx < _boundaries.back(), wasm_parse_exception, "undefined local");
+            EOS_VM_ASSERT(local_idx < _boundaries.back(), wasm_parse_exception, "undefined local");
             auto pos = std::upper_bound(_boundaries.begin(), _boundaries.end(), local_idx);
             if (pos == _boundaries.begin())
                return _ft.param_types[local_idx];
             else
                return _locals[pos - _boundaries.begin() - 1].type;
          }
-         uint64_t locals_count() {
-            uint64_t total = _unbounded? uint64_t(1) << 32 : _boundaries.back();
+         uint64_t locals_count() const {
+            uint64_t total = _boundaries.back();
             return total - _ft.param_types.size();
          }
          const func_type& _ft;
          const guarded_vector<local_entry>& _locals;
          std::vector<uint32_t> _boundaries;
-         bool _unbounded = false;
       };
 
-      void parse_function_body_code(wasm_code_ptr& code, size_t bounds, Writer& code_writer, const func_type& ft, const guarded_vector<local_entry>& locals) {
+      void parse_function_body_code(wasm_code_ptr& code, size_t bounds, Writer& code_writer, const func_type& ft, const local_types_t& local_types) {
          // Initialize the control stack with the current function as the sole element
          operand_stack_type_tracker op_stack;
          std::vector<pc_element_t> pc_stack{{
@@ -459,8 +454,6 @@ namespace eosio { namespace vm {
                ft.return_count ? ft.return_type : static_cast<uint32_t>(types::pseudo),
                false,
                std::vector<branch_t>{}}};
-
-         local_types_t local_types(ft, locals);
 
          // writes the continuation of a label to address.  If the continuation
          // is not yet available, address will be recorded in the relocations
@@ -986,8 +979,9 @@ namespace eosio { namespace vm {
          for (size_t i = 0; i < _function_bodies.size(); i++) {
             function_body& fb = _mod->code[i];
             func_type& ft = _mod->types.at(_mod->functions.at(i));
+            local_types_t local_types(ft, fb.locals);
             code_writer.emit_prologue(ft, fb.locals, i);
-            parse_function_body_code(_function_bodies[i], fb.size, code_writer, ft, fb.locals);
+            parse_function_body_code(_function_bodies[i], fb.size, code_writer, ft, local_types);
             code_writer.emit_epilogue(ft, fb.locals, i);
             code_writer.finalize(fb);
          }

@@ -26,3 +26,17 @@
   )
   "incorrect local type"
 )
+
+(assert_malformed
+  (module binary
+    "\00asm"                    ;; magic
+    "\01\00\00\00"              ;; version
+    "\01\05\01\60\01\7f\00"     ;; types [i32]->[]
+    "\03\02\01\00"              ;; functions
+    "\0a\0c\01\0a\02"           ;; code
+    "\fe\ff\ff\ff\0f\7f"        ;; 0xFFFFFFFE i32
+    "\01\7e"                    ;; 0x00000001 i64
+    "\0b"                       ;; end
+  )
+  "Too many locals"
+)

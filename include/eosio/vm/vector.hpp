@@ -24,9 +24,7 @@ namespace eosio { namespace vm {
 
             constexpr inline void resize( size_t size ) {
                if (size > _size) {
-                  T* ptr = _allocator->template alloc<T>( size );
-                  if (_size == 0)
-                    _data = ptr;
+                  _data = _allocator->template alloc<T>( size );
                } else {
                   _allocator->template reclaim<T>( _data + size, _size - size );
                }
