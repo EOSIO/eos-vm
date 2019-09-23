@@ -2,15 +2,15 @@
 
 // temporarily use exceptions
 #include <eosio/vm/exceptions.hpp>
-#include <eosio/vm/outcome.hpp>
-#include <eosio/vm/utils.hpp>
 
+#include <cstddef>
+#include <cstdint>
 #include <algorithm>
-#include <iostream>
+#include <limits>
 #include <tuple>
 #include <type_traits>
 #include <variant>
-#include <functional>
+#include <utility>
 
 namespace eosio { namespace vm {
 

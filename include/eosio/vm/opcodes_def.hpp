@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 /* clang-format off */
 #define EOS_VM_CONTROL_FLOW_OPS(opcode_macro)   \
    opcode_macro(unreachable, 0x00)              \

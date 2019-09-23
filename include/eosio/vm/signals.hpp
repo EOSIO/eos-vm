@@ -1,9 +1,12 @@
 #pragma once
 
 #include <eosio/vm/exceptions.hpp>
+#include <eosio/vm/utils.hpp>
 
 #include <atomic>
 #include <cstdlib>
+#include <exception>
+#include <utility>
 #include <signal.h>
 #include <setjmp.h>
 
@@ -83,9 +86,6 @@ namespace eosio { namespace vm {
       sigaction(SIGBUS, &sa, &prev_signal_handler<SIGBUS>);
       sigaction(SIGFPE, &sa, &prev_signal_handler<SIGBUS>);
    }
-
-   template<typename T>
-   void ignore_unused_variable_warning(T&) {}
 
    inline void setup_signal_handler() {
       static int init_helper = (setup_signal_handler_impl(), 0);

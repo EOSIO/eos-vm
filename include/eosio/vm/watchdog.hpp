@@ -1,7 +1,5 @@
 #pragma once
 
-#include <eosio/vm/error_codes_def.hpp>
-
 #include <chrono>
 #include <functional>
 #include <thread>

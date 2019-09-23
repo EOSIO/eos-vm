@@ -1,6 +1,9 @@
 #pragma once
 
 #include <eosio/vm/interpret_visitor.hpp>
+#include <eosio/vm/opcodes.hpp>
+
+#include <iostream>
 
 #define DBG_VISIT(name, code)                                                                                          \
    void operator()(EOS_VM_OPCODE_T(name)& op) {                                                                        \

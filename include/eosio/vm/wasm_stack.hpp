@@ -5,9 +5,10 @@
  */
 
 #include <eosio/vm/allocator.hpp>
+#include <eosio/vm/constants.hpp>
 #include <eosio/vm/exceptions.hpp>
 #include <eosio/vm/stack_elem.hpp>
-#include <eosio/vm/utils.hpp>
+#include <eosio/vm/types.hpp>
 #include <eosio/vm/vector.hpp>
 
 namespace eosio { namespace vm {

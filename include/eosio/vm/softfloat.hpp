@@ -2,8 +2,7 @@
 #ifdef EOS_VM_SOFTFLOAT
 #include <eosio/vm/exceptions.hpp>
 
-#include <cfloat>
-#include <cinttypes>
+#include <cstdint>
 
 #include <softfloat.hpp>
 

@@ -7,14 +7,16 @@
 #include <eosio/vm/execution_context.hpp>
 #include <eosio/vm/interpret_visitor.hpp>
 #include <eosio/vm/parser.hpp>
-#include <eosio/vm/signals.hpp>
 #include <eosio/vm/types.hpp>
 #include <eosio/vm/x86_64.hpp>
-#include <eosio/vm/memory_dump.hpp>
 
+#include <atomic>
+#include <exception>
 #include <fstream>
+#include <iostream>
 #include <optional>
 #include <string_view>
+#include <system_error>
 #include <vector>
 
 namespace eosio { namespace vm {

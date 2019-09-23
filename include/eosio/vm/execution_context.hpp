@@ -1,16 +1,26 @@
 #pragma once
 
+#include <eosio/vm/allocator.hpp>
+#include <eosio/vm/constants.hpp>
+#include <eosio/vm/exceptions.hpp>
 #include <eosio/vm/host_function.hpp>
+#include <eosio/vm/opcodes.hpp>
 #include <eosio/vm/signals.hpp>
 #include <eosio/vm/types.hpp>
+#include <eosio/vm/utils.hpp>
 #include <eosio/vm/wasm_stack.hpp>
-#include <eosio/vm/watchdog.hpp>
-#include <eosio/vm/x86_64.hpp>
-#include <eosio/vm/memory_dump.hpp>
 
-#include <fstream>
+#include <algorithm>
+#include <cassert>
+#include <signal.h>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <iostream>
+#include <limits>
 #include <optional>
-#include <string>
+#include <string_view>
+#include <system_error>
 #include <utility>
 
 namespace eosio { namespace vm {
@@ -23,10 +33,16 @@ namespace eosio { namespace vm {
 
       inline int32_t grow_linear_memory(int32_t pages) {
          const int32_t sz = _wasm_alloc->get_current_page();
-         if (pages < 0 || !_mod.memories.size() || max_pages - sz < pages ||
-             (_mod.memories[0].limits.flags && (static_cast<int32_t>(_mod.memories[0].limits.maximum) - sz < pages)))
-            return -1;
-         _wasm_alloc->alloc<char>(pages);
+         if (pages < 0) {
+            if (sz + pages < 0)
+               return -1;
+            _wasm_alloc->free<char>(-pages);
+         } else {
+            if (!_mod.memories.size() || max_pages - sz < pages ||
+                (_mod.memories[0].limits.flags && (static_cast<int32_t>(_mod.memories[0].limits.maximum) - sz < pages)))
+               return -1;
+            _wasm_alloc->alloc<char>(pages);
+         }
          return sz;
       }
 
