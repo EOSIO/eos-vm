@@ -12,7 +12,6 @@ BACKEND_TEST_CASE("test reentry", "[reentry]") {
    struct test_runner {
       eosio::vm::backend<test_runner, TestType>& bkend;
       uint32_t test_func_0(uint32_t val) {
-         std::cout << "made it\n";
          return bkend.call_with_return(this, "env", "bar", val)->to_ui32() + 50;
       }
       uint32_t test_func_1(uint32_t val) {

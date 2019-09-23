@@ -87,8 +87,11 @@ add_executable(unit_tests main.cpp
                           host_functions_tests.cpp
                           reentry_tests.cpp
                           signals_tests.cpp
+                          stack_restriction_tests.cpp
                           watchdog_tests.cpp
-                          implementation_limits_tests.cpp)
+                          implementation_limits_tests.cpp
+                          vector_tests.cpp)
+
 target_link_libraries(unit_tests eos-vm Catch2::Catch2)
 
 # ##############
@@ -100,5 +103,4 @@ target_compile_definitions(unit_tests PUBLIC -DCATCH_CONFIG_NO_POSIX_SIGNALS)
 add_executable( spec_test_generator ${CMAKE_CURRENT_SOURCE_DIR}/spec_test_generator/spec_test_generator.cpp )
 
 catch_discover_tests( eos_vm_spec_tests )
-
-add_test(NAME unit_tests COMMAND unit_tests)
+catch_discover_tests( unit_tests )

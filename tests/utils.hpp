@@ -50,7 +50,7 @@ inline bool check_nan(const std::optional<eosio::vm::operand_stack_elem>& v) {
 }
 
 #define BACKEND_TEST_CASE(name, tags) \
-  TEMPLATE_TEST_CASE(name, tags, eosio::vm::interpreter, eosio::vm::jit)
+  TEMPLATE_TEST_CASE(name, tags, eosio::vm::jit, eosio::vm::interpreter)
 
 inline std::vector<uint8_t> read_wasm(const std::string& fname) {
    std::ifstream wasm_file(fname, std::ios::binary);

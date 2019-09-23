@@ -201,6 +201,7 @@ namespace eosio { namespace vm {
                   stack = alt_stack.get() + maximum_stack_usage;
                }
                auto fn = _mod.code[func_index - _mod.get_imported_functions_size()].jit_code;
+
                vm::invoke_with_signal_handler([&]() {
                   result = execute<sizeof...(Args)>(args_raw, fn, this, _linear_memory, stack);
                }, &handle_signal);
@@ -232,12 +233,14 @@ namespace eosio { namespace vm {
          return result;
       }
 
+      /* TODO abstract this and clean this up a bit */
       template<int Count>
       static native_value execute(native_value* data, native_value (*fun)(void*, void*), jit_execution_context* context, void* linear_memory, void* stack) {
          static_assert(sizeof(native_value) == 8, "8-bytes expected for native_value");
          native_value result;
          unsigned stack_check = constants::max_call_depth + 1;
          register void* stack_top asm ("r12") = stack;
+         // 0x1f80 is the default MXCSR value
          asm volatile(
             "test %[stack_top], %[stack_top]; "
             "jnz 3f; "
@@ -284,11 +287,12 @@ namespace eosio { namespace vm {
       }
 
       Host * _host = nullptr;
+
       // This is only needed because the host function api uses operand stack
       bounded_allocator _base_allocator = {
          constants::max_stack_size * sizeof(operand_stack_elem)
       };
-      operand_stack                   _os = { _base_allocator };
+      operand_stack _os;
    };
 
    template <typename Host>
@@ -346,14 +350,15 @@ namespace eosio { namespace vm {
 
       inline operand_stack& get_operand_stack() { return _os; }
       inline uint32_t       table_elem(uint32_t i) { return _mod.tables[0].table[i]; }
-      inline void           push_operand(const operand_stack_elem& el) { _os.push(el); }
-      inline operand_stack_elem     get_operand(uint16_t index) const { return _os.get(_last_op_index + index); }
+      inline void           push_operand(operand_stack_elem el) { _os.push(std::move(el)); }
+      inline operand_stack_elem get_operand(uint16_t index) const { return _os.get(_last_op_index + index); }
       inline void           eat_operands(uint16_t index) { _os.eat(index); }
       inline void           compact_operand(uint16_t index) { _os.compact(index); }
       inline void           set_operand(uint16_t index, const operand_stack_elem& el) { _os.set(_last_op_index + index, el); }
       inline uint16_t       current_operands_index() const { return _os.current_index(); }
       inline void           push_call(const activation_frame& el) { _as.push(el); }
-      inline activation_frame     pop_call() { return _as.pop(); }
+      inline void           push_call(activation_frame&& el) { _as.push(std::move(el)); }
+      inline activation_frame pop_call() { return _as.pop(); }
       inline uint32_t       call_depth()const { return _as.size(); }
       template <bool Should_Exit=false>
       inline void           push_call(uint32_t index) {
@@ -637,8 +642,8 @@ namespace eosio { namespace vm {
       };
       execution_state _state;
       uint16_t                        _last_op_index    = 0;
-      operand_stack                   _os = { _base_allocator };
       call_stack                      _as = { _base_allocator };
+      operand_stack                   _os;
       opcode                          _halt;
    };
 }} // namespace eosio::vm
