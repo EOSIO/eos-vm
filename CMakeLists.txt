@@ -26,6 +26,13 @@ find_package(Threads)
 link_libraries(Threads::Threads)
 
 # ##################################################################################################
+# Gate against Windows builds. 
+# ##################################################################################################
+if (WIN32)
+   message(FATAL_ERROR "EOS-VM currently only builds on Unix like OSes (Linux, Mac OSX)")
+endif()
+
+# ##################################################################################################
 # Defined options for building or integrating eos-vm.
 # ##################################################################################################
 include(CMakeDependentOption)
