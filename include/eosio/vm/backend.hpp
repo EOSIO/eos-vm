@@ -42,8 +42,18 @@ namespace eosio { namespace vm {
     public:
       using host_t = Host;
 
-      backend(wasm_code& code) : _ctx(typename Impl::template parser<Host>{ _mod.allocator }.parse_module(code, _mod)) {}
-      backend(wasm_code_ptr& ptr, size_t sz) : _ctx(typename Impl::template parser<Host>{ _mod.allocator }.parse_module2(ptr, sz, _mod)) {}
+      template <typename HostFunctions = nullptr_t>
+      backend(wasm_code& code, HostFunctions = nullptr) : _ctx(typename Impl::template parser<Host>{ _mod.allocator }.parse_module(code, _mod)) {
+	 if constexpr (!std::is_same_v<HostFunctions, nullptr_t>)
+            HostFunctions::resolve(_mod);
+	 _mod.finalize();
+      }
+      template <typename HostFunctions = nullptr_t>
+      backend(wasm_code_ptr& ptr, size_t sz, HostFunctions = nullptr) : _ctx(typename Impl::template parser<Host>{ _mod.allocator }.parse_module2(ptr, sz, _mod)) {
+	 if constexpr (!std::is_same_v<HostFunctions, nullptr_t>)
+            HostFunctions::resolve(_mod);
+	 _mod.finalize();
+      }
 
       template <typename... Args>
       inline bool operator()(Host* host, const std::string_view& mod, const std::string_view& func, Args... args) {
@@ -57,7 +67,7 @@ namespace eosio { namespace vm {
             _walloc->reset();
          _ctx.reset();
          _ctx.execute_start(host, interpret_visitor(_ctx));
-	      return *this;
+         return *this;
       }
 
       template <typename... Args>
@@ -181,6 +191,10 @@ namespace eosio { namespace vm {
       inline void set_wasm_allocator(wasm_allocator* walloc) {
          _walloc = walloc;
          _ctx.set_wasm_allocator(walloc);
+      }
+
+      inline void finalize_module() {
+         _mod.finalize();
       }
 
       inline wasm_allocator* get_wasm_allocator() { return _walloc; }

@@ -63,13 +63,12 @@ int main(int argc, char** argv) {
    watchdog wd{std::chrono::seconds(3)};
    try {
       // Instaniate a new backend using the wasm provided.
-      backend_t bkend(hello_wasm);
+      backend_t bkend(hello_wasm, rhf_t{});
 
       // Point the backend to the allocator you want it to use.
       bkend.set_wasm_allocator(&wa);
       bkend.initialize();
       // Resolve the host functions indices.
-      rhf_t::resolve(bkend.get_module());
 
       // Instaniate a "host"
       example_host_methods ehm;

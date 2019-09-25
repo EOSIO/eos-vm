@@ -11,6 +11,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#include <iostream>
 namespace eosio { namespace vm {
    class bounded_allocator {
     public:
@@ -163,6 +164,14 @@ namespace eosio { namespace vm {
          if ( size != 0 )
             _offset = ((char*)ptr - _base);
       }
+      
+      /*
+       * Finalize the memory by unmapping any excess pages, this means that the allocator will no longer grow
+       */
+      void finalize() {
+         EOS_VM_ASSERT(munmap(_base + _size, max_memory_size - _size) == 0, wasm_bad_alloc, "failed to finalize growable_allocator");
+      }
+
       void free() { EOS_VM_ASSERT(false, wasm_bad_alloc, "unimplemented"); }
 
       void reset() { _offset = 0; }

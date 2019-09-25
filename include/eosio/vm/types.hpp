@@ -167,7 +167,14 @@ namespace eosio { namespace vm {
       guarded_vector<uint32_t> type_aliases     = { allocator, 0 };
       guarded_vector<uint32_t> fast_functions   = { allocator, 0 };
       uint64_t                 maximum_stack = 0;
+      bool                     is_finalized  = false;
 
+      void finalize() { 
+        if (!is_finalized)
+	  allocator.finalize(); 
+	else
+           is_finalized = true;
+      }
       uint32_t get_imported_functions_size() const {
          uint32_t number_of_imports = 0;
          for (uint32_t i = 0; i < imports.size(); i++) {
