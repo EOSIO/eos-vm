@@ -308,7 +308,7 @@ namespace eosio { namespace vm {
 
       // Sets protection on code pages to allow them to be executed.
       void enable_code(bool is_jit) {
-         mprotect(_code_base, _code_size, is_jit?PROT_EXEC:PROT_READ);
+         mprotect(_code_base, _code_size, is_jit?PROT_EXEC:(PROT_READ|PROT_WRITE));
       }
       // Make code pages unexecutable
       void disable_code() {
