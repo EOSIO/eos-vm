@@ -200,7 +200,7 @@ namespace eosio { namespace vm {
                   alt_stack.reset(new native_value[maximum_stack_usage + 3]);
                   stack = alt_stack.get() + maximum_stack_usage;
                }
-               auto fn = _mod.code[func_index - _mod.get_imported_functions_size()].jit_code;
+               auto fn = reinterpret_cast<native_value (*)(void*, void*)>(_mod.code[func_index - _mod.get_imported_functions_size()].jit_code_offset + _mod.allocator._code_base);
 
                vm::invoke_with_signal_handler([&]() {
                   result = execute<sizeof...(Args)>(args_raw, fn, this, _linear_memory, stack);
