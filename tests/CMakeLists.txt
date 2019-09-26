@@ -74,7 +74,6 @@ add_spec_test_impl(e_table ${CMAKE_CURRENT_SOURCE_DIR}/spec/extra/table.wast)
 
 add_executable( eos_vm_spec_tests main.cpp ${SPEC_TESTS} )
 target_link_libraries( eos_vm_spec_tests eos-vm Catch2::Catch2 )
-
 target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} )
 target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include )
 target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/spec )
@@ -90,6 +89,7 @@ add_executable(unit_tests main.cpp
                           stack_restriction_tests.cpp
                           watchdog_tests.cpp
                           implementation_limits_tests.cpp
+                          instantiation_tests.cpp
                           vector_tests.cpp)
 
 target_link_libraries(unit_tests eos-vm Catch2::Catch2)

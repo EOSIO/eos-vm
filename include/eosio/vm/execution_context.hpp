@@ -200,7 +200,7 @@ namespace eosio { namespace vm {
                   alt_stack.reset(new native_value[maximum_stack_usage + 3]);
                   stack = alt_stack.get() + maximum_stack_usage;
                }
-               auto fn = _mod.code[func_index - _mod.get_imported_functions_size()].jit_code;
+               auto fn = reinterpret_cast<native_value (*)(void*, void*)>(_mod.code[func_index - _mod.get_imported_functions_size()].jit_code_offset + _mod.allocator._code_base);
 
                vm::invoke_with_signal_handler([&]() {
                   result = execute<sizeof...(Args)>(args_raw, fn, this, _linear_memory, stack);
@@ -304,16 +304,7 @@ namespace eosio { namespace vm {
       using base_type::_linear_memory;
       using base_type::_error_code;
       using base_type::handle_signal;
-      execution_context(module& m) : base_type(m), _halt(exit_t{}) {
-         for (int i = 0; i < _mod.exports.size(); i++) _mod.import_functions.resize(_mod.get_imported_functions_size());
-         _mod.function_sizes.resize(_mod.get_functions_total());
-         const size_t import_size  = _mod.get_imported_functions_size();
-         uint32_t     total_so_far = 0;
-         for (uint32_t i = _mod.get_imported_functions_size(); i < _mod.function_sizes.size(); i++) {
-            _mod.function_sizes[i] = total_so_far;
-            total_so_far += _mod.code[i - import_size].size;
-         }
-      }
+      execution_context(module& m) : base_type(m), _halt(exit_t{}) {}
 
 
       inline void call(uint32_t index) {
@@ -356,7 +347,6 @@ namespace eosio { namespace vm {
       inline void           compact_operand(uint16_t index) { _os.compact(index); }
       inline void           set_operand(uint16_t index, const operand_stack_elem& el) { _os.set(_last_op_index + index, el); }
       inline uint16_t       current_operands_index() const { return _os.current_index(); }
-      inline void           push_call(const activation_frame& el) { _as.push(el); }
       inline void           push_call(activation_frame&& el) { _as.push(std::move(el)); }
       inline activation_frame pop_call() { return _as.pop(); }
       inline uint32_t       call_depth()const { return _as.size(); }

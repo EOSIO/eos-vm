@@ -2016,7 +2016,7 @@ namespace eosio { namespace vm {
       using fn_type = native_value(*)(void* context, void* memory);
       void finalize(function_body& body) {
          _mod.allocator.reclaim(code, _code_end - code);
-         body.jit_code = reinterpret_cast<fn_type>(_code_start);
+         body.jit_code_offset = _code_start - (unsigned char*)_code_segment_base;
       }
 
     private:

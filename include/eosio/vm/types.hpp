@@ -135,7 +135,7 @@ namespace eosio { namespace vm {
       uint32_t                    size;
       guarded_vector<local_entry> locals;
       opcode*                     code;
-      native_value              (*jit_code)(void*, void*);
+      std::size_t                 jit_code_offset;
    };
 
    struct data_segment {
@@ -163,11 +163,14 @@ namespace eosio { namespace vm {
 
       // not part of the spec for WASM
       guarded_vector<uint32_t> import_functions = { allocator, 0 };
-      guarded_vector<uint32_t> function_sizes   = { allocator, 0 };
       guarded_vector<uint32_t> type_aliases     = { allocator, 0 };
       guarded_vector<uint32_t> fast_functions   = { allocator, 0 };
       uint64_t                 maximum_stack = 0;
 
+      void finalize() {
+         import_functions.resize(get_imported_functions_size());
+         allocator.finalize();
+      }
       uint32_t get_imported_functions_size() const {
          uint32_t number_of_imports = 0;
          for (uint32_t i = 0; i < imports.size(); i++) {
