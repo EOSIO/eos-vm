@@ -107,9 +107,10 @@ namespace eosio { namespace vm {
             _size += (chunk_size * chunks_to_alloc);
             mprotect((char*)_base, _size, PROT_READ | PROT_WRITE);
          }
+         _capacity = max_memory_size;
       }
 
-      ~growable_allocator() { munmap(_base, max_memory_size); }
+      ~growable_allocator() { munmap(_base, _capacity); }
 
       // TODO use Outcome library
       template <typename T>
@@ -169,7 +170,10 @@ namespace eosio { namespace vm {
        * Finalize the memory by unmapping any excess pages, this means that the allocator will no longer grow
        */
       void finalize() {
-         EOS_VM_ASSERT(munmap(_base + _size, max_memory_size - _size) == 0, wasm_bad_alloc, "failed to finalize growable_allocator");
+         if(_capacity != _size) {
+            EOS_VM_ASSERT(munmap(_base + _size, _capacity - _size) == 0, wasm_bad_alloc, "failed to finalize growable_allocator");
+            _capacity = _size;
+         }
       }
 
       void free() { EOS_VM_ASSERT(false, wasm_bad_alloc, "unimplemented"); }
@@ -178,6 +182,7 @@ namespace eosio { namespace vm {
 
       size_t _offset = 0;
       size_t _size   = 0;
+      std::size_t _capacity = 0;
       char*  _base;
       char*  _code_base = nullptr;
       size_t _code_size = 0;
