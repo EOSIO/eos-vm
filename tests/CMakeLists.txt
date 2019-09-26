@@ -102,5 +102,5 @@ target_compile_definitions(unit_tests PUBLIC -DCATCH_CONFIG_NO_POSIX_SIGNALS)
 
 add_executable( spec_test_generator ${CMAKE_CURRENT_SOURCE_DIR}/spec_test_generator/spec_test_generator.cpp )
 
-#catch_discover_tests( eos_vm_spec_tests )
+catch_discover_tests( eos_vm_spec_tests )
 catch_discover_tests( unit_tests )
