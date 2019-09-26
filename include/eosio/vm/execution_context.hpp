@@ -239,7 +239,7 @@ namespace eosio { namespace vm {
          static_assert(sizeof(native_value) == 8, "8-bytes expected for native_value");
          native_value result;
          unsigned stack_check = constants::max_call_depth + 1;
-         register void* stack_top asm ("r12") = stack;
+         void* stack_top asm ("r12") = stack;
          // 0x1f80 is the default MXCSR value
          asm volatile(
             "test %[stack_top], %[stack_top]; "
@@ -347,7 +347,7 @@ namespace eosio { namespace vm {
       inline void           compact_operand(uint16_t index) { _os.compact(index); }
       inline void           set_operand(uint16_t index, const operand_stack_elem& el) { _os.set(_last_op_index + index, el); }
       inline uint16_t       current_operands_index() const { return _os.current_index(); }
-      inline void           push_call(activation_frame&& el) { _as.push(std::move(el)); }
+      inline void           push_call(activation_frame el) { _as.push(std::move(el)); }
       inline activation_frame pop_call() { return _as.pop(); }
       inline uint32_t       call_depth()const { return _as.size(); }
       template <bool Should_Exit=false>
