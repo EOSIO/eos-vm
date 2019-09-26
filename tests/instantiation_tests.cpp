@@ -58,7 +58,7 @@ BACKEND_TEST_CASE("Test instantiating multiple instances of eos-vm",
      0x6c, 0x61, 0x6e, 0x67, 0x05, 0x39, 0x2e, 0x30, 0x2e, 0x30
    };
 
-   using backend_t = backend<nullptr_t>;
+   using backend_t = backend<nullptr_t, TestType>;
    std::list<backend_t> v;
    for (int i=0; i < 32768; i++)
       v.emplace_back(test_wasm);
