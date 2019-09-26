@@ -170,10 +170,7 @@ namespace eosio { namespace vm {
       bool                     is_finalized  = false;
 
       void finalize() { 
-        if (!is_finalized)
-	  allocator.finalize(); 
-	else
-           is_finalized = true;
+         allocator.finalize();
       }
       uint32_t get_imported_functions_size() const {
          uint32_t number_of_imports = 0;

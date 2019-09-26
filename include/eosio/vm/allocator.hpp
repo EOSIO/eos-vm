@@ -11,7 +11,6 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#include <iostream>
 namespace eosio { namespace vm {
    class bounded_allocator {
     public:
@@ -165,7 +164,7 @@ namespace eosio { namespace vm {
          if ( size != 0 )
             _offset = ((char*)ptr - _base);
       }
-      
+
       /*
        * Finalize the memory by unmapping any excess pages, this means that the allocator will no longer grow
        */

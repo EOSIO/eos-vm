@@ -193,10 +193,6 @@ namespace eosio { namespace vm {
          _ctx.set_wasm_allocator(walloc);
       }
 
-      inline void finalize_module() {
-         _mod.finalize();
-      }
-
       inline wasm_allocator* get_wasm_allocator() { return _walloc; }
       inline module&         get_module() { return _mod; }
       inline void            exit(const std::error_code& ec) { _ctx.exit(ec); }
