@@ -60,7 +60,7 @@ BACKEND_TEST_CASE("Test instantiating multiple instances of eos-vm",
 
    using backend_t = backend<nullptr_t, TestType>;
    std::list<backend_t> v;
-   for (int i=0; i < 32768; i++)
+   for (int i=0; i < 8193; i++)
       v.emplace_back(test_wasm);
 }
 #pragma GCC pop_options
