@@ -331,9 +331,10 @@ namespace eosio { namespace vm {
        * Finalize the memory by unmapping any excess pages, this means that the allocator will no longer grow
        */
       void finalize() {
-         if(_capacity != _size) {
-            EOS_VM_ASSERT(munmap(_base + _size, _capacity - _size) == 0, wasm_bad_alloc, "failed to finalize growable_allocator");
-            _capacity = _size;
+         if(_capacity != _offset) {
+            std::size_t final_size = align_to_page(_offset);
+            EOS_VM_ASSERT(munmap(_base + final_size, _capacity - final_size) == 0, wasm_bad_alloc, "failed to finalize growable_allocator");
+            _capacity = _size = _offset = final_size;
          }
       }
 
