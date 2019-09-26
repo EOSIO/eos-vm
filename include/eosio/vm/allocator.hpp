@@ -4,9 +4,15 @@
 #include <eosio/vm/exceptions.hpp>
 
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <map>
+#include <set>
 #include <memory>
+#include <mutex>
+#include <utility>
+#include <vector>
 
 #include <sys/mman.h>
 #include <unistd.h>
@@ -83,6 +89,147 @@ namespace eosio { namespace vm {
          char*  _base;
    };
 
+   class jit_allocator {
+       static constexpr std::size_t segment_size = std::size_t{1024u} * 1024u * 1024u;
+   public:
+      // allocates page aligned memory with executable permission
+      void * alloc(std::size_t size) {
+         std::lock_guard l{_mutex};
+         size = round_to_page(size);
+         auto best = free_blocks_by_size.lower_bound(size);
+         if(best == free_blocks_by_size.end()) {
+            best = allocate_segment(size);
+         }
+         if (best->first > size) {
+            best = split_block(best, size);
+         }
+         transfer_node(free_blocks, allocated_blocks, best->second);
+         best = transfer_node(free_blocks_by_size, allocated_blocks_by_size, *best);
+         return best->second;
+      }
+      // ptr must be previously allocated by a call to alloc
+      void free(void* ptr) noexcept {
+         std::lock_guard l{_mutex};
+         auto pos = transfer_node(allocated_blocks, free_blocks, ptr);
+         transfer_node(allocated_blocks_by_size, free_blocks_by_size, {pos->second, pos->first});
+
+         // merge the freed block with adjacent free blocks
+         if(pos != free_blocks.begin()) {
+            auto prev = pos;
+            --prev;
+            pos = maybe_consolidate_blocks(prev, pos);
+         }
+         auto next = pos;
+         ++next;
+         if (next != free_blocks.end()) {
+            maybe_consolidate_blocks(pos, next);
+         }
+      }
+      static jit_allocator& instance() {
+         static jit_allocator the_jit_allocator;
+         return the_jit_allocator;
+      }
+   private:
+      struct segment {
+         segment(void * base, std::size_t size) : base(base), size(size) {}
+         segment(segment&& other) : base(other.base), size(other.size) {
+            other.base = nullptr;
+            other.size = 0;
+         }
+         segment& operator=(const segment& other) = delete;
+         ~segment() {
+            if(base) {
+               ::munmap(base, size);
+            }
+         }
+         void * base;
+         std::size_t size;
+      };
+      using block = std::pair<std::size_t, void*>;
+      struct by_size {
+         using is_transparent = void;
+         bool operator()(const block& lhs, const block& rhs) const {
+            return lhs.first < rhs.first || (lhs.first == rhs.first && std::less<void*>{}(lhs.second, rhs.second));
+         }
+         bool operator()(const block& lhs, std::size_t rhs) const {
+            return lhs.first < rhs;
+         }
+         bool operator()(std::size_t lhs, const block& rhs) const {
+            return lhs < rhs.first;
+         }
+      };
+      std::vector<segment> _segments;
+      std::set<block, by_size> free_blocks_by_size;
+      std::set<block, by_size> allocated_blocks_by_size;
+      std::map<void*, std::size_t> free_blocks;
+      std::map<void*, std::size_t> allocated_blocks;
+      std::mutex _mutex;
+      using blocks_by_size_t = std::set<block, by_size>;
+      using blocks_t = std::map<void*, size_t>;
+
+      // moves an element from one associative container to another
+      // @pre key must be present in from, but not in to
+      template<typename C>
+      static typename C::iterator transfer_node(C& from, C& to, typename C::key_type key) noexcept {
+         auto node = from.extract(key);
+         assert(node);
+         auto [pos, inserted, _] = to.insert(std::move(node));
+         assert(inserted);
+         return pos;
+      }
+
+      blocks_by_size_t::iterator allocate_segment(std::size_t min_size) {
+         std::size_t size = std::max(min_size, segment_size);
+         void* base = mmap(nullptr, size, PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+         segment s{base, size};
+         EOS_VM_ASSERT(base != MAP_FAILED, wasm_bad_alloc, "failed to allocate jit segment");
+         _segments.emplace_back(std::move(s));
+         bool success = true;
+         auto guard_1 = scope_guard{[&] { if(!success) { _segments.pop_back(); } }};
+         auto pos2 = free_blocks_by_size.insert({size, base}).first;
+         auto guard_2 = scope_guard{[&] { if(!success) { free_blocks_by_size.erase(pos2); }}};
+         free_blocks.insert({base, size});
+         success = true;
+         return pos2;
+      }
+
+      blocks_by_size_t::iterator split_block(blocks_by_size_t::iterator pos, std::size_t size) {
+         bool success = false;
+         auto new1 = free_blocks_by_size.insert({size, pos->second}).first;
+         auto guard1 = scope_guard{[&]{ if(!success) { free_blocks_by_size.erase(new1); } }};
+         auto new2 = free_blocks_by_size.insert({pos->first - size, static_cast<char*>(pos->second) + size}).first;
+         auto guard2 = scope_guard{[&]{ if(!success) { free_blocks_by_size.erase(new2); } }};
+         free_blocks.insert({new2->second, new2->first});
+         // the rest is nothrow
+         free_blocks_by_size.erase(pos);
+         free_blocks[new1->second] = new1->first;
+         success = true;
+         return new1;
+      }
+
+      blocks_t::iterator maybe_consolidate_blocks(blocks_t::iterator lhs, blocks_t::iterator rhs) noexcept {
+         if(static_cast<char*>(lhs->first) + lhs->second == rhs->first) {
+            // merge blocks in free_blocks_by_size
+            auto node = free_blocks_by_size.extract({lhs->second, lhs->first});
+            assert(node);
+            node.value().first += rhs->second;
+            free_blocks_by_size.insert(std::move(node));
+            free_blocks_by_size.erase({rhs->second, rhs->first});
+            // merge the blocks in free_blocks
+            lhs->second += rhs->second;
+            free_blocks.erase(rhs);
+            return lhs;
+         } else {
+            return rhs;
+         }
+      }
+
+      static std::size_t round_to_page(std::size_t offset) {
+         std::size_t pagesize = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
+         return (offset + pagesize - 1) & ~(pagesize - 1);
+      }
+   };
+
    class growable_allocator {
     public:
       static constexpr size_t max_memory_size = 1024 * 1024 * 1024; // 1GB
@@ -109,7 +256,12 @@ namespace eosio { namespace vm {
          _capacity = max_memory_size;
       }
 
-      ~growable_allocator() { munmap(_base, _capacity); }
+      ~growable_allocator() {
+         munmap(_base, _capacity);
+         if (is_jit) {
+            jit_allocator::instance().free(_code_base);
+         }
+      }
 
       // TODO use Outcome library
       template <typename T>
@@ -142,12 +294,22 @@ namespace eosio { namespace vm {
          _offset = align_to_page(_offset);
          _code_base = (char*)code_base;
          _code_size = _offset - ((char*)code_base - _base);
+         if constexpr (IsJit) {
+            auto & jit_alloc = jit_allocator::instance();
+            void * executable_code = jit_alloc.alloc(_code_size);
+            int err = mprotect(executable_code, _code_size, PROT_READ | PROT_WRITE);
+            EOS_VM_ASSERT(err == 0, wasm_bad_alloc, "mprotect failed");
+            std::memcpy(executable_code, _code_base, _code_size);
+            is_jit = true;
+            _code_base = (char*)executable_code;
+            _offset = (char*)code_base - _base;
+         }
          enable_code(IsJit);
       }
 
       // Sets protection on code pages to allow them to be executed.
       void enable_code(bool is_jit) {
-         mprotect(_code_base, _code_size, is_jit?PROT_EXEC:PROT_READ);
+         mprotect(_code_base, _code_size, is_jit?PROT_EXEC:(PROT_READ|PROT_WRITE));
       }
       // Make code pages unexecutable
       void disable_code() {
@@ -185,6 +347,7 @@ namespace eosio { namespace vm {
       char*  _base;
       char*  _code_base = nullptr;
       size_t _code_size = 0;
+      bool is_jit = false;
    };
 
    template <typename T>

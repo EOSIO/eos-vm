@@ -135,7 +135,7 @@ namespace eosio { namespace vm {
       uint32_t                    size;
       guarded_vector<local_entry> locals;
       opcode*                     code;
-      native_value              (*jit_code)(void*, void*);
+      std::size_t                 jit_code_offset;
    };
 
    struct data_segment {
