@@ -304,16 +304,7 @@ namespace eosio { namespace vm {
       using base_type::_linear_memory;
       using base_type::_error_code;
       using base_type::handle_signal;
-      execution_context(module& m) : base_type(m), _halt(exit_t{}) {
-         for (int i = 0; i < _mod.exports.size(); i++) _mod.import_functions.resize(_mod.get_imported_functions_size());
-         _mod.function_sizes.resize(_mod.get_functions_total());
-         const size_t import_size  = _mod.get_imported_functions_size();
-         uint32_t     total_so_far = 0;
-         for (uint32_t i = _mod.get_imported_functions_size(); i < _mod.function_sizes.size(); i++) {
-            _mod.function_sizes[i] = total_so_far;
-            total_so_far += _mod.code[i - import_size].size;
-         }
-      }
+      execution_context(module& m) : base_type(m), _halt(exit_t{}) {}
 
 
       inline void call(uint32_t index) {

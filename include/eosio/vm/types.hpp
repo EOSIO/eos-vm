@@ -163,11 +163,9 @@ namespace eosio { namespace vm {
 
       // not part of the spec for WASM
       guarded_vector<uint32_t> import_functions = { allocator, 0 };
-      guarded_vector<uint32_t> function_sizes   = { allocator, 0 };
       guarded_vector<uint32_t> type_aliases     = { allocator, 0 };
       guarded_vector<uint32_t> fast_functions   = { allocator, 0 };
       uint64_t                 maximum_stack = 0;
-      bool                     is_finalized  = false;
 
       void finalize() {
          import_functions.resize(get_imported_functions_size());
