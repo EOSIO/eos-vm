@@ -564,8 +564,8 @@ namespace eosio { namespace vm {
 
       template <typename Module>
       static void resolve(Module& mod) {
-         decltype(mod.import_functions) imports          = { mod.allocator, mod.get_imported_functions_size() };
-         auto&                          current_mappings = get_mappings<wasm_allocator>();
+         auto& imports          = mod.import_functions;
+         auto& current_mappings = get_mappings<wasm_allocator>();
          for (int i = 0; i < mod.imports.size(); i++) {
             std::string mod_name =
                   std::string((char*)mod.imports[i].module_str.raw(), mod.imports[i].module_str.size());
@@ -574,7 +574,6 @@ namespace eosio { namespace vm {
                           "no mapping for imported function");
             imports[i] = current_mappings.named_mapping[{ mod_name, fn_name }];
          }
-         mod.import_functions = std::move(imports);
       }
 
       template <typename Execution_Context>

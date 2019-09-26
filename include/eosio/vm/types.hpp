@@ -169,7 +169,8 @@ namespace eosio { namespace vm {
       uint64_t                 maximum_stack = 0;
       bool                     is_finalized  = false;
 
-      void finalize() { 
+      void finalize() {
+         import_functions.resize(get_imported_functions_size());
          allocator.finalize();
       }
       uint32_t get_imported_functions_size() const {
