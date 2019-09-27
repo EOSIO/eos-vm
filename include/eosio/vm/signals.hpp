@@ -135,9 +135,7 @@ namespace eosio { namespace vm {
             throw;
          }
       } else {
-         if (old_signal_handler) {
-            std::atomic_store(&signal_dest, old_signal_handler);
-         }
+         std::atomic_store(&signal_dest, old_signal_handler);
          if (sig == -1) {
             std::exception_ptr exception = std::move(saved_exception);
             saved_exception = nullptr;
