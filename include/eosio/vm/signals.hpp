@@ -84,7 +84,7 @@ namespace eosio { namespace vm {
       sa.sa_flags = SA_NODEFER | SA_SIGINFO;
       sigaction(SIGSEGV, &sa, &prev_signal_handler<SIGSEGV>);
       sigaction(SIGBUS, &sa, &prev_signal_handler<SIGBUS>);
-      sigaction(SIGFPE, &sa, &prev_signal_handler<SIGBUS>);
+      sigaction(SIGFPE, &sa, &prev_signal_handler<SIGFPE>);
    }
 
    inline void setup_signal_handler() {
@@ -99,7 +99,7 @@ namespace eosio { namespace vm {
    /// with non-trivial destructors, then it must mask the relevant signals
    /// during the lifetime of these objects or the behavior is undefined.
    ///
-   /// signals handled: SIGSEGV, SIGBUS
+   /// signals handled: SIGSEGV, SIGBUS, SIGFPE
    ///
    // Make this noinline to prevent possible corruption of the caller's local variables.
    // It's unlikely, but I'm not sure that it can definitely be ruled out if both
