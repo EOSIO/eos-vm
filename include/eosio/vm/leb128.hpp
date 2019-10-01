@@ -35,14 +35,14 @@ namespace eosio { namespace vm {
             storage[0] = v & 0x7f;
          }
          inline constexpr void from(uint32_t v) {
-	    bytes_used = 0;
+	         bytes_used = 0;
             #pragma unroll
             for (; bytes_used < bytes_needed<N>(); bytes_used++) {
                storage[bytes_used] = v & 0x7f;
                v >>= 7;
                if (v!= 0)
                   storage[bytes_used] |= 0x80;
-	       else
+	         else
                   break;
             }
             bytes_used++;
@@ -83,6 +83,10 @@ namespace eosio { namespace vm {
                ret |= storage[i] & 0x7f;
             }
             return ret;
+         }
+
+         inline constexpr auto bytes() {
+            return std::vector<uint8_t>{ storage.begin(), storage.begin()+bytes_used; }
          }
 
          void print()const {
@@ -163,6 +167,10 @@ namespace eosio { namespace vm {
                std::cout << std::hex << "0x" << (int)storage[i] << ' ';
             }
             std::cout << std::endl;
+         }
+
+         inline constexpr auto bytes() {
+            return std::vector<uint8_t>{ storage.begin(), storage.begin()+bytes_used; }
          }
       
       private:
