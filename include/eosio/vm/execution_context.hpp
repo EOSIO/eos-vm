@@ -63,7 +63,10 @@ namespace eosio { namespace vm {
       inline void reset() {
          _linear_memory = _wasm_alloc->get_base_ptr<char>();
          if (_mod.memories.size()) {
-            grow_linear_memory(_mod.memories[0].limits.initial - _wasm_alloc->get_current_page());
+            // We'd better have reset the allocator before we get here
+            assert(_mod.memories[0].limits.initial >= _wasm_alloc->get_current_page());
+            int err = grow_linear_memory(_mod.memories[0].limits.initial - _wasm_alloc->get_current_page());
+            EOS_VM_ASSERT(err != -1, wasm_bad_alloc, "Cannot allocate initial linear memory.");
          }
 
          for (uint32_t i = 0; i < _mod.data.size(); i++) {

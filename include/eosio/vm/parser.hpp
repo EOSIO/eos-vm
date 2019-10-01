@@ -220,6 +220,9 @@ namespace eosio { namespace vm {
       void parse_memory_type(wasm_code_ptr& code, memory_type& mt) {
          mt.limits.flags   = (parse_varuint32(code) & 0x1);
          mt.limits.initial = parse_varuint32(code);
+         // Implementation limits
+         EOS_VM_ASSERT(mt.limits.initial <= max_pages, wasm_parse_exception, "initial memory out of range");
+         // WASM specification
          EOS_VM_ASSERT(mt.limits.initial <= 65536u, wasm_parse_exception, "initial memory out of range");
          if (mt.limits.flags) {
             mt.limits.maximum = parse_varuint32(code);
