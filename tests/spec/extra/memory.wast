@@ -6,7 +6,11 @@
   "invalid limits"
 )
 
-(module (memory 65536))
+;; This is the maximum allowed under the wasm spec.
+(assert_invalid
+   (module (memory 65536))
+   "Initial memory exceeds implementation defined limits"
+)
 
 (module binary
   "\00asm" "\01\00\00\00"
