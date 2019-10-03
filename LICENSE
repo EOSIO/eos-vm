@@ -3,7 +3,7 @@ Copyright (c) 2017-2019 block.one and its contributors. All rights reserved.
 EOS VM LICENSE V1.0
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the “Software”), to deal in the
+this software and associated documentation files (the "Software"), to deal in the
 Software, including without limitation the rights to use, copy, modify, merge,
 publish, distribute, sublicense, and/or sell copies of the Software, and to permit
 persons to whom the Software is furnished to do so, subject to the following
@@ -23,11 +23,11 @@ EOS VM License without additional exclusion, alteration, limitation or
 restriction. Any Conveyance of a Covered Work will be deemed to include and be
 subject to this condition and each person Conveying a Covered Work shall inform
 recipients accordingly. No purported exclusion, alteration, limitation or
-restriction of this condition will be effective. For these purposes: “Covered
-Work” means the Software or any derivative work, adaptation or other work based on
-or incorporating all or part of the Software or a Covered Work; “Convey&quot; means
+restriction of this condition will be effective. For these purposes: "Covered
+Work" means the Software or any derivative work, adaptation or other work based on
+or incorporating all or part of the Software or a Covered Work; "Convey" means
 publish, distribute, licence, sublicense, sell, furnish or any other form of
-making available; and “Other Blockchain Purposes” means use in connection with a
+making available; and "Other Blockchain Purposes" means use in connection with a
 blockchain, distributed ledger, decentralized application (DApp), token, smart
 contract, virtual machine or similar, or a tool, plugin, library, server, or other
 software designed for use with or development of any of the foregoing, where the
