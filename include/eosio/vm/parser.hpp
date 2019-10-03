@@ -316,10 +316,13 @@ namespace eosio { namespace vm {
          decltype(fb.locals) locals    = { _allocator, local_cnt };
          // parse the local entries
          for (size_t i = 0; i < local_cnt; i++) {
-            locals.at(i).count = parse_varuint32(code);
-            EOS_VM_ASSERT(*code == types::i32 || *code == types::i64 || *code == types::f32 || *code == types::f64,
+            auto count = parse_varuint32(code);
+            auto type = *code++;
+            if (count == 0) type = types::i32;
+            EOS_VM_ASSERT(type == types::i32 || type == types::i64 || type == types::f32 || type == types::f64,
                           wasm_parse_exception, "invalid local type");
-            locals.at(i).type  = *code++;
+            locals.at(i).count = count;
+            locals.at(i).type  = type;
          }
          fb.locals = std::move(locals);
 
