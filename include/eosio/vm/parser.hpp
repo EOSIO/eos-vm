@@ -43,7 +43,7 @@ namespace eosio { namespace vm {
          if (ch < 0x80) {
             return 1;
          } else if(ch < 0xE0) {
-           EOS_VM_ASSERT((ch & 0xC0) == 0xC0, wasm_parse_exception, "invalid utf8 encoding");
+            EOS_VM_ASSERT((ch & 0xC0) == 0xC0, wasm_parse_exception, "invalid utf8 encoding");
             unsigned char b2 = *code++;
             EOS_VM_ASSERT((b2 & 0xC0) == 0x80, wasm_parse_exception, "invalid utf8 encoding");
             uint32_t code_point =

@@ -90,6 +90,8 @@ add_executable(unit_tests main.cpp
                           watchdog_tests.cpp
                           implementation_limits_tests.cpp
                           instantiation_tests.cpp
+                          basic_block_tests.cpp
+                          code_interval_tests.cpp
                           vector_tests.cpp)
 
 target_link_libraries(unit_tests eos-vm Catch2::Catch2)
