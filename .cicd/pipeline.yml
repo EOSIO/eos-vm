@@ -138,4 +138,4 @@ steps:
     agents:
       queue: "automation-eos-builder-fleet"
     timeout: 10
-    soft_fail: true 
+    soft_fail: true
