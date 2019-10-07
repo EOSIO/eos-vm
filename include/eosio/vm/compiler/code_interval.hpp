@@ -28,6 +28,18 @@ namespace eosio { namespace vm {
                   ++_ptr;
                   return iter;
                }
+               // prefix operator
+               iterator& operator--() {
+                  _ptr--;
+                  return *this;
+               }
+               // postfix operator
+               iterator operator--(int) {
+                  iterator iter = *this;
+                  --_ptr;
+                  return iter;
+               }
+
                iterator next()const {
                   iterator iter = *this;
                   return ++iter;
@@ -49,6 +61,9 @@ namespace eosio { namespace vm {
                ret_vec.push_back(*ptr);
             return ret_vec;
          }
+         inline bool operator==(const code_interval& ci)const { return std::tie(_begin, _end) == std::tie(ci._begin, ci._end); }
+         inline bool operator!=(const code_interval& ci)const { return !(*this == ci); }
+
          iterator begin() { return _begin; }
          const opcode* cbegin()const { return _begin; }
 

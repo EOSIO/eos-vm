@@ -44,6 +44,10 @@ namespace eosio { namespace vm {
          opcode* get_terminator() { return _interval.last(); }
 
          std::size_t size()const { return _interval.size(); }
+         code_interval get_interval()const { return _interval; }
+
+         inline bool operator==(const basic_block& bb)const { return std::tie(_parent, _interval) == std::tie(bb._parent, bb._interval); }
+         inline bool operator!=(const basic_block& bb)const { return !(*this == bb); }
       private:
          code_interval _interval;
          uint64_t      _parent;
