@@ -126,7 +126,6 @@ steps:
           wait-network: true
     agents: "queue=mac-anka-node-fleet"
 
-
   - wait:
     continue_on_failure: true
 
