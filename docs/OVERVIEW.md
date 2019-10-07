@@ -13,7 +13,7 @@ Adding __EOS-VM__ as a submodule to your project and adding the subdirectory tha
 
 ### Getting Started
  1) Start by creating a type alias of `eosio::vm::backend` with the host function class type.
-    a) This class takes an additional optional template argument if wanted.  By default, i.e. left blank, this will create the interpreter `backend`.  If you set this to `eosio::vm::jit` then this will create the JIT based backend.
+    a) This class takes an additional optional template argument if wanted.  By default, i.e. left blank, this will create the interpreter `backend`.  If you set this to `eosio::vm::jit`, this will create the JIT based backend.
  2) Next you can create a `watchdog` timer with a specific duration type, and setting the duration to the time interval you need, or use the predefined `null_watchdog` for unbounded execution.  
  3) You should now read the WASM file.  The `eosio::vm::backend` class has a method to read from a file or you can use a `std::vector<uint8_t>` that already contains the WASM.  This gets passed to the constructor of `eosio::vm::backend`.
  4) You should register and resolve any host functions, please see the **Adding Host Functions** section.
