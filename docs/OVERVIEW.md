@@ -17,8 +17,8 @@ By adding __EOS-VM__ as a submodule to your project and adding the subdirectory 
  2) Next you can create a `watchdog` timer with a specific duration type, and setting the duration to the time interval you need, or use the predefined `null_watchdog` for unbounded execution.  
  4) You should now read the wasm, the `eosio::vm::backend` class has a method to read from a file or you can use a `std::vector<uint8_t>` that already contains the WASM.  This gets passed to the constructor of `eosio::vm::backend`.
  5) You should register and resolve any host functions, please the **Adding Host Functions** section.
- 5) You can now construct your `backend` object, pass in the read WASM code and an instance of the `registered_host_functions` class which houses your imports.
- 5) Finally, you can execute a specific export via the `()` operator of `eosio::vm::backend`, this takes the host function instance reference, the module name, the export name and typesafe export arguments. (see **/tools/interp.cpp** and **/tools/hello_driver.cpp** for more details)
+ 6) You can now construct your `backend` object, pass in the read WASM code and an instance of the `registered_host_functions` class which houses your imports.
+ 7) Finally, you can execute a specific export via the `()` operator of `eosio::vm::backend`, this takes the host function instance reference, the module name, the export name and typesafe export arguments. (see **/tools/interp.cpp** and **/tools/hello_driver.cpp** for more details)
 
 ### Adding Host Functions
 Without any host functions, your WASM execution is going to be very limited (you will not be able to observe side effects or get intermediate values).  
