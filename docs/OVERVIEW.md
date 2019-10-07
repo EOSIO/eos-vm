@@ -18,7 +18,7 @@ Adding __EOS-VM__ as a submodule to your project and adding the subdirectory tha
  3) You should now read the WASM file.  The `eosio::vm::backend` class has a method to read from a file or you can use a `std::vector<uint8_t>` that already contains the WASM.  This gets passed to the constructor of `eosio::vm::backend`.
  4) You should register and resolve any host functions, please see the **Adding Host Functions** section.
  5) You can now construct your `backend` object by passing in the read WASM code and an instance of the `registered_host_functions` class which houses your imports.
- 6) Finally, you can execute a specific export via the `()` operator of `eosio::vm::backend`, this takes the host function instance reference, the module name, the export name and typesafe export arguments. (see **/tools/interp.cpp** and **/tools/hello_driver.cpp** for more details)
+ 6) Finally, you can execute a specific export via the `()` operator of `eosio::vm::backend`. This takes the host function instance reference, the module name, the export name and typesafe export arguments. (see **/tools/interp.cpp** and **/tools/hello_driver.cpp** for more details)
 
 ### Adding Host Functions
 Without any host functions, your WASM execution is going to be very limited (you will not be able to observe side effects or get intermediate values).  
