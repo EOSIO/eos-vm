@@ -18,7 +18,7 @@ function determine-hash() {
 
 if [[ ! -z $IMAGE_TAG ]]; then
     determine-hash "$CICD_DIR/docker/${IMAGE_TAG}.dockerfile"
-    export FULL_TAG="eosio/producer:eos-vm-$HASHED_IMAGE_TAG"
+    export FULL_TAG="eosio/ci:eos-vm-$HASHED_IMAGE_TAG"
 else
     echo "Please set ENV::IMAGE_TAG to match the name of a platform dockerfile..."
     exit 1
