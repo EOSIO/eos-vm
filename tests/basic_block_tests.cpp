@@ -8,6 +8,7 @@
 
 #include <eosio/vm/compiler/basic_block.hpp>
 #include <eosio/vm/compiler/control_flow_graph.hpp>
+#include <eosio/vm/compiler/debug.hpp>
 #include <eosio/vm/backend.hpp>
 
 using namespace eosio;
@@ -51,7 +52,14 @@ TEST_CASE("Testing control_flow_graph", "[cfg_tests]") {
   
    uint32_t full_code_size = 0;
    for (int i=0; i < mod.code.size(); i++) {
-      full_code_size += mod.code[i].code.size();
+      full_code_size += mod.code[i].size;
    }
-   code_interval cci(mod.code[0].code.data(), mod.code[0].code.data() + full_code_size);
+   code_interval cci(mod.code[1].code, mod.code[1].code + (mod.code[1].size-1));
+
+   control_flow_graph cfg2(cci);
+
+   const auto& blocks2 = cfg2.get_blocks();
+   cfg_writer cw(cfg2);
+   cw.write("cfg.dot");
+   CHECK( blocks2.size() == 0 );
 }

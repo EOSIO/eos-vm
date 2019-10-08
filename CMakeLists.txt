@@ -39,6 +39,7 @@ include(CMakeDependentOption)
 option(ENABLE_SOFTFLOAT "enable the backend to use deterministic software floating point operations"
 	ON)
 option(FULL_DEBUG_BUILD "enables stack dumping and instruction tracing" OFF)
+option(DEBUG_COMPILER "enables debugging functionality of the compiler (requires Boost)" ON)
 option(ENABLE_INSTALL "enable this library to be installed" ON)
 option(ENABLE_MEMORY_OPS_ALIGNMENT "enable the backend to obey alignment hints" OFF)
 option(ENABLE_TOOLS "enable building of tools" ON)
@@ -63,6 +64,20 @@ target_include_directories(eos-vm
 if(FULL_DEBUG_BUILD)
    target_compile_definitions(eos-vm INTERFACE -DEOS_VM_FULL_DEBUG)
 endif()
+
+# ##################################################################################################
+# Enable compiler debugging functionality for eos-vm.
+# ##################################################################################################
+if(DEBUG_COMPILER)
+   # need Boost for graphviz CFG dumping
+   set(Boost_USE_STATIC_LIBS ON CACHE STRING "ON or OFF")
+   find_package(Boost 1.67 REQUIRED COMPONENTS
+      graph)
+   target_include_directories(eos-vm INTERFACE ${Boost_INCLUDE_DIR})
+   target_link_libraries(eos-vm INTERFACE ${Boost_LIBRARIES})
+   target_compile_definitions(eos-vm INTERFACE -DEOS_VM_DEBUG_COMPILER)
+endif()
+   
 
 # ##################################################################################################
 # Option specific build configurations.

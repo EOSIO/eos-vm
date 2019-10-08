@@ -7,8 +7,14 @@ namespace eosio { namespace vm {
 
    class control_flow_graph {
       public:
+         struct node {
+            std::vector<node*> predecessors;
+            std::vector<node*> successors;
+         };
+
          control_flow_graph(const code_interval& ci) : _full_code_range(ci) {
             construct_blocks();
+            resolve_edges();
          }
 
          unmanaged_vector<basic_block> get_blocks()const { return _blocks; }
@@ -23,10 +29,14 @@ namespace eosio { namespace vm {
                // clean this up
                if (should_end(*iter)) {
                   _blocks.emplace_back( 0, code_interval{*last_starting_op, *iter} );
+                  last_starting_op = iter;
+                  last_starting_op++;
                }
             }
 
             _blocks.emplace_back( 0, code_interval{*last_starting_op, *(--iter)} ); // undo the increment to the iterator from the end
+         }
+         void resolve_edges() {
          }
          unmanaged_vector<basic_block> _blocks;
          code_interval _full_code_range;
