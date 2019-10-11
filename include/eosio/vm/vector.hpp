@@ -54,26 +54,22 @@ namespace eosio { namespace vm {
                _index--;
             }
 
+            template <bool Check=true>
             constexpr inline T& at( size_t i ) {
-               EOS_VM_ASSERT( i < _size, wasm_vector_oob_exception, "vector read out of bounds" );
+               if constexpr (Check)
+                  EOS_VM_ASSERT( i < _size, wasm_vector_oob_exception, "vector read out of bounds" );
                return _data[i];
             }
-
+            
+            template <bool Check=true>
             constexpr inline T& at( size_t i )const {
-               EOS_VM_ASSERT( i < _size, wasm_vector_oob_exception, "vector read out of bounds" );
+               if constexpr (Check)
+                  EOS_VM_ASSERT( i < _size, wasm_vector_oob_exception, "vector read out of bounds" );
                return _data[i];
             }
 
-            constexpr inline T& at_no_check( size_t i ) {
-               return _data[i];
-            }
-
-            constexpr inline T& at_no_check( size_t i ) const {
-               return _data[i];
-            }
-
-            constexpr inline T& operator[] (size_t i) const { return at(i); }
-            constexpr inline T& operator[] (size_t i) { return at(i); }
+            constexpr inline T& operator[] (size_t i) const { return at<false>(i); }
+            constexpr inline T& operator[] (size_t i) { return at<false>(i); }
             constexpr inline T* raw() const { return _data; }
             constexpr inline T* data() const { return _data; }
             constexpr inline size_t size() const { return _size; }

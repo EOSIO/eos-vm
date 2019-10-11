@@ -31,12 +31,17 @@ static constexpr bool compiler_debugging_enabled = false;
                                                        boost::property<boost::edge_weight_t, int>>;
                std::vector<std::string> labels;
                const auto& bb = _cfg.get_blocks();
+               auto& nodes = _cfg.get_nodes();
                using edge = std::pair<int, int>;
                std::vector<edge> edges;
                labels.push_back(generate_basic_block_label(0, bb[0]));
+               const basic_block* start_block = &bb[0];
                for (int i=1; i < bb.size(); i++) {
                   labels.push_back(generate_basic_block_label(i, bb[i]));
-                  edges.emplace_back(i-1, i);
+                  auto& node = nodes[(basic_block*)&(bb[i])];
+                  std::cout << "successors " << node.successors.size() << "\n";
+                  for (int j=0; j < node.successors.size(); j++)
+                     edges.emplace_back((int)(&bb[i]-start_block), (int)(node.successors[j]->block-start_block));
                }
                int* weights = new int[edges.size()];
                std::fill(weights, weights + edges.size(), 1); // all weights are the same

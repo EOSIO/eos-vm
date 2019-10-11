@@ -84,7 +84,8 @@ namespace eosio { namespace vm {
             EOS_VM_ASSERT( (_begin + index) <= _end, wasm_compilation_exception, "trying to access opcode outside of code interval" );
             return _begin + index;
          }
-
+         
+         bool contains(const opcode* op)const { return op >= _begin && op <= _end; }
          opcode* operator[](std::size_t index) { return at(index); }
          const opcode* operator[](std::size_t index)const { return at(index); }
          
