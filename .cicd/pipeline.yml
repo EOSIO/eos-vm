@@ -62,6 +62,7 @@ steps:
           debug: true
           wait-network: true
     agents: "queue=mac-anka-large-node-fleet"
+    skip: $SKIP_MACOS_10_14
 
   - label: ":darwin: macOS 10.15 - Build"
     command:
@@ -81,6 +82,7 @@ steps:
           debug: true
           wait-network: true
     agents: "queue=mac-anka-large-node-fleet"
+    skip: $SKIP_MACOS_10_15
 
   - wait
 
@@ -144,6 +146,7 @@ steps:
           debug: true
           wait-network: true
     agents: "queue=mac-anka-node-fleet"
+    skip: $SKIP_MACOS_10_14
 
   - label: ":darwin: macOS 10.15 - Tests"
     command:
@@ -161,6 +164,7 @@ steps:
           debug: true
           wait-network: true
     agents: "queue=mac-anka-node-fleet"
+    skip: $SKIP_MACOS_10_15
 
   - wait:
     continue_on_failure: true
