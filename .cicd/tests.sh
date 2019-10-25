@@ -10,7 +10,9 @@ if [[ $(uname) == 'Darwin' ]]; then
 
     cd $BUILD_DIR
     [[ $TRAVIS == true ]] && ccache -s
+    set +e
     $TEST_COMMAND
+    EXIT_STATUS=$?
 
 else # Linux
 
@@ -38,6 +40,23 @@ else # Linux
     fi
     
     # Docker Run with all of the commands we've prepped
+    set +e
     eval docker run $ARGS $evars $FULL_TAG bash -c \"$COMMANDS\"
-
+    EXIT_STATUS=$?
+fi
+# buildkite
+if [[ "$BUILDKITE" == 'true' ]]; then
+    cd build
+    # upload artifacts
+    echo '+++ :arrow_up: Uploading Artifacts'
+    echo 'Exporting xUnit XML'
+    mv -f ./Testing/$(ls ./Testing/ | grep '2' | tail -n 1)/Test.xml test-results.xml
+    echo 'Uploading artifacts'
+    buildkite-agent artifact upload test-results.xml
+    echo 'Done uploading artifacts.'
+fi
+# re-throw
+if [[ "$EXIT_STATUS" != 0 ]]; then
+    echo "Failing due to non-zero exit status from ctest: $EXIT_STATUS"
+    exit $EXIT_STATUS
 fi
