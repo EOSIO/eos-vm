@@ -101,6 +101,13 @@ namespace eosio { namespace vm {
 
     protected:
 
+      template<typename... Args>
+      static void type_check_args(const func_type& ft, Args&&...) {
+         EOS_VM_ASSERT(sizeof...(Args) == ft.param_types.size(), wasm_interpreter_exception, "wrong number of arguments");
+         uint32_t i = 0;
+         EOS_VM_ASSERT((... && (to_wasm_type<Args>() == ft.param_types.at(i++))), wasm_interpreter_exception, "unexpected argument type");
+      }
+
       static void handle_signal(int sig) {
          switch(sig) {
           case SIGSEGV:
@@ -184,6 +191,7 @@ namespace eosio { namespace vm {
          _host = host;
 
          const func_type& ft = _mod.get_function_type(func_index);
+         this->type_check_args(ft, static_cast<Args&&>(args)...);
          native_value result;
          native_value args_raw[] = { transform_arg(static_cast<Args&&>(args))... };
 
@@ -506,9 +514,9 @@ namespace eosio { namespace vm {
             _last_op_index = last_last_op_index;
          });
 
+         this->type_check_args(_mod.get_function_type(func_index), static_cast<Args&&>(args)...);
          push_args(args...);
          push_call<true>(func_index);
-         type_check(_mod.get_function_type(func_index));
 
          if (func_index < _mod.get_imported_functions_size()) {
             _rhf(_state.host, *this, _mod.import_functions[func_index]);
