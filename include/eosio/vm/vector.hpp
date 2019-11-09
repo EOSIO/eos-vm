@@ -23,12 +23,20 @@ namespace eosio { namespace vm {
             constexpr vector(vector&& mv) = default;
             constexpr vector& operator=(vector&& mv) = default;
 
-            constexpr inline void resize( size_t size ) {
+            constexpr inline void reserve( size_t size ) {
                if (size > _size) {
+                  T* old_data = _data;
                   _data = _allocator->template alloc<T>( size );
+                  memcpy((char*)_data, (const char*)old_data, _size*sizeof(T));
                } else {
                   _allocator->template reclaim<T>( _data + size, _size - size );
                }
+            }
+            constexpr inline void resize( std::size_t size, bool reclaim=true ) {
+               if (size > _size)
+                  reserve(size);
+               else if (reclaim)
+                  reserve(size);
                _size = size;
             }
             template <typename U, typename = std::enable_if_t<std::is_same_v<T, std::decay_t<U>>, int>> 
