@@ -19,6 +19,8 @@
 
 namespace eosio { namespace vm {
 
+   namespace detail {
+
    template<typename Options, typename Enable = void>
    struct max_mutable_globals_checker {
       constexpr void on_mutable_global(const Options&, uint8_t) {}
@@ -56,7 +58,7 @@ namespace eosio { namespace vm {
       return options.max_table_elements;
    }
    template<typename Options>
-   uint32_t get_max_table_elements(const Options& options) { return vm::get_max_table_elements(options, 0); }
+   uint32_t get_max_table_elements(const Options& options) { return detail::get_max_table_elements(options, 0); }
 
    template<typename Options>
    uint32_t get_max_section_elements(const Options&, long) { return 0xFFFFFFFF; }
@@ -65,7 +67,18 @@ namespace eosio { namespace vm {
       return options.max_section_elements;
    }
    template<typename Options>
-   uint32_t get_max_section_elements(const Options& options) { return vm::get_max_section_elements(options, 0); }
+   uint32_t get_max_section_elements(const Options& options) { return detail::get_max_section_elements(options, 0); }
+
+   template<typename Options>
+   uint64_t get_max_linear_memory_init(const Options&, long) { return 0xFFFFFFFFFFFFFFFFu; }
+   template<typename Options>
+   auto get_max_linear_memory_init(const Options& options, int) -> decltype(options.max_linear_memory_init) {
+      return options.max_linear_memory_init;
+   }
+   template<typename Options>
+   uint64_t get_max_linear_memory_init(const Options& options) { return detail::get_max_linear_memory_init(options, 0); }
+
+   }
 
    template <typename Writer, typename Options = default_options>
    class binary_parser {
@@ -251,7 +264,7 @@ namespace eosio { namespace vm {
             tt.limits.maximum = parse_varuint32(code);
             EOS_VM_ASSERT(tt.limits.initial <= tt.limits.maximum, wasm_parse_exception, "table max size less than min size");
          }
-         EOS_VM_ASSERT(tt.limits.initial <= get_max_table_elements(_options), wasm_parse_exception, "table size exceeds limit");
+         EOS_VM_ASSERT(tt.limits.initial <= detail::get_max_table_elements(_options), wasm_parse_exception, "table size exceeds limit");
          tt.table = decltype(tt.table){ _allocator, tt.limits.initial };
          for (uint32_t i = 0; i < tt.limits.initial; i++) tt.table[i] = std::numeric_limits<uint32_t>::max();
       }
@@ -965,6 +978,8 @@ namespace eosio { namespace vm {
          ds.index = parse_varuint32(code);
          parse_init_expr(code, ds.offset, types::i32);
          auto len =  parse_varuint32(code);
+         EOS_VM_ASSERT(static_cast<uint64_t>(static_cast<uint32_t>(ds.offset.value.i32)) + len <= detail::get_max_linear_memory_init(_options),
+                       wasm_parse_exception, "out-of-bounds data section");
          auto guard = code.scoped_shrink_bounds(len);
          ds.data = decltype(ds.data){ _allocator, len};
          ds.data.copy(code.raw(), len);
@@ -974,7 +989,7 @@ namespace eosio { namespace vm {
       template <typename Elem, typename ParseFunc>
       inline void parse_section_impl(wasm_code_ptr& code, vec<Elem>& elems, ParseFunc&& elem_parse) {
          auto count = parse_varuint32(code);
-         EOS_VM_ASSERT(count <= vm::get_max_section_elements(_options), wasm_parse_exception, "number of section elements exceeded limit");
+         EOS_VM_ASSERT(count <= detail::get_max_section_elements(_options), wasm_parse_exception, "number of section elements exceeded limit");
          elems      = vec<Elem>{ _allocator, count };
          for (size_t i = 0; i < count; i++) { elem_parse(code, elems.at(i), i); }
       }
@@ -1078,6 +1093,6 @@ namespace eosio { namespace vm {
       int64_t             _current_function_index = -1;
       uint64_t            _maximum_function_stack_usage = 0; // non-parameter locals + stack
       std::vector<wasm_code_ptr>  _function_bodies;
-      max_mutable_globals_checker<Options> _globals_checker;
+      detail::max_mutable_globals_checker<Options> _globals_checker;
    };
 }} // namespace eosio::vm

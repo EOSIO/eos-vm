@@ -8,6 +8,7 @@ struct options {
    std::uint32_t max_mutable_global_bytes;
    std::uint32_t max_table_elements;
    std::uint32_t max_section_elements;
+   std::uint32_t max_linear_memory_init;
 };
 
 struct default_options {
