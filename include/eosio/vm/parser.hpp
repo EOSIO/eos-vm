@@ -4,6 +4,7 @@
 #include <eosio/vm/constants.hpp>
 #include <eosio/vm/exceptions.hpp>
 #include <eosio/vm/leb128.hpp>
+#include <eosio/vm/options.hpp>
 #include <eosio/vm/sections.hpp>
 #include <eosio/vm/types.hpp>
 #include <eosio/vm/utils.hpp>
@@ -18,10 +19,49 @@
 
 namespace eosio { namespace vm {
 
-   template <typename Writer>
+   template<typename Options, typename Enable = void>
+   struct max_mutable_globals_checker {
+      constexpr void on_mutable_global(const Options&, uint8_t) {}
+   };
+
+   template<typename Options>
+   using max_mutable_globals_t = decltype(std::declval<Options>().max_mutable_global_bytes);
+
+   template<typename Options>
+   struct max_mutable_globals_checker<Options, std::void_t<max_mutable_globals_t<Options>>> {
+      static_assert(std::is_unsigned_v<std::decay_t<max_mutable_globals_t<Options>>>, "max_mutable_globals must be an unsigned integer type");
+      void on_mutable_global(const Options& options, uint8_t type) {
+         unsigned size = get_size(type);
+         _counter += size;
+         EOS_VM_ASSERT(_counter <= options.max_mutable_global_bytes && _counter >= size, wasm_parse_exception, "mutable globals exceeded limit");
+      }
+      static constexpr unsigned get_size(uint8_t type) {
+         switch(type) {
+          case types::i32:
+          case types::f32:
+            return 4;
+          case types::i64:
+          case types::f64:
+            return 8;
+          default: return 0;
+         }
+      }
+      std::decay_t<max_mutable_globals_t<Options>> _counter = 0;
+   };
+
+   template<typename Options>
+   uint32_t get_max_table_elements(const Options&, long) { return 0xFFFFFFFF; }
+   template<typename Options>
+   auto get_max_table_elements(const Options& options, int) -> decltype(options.max_table_elements) {
+      return options.max_table_elements;
+   }
+   template<typename Options>
+   uint32_t get_max_table_elements(const Options& options) { return vm::get_max_table_elements(options, 0); }
+
+   template <typename Writer, typename Options = default_options>
    class binary_parser {
     public:
-      binary_parser(growable_allocator& alloc) : _allocator(alloc) {}
+      explicit binary_parser(growable_allocator& alloc, const Options& options = Options{}) : _allocator(alloc), _options(options) {}
 
       template <typename T>
       using vec = guarded_vector<T>;
@@ -202,6 +242,7 @@ namespace eosio { namespace vm {
             tt.limits.maximum = parse_varuint32(code);
             EOS_VM_ASSERT(tt.limits.initial <= tt.limits.maximum, wasm_parse_exception, "table max size less than min size");
          }
+         EOS_VM_ASSERT(tt.limits.initial <= get_max_table_elements(_options), wasm_parse_exception, "table size exceeds limit");
          tt.table = decltype(tt.table){ _allocator, tt.limits.initial };
          for (uint32_t i = 0; i < tt.limits.initial; i++) tt.table[i] = std::numeric_limits<uint32_t>::max();
       }
@@ -213,6 +254,8 @@ namespace eosio { namespace vm {
                        wasm_parse_exception, "invalid global content type");
 
          gv.type.mutability = parse_varuint1(code);
+         if(gv.type.mutability)
+            on_mutable_global(ct);
          parse_init_expr(code, gv.init, ct);
          gv.current = gv.init;
       }
@@ -1014,11 +1057,17 @@ namespace eosio { namespace vm {
          return result;
       }
 
+      void on_mutable_global(uint8_t type) {
+         _globals_checker.on_mutable_global(_options, type);
+      }
+
     private:
       growable_allocator& _allocator;
+      Options             _options;
       module*             _mod; // non-owning weak pointer
       int64_t             _current_function_index = -1;
       uint64_t            _maximum_function_stack_usage = 0; // non-parameter locals + stack
       std::vector<wasm_code_ptr>  _function_bodies;
+      max_mutable_globals_checker<Options> _globals_checker;
    };
 }} // namespace eosio::vm
