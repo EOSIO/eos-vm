@@ -85,6 +85,7 @@ add_executable(unit_tests main.cpp
                           variant_tests.cpp
                           host_functions_tests.cpp
                           max_mutable_globals_tests.cpp
+                          max_section_elements_tests.cpp
                           max_table_elements_tests.cpp
                           reentry_tests.cpp
                           signals_tests.cpp

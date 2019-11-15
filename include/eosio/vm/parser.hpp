@@ -58,6 +58,15 @@ namespace eosio { namespace vm {
    template<typename Options>
    uint32_t get_max_table_elements(const Options& options) { return vm::get_max_table_elements(options, 0); }
 
+   template<typename Options>
+   uint32_t get_max_section_elements(const Options&, long) { return 0xFFFFFFFF; }
+   template<typename Options>
+   auto get_max_section_elements(const Options& options, int) -> decltype(options.max_section_elements) {
+      return options.max_section_elements;
+   }
+   template<typename Options>
+   uint32_t get_max_section_elements(const Options& options) { return vm::get_max_section_elements(options, 0); }
+
    template <typename Writer, typename Options = default_options>
    class binary_parser {
     public:
@@ -965,6 +974,7 @@ namespace eosio { namespace vm {
       template <typename Elem, typename ParseFunc>
       inline void parse_section_impl(wasm_code_ptr& code, vec<Elem>& elems, ParseFunc&& elem_parse) {
          auto count = parse_varuint32(code);
+         EOS_VM_ASSERT(count <= vm::get_max_section_elements(_options), wasm_parse_exception, "number of section elements exceeded limit");
          elems      = vec<Elem>{ _allocator, count };
          for (size_t i = 0; i < count; i++) { elem_parse(code, elems.at(i), i); }
       }
