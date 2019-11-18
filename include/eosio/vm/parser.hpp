@@ -123,6 +123,15 @@ namespace eosio { namespace vm {
    }
    template<typename Options>
    uint32_t get_max_nested_structures(const Options& options) { return detail::get_max_nested_structures(options, 0); }
+
+   template<typename Options>
+   uint32_t get_max_br_table_elements(const Options&, long) { return 0xFFFFFFFFu; }
+   template<typename Options>
+   auto get_max_br_table_elements(const Options& options, int) -> decltype(options.max_br_table_elements) {
+      return options.max_br_table_elements;
+   }
+   template<typename Options>
+   uint32_t get_max_br_table_elements(const Options& options) { return detail::get_max_br_table_elements(options, 0); }
    }
 
    template <typename Writer, typename Options = default_options>
@@ -703,6 +712,7 @@ namespace eosio { namespace vm {
                } break;
                case opcodes::br_table: {
                   size_t table_size = parse_varuint32(code);
+                  EOS_VM_ASSERT(table_size <= detail::get_max_br_table_elements(_options), wasm_parse_exception, "Too many labels in br_table");
                   uint8_t result_type;
                   op_stack.pop(types::i32);
                   auto handler = code_writer.emit_br_table(table_size);
