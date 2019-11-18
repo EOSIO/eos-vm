@@ -105,6 +105,15 @@ namespace eosio { namespace vm {
       }
       std::decay_t<decltype(std::declval<Options>().max_func_local_bytes)> _count = 0;
    };
+
+   template<typename Options>
+   uint32_t get_max_local_sets(const Options&, long) { return 0xFFFFFFFFu; }
+   template<typename Options>
+   auto get_max_local_sets(const Options& options, int) -> decltype(options.max_local_sets) {
+      return options.max_local_sets;
+   }
+   template<typename Options>
+   uint32_t get_max_local_sets(const Options& options) { return detail::get_max_local_sets(options, 0); }
    }
 
    template <typename Writer, typename Options = default_options>
@@ -408,6 +417,7 @@ namespace eosio { namespace vm {
          const auto&         before    = code.offset();
          const auto&         local_cnt = parse_varuint32(code);
          _current_function_index++;
+         EOS_VM_ASSERT(local_cnt <= detail::get_max_local_sets(_options), wasm_parse_exception, "Number of local sets exceeds limit");
          decltype(fb.locals) locals    = { _allocator, local_cnt };
          func_type& ft = _mod->types.at(_mod->functions.at(idx));
          detail::max_func_local_bytes_checker<Options> local_checker(_options, ft);

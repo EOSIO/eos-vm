@@ -10,6 +10,7 @@ struct options {
    std::uint32_t max_section_elements;
    std::uint32_t max_linear_memory_init;
    std::uint32_t max_func_local_bytes;
+   std::uint32_t max_local_sets;
 };
 
 struct default_options {
