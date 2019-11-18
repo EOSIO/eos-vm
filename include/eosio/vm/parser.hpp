@@ -132,6 +132,25 @@ namespace eosio { namespace vm {
    }
    template<typename Options>
    uint32_t get_max_br_table_elements(const Options& options) { return detail::get_max_br_table_elements(options, 0); }
+
+   // Matches the behavior of eosio::chain::wasm_validations::nested_validator
+   template<typename Options, typename Enable = void>
+   struct eosio_max_nested_structures_checker {
+      void on_control(const Options&) {}
+      void on_end(const Options&) {}
+   };
+   template<typename Options>
+   struct eosio_max_nested_structures_checker<Options, std::void_t<decltype(std::declval<Options>().eosio_max_nested_structures)>> {
+      void on_control(const Options& options) {
+         ++_count;
+         EOS_VM_ASSERT(_count <= options.eosio_max_nested_structures, wasm_parse_exception, "Nested depth exceeded");
+      }
+      void on_end(const Options& options) {
+         if(_count == 0) ++_count;
+         else --_count;
+      }
+      std::decay_t<decltype(std::declval<Options>().eosio_max_nested_structures)> _count = 0;
+   };
    }
 
    template <typename Writer, typename Options = default_options>
@@ -644,6 +663,7 @@ namespace eosio { namespace vm {
                case opcodes::end: {
                   exit_scope();
                   EOS_VM_ASSERT(!pc_stack.empty() || code.offset() == bounds, wasm_parse_exception, "function too short");
+                  _nested_checker.on_end(_options);
                   break;
                }
                case opcodes::return_: {
@@ -661,6 +681,7 @@ namespace eosio { namespace vm {
                   pc_stack.push_back({op_stack.depth(), expected_result, expected_result, false, std::vector<branch_t>{}});
                   code_writer.emit_block();
                   op_stack.push_scope();
+                  _nested_checker.on_control(_options);
                } break;
                case opcodes::loop: {
                   uint32_t expected_result = *code++;
@@ -671,6 +692,7 @@ namespace eosio { namespace vm {
                   auto pos = code_writer.emit_loop();
                   pc_stack.push_back({op_stack.depth(), expected_result, types::pseudo, false, pos});
                   op_stack.push_scope();
+                  _nested_checker.on_control(_options);
                } break;
                case opcodes::if_: {
                   uint32_t expected_result = *code++;
@@ -682,6 +704,7 @@ namespace eosio { namespace vm {
                   op_stack.pop(types::i32);
                   pc_stack.push_back({op_stack.depth(), expected_result, expected_result, true, std::vector{branch}});
                   op_stack.push_scope();
+                  _nested_checker.on_control(_options);
                } break;
                case opcodes::else_: {
                   auto& old_index = pc_stack.back();
@@ -696,6 +719,7 @@ namespace eosio { namespace vm {
                   // branches to the corresponding `end`
                   relocations[0] = code_writer.emit_else(relocations[0]);
                   old_index.is_if = false;
+                  _nested_checker.on_control(_options);
                   break;
                }
                case opcodes::br: {
@@ -1154,5 +1178,6 @@ namespace eosio { namespace vm {
       uint64_t            _maximum_function_stack_usage = 0; // non-parameter locals + stack
       std::vector<wasm_code_ptr>  _function_bodies;
       detail::max_mutable_globals_checker<Options> _globals_checker;
+      detail::eosio_max_nested_structures_checker<Options> _nested_checker;
    };
 }} // namespace eosio::vm
