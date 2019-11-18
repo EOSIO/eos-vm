@@ -21,6 +21,18 @@ namespace eosio { namespace vm {
 
    namespace detail {
 
+   static constexpr unsigned get_size_for_type(uint8_t type) {
+      switch(type) {
+       case types::i32:
+       case types::f32:
+          return 4;
+       case types::i64:
+       case types::f64:
+          return 8;
+       default: return 0;
+      }
+   }
+
    template<typename Options, typename Enable = void>
    struct max_mutable_globals_checker {
       constexpr void on_mutable_global(const Options&, uint8_t) {}
@@ -33,20 +45,9 @@ namespace eosio { namespace vm {
    struct max_mutable_globals_checker<Options, std::void_t<max_mutable_globals_t<Options>>> {
       static_assert(std::is_unsigned_v<std::decay_t<max_mutable_globals_t<Options>>>, "max_mutable_globals must be an unsigned integer type");
       void on_mutable_global(const Options& options, uint8_t type) {
-         unsigned size = get_size(type);
+         unsigned size = get_size_for_type(type);
          _counter += size;
          EOS_VM_ASSERT(_counter <= options.max_mutable_global_bytes && _counter >= size, wasm_parse_exception, "mutable globals exceeded limit");
-      }
-      static constexpr unsigned get_size(uint8_t type) {
-         switch(type) {
-          case types::i32:
-          case types::f32:
-            return 4;
-          case types::i64:
-          case types::f64:
-            return 8;
-          default: return 0;
-         }
       }
       std::decay_t<max_mutable_globals_t<Options>> _counter = 0;
    };
@@ -78,6 +79,32 @@ namespace eosio { namespace vm {
    template<typename Options>
    uint64_t get_max_linear_memory_init(const Options& options) { return detail::get_max_linear_memory_init(options, 0); }
 
+
+   template<typename Options, typename Enable = void>
+   struct max_func_local_bytes_checker {
+      explicit max_func_local_bytes_checker(const Options&, const func_type& ft) {}
+      void on_local(const Options&, std::uint8_t, const std::uint32_t) {}
+   };
+   template<typename Options>
+   struct max_func_local_bytes_checker<Options, std::void_t<decltype(std::declval<Options>().max_func_local_bytes)>> {
+      explicit max_func_local_bytes_checker(const Options& options, const func_type& ft) {
+         for(std::uint32_t i = 0; i < ft.param_types.size(); ++i) {
+            on_param(options, ft.param_types.at(i));
+         }
+      }
+      void on_param(const Options& options, std::uint8_t type) {
+         unsigned size = get_size_for_type(type);
+         _count += size;
+         EOS_VM_ASSERT(_count <= options.max_func_local_bytes && _count >= size, wasm_parse_exception, "local variable limit exceeded");
+      }
+      void on_local(const Options& options, std::uint8_t type, std::uint32_t count) {
+         uint64_t size = get_size_for_type(type);
+         size *= count;
+         _count += size;
+         EOS_VM_ASSERT(_count <= options.max_func_local_bytes && _count >= size, wasm_parse_exception, "local variable limit exceeded");
+      }
+      std::decay_t<decltype(std::declval<Options>().max_func_local_bytes)> _count = 0;
+   };
    }
 
    template <typename Writer, typename Options = default_options>
@@ -382,11 +409,15 @@ namespace eosio { namespace vm {
          const auto&         local_cnt = parse_varuint32(code);
          _current_function_index++;
          decltype(fb.locals) locals    = { _allocator, local_cnt };
+         func_type& ft = _mod->types.at(_mod->functions.at(idx));
+         detail::max_func_local_bytes_checker<Options> local_checker(_options, ft);
          // parse the local entries
          for (size_t i = 0; i < local_cnt; i++) {
-            locals.at(i).count = parse_varuint32(code);
+            auto count = parse_varuint32(code);
+            locals.at(i).count = count;
             EOS_VM_ASSERT(*code == types::i32 || *code == types::i64 || *code == types::f32 || *code == types::f64,
                           wasm_parse_exception, "invalid local type");
+            local_checker.on_local(_options, *code, count);
             locals.at(i).type  = *code++;
          }
          fb.locals = std::move(locals);
