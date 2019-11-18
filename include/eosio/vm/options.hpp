@@ -11,6 +11,7 @@ struct options {
    std::uint32_t max_linear_memory_init;
    std::uint32_t max_func_local_bytes;
    std::uint32_t max_local_sets;
+   std::uint32_t max_nested_structures;
 };
 
 struct default_options {

@@ -88,6 +88,7 @@ add_executable(unit_tests main.cpp
                           max_linear_memory_init_tests.cpp
                           max_local_sets_tests.cpp
                           max_mutable_globals_tests.cpp
+                          max_nested_structures_tests.cpp
                           max_section_elements_tests.cpp
                           max_table_elements_tests.cpp
                           reentry_tests.cpp

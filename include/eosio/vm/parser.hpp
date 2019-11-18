@@ -114,6 +114,15 @@ namespace eosio { namespace vm {
    }
    template<typename Options>
    uint32_t get_max_local_sets(const Options& options) { return detail::get_max_local_sets(options, 0); }
+
+   template<typename Options>
+   uint32_t get_max_nested_structures(const Options&, long) { return 0xFFFFFFFFu; }
+   template<typename Options>
+   auto get_max_nested_structures(const Options& options, int) -> decltype(options.max_nested_structures) {
+      return options.max_nested_structures;
+   }
+   template<typename Options>
+   uint32_t get_max_nested_structures(const Options& options) { return detail::get_max_nested_structures(options, 0); }
    }
 
    template <typename Writer, typename Options = default_options>
@@ -617,7 +626,7 @@ namespace eosio { namespace vm {
          };
 
          while (code.offset() < bounds) {
-            EOS_VM_ASSERT(pc_stack.size() <= constants::max_nested_structures, wasm_parse_exception,
+            EOS_VM_ASSERT(pc_stack.size() <= detail::get_max_nested_structures(_options), wasm_parse_exception,
                           "nested structures validation failure");
 
             switch (*code++) {
