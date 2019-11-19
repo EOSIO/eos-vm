@@ -34,11 +34,20 @@ struct empty_options {};
 struct dynamic_options {
    std::uint32_t max_table_elements;
 };
+struct static_options {
+   static const std::uint32_t max_table_elements = 1024;
+};
 
 }
 
 BACKEND_TEST_CASE("Test max_table_elements default", "[max_table_elements_test]") {
    using backend_t = backend<std::nullptr_t, TestType>;
+   backend_t backend1024(_1024_elements_wasm);
+   backend_t backend1025(_1025_elements_wasm);
+}
+
+BACKEND_TEST_CASE("Test max_table_elements static", "[max_table_elements_test]") {
+   using backend_t = backend<std::nullptr_t, TestType, static_options>;
    backend_t backend(_1024_elements_wasm);
    CHECK_THROWS_AS(backend_t(_1025_elements_wasm), wasm_parse_exception);
 }

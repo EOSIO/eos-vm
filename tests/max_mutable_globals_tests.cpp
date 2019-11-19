@@ -578,14 +578,23 @@ struct empty_options {};
 struct dynamic_options {
    std::uint32_t max_mutable_global_bytes;
 };
+struct static_options {
+   static constexpr std::uint32_t max_mutable_global_bytes = 1024;
+};
 struct small_options {
    static constexpr std::uint8_t max_mutable_global_bytes = 255;
 };
 
 }
 
-BACKEND_TEST_CASE("Test max_mutable_global_bytes default max", "[max_mutable_global_bytes_test]") {
+BACKEND_TEST_CASE("Test max_mutable_global_bytes default", "[max_mutable_global_bytes_test]") {
    using backend_t = backend<std::nullptr_t, TestType>;
+   backend_t backend1024(_1024_bytes_mixed_wasm);
+   backend_t backend1028(_1028_bytes_mixed_wasm);
+}
+
+BACKEND_TEST_CASE("Test max_mutable_global_bytes static", "[max_mutable_global_bytes_test]") {
+   using backend_t = backend<std::nullptr_t, TestType, static_options>;
    backend_t backend(_1024_bytes_mixed_wasm);
    CHECK_THROWS_AS(backend_t(_1028_bytes_mixed_wasm), wasm_parse_exception);
 }

@@ -29,8 +29,6 @@ struct options {
 };
 
 struct default_options {
-   static constexpr std::uint32_t max_mutable_global_bytes = 1024;
-   static constexpr std::uint32_t max_table_elements = 1024;
 };
 
 struct eosio_options {
