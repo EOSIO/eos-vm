@@ -137,6 +137,7 @@ namespace eosio { namespace vm {
    };
 
    MAX_ELEMENTS(max_symbol_bytes, 0xFFFFFFFFu)
+   MAX_ELEMENTS(max_memory_offset, 0xFFFFFFFFu)
 
 #undef MAX_ELEMENTS
    }
@@ -814,6 +815,7 @@ namespace eosio { namespace vm {
                   uint32_t alignment = parse_varuint32(code);        \
                   uint32_t offset = parse_varuint32(code);           \
                   EOS_VM_ASSERT(alignment <= uint32_t(max_align), wasm_parse_exception, "alignment cannot be greater than size."); \
+                  EOS_VM_ASSERT(offset <= detail::get_max_memory_offset(_options), wasm_parse_exception, "load offset too large."); \
                   op_stack.pop(types::i32);                          \
                   op_stack.push(types::type);                        \
                   code_writer.emit_ ## op_name( alignment, offset ); \
@@ -842,6 +844,7 @@ namespace eosio { namespace vm {
                   uint32_t alignment = parse_varuint32(code);        \
                   uint32_t offset = parse_varuint32(code);           \
                   EOS_VM_ASSERT(alignment <= uint32_t(max_align), wasm_parse_exception, "alignment cannot be greater than size."); \
+                  EOS_VM_ASSERT(offset <= detail::get_max_memory_offset(_options), wasm_parse_exception, "store offset too large."); \
                   op_stack.pop(types::type);                         \
                   op_stack.pop(types::i32);                          \
                   code_writer.emit_ ## op_name( alignment, offset ); \
