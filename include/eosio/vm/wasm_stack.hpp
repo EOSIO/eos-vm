@@ -62,7 +62,7 @@ namespace eosio { namespace vm {
       size_t            _index = 0;
    };
 
-   using operand_stack = stack<operand_stack_elem, constants::max_stack_size>;
+   using operand_stack = stack<operand_stack_elem, constants::initial_stack_size>;
    using call_stack    = stack<activation_frame,   constants::max_call_depth + 1, bounded_allocator>;
 
 }} // namespace eosio::vm

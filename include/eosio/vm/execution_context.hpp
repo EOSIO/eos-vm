@@ -300,9 +300,6 @@ namespace eosio { namespace vm {
       Host * _host = nullptr;
 
       // This is only needed because the host function api uses operand stack
-      bounded_allocator _base_allocator = {
-         constants::max_stack_size * sizeof(operand_stack_elem)
-      };
       operand_stack _os;
    };
 
@@ -639,7 +636,7 @@ namespace eosio { namespace vm {
       };
 
       bounded_allocator _base_allocator = {
-         (constants::max_stack_size + constants::max_call_depth + 1) * (std::max(sizeof(operand_stack_elem), sizeof(activation_frame)))
+         (constants::max_call_depth + 1) * sizeof(activation_frame)
       };
       execution_state _state;
       uint16_t                        _last_op_index    = 0;

@@ -9,9 +9,8 @@ namespace eosio { namespace vm {
       version_size = sizeof(uint32_t),
       id_size      = sizeof(uint8_t),
       varuint32_size = 5,
-      max_nested_structures = 1024,
       max_call_depth        = 250,
-      max_stack_size        = 8*1024,
+      initial_stack_size    = 8*1024,
       initial_module_size   = 1 * 1024 * 1024,
       max_memory            = 4ull << 31,
       max_useable_memory    = (33 * 1024 * 1024), //33mb
