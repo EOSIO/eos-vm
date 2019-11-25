@@ -24,32 +24,34 @@ namespace eosio { namespace vm {
    struct jit {
       template<typename Host>
       using context = jit_execution_context<Host>;
-      template<typename Host>
-      using parser = binary_parser<machine_code_writer<jit_execution_context<Host>>>;
+      template<typename Host, typename Options>
+      using parser = binary_parser<machine_code_writer<jit_execution_context<Host>>, Options>;
       static constexpr bool is_jit = true;
    };
 
    struct interpreter {
       template<typename Host>
       using context = execution_context<Host>;
-      template<typename Host>
-      using parser = binary_parser<bitcode_writer>;
+      template<typename Host, typename Options>
+      using parser = binary_parser<bitcode_writer, Options>;
       static constexpr bool is_jit = false;
    };
 
-   template <typename Host, typename Impl = interpreter>
+   template <typename Host, typename Impl = interpreter, typename Options = default_options>
    class backend {
     public:
       using host_t = Host;
 
       template <typename HostFunctions = nullptr_t>
-      backend(wasm_code& code, HostFunctions = nullptr) : _ctx(typename Impl::template parser<Host>{ _mod.allocator }.parse_module(code, _mod)) {
+      backend(wasm_code& code, HostFunctions = nullptr, const Options& options = Options{})
+        : _ctx(typename Impl::template parser<Host, Options>{ _mod.allocator, options }.parse_module(code, _mod)) {
 	 _mod.finalize();
 	 if constexpr (!std::is_same_v<HostFunctions, nullptr_t>)
             HostFunctions::resolve(_mod);
       }
       template <typename HostFunctions = nullptr_t>
-      backend(wasm_code_ptr& ptr, size_t sz, HostFunctions = nullptr) : _ctx(typename Impl::template parser<Host>{ _mod.allocator }.parse_module2(ptr, sz, _mod)) {
+      backend(wasm_code_ptr& ptr, size_t sz, HostFunctions = nullptr, const Options& options = Options{})
+        : _ctx(typename Impl::template parser<Host, Options>{ _mod.allocator, options }.parse_module2(ptr, sz, _mod)) {
 	 _mod.finalize();
 	 if constexpr (!std::is_same_v<HostFunctions, nullptr_t>)
             HostFunctions::resolve(_mod);

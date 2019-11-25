@@ -80,10 +80,20 @@ target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_BINARY_DIR}
 
 add_executable(unit_tests main.cpp
                           allocator_tests.cpp
+                          eosio_max_nested_structures_tests.cpp
                           guarded_ptr_tests.cpp
                           varint_tests.cpp
                           variant_tests.cpp
                           host_functions_tests.cpp
+                          max_br_table_elements_tests.cpp
+                          max_func_local_bytes_tests.cpp
+                          max_linear_memory_init_tests.cpp
+                          max_local_sets_tests.cpp
+                          max_memory_offset_tests.cpp
+                          max_mutable_globals_tests.cpp
+                          max_nested_structures_tests.cpp
+                          max_section_elements_tests.cpp
+                          max_table_elements_tests.cpp
                           reentry_tests.cpp
                           signals_tests.cpp
                           stack_restriction_tests.cpp
