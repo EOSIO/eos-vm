@@ -27,6 +27,7 @@ struct options {
    // import and export
    std::uint32_t max_symbol_bytes;
    std::uint32_t max_memory_offset;
+   bool allow_zero_blocktype = false;
 };
 
 struct default_options {
@@ -48,6 +49,7 @@ struct eosio_options {
    static constexpr std::uint32_t max_br_table_elements = 8191;
    static constexpr std::uint32_t max_symbol_bytes = 8191;
    static constexpr std::uint32_t max_memory_offset = (33*1024*1024 - 1);
+   static constexpr bool allow_zero_blocktype = true;
 };
 
 }}

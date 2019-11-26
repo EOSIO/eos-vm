@@ -133,6 +133,8 @@ namespace eosio { namespace vm {
    MAX_ELEMENTS(max_symbol_bytes, 0xFFFFFFFFu)
    MAX_ELEMENTS(max_memory_offset, 0xFFFFFFFFu)
 
+   PARSER_OPTION(allow_zero_blocktype, false, bool)
+
 #undef MAX_ELEMENTS
 #undef PARSER_OPTION
 
@@ -661,6 +663,8 @@ namespace eosio { namespace vm {
                } break;
                case opcodes::block: {
                   uint32_t expected_result = *code++;
+                  if(detail::get_allow_zero_blocktype(_options) && expected_result == 0)
+                     expected_result = types::pseudo;
                   EOS_VM_ASSERT(expected_result == types::i32 || expected_result == types::i64 ||
                                 expected_result == types::f32 || expected_result == types::f64 ||
                                 expected_result == types::pseudo, wasm_parse_exception,
@@ -672,6 +676,8 @@ namespace eosio { namespace vm {
                } break;
                case opcodes::loop: {
                   uint32_t expected_result = *code++;
+                  if(detail::get_allow_zero_blocktype(_options) && expected_result == 0)
+                     expected_result = types::pseudo;
                   EOS_VM_ASSERT(expected_result == types::i32 || expected_result == types::i64 ||
                                 expected_result == types::f32 || expected_result == types::f64 ||
                                 expected_result == types::pseudo, wasm_parse_exception,
@@ -683,6 +689,8 @@ namespace eosio { namespace vm {
                } break;
                case opcodes::if_: {
                   uint32_t expected_result = *code++;
+                  if(detail::get_allow_zero_blocktype(_options) && expected_result == 0)
+                     expected_result = types::pseudo;
                   EOS_VM_ASSERT(expected_result == types::i32 || expected_result == types::i64 ||
                                 expected_result == types::f32 || expected_result == types::f64 ||
                                 expected_result == types::pseudo, wasm_parse_exception,
