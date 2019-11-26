@@ -52,15 +52,18 @@ namespace eosio { namespace vm {
       std::decay_t<max_mutable_globals_t<Options>> _counter = 0;
    };
 
-#define MAX_ELEMENTS(name, default_)                                          \
+#define PARSER_OPTION(name, default_, type)                                   \
    template<typename Options>                                                 \
-   uint32_t get_ ## name(const Options& options, long) { (void)options; return default_; } \
+   type get_ ## name(const Options& options, long) { (void)options; return default_; } \
    template<typename Options>                                                 \
    auto get_ ## name(const Options& options, int) -> decltype(options.name) { \
      return options.name;                                                     \
    }                                                                          \
    template<typename Options>                                                 \
-   uint32_t get_ ## name(const Options& options) { return detail::get_ ## name(options, 0); }
+   type get_ ## name(const Options& options) { return detail::get_ ## name(options, 0); }
+
+#define MAX_ELEMENTS(name, default_)\
+   PARSER_OPTION(name, default_, std::uint32_t)
 
    MAX_ELEMENTS(max_table_elements, 0xFFFFFFFFu)
    MAX_ELEMENTS(max_section_elements, 0xFFFFFFFFu)
@@ -76,16 +79,7 @@ namespace eosio { namespace vm {
    MAX_ELEMENTS(max_element_segment_elements, 0xFFFFFFFFu)
    MAX_ELEMENTS(max_data_segment_bytes, 0xFFFFFFFFu)
 
-   // max_linear_memory_init
-   template<typename Options>
-   uint64_t get_max_linear_memory_init(const Options&, long) { return 0xFFFFFFFFFFFFFFFFu; }
-   template<typename Options>
-   auto get_max_linear_memory_init(const Options& options, int) -> decltype(options.max_linear_memory_init) {
-      return options.max_linear_memory_init;
-   }
-   template<typename Options>
-   uint64_t get_max_linear_memory_init(const Options& options) { return detail::get_max_linear_memory_init(options, 0); }
-
+   PARSER_OPTION(max_linear_memory_init, 0xFFFFFFFFFFFFFFFFu, std::uint64_t)
 
    template<typename Options, typename Enable = void>
    struct max_func_local_bytes_checker {
@@ -140,6 +134,8 @@ namespace eosio { namespace vm {
    MAX_ELEMENTS(max_memory_offset, 0xFFFFFFFFu)
 
 #undef MAX_ELEMENTS
+#undef PARSER_OPTION
+
    }
 
    template <typename Writer, typename Options = default_options>
