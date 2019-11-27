@@ -391,6 +391,7 @@ namespace eosio { namespace vm {
 
       void parse_func_type(wasm_code_ptr& code, func_type& ft) {
          ft.form                              = *code++;
+         EOS_VM_ASSERT(ft.form == 0x60, wasm_parse_exception, "invalid function type");
          decltype(ft.param_types) param_types = { _allocator, parse_varuint32(code) };
          for (size_t i = 0; i < param_types.size(); i++) {
             uint8_t pt        = *code++;
