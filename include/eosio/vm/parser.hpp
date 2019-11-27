@@ -136,7 +136,7 @@ namespace eosio { namespace vm {
    PARSER_OPTION(forbid_export_mutable_globals, false, bool);
    PARSER_OPTION(allow_code_after_function_end, false, bool);
    PARSER_OPTION(allow_u32_limits_flags, false, bool);
-   PARSER_OPTION(skip_typecheck_empty_local_set, false, bool);
+   PARSER_OPTION(allow_invalid_empty_local_set, false, bool);
 
 #undef MAX_ELEMENTS
 #undef PARSER_OPTION
@@ -469,7 +469,7 @@ namespace eosio { namespace vm {
          for (size_t i = 0; i < local_cnt; i++) {
             auto count = parse_varuint32(code);
             auto type = *code++;
-            if (count == 0) type = types::i32;
+            if (detail::get_allow_invalid_empty_local_set(_options) && count == 0) type = types::i32;
             EOS_VM_ASSERT(type == types::i32 || type == types::i64 || type == types::f32 || type == types::f64,
                           wasm_parse_exception, "invalid local type");
             local_checker.on_local(_options, *code, count);
