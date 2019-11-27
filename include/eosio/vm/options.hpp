@@ -24,9 +24,18 @@ struct options {
    std::uint32_t max_local_sets;
    std::uint32_t max_nested_structures;
    std::uint32_t max_br_table_elements;
-   // import and export
+   // The maximum length of symbols used for import and export
    std::uint32_t max_symbol_bytes;
    std::uint32_t max_memory_offset;
+   // Can mutable globals be exported
+   bool forbid_export_mutable_globals = false;
+   // Very strange non-conforming behavior
+   bool allow_code_after_function_end = false;
+   // Whether limits types such as for tables and memory are restricted to a
+   // single byte 0|1 (matching the spec) or can be a 32-bit value.
+   bool allow_u32_limits_flags = false;
+   // Determines whether an local set of size 0 with an invalid type should be accepted.
+   bool skip_typecheck_empty_local_set = false;
 };
 
 struct default_options {
@@ -48,6 +57,11 @@ struct eosio_options {
    static constexpr std::uint32_t max_br_table_elements = 8191;
    static constexpr std::uint32_t max_symbol_bytes = 8191;
    static constexpr std::uint32_t max_memory_offset = (33*1024*1024 - 1);
+
+   static constexpr bool forbid_export_mutable_globals = true;
+   static constexpr bool allow_code_after_function_end = true;
+   static constexpr bool allow_u32_limits_flags = true;
+   static constexpr bool skip_typecheck_empty_local_set = true;
 };
 
 }}
