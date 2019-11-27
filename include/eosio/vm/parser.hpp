@@ -321,10 +321,19 @@ namespace eosio { namespace vm {
          }
       }
 
+      uint8_t parse_flags(wasm_code_ptr& code) {
+         if (detail::get_allow_u32_limits_flags(_options)) {
+            return parse_varuint32(code) & 0x1;
+         } else {
+            EOS_VM_ASSERT(*code == 0x0 || *code == 0x1, wasm_parse_exception, "invalid flags");
+            return *code++;
+         }
+      }
+
       void parse_table_type(wasm_code_ptr& code, table_type& tt) {
          tt.element_type   = *code++;
          EOS_VM_ASSERT(tt.element_type == types::anyfunc, wasm_parse_exception, "table must have type anyfunc");
-         tt.limits.flags   = (parse_varuint32(code) & 0x1);
+         tt.limits.flags   = parse_flags(code);
          tt.limits.initial = parse_varuint32(code);
          if (tt.limits.flags) {
             tt.limits.maximum = parse_varuint32(code);
@@ -349,7 +358,7 @@ namespace eosio { namespace vm {
       }
 
       void parse_memory_type(wasm_code_ptr& code, memory_type& mt) {
-         mt.limits.flags   = (parse_varuint32(code) & 0x1);
+         mt.limits.flags   = parse_flags(code);
          mt.limits.initial = parse_varuint32(code);
          // Implementation limits
          EOS_VM_ASSERT(mt.limits.initial <= max_pages, wasm_parse_exception, "initial memory out of range");
