@@ -277,6 +277,7 @@ namespace eosio { namespace vm {
                case section_id::global_section: parse_section<section_id::global_section>(code_ptr, mod.globals); break;
                case section_id::export_section:
                   parse_section<section_id::export_section>(code_ptr, mod.exports);
+                  validate_exports();
                   break;
                case section_id::start_section: parse_section<section_id::start_section>(code_ptr, mod.start); break;
                case section_id::element_section:
@@ -1210,6 +1211,21 @@ namespace eosio { namespace vm {
 
       void on_mutable_global(uint8_t type) {
          _globals_checker.on_mutable_global(_options, type);
+      }
+
+      void validate_exports() const {
+         std::vector<const guarded_vector<uint8_t>*> export_names;
+         export_names.reserve(_mod->exports.size());
+         for (uint32_t i = 0; i < _mod->exports.size(); ++i) {
+            export_names.push_back(&_mod->exports[i].field_str);
+         }
+         std::sort(export_names.begin(), export_names.end(), [](auto* lhs, auto* rhs) {
+            return std::lexicographical_compare(lhs->raw(), lhs->raw() + lhs->size(), rhs->raw(), rhs->raw() + rhs->size());
+         });
+         auto it = std::adjacent_find(export_names.begin(), export_names.end(), [](auto* lhs, auto* rhs) {
+            return lhs->size() == rhs->size() && std::equal(lhs->raw(), lhs->raw() + lhs->size(), rhs->raw());
+         });
+         EOS_VM_ASSERT(it == export_names.end(), wasm_parse_exception, "duplicate export name");
       }
 
     private:
