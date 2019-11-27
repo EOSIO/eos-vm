@@ -86,6 +86,7 @@ add_executable(unit_tests main.cpp
                           variant_tests.cpp
                           host_functions_tests.cpp
                           allow_code_after_function_end_tests.cpp
+                          forbid_export_mutable_globals_tests.cpp
                           max_br_table_elements_tests.cpp
                           max_func_local_bytes_tests.cpp
                           max_linear_memory_init_tests.cpp
