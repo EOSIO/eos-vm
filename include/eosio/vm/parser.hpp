@@ -473,7 +473,7 @@ namespace eosio { namespace vm {
             if (detail::get_allow_invalid_empty_local_set(_options) && count == 0) type = types::i32;
             EOS_VM_ASSERT(type == types::i32 || type == types::i64 || type == types::f32 || type == types::f64,
                           wasm_parse_exception, "invalid local type");
-            local_checker.on_local(_options, *code, count);
+            local_checker.on_local(_options, type, count);
             locals.at(i).count = count;
             locals.at(i).type  = type;
          }
