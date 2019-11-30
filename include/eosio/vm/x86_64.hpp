@@ -6,6 +6,7 @@
 #include <eosio/vm/softfloat.hpp>
 #include <eosio/vm/types.hpp>
 #include <eosio/vm/utils.hpp>
+#include <eosio/vm/x86_64_encoder.hpp>
 
 #include <cassert>
 #include <cstddef>
@@ -15,8 +16,9 @@
 #include <vector>
 
 
-namespace eosio { namespace vm {
+using namespace eosio::vm::x86_64;
 
+namespace eosio { namespace vm {
 
 
    // Random notes:
@@ -29,6 +31,7 @@ namespace eosio { namespace vm {
    // - The base of memory is stored in rsi
    //
    // - FIXME: Factor the machine instructions into a separate assembler class.
+   // - TODO: look at fix_branch, better way to do resolution
    template<typename Context>
    class machine_code_writer {
     public:
@@ -38,6 +41,7 @@ namespace eosio { namespace vm {
          _code_start = _mod.allocator.alloc<unsigned char>(code_size);
          _code_end = _code_start + code_size;
          code = _code_start;
+         _encoder(code);
 
          // always emit these functions
          fpe_handler = emit_error_handler(&on_fp_error);
@@ -72,24 +76,13 @@ namespace eosio { namespace vm {
             for(uint32_t i = 0; i < _mod.tables[0].table.size(); ++i) {
                uint32_t fn_idx = _mod.tables[0].table[i];
                if (fn_idx < _mod.fast_functions.size()) {
-                  // cmp _mod.fast_functions[fn_idx], %edx
-                  emit_bytes(0x81, 0xfa);
-                  emit_operand32(_mod.fast_functions[fn_idx]);
-                  // je fn
-                  emit_bytes(0x0f, 0x84);
-                  register_call(emit_branch_target32(), fn_idx);
-                  // jmp ERROR
-                  emit_bytes(0xe9);
-                  fix_branch(emit_branch_target32(), type_error_handler);
+                  _encoder.emit_cmp(reg32(regs::rdx), (uint32_t)_mod.fast_functions[fn_idx]);
+                  register_call(_encoder.emit_je(get_branch_target32()), fn_idx);
+                  fix_branch(_encoder.emit_jmp(get_branch_target32()), type_error_handler);
                } else {
-                  // jmp ERROR
-                  emit_bytes(0xe9);
-                  // default for out-of-range functions
-                  fix_branch(emit_branch_target32(), call_indirect_handler);
-                  // padding
-                  emit_bytes(0xcc, 0xcc, 0xcc, 0xcc);
-                  emit_bytes(0xcc, 0xcc, 0xcc, 0xcc);
-                  emit_bytes(0xcc, 0xcc, 0xcc, 0xcc);
+                  fix_branch(_encoder.emit_jmp(get_branch_target32()), call_indirect_handler);
+                  // emit padding
+                  _encoder.emit((uint32_t)0xcccccccc, 3);
                }
             }
             assert(code == _code_end);
@@ -102,16 +95,16 @@ namespace eosio { namespace vm {
       void emit_prologue(const func_type& /*ft*/, const guarded_vector<local_entry>& locals, uint32_t funcnum) {
          _ft = &_mod.types[_mod.functions[funcnum]];
          // FIXME: This is not a tight upper bound
+         // TODO: clean up a bit for possible shrink-wrapping
          const std::size_t instruction_size_ratio_upper_bound = use_softfloat?49:79;
          std::size_t code_size = max_prologue_size + _mod.code[funcnum].size * instruction_size_ratio_upper_bound + max_epilogue_size;
          _code_start = _mod.allocator.alloc<unsigned char>(code_size);
          _code_end = _code_start + code_size;
          code = _code_start;
          start_function(code, funcnum + _mod.get_imported_functions_size());
-         // pushq RBP
-         emit_bytes(0x55);
-         // movq RSP, RBP
-         emit_bytes(0x48, 0x89, 0xe5);
+         _encoder.set_block_ptr(code);
+         _encoder.emit_push(reg64{regs::rbp});
+         _encoder.emit_mov(reg64{regs::rsp}, reg64{regs::rbp});
          // No more than 2^32-1 locals.  Already validated by the parser.
          uint32_t count = 0;
          for(uint32_t i = 0; i < locals.size(); ++i) {
@@ -120,25 +113,17 @@ namespace eosio { namespace vm {
          }
          _local_count = count;
          if (_local_count > 0) {
-            // xor %rax, %rax
-            emit_bytes(0x48, 0x31, 0xc0);
+            _encoder.emit_xor(reg64{regs::rax}, reg64{regs::rax});
             if (_local_count > 14) { // only use a loop if it would save space
-               // mov $count, %ecx
-               emit_bytes(0xb9);
-               emit_operand32(_local_count);
+               _encoder.emit_mov(reg32{regs::rcx}, (uint32_t)_local_count);
                // loop:
-               void* loop = code;
-               // pushq %rax
-               emit_bytes(0x50);
-               // dec %ecx
-               emit_bytes(0xff, 0xc9);
-               // jnz loop
-               emit_bytes(0x0f, 0x85);
-               fix_branch(emit_branch_target32(), loop);
+               void* loop = _encoder.current_loc();
+               _encoder.emit_push(reg64{regs::rax});
+               _encoder.emit_dec(reg32{regs::rcx});
+               fix_branch(_encoder.emit_jnz(get_branch_target32()), loop);
             } else {
                for (uint32_t i = 0; i < _local_count; ++i) {
-                  // pushq %rax
-                  emit_bytes(0x50);
+                  _encoder.emit_push(reg64{regs::rax});
                }
             }
          }
@@ -146,11 +131,10 @@ namespace eosio { namespace vm {
       }
       void emit_epilogue(const func_type& ft, const guarded_vector<local_entry>& locals, uint32_t /*funcnum*/) {
 #ifndef NDEBUG
-         void * epilogue_start = code;
+         void * epilogue_start = _encoder.current_loc(); //code;
 #endif
          if(ft.return_count != 0) {
-            // pop RAX
-            emit_bytes(0x58);
+            _encoder.emit_pop(reg64{regs::rax});
          }
          if (_local_count & 0xF0000000u) unimplemented();
          emit_multipop(_local_count);
@@ -509,37 +493,37 @@ namespace eosio { namespace vm {
 
       void emit_i32_load8_s(uint32_t /*alignment*/, uint32_t offset) {
          auto icount = variable_size_instr(8, 16);
-         // movsbl (RAX), EAX; 
+         // movsbl (RAX), EAX;
          emit_load_impl(offset, 0x0F, 0xbe, 0x00);
       }
 
       void emit_i32_load16_s(uint32_t /*alignment*/, uint32_t offset) {
          auto icount = variable_size_instr(8, 16);
-         // movswl (RAX), EAX; 
+         // movswl (RAX), EAX;
          emit_load_impl(offset, 0x0F, 0xbf, 0x00);
       }
 
       void emit_i32_load8_u(uint32_t /*alignment*/, uint32_t offset) {
          auto icount = variable_size_instr(8, 16);
-         // movzbl (RAX), EAX; 
+         // movzbl (RAX), EAX;
          emit_load_impl(offset, 0x0f, 0xb6, 0x00);
       }
 
       void emit_i32_load16_u(uint32_t /*alignment*/, uint32_t offset) {
          auto icount = variable_size_instr(8, 16);
-         // movzwl (RAX), EAX; 
+         // movzwl (RAX), EAX;
          emit_load_impl(offset, 0x0f, 0xb7, 0x00);
       }
 
       void emit_i64_load8_s(uint32_t /*alignment*/, uint32_t offset) {
          auto icount = variable_size_instr(9, 17);
-         // movsbq (RAX), RAX; 
+         // movsbq (RAX), RAX;
          emit_load_impl(offset, 0x48, 0x0F, 0xbe, 0x00);
       }
 
       void emit_i64_load16_s(uint32_t /*alignment*/, uint32_t offset) {
          auto icount = variable_size_instr(9, 17);
-         // movswq (RAX), RAX; 
+         // movswq (RAX), RAX;
          emit_load_impl(offset, 0x48, 0x0F, 0xbf, 0x00);
       }
 
@@ -551,13 +535,13 @@ namespace eosio { namespace vm {
 
       void emit_i64_load8_u(uint32_t /*alignment*/, uint32_t offset) {
          auto icount = variable_size_instr(8, 16);
-         // movzbl (RAX), EAX; 
+         // movzbl (RAX), EAX;
          emit_load_impl(offset, 0x0f, 0xb6, 0x00);
       }
 
       void emit_i64_load16_u(uint32_t /*alignment*/, uint32_t offset) {
          auto icount = variable_size_instr(8, 16);
-         // movzwl (RAX), EAX; 
+         // movzwl (RAX), EAX;
          emit_load_impl(offset, 0x0f, 0xb7, 0x00);
       }
 
@@ -1277,7 +1261,7 @@ namespace eosio { namespace vm {
 
       void emit_f32_abs() {
          auto icount = fixed_size_instr(7);
-         // popq %rax; 
+         // popq %rax;
          emit_bytes(0x58);
          // andl 0x7fffffff, %eax
          emit_bytes(0x25);
@@ -1439,7 +1423,7 @@ namespace eosio { namespace vm {
 
       void emit_f32_copysign() {
          auto icount = fixed_size_instr(16);
-         // popq %rax; 
+         // popq %rax;
          emit_bytes(0x58);
          // andl 0x80000000, %eax
          emit_bytes(0x25);
@@ -1454,12 +1438,12 @@ namespace eosio { namespace vm {
          // pushq %rax
          emit_bytes(0x50);
       }
-      
+
       // --------------- f64 unops ----------------------
 
       void emit_f64_abs() {
          auto icount = fixed_size_instr(15);
-         // popq %rcx; 
+         // popq %rcx;
          emit_bytes(0x59);
          // movabsq $0x7fffffffffffffff, %rax
          emit_bytes(0x48, 0xb8);
@@ -1472,7 +1456,7 @@ namespace eosio { namespace vm {
 
       void emit_f64_neg() {
          auto icount = fixed_size_instr(15);
-         // popq %rcx; 
+         // popq %rcx;
          emit_bytes(0x59);
          // movabsq $0x8000000000000000, %rax
          emit_bytes(0x48, 0xb8);
@@ -1625,7 +1609,7 @@ namespace eosio { namespace vm {
 
       void emit_f64_copysign() {
          auto icount = fixed_size_instr(25);
-         // popq %rcx; 
+         // popq %rcx;
          emit_bytes(0x59);
          // movabsq 0x8000000000000000, %rax
          emit_bytes(0x48, 0xb8);
@@ -1722,7 +1706,7 @@ namespace eosio { namespace vm {
       }
 
       void emit_i64_extend_u_i32() { /* Nothing to do */ }
-      
+
       void emit_i64_trunc_s_f32() {
          auto icount = softfloat_instr(35, 37);
          if constexpr (use_softfloat) {
@@ -1987,7 +1971,7 @@ namespace eosio { namespace vm {
          // movsd %xmm0, (%rsp)
          emit_bytes(0xf2, 0x0f, 0x11, 0x04, 0x24);
       }
-      
+
       void emit_i32_reinterpret_f32() { /* Nothing to do */ }
       void emit_i64_reinterpret_f64() { /* Nothing to do */ }
       void emit_f32_reinterpret_i32() { /* Nothing to do */ }
@@ -2055,6 +2039,8 @@ namespace eosio { namespace vm {
       void* jmp_table;
       uint32_t _local_count;
       uint32_t _table_element_size;
+      encoder _encoder;
+
 
       void emit_byte(uint8_t val) { *code++ = val; }
       void emit_bytes() {}
@@ -2070,11 +2056,16 @@ namespace eosio { namespace vm {
       template<class T>
       void emit_operand_ptr(T* val) { memcpy(code, &val, sizeof(val)); code += sizeof(val); }
 
+      uint32_t get_branch_target32() {
+         return 3735928555u - static_cast<uint32_t>(reinterpret_cast<uintptr_t>(_encoder.current_loc()));
+      }
+      /*
      void* emit_branch_target32() {
         void * result = code;
-        emit_operand32(3735928555u - static_cast<uint32_t>(reinterpret_cast<uintptr_t>(code)));
+        emit_operand32(3735928555u
         return result;
      }
+     */
 
       void emit_check_call_depth() {
          // decl %ebx
@@ -2323,7 +2314,7 @@ namespace eosio { namespace vm {
                emit_bytes(0xf3, 0x0f, 0x10, 0x44, 0x24, 0x08);
                // cmpCCss (%rsp), %xmm0
                emit_bytes(0xf3, 0x0f, 0xc2, 0x04, 0x24, opcode);
-            }               
+            }
             // movd %xmm0, %eax
             emit_bytes(0x66, 0x0f, 0x7e, 0xc0);
             if (!flip_result) {
@@ -2388,7 +2379,7 @@ namespace eosio { namespace vm {
                emit_bytes(0xf2, 0x0f, 0x10, 0x44, 0x24, 0x08);
                // cmpCCsd (%rsp), %xmm0
                emit_bytes(0xf2, 0x0f, 0xc2, 0x04, 0x24, opcode);
-            }               
+            }
             // movd %xmm0, %eax
             emit_bytes(0x66, 0x0f, 0x7e, 0xc0);
             if (!flip_result) {
@@ -2554,5 +2545,5 @@ namespace eosio { namespace vm {
       static void on_type_error() { vm::throw_<wasm_interpreter_exception>( "call_indirect incorrect function type" ); }
       static void on_stack_overflow() { vm::throw_<wasm_interpreter_exception>( "stack overflow" ); }
    };
-   
+
 }}
