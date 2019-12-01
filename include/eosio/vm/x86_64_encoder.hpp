@@ -26,7 +26,8 @@ namespace eosio { namespace vm { namespace x86_64 {
       r12 = 12,
       r13 = 13,
       r14 = 14,
-      r15 = 15
+      r15 = 15,
+      rip
    };
 
    enum class addressing_modes : uint16_t {
@@ -41,159 +42,6 @@ namespace eosio { namespace vm { namespace x86_64 {
       mem64
    };
 
-   struct reg8 {
-      constexpr reg8(regs r) : value(static_cast<uint8_t>(r)) {}
-      uint8_t value;
-   };
-   struct reg16 {
-      constexpr reg16(regs r) : value(static_cast<uint8_t>(r)) {}
-      uint8_t value;
-   };
-   struct reg32 {
-      constexpr reg32(regs r) : value(static_cast<uint8_t>(r)) {}
-      uint8_t value;
-   };
-   struct reg64 {
-      constexpr reg64(regs r) : value(static_cast<uint8_t>(r)) {}
-      uint8_t value;
-   };
-   struct mem_reg8 {
-      constexpr mem_reg8(regs r) : reg(static_cast<uint8_t>(r)) {}
-      constexpr mem_reg8(uintptr_t m) : mem(m) {}
-      uint8_t   reg = 0;
-      uintptr_t mem = 0;
-   };
-   struct mem_reg16 {
-      constexpr mem_reg16(regs r) : reg(static_cast<uint8_t>(r)) {}
-      constexpr mem_reg16(uintptr_t m) : mem(m) {}
-      uint8_t   reg = 0;
-      uintptr_t mem = 0;
-   };
-   struct mem_reg32 {
-      constexpr mem_reg32(regs r) : reg(static_cast<uint8_t>(r)) {}
-      constexpr mem_reg32(uintptr_t m) : mem(m) {}
-      uint8_t   reg = 0;
-      uintptr_t mem = 0;
-   };
-   struct mem_reg64 {
-      constexpr mem_reg64(regs r) : reg(static_cast<uint8_t>(r)) {}
-      constexpr mem_reg64(uintptr_t m) : mem(m) {}
-      uint8_t   reg = 0;
-      uintptr_t mem = 0;
-   };
-
-/*
-   template <addressing_modes Mode>
-   constexpr auto addressing_mode_to_type() {
-      if constexpr (Mode == addressing_modes::rel8off)
-         return (uint8_t)0;
-      if constexpr (Mode == addressing_modes::rel16off)
-         return (uint16_t)0;
-      if constexpr (Mode == addressing_modes::rel32off)
-         return (uint32_t)0;
-      if constexpr (Mode == addressing_modes::reg16)
-         return opcode_registers::rax;
-      if constexpr (Mode == addressing_modes::reg32)
-         return opcode_registers::rax;
-      if constexpr (Mode == addressing_modes::reg64)
-         return opcode_registers::rax;
-      if constexpr (Mode == addressing_modes::mem16)
-         return (uint16_t*)0;
-      if constexpr (Mode == addressing_modes::mem32)
-         return (uint32_t*)0;
-      if constexpr (Mode == addressing_modes::mem64)
-         return (uint64_t*)0;
-   };
-
-   enum class registers : uint8_t {
-      rax,
-      rbx,
-      rcx,
-      rdx,
-      rsp,
-      rbp,
-      rsi,
-      rdi,
-      r8,
-      r9,
-      r10,
-      r11,
-      r12,
-      r13,
-      r14,
-      r15,
-      al,
-      ah,
-      ax,
-      eax,
-      bl,
-      bh,
-      bx,
-      ebx,
-      cl,
-      ch,
-      cx,
-      ecx,
-      dl,
-      dh,
-      dx,
-      edx,
-      sp,
-      esp,
-      bp,
-      ebp,
-      si,
-      esi,
-      di,
-      edi,
-      mmx0,
-      mmx1,
-      mmx2,
-      mmx3,
-      mmx4,
-      mmx5,
-      mmx6,
-      mmx7,
-      xmm0,
-      xmm1,
-      xmm2,
-      xmm3,
-      xmm4,
-      xmm5,
-      xmm6,
-      xmm7,
-      xmm8,
-      xmm9,
-      xmm10,
-      xmm11,
-      xmm12,
-      xmm13,
-      xmm14,
-      xmm15,
-      ymm0,
-      ymm1,
-      ymm2,
-      ymm3,
-      ymm4,
-      ymm5,
-      ymm6,
-      ymm7,
-      ymm8,
-      ymm9,
-      ymm10,
-      ymm11,
-      ymm12,
-      ymm13,
-      ymm14,
-      ymm15,
-      es,
-      cs,
-      ss,
-      ds,
-      fs,
-      gs
-   };
-*/
    namespace prefix {
       struct group1 {
          static constexpr uint8_t lock  = 0xf0;
@@ -236,7 +84,145 @@ namespace eosio { namespace vm { namespace x86_64 {
       };
    } // namespace prefix
 
+   struct optional_ty {};
+
+   struct reg8 {
+      constexpr reg8(regs r) : value(static_cast<uint8_t>(r)) {}
+      uint8_t reg;
+   };
+   struct reg16 {
+      constexpr reg16(regs r) : value(static_cast<uint8_t>(r)) {}
+      uint8_t reg;
+   };
+   struct reg32 {
+      constexpr reg32(regs r) : value(static_cast<uint8_t>(r)) {}
+      uint8_t reg;
+   };
+   struct reg64 {
+      constexpr reg64(regs r) : value(static_cast<uint8_t>(r)) {}
+      uint8_t reg;
+   };
+
+   template <typename T>
+   inline constexpr bool is_reg() { return std::is_same_v<T, reg8>  ||
+                                           std::is_same_v<T, reg16> ||
+                                           std::is_same_v<T, reg32> ||
+                                           std::is_same_v<T, reg64>; }
+
+   template <typename T>
+   inline constexpr bool is_reg_v = is_reg<T>();
+
+   struct sib {
+      sib(uint8_t s, uint8_t i, uint8_t b) : scale(s), index(i), base(b) {}
+      sib(uint8_t val) : value(val) {}
+      union {
+         struct {
+            uint8_t base  : 3;
+            uint8_t index : 3;
+            uint8_t scale : 2;
+         };
+      };
+      uint8_t value;
+   };
+
+   struct mem {
+      template <typename Reg1, typename Reg2=optional_ty>
+      constexpr mem(Reg1 base, Reg2 index, uint8_t scale)
+         : value(scale, index.reg, base.reg) {}
+      sib value = sib{0};
+   };
+
+   struct mem_reg8 {
+      constexpr mem_reg8(regs r) : reg(static_cast<uint8_t>(r)) {}
+      constexpr mem_reg8(uintptr_t m) : mem(m) {}
+      uint8_t   reg = 0;
+      uintptr_t mem = 0;
+   };
+   struct mem_reg16 {
+      constexpr mem_reg16(regs r) : reg(static_cast<uint8_t>(r)) {}
+      constexpr mem_reg16(uintptr_t m) : mem(m) {}
+      uint8_t   reg = 0;
+      uintptr_t mem = 0;
+   };
+   struct mem_reg32 {
+      constexpr mem_reg32(regs r) : reg(static_cast<uint8_t>(r)) {}
+      constexpr mem_reg32(uintptr_t m) : mem(m) {}
+      uint8_t   reg = 0;
+      uintptr_t mem = 0;
+   };
+   struct mem_reg64 {
+      constexpr mem_reg64(regs r) : reg(static_cast<uint8_t>(r)) {}
+      constexpr mem_reg64(uintptr_t m) : mem(m) {}
+      uint8_t   reg = 0;
+      uintptr_t mem = 0;
+   };
+
+   template <typename T>
+   inline constexpr bool is_mem_reg() { return std::is_same_v<T, mem_reg8>  ||
+                                               std::is_same_v<T, mem_reg16> ||
+                                               std::is_same_v<T, mem_reg32> ||
+                                               std::is_same_v<T, mem_reg64>; }
+
+   template <typename T>
+   inline constexpr bool is_mem_reg_v = is_mem_reg<T>();
+
+   struct mem8 {
+      constexpr mem8(regs r, uint8_t o) : reg(static_cast<uint8_t>(r)), off(o) {}
+      uint8_t reg = 0;
+      uint8_t off = 0;
+   };
+   struct mem16 {
+      constexpr mem16(regs r, uint8_t o) : reg(static_cast<uint8_t>(r)), off(o) {}
+      uint8_t  reg = 0;
+      uint16_t off = 0;
+   };
+   struct mem32 {
+      constexpr mem32(regs r, uint8_t o) : reg(static_cast<uint8_t>(r)), off(o) {}
+      uint8_t  reg = 0;
+      uint32_t off = 0;
+   };
+   struct mem64 {
+      constexpr mem64(regs r, uint8_t o) : reg(static_cast<uint8_t>(r)), off(o) {}
+      uint8_t  reg = 0;
+      uint64_t off = 0;
+   };
+
+   template <typename T>
+   inline constexpr bool is_mem() { return std::is_same_v<T, mem8>  ||
+                                           std::is_same_v<T, mem16> ||
+                                           std::is_same_v<T, mem32> ||
+                                           std::is_same_v<T, mem64>; }
+
+   template <typename T>
+   inline constexpr bool is_mem_v = is_mem<T>();
+
+
+
    struct modrm {
+      template <typename T, typename U=optional_ty, uint8_t Extension=0xFF>
+      modrm(T operand1, U operand2={}) {
+         constexpr bool is_reg1 = is_reg_v<T> || (is_mem_reg_v<T>;
+         constexpr bool is_reg2 = is_reg_v<U> || is_mem_reg_v<U>;
+         mod = 0;
+         rm = 0;
+         reg = 0;
+         if constexpr (is_reg_or_mem_reg1) {
+            if (Extension != 0xFF)
+               reg = operand1.reg;
+            else {
+               reg = Extension;
+               rm = operand1.reg;
+            }
+         }
+         if constexpr (is_reg_or_mem_reg2) {
+            rm = operand2.reg;
+         }
+         if constexpr ((is_reg_or_mem_reg1 && is_reg_or_mem_reg2) ||
+                       (is_reg_or_mem_reg1 && std::is_same_v<U, optional_modrm_ty>)) {
+            mod = 0b11; /* register mode */
+         } else if constexpr (
+      }
+
       modrm(uint8_t m, uint8_t r, uint8_t rm) : mod(m), reg(r), rm(rm) {}
       modrm(uint8_t val) : value(val) {}
       union {
@@ -249,55 +235,17 @@ namespace eosio { namespace vm { namespace x86_64 {
       };
    };
 
-   struct sib {
-      uint8_t scale : 2;
-      uint8_t index : 3;
-      uint8_t base  : 3;
-   };
-
-   template <std::size_t Length=1>
-   struct opcode {
-      opcode(uint32_t op) : op(op) {}
-      std::size_t emit(uint8_t* b)const {
-         if constexpr (Length == 2)
-            b[1] = 0x0f;
-         b[0] = op;
-         return Length;
-      }
-
-      /*
-      uint32_t pack()const {
-         uint32_t ret;
-         uint8_t* bytes = (uint8_t*)&ret;
-         if constexpr (Length == 3)
-            ret[3] = 0x0f;
-         if constexpr (Length >= 2)
-            ret[2] = 0x38;
-         if constexpr (Length >= 1)
-            ret[1] = 0x3a;
-         ret[0] = op;
-         return ret;
-      }
-      */
-
-      uint8_t op = 0;
-   };
-/*
-   //template <std::size_t
-   struct instruction {
-      opcode op;
-      modrm  m;
-      sib    s;
-      uint32_t displacement;
-      uint32_t immediate;
-   };
-*/
 
 #ifdef INSTRUCTION
 #error "INSTRUCTION should not be defined"
 #endif
 
 // H -> handler
+#ifdef H0
+#error "H0 should not be defined"
+#endif
+#define H0() [&]()
+
 #ifdef H1
 #error "H1 should not be defined"
 #endif
@@ -316,7 +264,7 @@ namespace eosio { namespace vm { namespace x86_64 {
       overloaded{ __VA_ARGS__ }(std::forward<Ts>(operands)...); \
    }
 
-   //TODO add a type for indirect registers
+   //TODO this is by no means perfect
    class encoder {
       public:
          encoder(uint8_t* b) : block(b) {}
@@ -339,6 +287,16 @@ namespace eosio { namespace vm { namespace x86_64 {
                   prefix::rex r{1, operand1.reg > 7, 0, 0}; // W set for 64 bit operand
                   emit(r.value);       // emit rex prefix
                   emit((uint8_t)0x83); // opcode
+                  modrm m{0b11, /* register mode */
+                          0b100, /* /4 extension */
+                          operand1.reg};
+                  emit(m.value);
+                  emit(operand2);
+               },
+               H2(mem_reg64, uint32_t) { // reg/mem64, imm32
+                  prefix::rex r{1, operand1.reg > 7, 0, 0}; // W set for 64 bit operand
+                  emit(r.value);       // emit rex prefix
+                  emit((uint8_t)0x81); // opcode
                   modrm m{0b11, /* register mode */
                           0b100, /* /4 extension */
                           operand1.reg};
@@ -380,6 +338,21 @@ namespace eosio { namespace vm { namespace x86_64 {
                );
 
          INSTRUCTION(cmp,
+               H1(uint8_t) { // AL, imm8
+                  emit((uint8_t)0x3c); // opcode
+                  emit(operand);
+               },
+               H1(uint16_t) { // AX, imm16
+                  emit((uint8_t)0x3d);
+                  emit(operand);
+               },
+               H1(uint32_t) { // EAX, imm32
+                  emit((uint8_t)0x3d);
+                  emit(operand);
+               },
+               H1(uint64_t) { // RAX, imm64
+                  /* TODO  handle RAX in above case */
+               },
                H2(mem_reg32, uint32_t) { // reg32, imm32
                   emit((uint8_t)0x81); // opcode
                   modrm m{0b11, /* register mode */
@@ -400,31 +373,144 @@ namespace eosio { namespace vm { namespace x86_64 {
                }
                );
 
+         INSTRUCTION(div,
+               H1(mem_reg8) { // reg/mem8
+                  emit((uint8_t)0xf6); // opcode
+                  modrm m{0b11,  /* register mode */
+                          0b110, /* extension */
+                          operand.reg};
+                  emit(m.value);
+               },
+               H1(mem_reg16) { // reg/mem16
+                  emit((uint8_t)0xf7); // opcode
+                  modrm m{0b11,  /* register mode */
+                          0b110, /* extension */
+                          operand.reg};
+                  emit(m.value);
+               },
+               H1(mem_reg32) { // reg/mem32
+                  emit((uint8_t)0xf7); // opcode
+                  modrm m{0b11,  /* register mode */
+                          0b110, /* extension */
+                          operand.reg};
+                  emit(m.value);
+               },
+               H1(mem_reg64) { // reg/mem64
+                  prefix::rex r{1, operand.reg > 7, 0, 0};
+                  emit(r.value);
+                  emit((uint8_t)0xf7); // opcode
+                  modrm m{0b11,  /* register mode */
+                          0b110, /* extension */
+                          operand.reg};
+                  emit(m.value);
+               }
+               );
+
          INSTRUCTION(mov,
                H2(reg32, uint32_t) { // reg32, imm32
-                  emit((uint8_t)0xb8 + operand1.value); // opcode + register
+                  emit((uint8_t)0xb8 + operand1.reg); // opcode + register
                   emit(operand2);
                },
                H2(reg64, uint64_t) { // reg64, imm64
-                  prefix::rex r{1, operand1.value > 7, 0, 0};
+                  prefix::rex r{1, operand1.reg > 7, 0, 0};
                   emit(r.value); // emit rex prefix
-                  emit((uint8_t)0xb8+operand1.value); // opcode + r64
+                  emit((uint8_t)0xb8+operand1.reg); // opcode + r64
                   emit(operand2);
                },
                H2(mem_reg64, reg64) { // reg/mem64, reg64
-                  prefix::rex r{1, operand1.reg > 7, 0, operand2.value > 7};
+                  prefix::rex r{1, operand1.reg > 7, 0, operand2.reg > 7};
                   emit(r.value); // emit rex prefix
                   emit((uint8_t)0x89); // opcode
                   modrm m{0xb11, /* register mode */
                           operand1.reg,
-                          operand2.value};
+                          operand2.reg};
                   emit(m.value);
                },
                H2(reg16, mem_reg16) { // reg16, reg/mem16
                   emit((uint8_t)0x8b);
+                  sib s{0b0, // scale 1
+                        operand2.reg,
+                        operand2.reg};
+                  modrm m{0b0,
+                          operand1.reg,
+                          0b100}; // use sib
+                  emit(m.value);
+                  emit(s.value);
+               },
+               H2(reg32, mem_reg32) { // reg32, reg/mem32
+                  emit((uint8_t)0x8b);
+                  sib s{0b0, // scale 1
+                        operand2.reg,
+                        operand2.reg};
+                  modrm m{0b0,
+                          operand1.reg,
+                          0b100}; // use sib
+                  emit(m.value);
+                  emit(s.value);
+               },
+               H2(reg64, mem_reg64) { // reg64, reg/mem64
+                  prefix::rex r{1, operand1.reg > 7, operand2.reg > 7, operand2.reg > 7};
+                  emit(r.value);
+                  emit((uint8_t)0x8b);
+                  sib s{0b0, // scale 1
+                        operand2.reg,
+                        operand2.reg};
+                  modrm m{0b0,
+                          operand1.reg,
+                          0b100}; // use sib
+                  emit(m.value);
+                  emit(s.value);
+               },
                );
 
+      INSTRUCTION(jae,
+               H1(uint8_t) { // rel8off
+                  emit((uint8_t)0x73); // opcode
+                  void* ret = (void*)block;
+                  emit(operand);
+                  return ret;
+               },
+               H1(uint16_t) { // rel16off
+                  emit((uint8_t)0x03); // prefix
+                  emit((uint8_t)0x83); // opcode
+                  void* ret = (void*)block;
+                  emit(operand);
+                  return ret;
+               },
+               H2(uint32_t) { // rel32off
+                  emit((uint8_t)0x0f); // prefix
+                  emit((uint8_t)0x83); // opcode
+                  void* ret = (void*)block;
+                  emit(operand);
+                  return ret;
+               }
+               );
+
+
          INSTRUCTION(je,
+               H1(uint8_t) { // rel8off
+                  emit((uint8_t)0x74); // opcode
+                  void* ret = (void*)block;
+                  emit(operand);
+                  return ret;
+               },
+               H1(uint16_t) { // rel16off
+                  emit((uint8_t)0x0f); // prefix
+                  emit((uint8_t)0x84); // opcode
+                  void* ret = (void*)block;
+                  emit(operand);
+                  return ret;
+               },
+               H2(uint32_t) { // rel32off
+                  emit((uint8_t)0x0f); // prefix
+                  emit((uint8_t)0x84); // opcode
+                  void* ret = (void*)block;
+                  emit(operand);
+                  return ret;
+               }
+               );
+
+         INSTRUCTION(jz,
                H1(uint8_t) { // rel8off
                   emit((uint8_t)0x74); // opcode
                   void* ret = (void*)block;
@@ -491,27 +577,68 @@ namespace eosio { namespace vm { namespace x86_64 {
                },
                );
 
+         INSTRUCTION(lea,
+               H2(reg16, mem32) { // reg16, mem
+                  emit((uint8_t)0x8d); // opcode
+                  bool is_rip = operand2.reg == static_cast<uint8_t>(regs::rip);
+                  bool is_rbp = operand2.reg == static_cast<uint8_t>(regs::rbp);
+                  uint8_t mod = is_rip ? 0b00 : is_rbp ? 0b01 : 0b11;
+                  modrm m(mod,
+                          operand1.reg,
+                          is_rip || is_rbp ? 0b101 : operand2.reg);
+                  emit(m.value);
+
          INSTRUCTION(pop,
                H1(reg16) { // reg16
-                  emit((uint8_t)0x58 + operand.value);
+                  emit((uint8_t)0x58 + operand.reg);
                },
                H1(reg32) { // reg32
-                  emit((uint8_t)0x58 + operand.value);
+                  emit((uint8_t)0x58 + operand.reg);
                },
                H1(reg64) { // reg64
-                  emit((uint8_t)0x58 + operand.value);
+                  emit((uint8_t)0x58 + operand.reg);
                }
                );
 
          INSTRUCTION(push,
                H1(reg16) { // reg16
-                  emit((uint8_t)0x50 + operand.value); // opcode + register
+                  emit((uint8_t)0x50 + operand.reg); // opcode + register
                },
                H1(reg32) { // reg32
-                  emit((uint8_t)0x50 + operand.value); // opcode + register
+                  emit((uint8_t)0x50 + operand.reg); // opcode + register
                },
                H1(reg64) { // reg64
-                  emit((uint8_t)0x50 + operand.value); // opcode + register
+                  emit((uint8_t)0x50 + operand.reg); // opcode + register
+               }
+               );
+
+         INSTRUCTION(test,
+               H2(mem_reg16, reg16) { // reg/mem16, reg16
+                  emit((uint8_t)0x85); // opcode
+                  modrm m(0b11, /* register mode */
+                        operand1.reg,
+                        operand2.reg);
+                  emit(m.value);
+               },
+               H2(mem_reg32, reg32) { // reg/mem32, reg32
+                  emit((uint8_t)0x85); // opcode
+                  modrm m(0b11, /* register mode */
+                        operand1.reg,
+                        operand2.reg);
+                  emit(m.value);
+               },
+               H2(mem_reg64, reg64) { // reg/mem64, reg64
+                  emit((uint8_t)0x85); // opcode
+                  modrm m(0b11, /* register mode */
+                        operand1.reg,
+                        operand2.reg);
+                  emit(m.value);
+               },
+               );
+
+         INSTRUCTION(ret,
+               H0() {
+                  emit((uint8_t)0xc3)
                }
                );
 
@@ -520,29 +647,29 @@ namespace eosio { namespace vm { namespace x86_64 {
                   emit((uint8_t)0x30); // opcode
                   modrm m{0b11, /* register mode */
                           operand1.reg,
-                          operand2.value};
+                          operand2.reg};
                   emit(m.value);
                },
                H2(mem_reg16, reg16) { // reg16, reg16
                   emit((uint8_t)0x31); // opcode
                   modrm m{0b11, /* register mode */
                           operand1.reg,
-                          operand2.value};
+                          operand2.reg};
                   emit(m.value);
                },
                H2(mem_reg32, reg32) { // reg32, reg32
                   emit((uint8_t)0x31); // opcode
                   modrm m{0b11, /* register mode */
                           operand1.reg,
-                          operand2.value};
+                          operand2.reg};
                   emit(m.value);
                },
                H2(mem_reg64, reg64) { // reg64, reg64
-                  prefix::rex r{1, operand1.value > 7, 0, operand2.value > 7};
+                  prefix::rex r{1, operand1.reg > 7, 0, operand2.reg > 7};
                   emit((uint8_t)0x31); // opcode
                   modrm m{0b11, /* register mode */
                           operand1.reg,
-                          operand2.value};
+                          operand2.reg};
                   emit(m.value);
                },
 
@@ -551,6 +678,7 @@ namespace eosio { namespace vm { namespace x86_64 {
    };
 
 #undef INSTRUCTION
+#undef H0
 #undef H1
 #undef H2
 

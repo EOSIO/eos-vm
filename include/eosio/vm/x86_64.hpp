@@ -138,10 +138,9 @@ namespace eosio { namespace vm {
          }
          if (_local_count & 0xF0000000u) unimplemented();
          emit_multipop(_local_count);
-         // popq RBP
-         emit_bytes(0x5d);
-         // retq
-         emit_bytes(0xc3);
+         _encoder.emit_pop(reg64{regs::rbp});
+         // retq TODO : use 0xC2 iw
+         _encoder.emit_ret();
          assert((char*)code <= (char*)epilogue_start + max_epilogue_size);
       }
 
@@ -159,13 +158,9 @@ namespace eosio { namespace vm {
       void* emit_loop() { return code; }
       void* emit_if() {
          auto icount = fixed_size_instr(9);
-         // pop RAX
-         emit_bytes(0x58);
-         // test EAX, EAX
-         emit_bytes(0x85, 0xC0);
-         // jz DEST
-         emit_bytes(0x0F, 0x84);
-         return emit_branch_target32();
+         _encoder.emit_pop(reg64{regs::rax});
+         _encoder.emit_test(mem_reg32{regs::rax}, reg32{regs::rax});
+         return _encoder.emit_jz(get_branch_target32());
       }
       void* emit_else(void* if_loc) {
          auto icount = fixed_size_instr(5);
@@ -177,30 +172,20 @@ namespace eosio { namespace vm {
          auto icount = variable_size_instr(5, 17);
          // add RSP, depth_change * 8
          emit_multipop(depth_change);
-         // jmp DEST
-         emit_bytes(0xe9);
-         return emit_branch_target32();
+         return _encoder.emit_jmp(get_branch_target32());
       }
       void* emit_br_if(uint32_t depth_change) {
          auto icount = variable_size_instr(9, 26);
-         // pop RAX
-         emit_bytes(0x58);
-         // test EAX, EAX
-         emit_bytes(0x85, 0xC0);
+         _encoder.emit_pop(reg64{regs::rax});
+         _encoder.emit_test(mem_reg32{regs::rax}, reg32{regs::rax})
 
          if(depth_change == 0u || depth_change == 0x80000001u) {
-            // jnz DEST
-            emit_bytes(0x0F, 0x85);
-            return emit_branch_target32();
+            return _encoder.emit_jnz(get_branch_target32());
          } else {
-            // jz SKIP
-            emit_bytes(0x0f, 0x84);
-            void* skip = emit_branch_target32();
+            void* skip = _encoder.emit_jz(get_branch_target32());
             // add depth_change*8, %rsp
             emit_multipop(depth_change);
-            // jmp DEST
-            emit_bytes(0xe9);
-            void* result = emit_branch_target32();
+            void* result = _encoder.emit_jmp(get_branch_target32());
             // SKIP:
             fix_branch(skip, code);
             return result;
@@ -220,12 +205,8 @@ namespace eosio { namespace vm {
                if (max - min > 1) {
                   // Emit a comparison to the midpoint of the current range
                   uint32_t mid = min + (max - min)/2;
-                  // cmp i, %mid
-                  _this->emit_bytes(0x3d);
-                  _this->emit_operand32(mid);
-                  // jae MID
-                  _this->emit_bytes(0x0f, 0x83);
-                  void* mid_label = _this->emit_branch_target32();
+                  _this->_encoder.emit_cmp(mid);
+                  void* mid_label = _this->_encoder.emit_jae(_this->get_branch_target32());
                   stack.push_back({mid,max,mid_label});
                   stack.push_back({min,mid,nullptr});
                } else {
@@ -235,16 +216,12 @@ namespace eosio { namespace vm {
                      if(label) {
                         return label;
                      } else {
-                        // jmp TARGET
-                        _this->emit_bytes(0xe9);
-                        return _this->emit_branch_target32();
+                        return _this->_encoder.emit_jmp(_this->get_branch_target32());
                      }
                   } else {
                      // jne NEXT
                     _this->emit_multipop(depth_change);
-                    // jmp TARGET
-                    _this->emit_bytes(0xe9);
-                    return _this->emit_branch_target32();
+                    return _this->_encoder.emit_jmp(_this->get_branch_target32());
                   }
                }
             }
@@ -297,14 +274,11 @@ namespace eosio { namespace vm {
       void emit_call(const func_type& ft, uint32_t funcnum) {
          auto icount = variable_size_instr(15, 23);
          emit_check_call_depth();
-         // callq TARGET
-         emit_bytes(0xe8);
-         void * branch = emit_branch_target32();
+         void* branch = _encoder.emit_call(get_branch_target32());
          emit_multipop(ft.param_types.size());
          register_call(branch, funcnum);
          if(ft.return_count != 0)
-            // pushq %rax
-            emit_bytes(0x50);
+            _encoder.emit_push(reg64{regs::rax});
          emit_check_call_depth_end();
       }
 
@@ -313,14 +287,9 @@ namespace eosio { namespace vm {
          emit_check_call_depth();
          auto& table = _mod.tables[0].table;
          functypeidx = _mod.type_aliases[functypeidx];
-         // pop %rax
-         emit_bytes(0x58);
-         // cmp $size, %rax
-         emit_bytes(0x48, 0x3d);
-         emit_operand32(table.size());
-         // jae ERROR
-         emit_bytes(0x0f, 0x83);
-         fix_branch(emit_branch_target32(), call_indirect_handler);
+         _encoder.emit_pop(reg64{regs::rax});
+         _encoder.emit_cmp((uint32_t)table.size()); // cmp eax, imm32
+         fix_branch(_encoder.emit_jae(get_branch_target32()), call_indirect_handler);
          // leaq table(%rip), %rdx
          emit_bytes(0x48, 0x8d, 0x15);
          fix_branch(emit_branch_target32(), jmp_table);
@@ -2085,20 +2054,21 @@ namespace eosio { namespace vm {
       void emit_multipop(uint32_t count) {
          if(count > 0 && count != 0x80000001) {
             if (count & 0x80000000) {
-               // mov (%rsp), %rax
-               emit_bytes(0x48, 0x8b, 0x04, 0x24);
+               _encoder.emit_mov(reg64{regs::rax}, mem_reg64{regs::rsp});
             }
             if(count & 0x70000000) {
                // This code is probably unreachable.
-               // int3
-               emit_bytes(0xCC);
+               // force a divide by zero instead, to not kill the entire program
+               // was (int3 0xcc)
+               _encoder.emit_xor(mem_reg32(regs::ebx));
+               _encoder.emit_div(mem_reg32(regs::ebx));
             }
             // add depth_change*8, %rsp
-            emit_bytes(0x48, 0x81, 0xc4); // TODO: Prefer imm8 where appropriate
-            emit_operand32(count * 8); // FIXME: handle overflow
+            // TODO: Prefer imm8 where appropriate
+            // FIXME: handle overflow
+            _encoder.emit_and(mem_reg64{regs::rsp}, count*8);
             if (count & 0x80000000) {
-               // push %rax
-               emit_bytes(0x50);
+               _encoder.emit_push(reg64{regs::rax});
             }
          }
       }
