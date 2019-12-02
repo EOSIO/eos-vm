@@ -41,4 +41,5 @@ namespace eosio { namespace vm {
    DECLARE_EXCEPTION( guarded_ptr_exception,             4010000, "pointer out of bounds" )
    DECLARE_EXCEPTION( timeout_exception,                 4010001, "timeout" )
    DECLARE_EXCEPTION( wasm_exit_exception,               4010002, "exit" )
+   DECLARE_EXCEPTION( x86_64_encoder_exception,          4020000, "x86_64 encoder error" )
 }} // eosio::vm

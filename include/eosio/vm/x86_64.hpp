@@ -32,6 +32,7 @@ namespace eosio { namespace vm {
    //
    // - FIXME: Factor the machine instructions into a separate assembler class.
    // - TODO: look at fix_branch, better way to do resolution
+   // - TODO: Refactor machine_code_writer to be an interface, so we can add ARM targets
    template<typename Context>
    class machine_code_writer {
     public:
