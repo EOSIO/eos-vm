@@ -61,6 +61,8 @@ namespace eosio { namespace vm {
       inline std::error_code get_error_code() const { return _error_code; }
 
       inline void reset() {
+         EOS_VM_ASSERT(_mod.error == nullptr, wasm_interpreter_exception, _mod.error);
+
          _linear_memory = _wasm_alloc->get_base_ptr<char>();
          if (_mod.memories.size()) {
             // We'd better have reset the allocator before we get here

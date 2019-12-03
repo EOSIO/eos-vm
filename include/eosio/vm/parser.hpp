@@ -425,9 +425,13 @@ namespace eosio { namespace vm {
          decltype(es.elems) elems = { _allocator, size };
          for (uint32_t i = 0; i < size; i++) {
             uint32_t index                     = parse_varuint32(code);
-            tt->table[es.offset.value.i32 + i] = index; // FIXME: integer overflow?  Not possible because 0xFFFFFFFF is never a valid table address???
             elems.at(i)                        = index;
             EOS_VM_ASSERT(index < _mod->get_functions_total(), wasm_parse_exception,  "elem for undefined function");
+         }
+         if ( static_cast<uint64_t>(size) + es.offset.value.i32 <= tt->table.size() ) {
+            std::memcpy(tt->table.raw() + es.offset.value.i32, elems.raw(), size * sizeof(uint32_t));
+         } else {
+            _mod->error = "elem out of range";
          }
          es.elems = std::move(elems);
       }
