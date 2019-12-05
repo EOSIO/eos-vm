@@ -131,6 +131,13 @@ namespace eosio { namespace vm {
    struct jit_visitor { template<typename T> jit_visitor(T&&) {} };
 
    template<typename Host>
+   class null_execution_context : public execution_context_base<null_execution_context<Host>, Host> {
+      using base_type = execution_context_base<null_execution_context<Host>, Host>;
+   public:
+      using base_type::base_type;
+   };
+
+   template<typename Host>
    class jit_execution_context : public execution_context_base<jit_execution_context<Host>, Host> {
       using base_type = execution_context_base<jit_execution_context<Host>, Host>;
    public:
