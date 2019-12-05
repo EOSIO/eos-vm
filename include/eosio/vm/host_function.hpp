@@ -35,7 +35,7 @@ namespace eosio { namespace vm {
    struct construct_derived<Derived, nullptr_t> {
       static nullptr_t value(nullptr_t) { return nullptr; }
    };
-   
+
    // Workaround for compiler bug handling C++g17 auto template parameters.
    // The parameter is not treated as being type-dependent in all contexts,
    // causing early evaluation of the containing expression.
@@ -79,72 +79,105 @@ namespace eosio { namespace vm {
       }
    }
 
-   template <typename T, std::size_t Align>
-   struct aligned_ptr_wrapper {
-      static_assert(Align % alignof(T) == 0, "Must align to at least the alignment of T");
-      aligned_ptr_wrapper(void* ptr) : ptr(ptr) {
-        if (reinterpret_cast<std::uintptr_t>(ptr) % Align != 0) {
+   constexpr bool write_back_pred_true(void*) { return true; }
+   template <typename T>
+   constexpr void write_back_default_copy(T& c, void* p) { memcpy((void*)&c, p, sizeof(T)); }
+   template <typename T>
+   constexpr void write_back_default_write_back(void* p, const T& c) { memcpy(p, (void*)&c, sizeof(T)); }
+   template <typename T>
+   constexpr void write_back_array_default_copy(T* c, void* p, uint32_t sz) { memcpy((void*)&c, p, sizeof(T)*sz); }
+   template <typename T>
+   constexpr void write_back_array_default_write_back(void* p, const T* c, uint32_t sz) { memcpy(p, (void*)&c, sizeof(T)*sz); }
+
+   // replace Pred, Copy and WriteBack default with lambdas when we move to C++20
+   template <typename T, auto Pred=write_back_pred_true,
+                         auto Copy=write_back_default_copy<T>,
+                         auto WriteBack=write_back_default_write_back<T>>
+   struct write_back_wrapper {
+      write_back_wrapper(void* p) : ptr(p) {
+         if (Pred(ptr)) {
             copy = T{};
-            memcpy( &(*copy), ptr, sizeof(T) );
+            Copy(*copy, ptr);
          }
       }
-      ~aligned_ptr_wrapper() {
-         if constexpr (!std::is_const_v<T>)
+      ~write_back_wrapper() {
+         if constexpr (!std::is_const_v<T>) {
             if (copy)
-               memcpy( ptr, &(*copy), sizeof(T) );
+               WriteBack(ptr, *copy);
+         }
       }
-      constexpr operator T*() const {
+
+      constexpr T& get_value()const {
          if (copy)
-            return &(*copy);
+            return *copy;
          else
-            return static_cast<T*>(ptr);
+            return *static_cast<T*>(ptr);
       }
 
       void* ptr;
       mutable std::optional<std::remove_cv_t<T>> copy;
-
-      aligned_ptr_wrapper(const aligned_ptr_wrapper&) = delete;
+      write_back_wrapper(const write_back_wrapper&) = delete;
    };
 
-   template <typename T, std::size_t Align>
-   struct aligned_array_wrapper {
-      static_assert(Align % alignof(T) == 0, "Must align to at least the alignment of T");
-      aligned_array_wrapper(void* ptr, uint32_t size) : ptr(ptr), size(size) {
-         if (reinterpret_cast<std::uintptr_t>(ptr) % Align != 0) {
+   template <typename T, auto Pred=write_back_pred_true,
+                         auto Copy=write_back_array_default_copy<T>,
+                         auto WriteBack=write_back_array_default_write_back<T>>
+   struct write_back_array_wrapper {
+      write_back_array_wrapper(void* ptr, uint32_t size) : ptr(ptr), size(size) {
+         if (Pred(ptr)) {
             copy.reset(new std::remove_cv_t<T>[size]);
-            memcpy( copy.get(), ptr, sizeof(T) * size );
+            Copy(copy.get(), ptr, size);
          }
       }
-      ~aligned_array_wrapper() {
-         if constexpr (!std::is_const_v<T>)
+      ~write_back_array_wrapper() {
+         if constexpr (!std::is_const_v<T>) {
             if (copy)
-               memcpy( ptr, copy.get(), sizeof(T) * size);
+               WriteBack(ptr, copy.get(), size);
+         }
       }
-      constexpr operator T*() const {
+
+      constexpr T* get_value()const {
          if (copy)
             return copy.get();
          else
             return static_cast<T*>(ptr);
       }
-      constexpr operator eosio::chain::array_ptr<T>() const {
-        return eosio::chain::array_ptr<T>{static_cast<T*>(*this)};
-      }
 
       void* ptr;
       std::unique_ptr<std::remove_cv_t<T>[]> copy = nullptr;
       std::size_t size;
+      write_back_array_wrapper(const write_back_array_wrapper&) = delete;
+   };
 
-      aligned_array_wrapper(const aligned_array_wrapper&) = delete;
+   template <std::size_t Align>
+   constexpr bool aligned_wrapper_pred(void* ptr) { return reinterpret_cast<std::uintptr_t>(ptr) % Align != 0; }
+
+   template <typename T, std::size_t Align>
+   struct aligned_ptr_wrapper : public write_back_wrapper<T, aligned_wrapper_pred<Align>> {
+      using write_back_t = write_back_wrapper<T, aligned_wrapper_pred<Align>>;
+      static_assert(Align % alignof(T) == 0, "Must align to at least the alignment of T");
+      aligned_ptr_wrapper(void* ptr) : write_back_t(ptr) {}
+      constexpr operator T*() const { return &write_back_t::get_value(); }
+      constexpr T* get_value() const { return &write_back_t::get_value(); }
    };
 
    template <typename T, std::size_t Align>
-   struct aligned_ref_wrapper {
-      constexpr aligned_ref_wrapper(void* ptr) : _impl(ptr) {}
-      constexpr operator T&() const {
-         return *static_cast<T*>(_impl);
-      }
+   struct aligned_array_wrapper : public write_back_array_wrapper<T, aligned_wrapper_pred<Align>> {
+      using write_back_t = write_back_array_wrapper<T, aligned_wrapper_pred<Align>>;
+      static_assert(Align % alignof(T) == 0, "Must align to at least the alignment of T");
+      aligned_array_wrapper(void* ptr, uint32_t size) : write_back_t(ptr, size) {}
 
-      aligned_ptr_wrapper<T, Align> _impl;
+      constexpr operator T*() const { return write_back_t::get_value(); }
+      constexpr T* get_value() const { return &write_back_t::get_value(); }
+      constexpr operator eosio::chain::array_ptr<T>() const {
+        return eosio::chain::array_ptr<T>{static_cast<T*>(*this)};
+      }
+   };
+
+   template <typename T, std::size_t Align>
+   struct aligned_ref_wrapper : public aligned_ptr_wrapper<T, Align> {
+      constexpr aligned_ref_wrapper(void* ptr) : aligned_ptr_wrapper<T, Align>(ptr) {}
+      constexpr operator T&() const { return *aligned_ptr_wrapper<T, Align>::get_value(); }
    };
 
    template<typename T, std::size_t Align = alignof(T)>
@@ -178,6 +211,8 @@ namespace eosio { namespace vm {
       }
       wasm_allocator* _alloc;
    };
+
+
 
    namespace detail {
       template<typename T, typename U, typename... Args>
@@ -217,7 +252,7 @@ namespace eosio { namespace vm {
          template<typename F>
          explicit cons_item(F&& f) : _value(f()) {}
          StorageType _value;
-         T get() const { return _value; }
+         T get()const { return _value; }
       };
 
       template<typename Car, typename Cdr>
