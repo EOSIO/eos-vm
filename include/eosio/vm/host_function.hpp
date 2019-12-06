@@ -96,7 +96,10 @@ namespace eosio { namespace vm {
    struct write_back_wrapper {
       write_back_wrapper(void* p) : ptr(p) {
          if (Pred(ptr)) {
-            copy = T{};
+            if constexpr (std::is_default_constructible_v<T>)
+               copy = T{};
+            else
+               copy = (T&)default_ctor<T>{};
             Copy(*copy, ptr);
          }
       }
@@ -107,12 +110,22 @@ namespace eosio { namespace vm {
          }
       }
 
-      constexpr T& get_value()const {
+      constexpr T& get_value() {
          if (copy)
             return *copy;
          else
             return *static_cast<T*>(ptr);
       }
+
+      constexpr T* get_value()const {
+         if (copy)
+            return &*copy;
+         else
+            return static_cast<T*>(ptr);
+      }
+
+      constexpr operator T*() const { return get_value(); }
+      constexpr operator T() { return get_value(); }
 
       void* ptr;
       mutable std::optional<std::remove_cv_t<T>> copy;
@@ -158,7 +171,10 @@ namespace eosio { namespace vm {
       static_assert(Align % alignof(T) == 0, "Must align to at least the alignment of T");
       aligned_ptr_wrapper(void* ptr) : write_back_t(ptr) {}
       constexpr operator T*() const { return &write_back_t::get_value(); }
-      constexpr T* get_value() const { return &write_back_t::get_value(); }
+      constexpr T* get_value() const { return write_back_t::get_value(); }
+
+      constexpr operator T*() { return &write_back_t::get_value(); }
+      constexpr T* get_value() { return &write_back_t::get_value(); }
    };
 
    template <typename T, std::size_t Align>
@@ -169,6 +185,9 @@ namespace eosio { namespace vm {
 
       constexpr operator T*() const { return write_back_t::get_value(); }
       constexpr T* get_value() const { return &write_back_t::get_value(); }
+
+      constexpr operator T*() { return write_back_t::get_value(); }
+      constexpr T* get_value() { return &write_back_t::get_value(); }
       constexpr operator eosio::chain::array_ptr<T>() const {
         return eosio::chain::array_ptr<T>{static_cast<T*>(*this)};
       }
@@ -252,7 +271,7 @@ namespace eosio { namespace vm {
          template<typename F>
          explicit cons_item(F&& f) : _value(f()) {}
          StorageType _value;
-         T get()const { return _value; }
+         T get()const { return (T)_value; }
       };
 
       template<typename Car, typename Cdr>

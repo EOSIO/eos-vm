@@ -41,6 +41,21 @@ namespace eosio { namespace vm {
       inline constexpr friend auto operator, (T&& val, void_t) {return std::forward<T>(val);}
    };
 
+   template <typename T>
+   struct default_ctor {
+      constexpr default_ctor() { memset(_data.data(), 0, sizeof(T)); }
+
+      constexpr operator T&() { return *((T*)(_data.data())); }
+      constexpr T& operator*() { return *((T*)(_data.data())); }
+      constexpr T* operator->() { return (T*)(_data.data()); }
+
+      constexpr operator T&()const { return *((const T*)(_data.data())); }
+      constexpr const T& operator*()const { return *((const T*)(_data.data())); }
+      constexpr const T* operator->()const { return (const T*)(_data.data()); }
+
+      alignas(T) mutable std::array<uint8_t, sizeof(T)> _data;
+   };
+
    // helpers for handling void returns
    //struct maybe_void_t {
    //   template <typename T>
@@ -75,7 +90,7 @@ namespace eosio { namespace vm {
 
       template <size_t N, size_t I, typename T, typename... Ts>
       struct subtuple_impl <N, I, std::tuple<T, Ts...>> {
-         using type = decltype( std::tuple_cat( std::declval<std::tuple<T>>(), 
+         using type = decltype( std::tuple_cat( std::declval<std::tuple<T>>(),
                   std::declval<typename subtuple_impl<N, I+1, std::tuple<Ts...>>::type>() ) );
       };
 
@@ -95,7 +110,7 @@ namespace eosio { namespace vm {
          template <size_t... Is>
          static constexpr auto value( std::index_sequence<Is...> ) {
             return std::make_tuple(std::declval<subtuple_t<Is, std::tuple<T, Ts...>>>()...);
-         } 
+         }
       };
 
       template <typename T>
