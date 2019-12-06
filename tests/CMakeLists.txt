@@ -90,12 +90,14 @@ add_executable(unit_tests main.cpp
                           allow_u32_limits_flags_tests.cpp
                           forbid_export_mutable_globals_tests.cpp
                           max_br_table_elements_tests.cpp
+                          max_code_bytes_tests.cpp
                           max_func_local_bytes_tests.cpp
                           max_linear_memory_init_tests.cpp
                           max_local_sets_tests.cpp
                           max_memory_offset_tests.cpp
                           max_mutable_globals_tests.cpp
                           max_nested_structures_tests.cpp
+                          max_pages_tests.cpp
                           max_section_elements_tests.cpp
                           max_table_elements_tests.cpp
                           null_tests.cpp

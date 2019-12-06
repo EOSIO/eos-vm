@@ -53,14 +53,16 @@ namespace eosio { namespace vm {
 
       template <typename HostFunctions = nullptr_t>
       backend(wasm_code& code, HostFunctions = nullptr, const Options& options = Options{})
-        : _ctx(typename Impl::template parser<Host, Options>{ _mod.allocator, options }.parse_module(code, _mod)) {
+        : _ctx(typename Impl::template parser<Host, Options>{ _mod.allocator, options }.parse_module(code, _mod), detail::get_max_call_depth(options)) {
+         _ctx.set_max_pages(detail::get_max_pages(options));
 	 _mod.finalize();
 	 if constexpr (!std::is_same_v<HostFunctions, nullptr_t>)
             HostFunctions::resolve(_mod);
       }
       template <typename HostFunctions = nullptr_t>
       backend(wasm_code_ptr& ptr, size_t sz, HostFunctions = nullptr, const Options& options = Options{})
-        : _ctx(typename Impl::template parser<Host, Options>{ _mod.allocator, options }.parse_module2(ptr, sz, _mod)) {
+        : _ctx(typename Impl::template parser<Host, Options>{ _mod.allocator, options }.parse_module2(ptr, sz, _mod), detail::get_max_call_depth(options)) {
+         _ctx.set_max_pages(detail::get_max_pages(options));
 	 _mod.finalize();
 	 if constexpr (!std::is_same_v<HostFunctions, nullptr_t>)
             HostFunctions::resolve(_mod);
@@ -69,6 +71,14 @@ namespace eosio { namespace vm {
       template <typename... Args>
       inline bool operator()(Host* host, const std::string_view& mod, const std::string_view& func, Args... args) {
          return call(host, mod, func, args...);
+      }
+
+      // Only dynamic options matter.  Parser options will be ignored.
+      inline backend& initialize(Host* host, const Options& new_options) {
+         _ctx.set_max_call_depth(detail::get_max_call_depth(new_options));
+         _ctx.set_max_pages(detail::get_max_pages(new_options));
+         initialize(host);
+         return *this;
       }
 
       inline backend& initialize(Host* host=nullptr) {
