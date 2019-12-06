@@ -6,6 +6,7 @@
 #include <eosio/vm/debug_visitor.hpp>
 #include <eosio/vm/execution_context.hpp>
 #include <eosio/vm/interpret_visitor.hpp>
+#include <eosio/vm/null_writer.hpp>
 #include <eosio/vm/parser.hpp>
 #include <eosio/vm/types.hpp>
 #include <eosio/vm/x86_64.hpp>
@@ -34,6 +35,14 @@ namespace eosio { namespace vm {
       using context = execution_context<Host>;
       template<typename Host, typename Options>
       using parser = binary_parser<bitcode_writer, Options>;
+      static constexpr bool is_jit = false;
+   };
+
+   struct null_backend {
+      template<typename Host>
+      using context = null_execution_context<Host>;
+      template<typename Host, typename Options>
+      using parser = binary_parser<null_writer, Options>;
       static constexpr bool is_jit = false;
    };
 
