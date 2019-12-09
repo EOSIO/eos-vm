@@ -26,7 +26,14 @@ struct options {
    std::uint32_t max_br_table_elements;
    // The maximum length of symbols used for import and export
    std::uint32_t max_symbol_bytes;
+   // The maximum offset used for load and store
    std::uint32_t max_memory_offset;
+   // The maximum size of a function body
+   std::uint32_t max_code_bytes;
+   // The maximum size of linear memory in page units.
+   std::uint32_t max_pages;
+   // The maximum function call depth
+   std::uint32_t max_call_depth;
    // Can mutable globals be exported
    bool forbid_export_mutable_globals = false;
    // Very strange non-conforming behavior
@@ -57,6 +64,8 @@ struct eosio_options {
    static constexpr std::uint32_t max_br_table_elements = 8191;
    static constexpr std::uint32_t max_symbol_bytes = 8191;
    static constexpr std::uint32_t max_memory_offset = (33*1024*1024 - 1);
+   static constexpr std::uint32_t max_pages = 528; // 33 MiB
+   static constexpr std::uint32_t max_call_depth = 251;
 
    static constexpr bool forbid_export_mutable_globals = true;
    static constexpr bool allow_code_after_function_end = true;
