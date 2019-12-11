@@ -20,8 +20,12 @@ namespace eosio { namespace vm {
          : _store(ElemSz) {}
 
       template <typename Alloc=Allocator, typename = std::enable_if_t<!std::is_same_v<Alloc, nullptr_t>, int>>
-      stack(Alloc&& alloc) 
+      stack(Alloc&& alloc)
          : _store(alloc, ElemSz) {}
+
+      template <typename Alloc=Allocator, typename = std::enable_if_t<!std::is_same_v<Alloc, nullptr_t>, int>>
+      stack(uint32_t n, Alloc&& alloc)
+         : _store(alloc, n) {}
 
       void push(ElemT&& e) { 
          if constexpr (std::is_same_v<Allocator, nullptr_t>) {
@@ -54,6 +58,7 @@ namespace eosio { namespace vm {
       ElemT        get_back(size_t i) { return _store[_index - 1 - i]; }
       void         trim(size_t amt) { _index -= amt; }
       size_t       size() const { return _index; }
+      size_t       capacity() const { return _store.size(); }
 
     private:
       using base_data_store_t = std::conditional_t<std::is_same_v<Allocator, nullptr_t>, unmanaged_vector<ElemT>, managed_vector<ElemT, Allocator>>;

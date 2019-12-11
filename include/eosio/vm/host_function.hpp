@@ -580,6 +580,11 @@ namespace eosio { namespace vm {
       return function_types_provider<Ret, Args...>();
    }
 
+   template <typename Ret, typename Cls, typename... Args>
+   host_function function_types_provider(Ret (Cls::*func)(Args...) const) {
+      return function_types_provider<Ret, Args...>();
+   }
+
    using host_func_pair = std::pair<std::string, std::string>;
    struct host_func_pair_hash {
       template <class T, class U>

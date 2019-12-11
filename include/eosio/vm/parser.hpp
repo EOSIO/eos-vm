@@ -132,6 +132,9 @@ namespace eosio { namespace vm {
 
    MAX_ELEMENTS(max_symbol_bytes, 0xFFFFFFFFu)
    MAX_ELEMENTS(max_memory_offset, 0xFFFFFFFFu)
+   MAX_ELEMENTS(max_code_bytes, 0xFFFFFFFFu)
+   MAX_ELEMENTS(max_pages, 0xFFFFFFFFu)
+   MAX_ELEMENTS(max_call_depth, 251)
 
    PARSER_OPTION(forbid_export_mutable_globals, false, bool);
    PARSER_OPTION(allow_code_after_function_end, false, bool);
@@ -362,7 +365,7 @@ namespace eosio { namespace vm {
          mt.limits.flags   = parse_flags(code);
          mt.limits.initial = parse_varuint32(code);
          // Implementation limits
-         EOS_VM_ASSERT(mt.limits.initial <= max_pages, wasm_parse_exception, "initial memory out of range");
+         EOS_VM_ASSERT(mt.limits.initial <= detail::get_max_pages(_options), wasm_parse_exception, "initial memory out of range");
          // WASM specification
          EOS_VM_ASSERT(mt.limits.initial <= 65536u, wasm_parse_exception, "initial memory out of range");
          if (mt.limits.flags) {
@@ -464,6 +467,7 @@ namespace eosio { namespace vm {
 
       void parse_function_body(wasm_code_ptr& code, function_body& fb, std::size_t idx) {
          fb.size   = parse_varuint32(code);
+         EOS_VM_ASSERT(fb.size <= detail::get_max_code_bytes(_options), wasm_parse_exception, "Function body too large");
          const auto&         before    = code.offset();
          const auto&         local_cnt = parse_varuint32(code);
          _current_function_index++;
