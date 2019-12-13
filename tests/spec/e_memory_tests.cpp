@@ -22,7 +22,10 @@ BACKEND_TEST_CASE( "Testing wasm <e_memory_0_wasm>", "[e_memory_0_wasm_tests]" )
 BACKEND_TEST_CASE( "Testing wasm <e_memory_1_wasm>", "[e_memory_1_wasm_tests]" ) {
    using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "e_memory.1.wasm");
-   CHECK_THROWS_AS(backend_t(code), std::exception);
+   backend_t bkend( code );
+   bkend.set_wasm_allocator( &wa );
+   bkend.initialize(nullptr);
+
 }
 
 BACKEND_TEST_CASE( "Testing wasm <e_memory_2_wasm>", "[e_memory_2_wasm_tests]" ) {

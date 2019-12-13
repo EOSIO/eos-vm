@@ -295,6 +295,7 @@ namespace eosio { namespace vm {
          decltype(auto) apply(WAlloc* alloc, T&& val, const Tail& tail) {
             return get_value_impl<A, SourceType>(std::make_index_sequence<LookaheadCount>{}, alloc, static_cast<T&&>(val), tail);
          }
+         SourceType source(); // Not defined.  Only used with decltype
       };
 
       // Detect whether there is a match of from_wasm with these arguments.
@@ -327,6 +328,21 @@ namespace eosio { namespace vm {
             return try_value_getter_t<N, T, Tail>{};
          }
       }
+
+      template<int N>
+      struct fold_cons_impl;
+      template<typename... T>
+      using fold_cons = typename fold_cons_impl<sizeof...(T)>::template fn<T...>;
+      template<>
+      struct fold_cons_impl<0> {
+         template<typename... T>
+         using fn = nil_t;
+      };
+      template<int N>
+      struct fold_cons_impl {
+         template<typename T0, typename... T>
+         using fn = cons<cons_item<T0, T0>, fold_cons<T...>>;
+      };
 
       template<typename T, typename Tail>
       constexpr auto make_value_getter() {
@@ -380,6 +396,23 @@ namespace eosio { namespace vm {
             return reinterpret_cast<S>(alloc->template get_base_ptr<char>() + val.template get<i32_const_t>().data.ui);
          else {
             return detail::make_value_getter<S, Cons>().template apply<S>(alloc, static_cast<T&&>(val), tail);
+         }
+      }
+
+      template<typename S, typename... Rest>
+      constexpr auto get_arg_type() {
+         if constexpr (std::is_integral_v<S> && sizeof(S) == 4)
+            return types::i32;
+         else if constexpr (std::is_integral_v<S> && sizeof(S) == 8)
+            return types::i64;
+         else if constexpr (std::is_floating_point_v<S> && sizeof(S) == 4)
+            return types::f32;
+         else if constexpr (std::is_floating_point_v<S> && sizeof(S) == 8)
+            return types::f64;
+         else if constexpr (std::is_void_v<std::decay_t<std::remove_pointer_t<S>>>)
+            return types::i32;
+         else {
+            return get_arg_type<decltype(detail::make_value_getter<S, fold_cons<Rest...>>().source()), Rest...>();
          }
       }
 
@@ -502,16 +535,35 @@ namespace eosio { namespace vm {
    constexpr auto to_wasm_type_v = to_wasm_type<T>();
 
    struct host_function {
-      void*                   ptr;
       std::vector<value_type> params;
       std::vector<value_type> ret;
    };
 
+   inline bool operator==(const host_function& lhs, const func_type& rhs) {
+      return lhs.params.size() == rhs.param_types.size() &&
+         std::equal(lhs.params.begin(), lhs.params.end(), rhs.param_types.raw()) &&
+         lhs.ret.size() == rhs.return_count &&
+         (lhs.ret.size() == 0 || lhs.ret[0] == rhs.return_type);
+   }
+   inline bool operator==(const func_type& lhs, const host_function& rhs) {
+      return rhs == lhs;
+   }
+
+   template<typename A0, typename... A>
+   void get_args(value_type* out) {
+      *out++ = detail::get_arg_type<A0, A...>();
+      if constexpr (sizeof...(A) != 0) {
+         get_args<A...>(out);
+      }
+   }
+
    template <typename Ret, typename... Args>
    host_function function_types_provider() {
       host_function hf;
-      hf.ptr    = (void*)func;
-      hf.params = { to_wasm_type_v<Args>... };
+      hf.params.resize(sizeof...(Args));
+      if constexpr (sizeof...(Args) != 0) {
+         get_args<Args...>(hf.params.data());
+      }
       if constexpr (to_wasm_type_v<Ret> != types::ret_void) {
          hf.ret = { to_wasm_type_v<Ret> };
       }
@@ -524,7 +576,12 @@ namespace eosio { namespace vm {
    }
 
    template <typename Ret, typename Cls, typename... Args>
-   host_function function_types_provider(Ret (*func)(Args...)) {
+   host_function function_types_provider(Ret (Cls::*func)(Args...)) {
+      return function_types_provider<Ret, Args...>();
+   }
+
+   template <typename Ret, typename Cls, typename... Args>
+   host_function function_types_provider(Ret (Cls::*func)(Args...) const) {
       return function_types_provider<Ret, Args...>();
    }
 
@@ -560,6 +617,7 @@ namespace eosio { namespace vm {
          auto&                 current_mappings        = get_mappings<WAlloc>();
          current_mappings.named_mapping[{ mod, name }] = current_mappings.current_index++;
          current_mappings.functions.push_back(create_function<WAlloc, Cls, Cls2, Func, res_t, deduced_full_ts>(is));
+         current_mappings.host_functions.push_back(function_types_provider(AUTO_PARAM_WORKAROUND(Func)));
       }
 
       template <typename Module>
@@ -573,6 +631,9 @@ namespace eosio { namespace vm {
             EOS_VM_ASSERT(current_mappings.named_mapping.count({ mod_name, fn_name }), wasm_link_exception,
                           "no mapping for imported function");
             imports[i] = current_mappings.named_mapping[{ mod_name, fn_name }];
+            const import_entry& entry = mod.imports[i];
+            EOS_VM_ASSERT(entry.kind == Function, wasm_link_exception, "importing non-function");
+            EOS_VM_ASSERT(current_mappings.host_functions[imports[i]] == mod.types[entry.type.func_t], wasm_link_exception, "wrong type for imported function");
          }
       }
 
