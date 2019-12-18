@@ -1268,7 +1268,8 @@ const std::set<std::string> blacklist = {
    "data.2.wasm",
    "data.4.wasm", "data.5.wasm", "data.6.wasm", "data.7.wasm", "data.8.wasm", "data.10.wasm",
    "data.13.wasm", "data.17.wasm", "data.19.wasm", "data.20.wasm", "data.21.wasm",
-   "data.22.wasm", "data.23.wasm", "data.24.wasm", "data.30.wasm", "data.32.wasm", "data.36.wasm", "data.38.wasm"
+   "data.22.wasm", "data.23.wasm", "data.24.wasm", "data.30.wasm", "data.32.wasm", "data.36.wasm", "data.38.wasm",
+   "start.5.wasm", "start.6.wasm", "start.7.wasm"
 };
 
 void generate_tests(const map<string, vector<picojson::object>>& mappings) {

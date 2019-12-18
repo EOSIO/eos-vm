@@ -13,6 +13,24 @@ using namespace eosio;
 using namespace eosio::vm;
 extern wasm_allocator wa;
 
+BACKEND_TEST_CASE( "Testing wasm <start_0_wasm>", "[start_0_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "start.0.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
+BACKEND_TEST_CASE( "Testing wasm <start_1_wasm>", "[start_1_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "start.1.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
+BACKEND_TEST_CASE( "Testing wasm <start_2_wasm>", "[start_2_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "start.2.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
 BACKEND_TEST_CASE( "Testing wasm <start_3_wasm>", "[start_3_wasm_tests]" ) {
    using backend_t = backend<std::nullptr_t, TestType>;
    auto code = backend_t::read_wasm( std::string(wasm_directory) + "start.3.wasm");
@@ -41,28 +59,3 @@ bkend(nullptr, "env", "inc");
    CHECK(bkend.call_with_return(nullptr, "env", "get")->to_ui32() == UINT32_C(70));
 }
 
-/*
-TEST_CASE( "Testing wasm <start_5_wasm>", "[start_5_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( std::string(wasm_directory) + "start.5.wasm");
-   backend_t bkend( code );
-   bkend.set_wasm_allocator( &wa );
-   bkend.initialize(nullptr);
-
-}
-
-TEST_CASE( "Testing wasm <start_6_wasm>", "[start_6_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( std::string(wasm_directory) + "start.6.wasm");
-   backend_t bkend( code );
-   bkend.set_wasm_allocator( &wa );
-   bkend.initialize(nullptr);
-
-}
-
-TEST_CASE( "Testing wasm <start_7_wasm>", "[start_7_wasm_tests]" ) {
-   auto code = backend_t::read_wasm( std::string(wasm_directory) + "start.7.wasm");
-   backend_t bkend( code );
-   bkend.set_wasm_allocator( &wa );
-   bkend.initialize(nullptr);
-
-}
-*/
