@@ -1168,6 +1168,8 @@ namespace eosio { namespace vm {
       inline void parse_section(wasm_code_ptr&                                                        code,
                                 typename std::enable_if_t<id == section_id::start_section, uint32_t>& start) {
          start = parse_varuint32(code);
+         const func_type& ft = _mod->get_function_type(start);
+         EOS_VM_ASSERT(ft.return_count == 0 && ft.param_types.size() == 0, wasm_parse_exception, "wrong type for start");
       }
       template <uint8_t id>
       inline void
