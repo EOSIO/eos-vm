@@ -4,6 +4,18 @@
 
 namespace eosio { namespace vm {
 
+enum class max_func_local_bytes_flags_t {
+   params = 1,
+   locals = 2,
+   stack  = 4
+};
+constexpr max_func_local_bytes_flags_t operator|(max_func_local_bytes_flags_t lhs, max_func_local_bytes_flags_t rhs) {
+   return static_cast<max_func_local_bytes_flags_t>(static_cast<int>(lhs) | static_cast<int>(rhs));
+}
+constexpr max_func_local_bytes_flags_t operator&(max_func_local_bytes_flags_t lhs, max_func_local_bytes_flags_t rhs) {
+   return static_cast<max_func_local_bytes_flags_t>(static_cast<int>(lhs) & static_cast<int>(rhs));
+}
+
 struct options {
    std::uint64_t max_mutable_global_bytes;
    std::uint32_t max_table_elements;
@@ -44,6 +56,8 @@ struct options {
    // Determines whether an local set of size 0 with an invalid type should be accepted.
    bool allow_invalid_empty_local_set = false;
    bool allow_zero_blocktype = false;
+   // Determines which components are counted towards max_function_local_bytes
+   max_func_local_bytes_flags_t max_func_local_bytes_flags = max_func_local_bytes_flags_t::locals | max_func_local_bytes_flags_t::stack;
 };
 
 struct default_options {
