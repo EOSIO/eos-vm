@@ -102,11 +102,16 @@ struct static_options {
    static constexpr std::uint32_t max_func_local_bytes = N;
    static constexpr auto max_func_local_bytes_flags = F;
 };
-using static_options_8 = static_options<8, lp>;
-using static_options_16 = static_options<16, lp>;
+template<int N>
+struct static_options_empty_flags {
+   static constexpr std::uint32_t max_func_local_bytes = N;
+};
 struct dynamic_options {
    std::uint32_t max_func_local_bytes;
    max_func_local_bytes_flags_t max_func_local_bytes_flags;
+};
+struct dynamic_options_empty_flags {
+   std::uint32_t max_func_local_bytes;
 };
 
 }
@@ -184,6 +189,12 @@ BACKEND_TEST_CASE("Test max_func_local_bytes static fail", "[max_func_local_byte
       backend_t backend_local(local_16_wasm);
       CHECK_THROWS_AS(backend_t(stack_16_wasm), wasm_parse_exception);
    }
+   {
+      using backend_t = backend<std::nullptr_t, TestType, static_options_empty_flags<8>>;
+      backend_t backend_param(param_16_wasm);
+      CHECK_THROWS_AS(backend_t(local_16_wasm), wasm_parse_exception);
+      CHECK_THROWS_AS(backend_t(stack_16_wasm), wasm_parse_exception);
+   }
 }
 
 BACKEND_TEST_CASE("Test max_func_local_bytes static pass", "[max_func_local_bytes_test]") {
@@ -207,9 +218,16 @@ BACKEND_TEST_CASE("Test max_func_local_bytes static pass", "[max_func_local_byte
       backend_t backend_local(local_16_wasm);
       backend_t backend_stack(stack_16_wasm);
    }
+   {
+      using backend_t = backend<std::nullptr_t, TestType, static_options_empty_flags<16>>;
+      backend_t backend_param(param_16_wasm);
+      backend_t backend_local(local_16_wasm);
+      backend_t backend_stack(stack_16_wasm);
+   }
 }
 
 BACKEND_TEST_CASE("Test max_func_local_bytes dynamic fail", "[max_func_local_bytes_test]") {
+   {
    using backend_t = backend<std::nullptr_t, TestType, dynamic_options>;
    CHECK_THROWS_AS(backend_t(param_16_wasm, nullptr, dynamic_options{8, lp}), wasm_parse_exception);
    CHECK_THROWS_AS(backend_t(param_16_wasm, nullptr, dynamic_options{8, ps}), wasm_parse_exception);
@@ -218,9 +236,17 @@ BACKEND_TEST_CASE("Test max_func_local_bytes dynamic fail", "[max_func_local_byt
    CHECK_THROWS_AS(backend_t(stack_16_wasm, nullptr, dynamic_options{8, ls}), wasm_parse_exception);
    CHECK_THROWS_AS(backend_t(stack_16_wasm, nullptr, dynamic_options{8, ps}), wasm_parse_exception);
    CHECK_THROWS_AS(backend_t(mixed_16_wasm, nullptr, dynamic_options{8, lp}), wasm_parse_exception);
+   }
+
+   {
+   using backend_t = backend<std::nullptr_t, TestType, dynamic_options_empty_flags>;
+   CHECK_THROWS_AS(backend_t(local_16_wasm, nullptr, dynamic_options_empty_flags{8}), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(stack_16_wasm, nullptr, dynamic_options_empty_flags{8}), wasm_parse_exception);
+   }
 }
 
 BACKEND_TEST_CASE("Test max_func_local_bytes dynamic pass", "[max_func_local_bytes_test]") {
+   {
    using backend_t = backend<std::nullptr_t, TestType, dynamic_options>;
    backend_t backend_unused(unused_type_wasm, nullptr, dynamic_options{8, lp});
 
@@ -231,8 +257,14 @@ BACKEND_TEST_CASE("Test max_func_local_bytes dynamic pass", "[max_func_local_byt
    backend_t backend_local2(local_16_wasm, nullptr, dynamic_options{16, ls});
    backend_t backend_local3(local_16_wasm, nullptr, dynamic_options{8, ps});
    backend_t backend_stack1(stack_16_wasm, nullptr, dynamic_options{8, lp});
-   backend_t backend_stack2(stack_16_wasm, nullptr, dynamic_options{16, ls});
    backend_t backend_stack3(stack_16_wasm, nullptr, dynamic_options{16, ps});
 
    backend_t backend_mixed(mixed_16_wasm, nullptr, dynamic_options{16, lp});
+   }
+   {
+   using backend_t = backend<std::nullptr_t, TestType, dynamic_options_empty_flags>;
+   backend_t backend_param2(param_16_wasm, nullptr, dynamic_options_empty_flags{8});
+   backend_t backend_local2(local_16_wasm, nullptr, dynamic_options_empty_flags{16});
+   backend_t backend_stack2(stack_16_wasm, nullptr, dynamic_options_empty_flags{16});
+   }
 }
