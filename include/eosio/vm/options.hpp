@@ -55,6 +55,7 @@ struct options {
    bool allow_u32_limits_flags = false;
    // Determines whether an local set of size 0 with an invalid type should be accepted.
    bool allow_invalid_empty_local_set = false;
+   bool allow_zero_blocktype = false;
    // Determines which components are counted towards max_function_local_bytes
    max_func_local_bytes_flags_t max_func_local_bytes_flags = max_func_local_bytes_flags_t::locals | max_func_local_bytes_flags_t::stack;
 };
@@ -85,6 +86,7 @@ struct eosio_options {
    static constexpr bool allow_code_after_function_end = true;
    static constexpr bool allow_u32_limits_flags = true;
    static constexpr bool allow_invalid_empty_local_set = true;
+   static constexpr bool allow_zero_blocktype = true;
 };
 
 }}

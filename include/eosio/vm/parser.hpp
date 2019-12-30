@@ -188,6 +188,8 @@ namespace eosio { namespace vm {
    PARSER_OPTION(allow_u32_limits_flags, false, bool);
    PARSER_OPTION(allow_invalid_empty_local_set, false, bool);
 
+   PARSER_OPTION(allow_zero_blocktype, false, bool)
+
 #undef MAX_ELEMENTS
 #undef PARSER_OPTION
 
@@ -475,9 +477,13 @@ namespace eosio { namespace vm {
          decltype(es.elems) elems = { _allocator, size };
          for (uint32_t i = 0; i < size; i++) {
             uint32_t index                     = parse_varuint32(code);
-            tt->table[es.offset.value.i32 + i] = index; // FIXME: integer overflow?  Not possible because 0xFFFFFFFF is never a valid table address???
             elems.at(i)                        = index;
             EOS_VM_ASSERT(index < _mod->get_functions_total(), wasm_parse_exception,  "elem for undefined function");
+         }
+         if ( static_cast<uint64_t>(size) + es.offset.value.i32 <= tt->table.size() ) {
+            std::memcpy(tt->table.raw() + es.offset.value.i32, elems.raw(), size * sizeof(uint32_t));
+         } else {
+            _mod->error = "elem out of range";
          }
          es.elems = std::move(elems);
       }
@@ -755,6 +761,8 @@ namespace eosio { namespace vm {
                } break;
                case opcodes::block: {
                   uint32_t expected_result = *code++;
+                  if(detail::get_allow_zero_blocktype(_options) && expected_result == 0)
+                     expected_result = types::pseudo;
                   EOS_VM_ASSERT(expected_result == types::i32 || expected_result == types::i64 ||
                                 expected_result == types::f32 || expected_result == types::f64 ||
                                 expected_result == types::pseudo, wasm_parse_exception,
@@ -766,6 +774,8 @@ namespace eosio { namespace vm {
                } break;
                case opcodes::loop: {
                   uint32_t expected_result = *code++;
+                  if(detail::get_allow_zero_blocktype(_options) && expected_result == 0)
+                     expected_result = types::pseudo;
                   EOS_VM_ASSERT(expected_result == types::i32 || expected_result == types::i64 ||
                                 expected_result == types::f32 || expected_result == types::f64 ||
                                 expected_result == types::pseudo, wasm_parse_exception,
@@ -778,6 +788,8 @@ namespace eosio { namespace vm {
                case opcodes::if_: {
                   check_in_bounds();
                   uint32_t expected_result = *code++;
+                  if(detail::get_allow_zero_blocktype(_options) && expected_result == 0)
+                     expected_result = types::pseudo;
                   EOS_VM_ASSERT(expected_result == types::i32 || expected_result == types::i64 ||
                                 expected_result == types::f32 || expected_result == types::f64 ||
                                 expected_result == types::pseudo, wasm_parse_exception,
