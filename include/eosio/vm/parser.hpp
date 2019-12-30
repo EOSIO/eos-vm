@@ -480,8 +480,9 @@ namespace eosio { namespace vm {
             elems.at(i)                        = index;
             EOS_VM_ASSERT(index < _mod->get_functions_total(), wasm_parse_exception,  "elem for undefined function");
          }
-         if ( static_cast<uint64_t>(size) + es.offset.value.i32 <= tt->table.size() ) {
-            std::memcpy(tt->table.raw() + es.offset.value.i32, elems.raw(), size * sizeof(uint32_t));
+         uint32_t offset = static_cast<uint32_t>(es.offset.value.i32);
+         if ( static_cast<uint64_t>(size) + offset <= tt->table.size() ) {
+            std::memcpy(tt->table.raw() + offset, elems.raw(), size * sizeof(uint32_t));
          } else {
             _mod->error = "elem out of range";
          }
