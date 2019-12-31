@@ -121,7 +121,7 @@ namespace eosio { namespace vm {
    constexpr auto get_max_func_local_bytes_no_stack_c(int) -> decltype(Options::max_func_local_bytes_flags == (max_func_local_bytes_flags_t)0)
    { return (Options::max_func_local_bytes_flags & max_func_local_bytes_flags_t::stack) == (max_func_local_bytes_flags_t)0; }
    template<typename Options>
-   constexpr auto get_max_func_local_bytes_no_stack_c(long) -> bool { return true; }
+   constexpr auto get_max_func_local_bytes_no_stack_c(long) -> bool { return false; }
 
    template<typename Options, typename Enable = void>
    struct max_func_local_bytes_stack_checker : max_func_local_bytes_checker<Options> {
