@@ -190,6 +190,13 @@ namespace eosio { namespace vm {
 
    PARSER_OPTION(allow_zero_blocktype, false, bool)
 
+   template<typename Options>
+   constexpr bool get_use_softfloat(long) { return true; }
+   template<typename Options>
+   constexpr auto get_use_softfloat(int) -> decltype(Options::use_softfloat) { return Options::use_softfloat; }
+   template<typename Options>
+   constexpr bool get_use_softfloat() { return get_use_softfloat<Options>(0); }
+
 #undef MAX_ELEMENTS
 #undef PARSER_OPTION
 

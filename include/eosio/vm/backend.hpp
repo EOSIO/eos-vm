@@ -26,7 +26,7 @@ namespace eosio { namespace vm {
       template<typename Host>
       using context = jit_execution_context<Host>;
       template<typename Host, typename Options>
-      using parser = binary_parser<machine_code_writer<jit_execution_context<Host>>, Options>;
+      using parser = binary_parser<machine_code_writer<jit_execution_context<Host>, detail::get_use_softfloat<Options>()>, Options>;
       static constexpr bool is_jit = true;
    };
 

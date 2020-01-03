@@ -28,9 +28,10 @@ namespace eosio { namespace vm {
    //   the stack.
    //
    // - The base of memory is stored in rsi
+   // - Remaining stack depth is in rbx
    //
    // - FIXME: Factor the machine instructions into a separate assembler class.
-   template<typename Context>
+   template<typename Context, bool use_softfloat = true>
    class machine_code_writer {
     public:
       machine_code_writer(growable_allocator& alloc, std::size_t source_bytes, module& mod) :
@@ -1441,37 +1442,58 @@ namespace eosio { namespace vm {
          emit_f32_binop(0x5e, CHOOSE_FN(_eosio_f32_div));
       }
       void emit_f32_min() {
-         auto icount = softfloat_instr(47, 44);
+         auto icount = softfloat_instr(63, 44);
         if constexpr(use_softfloat) {
            emit_f32_binop_softfloat(CHOOSE_FN(_eosio_f32_min));
            return;
         }
-        // mov (%rsp), %eax
-        emit_bytes(0x8b, 0x04, 0x24);
-        // test %eax, %eax
-        emit_bytes(0x85, 0xc0);
-        // je ZERO
-        emit_bytes(0x0f, 0x84);
-        void* zero = emit_branch_target32();
+
         // movss 8(%rsp), %xmm0
         emit_bytes(0xf3, 0x0f, 0x10, 0x44, 0x24, 0x08);
-        // minss (%rsp), %xmm0
-        emit_bytes(0xf3, 0x0f, 0x5d, 0x04, 0x24);
-        // jmp DONE
-        emit_bytes(0xe9);
-        void* done = emit_branch_target32();
-        // ZERO:
-        fix_branch(zero, code);
+        // ucomiss %xmm0, %xmm0
+        emit_bytes(0x0f, 0x2e, 0xc0);
+        // jp DONE
+        emit_bytes(0x7a, 0x30);
         // movss (%rsp), %xmm0
         emit_bytes(0xf3, 0x0f, 0x10, 0x04, 0x24);
-        // minss 8(%rsp), %xmm0
-        emit_bytes(0xf3, 0x0f, 0x5d, 0x44, 0x24, 0x08);
+        // ucomiss %xmm0, %xmm0
+        emit_bytes(0x0f, 0x2e, 0xc0);
+
+        // mov (%rsp), %eax
+        emit_bytes(0x8b, 0x04, 0x24);
+        // jp SECOND
+        emit_bytes(0x7a, 0x1f);
+        // mov 8(%rsp), %r8d
+        emit_bytes(0x44, 0x8b, 0x44, 0x24, 0x08);
+
+        // mov %eax, %ecx
+        emit_bytes(0x89, 0xc1);
+        // sar $31, %ecx
+        emit_bytes(0xc1, 0xf9, 0x1f);
+        // shr $1, %ecx
+        emit_bytes(0xd1, 0xe9);
+        // xor %eax, %ecx
+        emit_bytes(0x31, 0xc1);
+        // mov %r8d, %edx
+        emit_bytes(0x44, 0x89, 0xc2);
+        // sar $31, %edx
+        emit_bytes(0xc1, 0xfa, 0x1f);
+        // shr $1, %edx
+        emit_bytes(0xd1, 0xea);
+        // xor %r8d, %edx
+        emit_bytes(0x44, 0x31, 0xc2);
+        // cmp %ecx, %edx
+        emit_bytes(0x39, 0xca);
+        // cmovl %r8d, %eax
+        emit_bytes(0x41, 0x0f, 0x4c, 0xc0);
+
+        // SECOND:
+        // mov %eax, 8(%rsp)
+        emit_bytes(0x89, 0x44, 0x24, 0x08);
+
         // DONE:
-        fix_branch(done, code);
         // add $8, %rsp
         emit_bytes(0x48, 0x83, 0xc4, 0x08);
-        // movss %xmm0, (%rsp)
-        emit_bytes(0xf3, 0x0f, 0x11, 0x04, 0x24);
       }
       void emit_f32_max() {
          auto icount = softfloat_instr(47, 44);
