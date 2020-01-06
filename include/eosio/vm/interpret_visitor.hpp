@@ -12,11 +12,12 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <cmath>
 #include <limits>
 
 namespace eosio { namespace vm {
 
-   template <typename ExecutionContext>
+   template <typename ExecutionContext, bool use_softfloat = true>
    struct interpret_visitor : base_visitor {
       using base_visitor::operator();
       interpret_visitor(ExecutionContext& ec) : context(ec) {}
@@ -869,8 +870,14 @@ namespace eosio { namespace vm {
          auto&       lhs = context.peek_operand().to_f32();
          if constexpr (use_softfloat)
             lhs = _eosio_f32_min(lhs, rhs.to_f32());
-         else
-            lhs = __builtin_fminf(lhs, rhs.to_f32());
+         else {
+            if(std::isnan(lhs)) {}
+            else if(std::isnan(rhs.to_f32())) lhs = rhs.to_f32();
+            else if(lhs == 0.0f && rhs.to_f32() == 0.0f && std::signbit(lhs) != std::signbit(rhs.to_f32()))
+               lhs = -0.0f;
+            else
+               lhs = __builtin_fminf(lhs, rhs.to_f32());
+         }
       }
       [[gnu::always_inline]] inline void operator()(const f32_max_t& op) {
          context.inc_pc();
@@ -878,8 +885,14 @@ namespace eosio { namespace vm {
          auto&       lhs = context.peek_operand().to_f32();
          if constexpr (use_softfloat)
             lhs = _eosio_f32_max(lhs, rhs.to_f32());
-         else
+         else {
+            if(std::isnan(lhs)) {}
+            else if(std::isnan(rhs.to_f32())) lhs = rhs.to_f32();
+            else if(lhs == 0.0f && rhs.to_f32() == 0.0f && std::signbit(lhs) != std::signbit(rhs.to_f32()))
+               lhs = 0.0f;
+            else
             lhs = __builtin_fmaxf(lhs, rhs.to_f32());
+         }
       }
       [[gnu::always_inline]] inline void operator()(const f32_copysign_t& op) {
          context.inc_pc();
@@ -989,8 +1002,14 @@ namespace eosio { namespace vm {
          auto&       lhs = context.peek_operand().to_f64();
          if constexpr (use_softfloat)
             lhs = _eosio_f64_min(lhs, rhs.to_f64());
-         else
-            lhs = __builtin_fmin(lhs, rhs.to_f64());
+         else {
+            if(std::isnan(lhs)) {}
+            else if(std::isnan(rhs.to_f64())) lhs = rhs.to_f64();
+            else if(lhs == 0.0 && rhs.to_f64() == 0.0 && std::signbit(lhs) != std::signbit(rhs.to_f64()))
+               lhs = -0.0;
+            else
+               lhs = __builtin_fmin(lhs, rhs.to_f64());
+         }
       }
       [[gnu::always_inline]] inline void operator()(const f64_max_t& op) {
          context.inc_pc();
@@ -998,8 +1017,14 @@ namespace eosio { namespace vm {
          auto&       lhs = context.peek_operand().to_f64();
          if constexpr (use_softfloat)
             lhs = _eosio_f64_max(lhs, rhs.to_f64());
-         else
-            lhs = __builtin_fmax(lhs, rhs.to_f64());
+         else {
+            if(std::isnan(lhs)) {}
+            else if(std::isnan(rhs.to_f64())) lhs = rhs.to_f64();
+            else if(lhs == 0.0 && rhs.to_f64() == 0.0 && std::signbit(lhs) != std::signbit(rhs.to_f64()))
+               lhs = 0.0;
+            else
+               lhs = __builtin_fmax(lhs, rhs.to_f64());
+         }
       }
       [[gnu::always_inline]] inline void operator()(const f64_copysign_t& op) {
          context.inc_pc();
