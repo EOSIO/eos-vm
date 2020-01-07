@@ -91,7 +91,11 @@ namespace eosio { namespace vm {
             }
             std::cout << std::endl;
          }
-      
+
+         void to(std::streambuf* out) {
+            out->sputn(reinterpret_cast<char*>(&storage[0]), bytes_used);
+         }
+
       private:
          std::array<uint8_t, bytes_needed<N>()> storage;
          uint8_t bytes_used = bytes_needed<N>(); 

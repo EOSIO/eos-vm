@@ -16,23 +16,6 @@ struct hardfloat_config {
    static constexpr bool use_softfloat = false;
 };
 
-/*
- * (module
- *  (func (export "fn") (param f64) (result i64)
- *   (local.get 0)
- *   (f32.demote_f64)
- *   (i32.reinterpret_f32)
- *   (i64.extend_i32_u)
- *  )
- * )
- */
-std::vector<uint8_t> f32_demote_f64_wasm = {
-  0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
-  0x01, 0x7c, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x07, 0x06, 0x01, 0x02,
-  0x66, 0x6e, 0x00, 0x00, 0x0a, 0x09, 0x01, 0x07, 0x00, 0x20, 0x00, 0xb6,
-  0xbc, 0xad, 0x0b
-};
-
 struct multi_backend {
    explicit multi_backend(std::vector<uint8_t>& code) :
      soft_interpreter_backend(code),
@@ -59,24 +42,30 @@ struct multi_backend {
    }
 };
 
-TEST_CASE("test f32.demote_f64", "[float_tests]") {
-   backend<nullptr_t, interpreter, softfloat_config> soft_interpreter_backend(f32_demote_f64_wasm);
-   backend<nullptr_t, jit, softfloat_config> soft_jit_backend(f32_demote_f64_wasm);
-   backend<nullptr_t, interpreter, hardfloat_config> hard_interpreter_backend(f32_demote_f64_wasm);
-   backend<nullptr_t, jit, hardfloat_config> hard_jit_backend(f32_demote_f64_wasm);
-   soft_interpreter_backend.set_wasm_allocator(&wa);
-   hard_interpreter_backend.set_wasm_allocator(&wa);
-   soft_jit_backend.set_wasm_allocator(&wa);
-   hard_jit_backend.set_wasm_allocator(&wa);
+/*
+ * (module
+ *  (func (export "fn") (param f64) (result i64)
+ *   (local.get 0)
+ *   (f32.demote_f64)
+ *   (i32.reinterpret_f32)
+ *   (i64.extend_i32_u)
+ *  )
+ * )
+ */
+std::vector<uint8_t> f32_demote_f64_wasm = {
+  0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+  0x01, 0x7c, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x07, 0x06, 0x01, 0x02,
+  0x66, 0x6e, 0x00, 0x00, 0x0a, 0x09, 0x01, 0x07, 0x00, 0x20, 0x00, 0xb6,
+  0xbc, 0xad, 0x0b
+};
 
+TEST_CASE("test f32.demote_f64", "[.float_tests]") {
+   multi_backend bkend{f32_demote_f64_wasm};
    for(int i = 0; i < (1 << 16); ++i) {
       for(int j = -1; j <= 1; ++j) {
          uint64_t argn = (static_cast<uint64_t>(i) << 48) + static_cast<uint64_t>(j);
          double arg = bit_cast<double>(argn);
-         auto x0 = soft_interpreter_backend.call_with_return(nullptr, "env", "fn", arg)->to_ui64();
-         auto x1 = soft_jit_backend.call_with_return(nullptr, "env", "fn", arg)->to_ui64();
-         auto x2 = hard_interpreter_backend.call_with_return(nullptr, "env", "fn", arg)->to_ui64();
-         auto x3 = hard_jit_backend.call_with_return(nullptr, "env", "fn", arg)->to_ui64();
+         auto [x0, x1, x2, x3] = bkend.call_with_return(arg);
          CHECK(x0 == x1);
          CHECK(x1 == x2);
          CHECK(x2 == x3);
@@ -102,7 +91,7 @@ std::vector<uint8_t> f32_min_wasm = {
    0x20, 0x01, 0x96, 0xbc, 0xad, 0x0b
 };
 
-TEST_CASE("test f32.min", "[float_tests]") {
+TEST_CASE("test f32.min", "[.float_tests]") {
    multi_backend bkend{f32_min_wasm};
    for(int i = 0; i < (1 << 11); ++i) {
       for(int j = -1; j <= 1; ++j) {
@@ -138,7 +127,7 @@ std::vector<uint8_t> f32_max_wasm = {
    0x20, 0x01, 0x97, 0xbc, 0xad, 0x0b
 };
 
-TEST_CASE("test f32.max", "[float_tests]") {
+TEST_CASE("test f32.max", "[.float_tests]") {
    multi_backend bkend{f32_max_wasm};
    for(int i = 0; i < (1 << 11); ++i) {
       for(int j = -1; j <= 1; ++j) {
@@ -173,7 +162,7 @@ std::vector<uint8_t> f64_min_wasm = {
    0x20, 0x01, 0xa4, 0xbd, 0x0b
 };
 
-TEST_CASE("test f64.min", "[float_tests]") {
+TEST_CASE("test f64.min", "[.float_tests]") {
    multi_backend bkend{f64_min_wasm};
    for(int i = 0; i < (1 << 14); ++i) {
       for(int j = -1; j <= 1; ++j) {
@@ -208,7 +197,7 @@ std::vector<uint8_t> f64_max_wasm = {
    0x20, 0x01, 0xa5, 0xbd, 0x0b
 };
 
-TEST_CASE("test f64.max", "[float_tests]") {
+TEST_CASE("test f64.max", "[.float_tests]") {
    multi_backend bkend{f64_max_wasm};
    for(int i = 0; i < (1 << 14); ++i) {
       for(int j = -1; j <= 1; ++j) {
