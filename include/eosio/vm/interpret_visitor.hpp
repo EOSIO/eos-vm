@@ -793,7 +793,7 @@ namespace eosio { namespace vm {
          auto& oper = context.peek_operand().to_f32();
          if constexpr (use_softfloat)
             oper = _eosio_f32_ceil(oper);
-         else
+         else if(!std::isnan(oper))
             oper = __builtin_ceilf(oper);
       }
       [[gnu::always_inline]] inline void operator()(const f32_floor_t& op) {
@@ -801,7 +801,7 @@ namespace eosio { namespace vm {
          auto& oper = context.peek_operand().to_f32();
          if constexpr (use_softfloat)
             oper = _eosio_f32_floor(oper);
-         else
+         else if(!std::isnan(oper))
             oper = __builtin_floorf(oper);
       }
       [[gnu::always_inline]] inline void operator()(const f32_trunc_t& op) {
@@ -809,7 +809,7 @@ namespace eosio { namespace vm {
          auto& oper = context.peek_operand().to_f32();
          if constexpr (use_softfloat)
             oper = _eosio_f32_trunc(oper);
-         else
+         else if(!std::isnan(oper))
             oper = __builtin_trunc(oper);
       }
       [[gnu::always_inline]] inline void operator()(const f32_nearest_t& op) {
@@ -817,7 +817,7 @@ namespace eosio { namespace vm {
          auto& oper = context.peek_operand().to_f32();
          if constexpr (use_softfloat)
             oper = _eosio_f32_nearest(oper);
-         else
+         else if(!std::isnan(oper))
             oper = __builtin_nearbyintf(oper);
       }
       [[gnu::always_inline]] inline void operator()(const f32_sqrt_t& op) {
@@ -925,7 +925,7 @@ namespace eosio { namespace vm {
          auto& oper = context.peek_operand().to_f64();
          if constexpr (use_softfloat)
             oper = _eosio_f64_ceil(oper);
-         else
+         else if(!std::isnan(oper))
             oper = __builtin_ceil(oper);
       }
       [[gnu::always_inline]] inline void operator()(const f64_floor_t& op) {
@@ -933,7 +933,7 @@ namespace eosio { namespace vm {
          auto& oper = context.peek_operand().to_f64();
          if constexpr (use_softfloat)
             oper = _eosio_f64_floor(oper);
-         else
+         else if(!std::isnan(oper))
             oper = __builtin_floor(oper);
       }
       [[gnu::always_inline]] inline void operator()(const f64_trunc_t& op) {
@@ -941,7 +941,7 @@ namespace eosio { namespace vm {
          auto& oper = context.peek_operand().to_f64();
          if constexpr (use_softfloat)
             oper = _eosio_f64_trunc(oper);
-         else
+         else if(!std::isnan(oper))
             oper = __builtin_trunc(oper);
       }
       [[gnu::always_inline]] inline void operator()(const f64_nearest_t& op) {
@@ -949,7 +949,7 @@ namespace eosio { namespace vm {
          auto& oper = context.peek_operand().to_f64();
          if constexpr (use_softfloat)
             oper = _eosio_f64_nearest(oper);
-         else
+         else if(!std::isnan(oper))
             oper = __builtin_nearbyint(oper);
       }
       [[gnu::always_inline]] inline void operator()(const f64_sqrt_t& op) {
