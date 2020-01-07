@@ -1,3 +1,8 @@
+/*
+ * Tests that all floating point variations produce identical behavior.
+ * These tests are very slow and are disabled by default.
+ */
+
 #include <eosio/vm/backend.hpp>
 #include <random>
 
@@ -65,6 +70,36 @@ TEST_CASE("test f32.demote_f64", "[.float_tests]") {
       for(int j = -1; j <= 1; ++j) {
          uint64_t argn = (static_cast<uint64_t>(i) << 48) + static_cast<uint64_t>(j);
          double arg = bit_cast<double>(argn);
+         auto [x0, x1, x2, x3] = bkend.call_with_return(arg);
+         CHECK(x0 == x1);
+         CHECK(x1 == x2);
+         CHECK(x2 == x3);
+      }
+   }
+}
+
+/*
+ * (module
+ *  (func (export "fn") (param f32) (result i64)
+ *   (local.get 0)
+ *   (f64.promote_f32)
+ *   (i64.reinterpret_f64)
+ *  )
+ * )
+ */
+std::vector<uint8_t> f64_promote_f32_wasm = {
+   0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+   0x01, 0x7d, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x07, 0x06, 0x01, 0x02,
+   0x66, 0x6e, 0x00, 0x00, 0x0a, 0x08, 0x01, 0x06, 0x00, 0x20, 0x00, 0xbb,
+   0xbd, 0x0b
+};
+
+TEST_CASE("test f64.promote_f32", "[.float_tests]") {
+   multi_backend bkend{f64_promote_f32_wasm};
+   for(int i = 0; i < (1 << 16); ++i) {
+      for(int j = -1; j <= 1; ++j) {
+         uint32_t argn = (static_cast<uint32_t>(i) << 16) + static_cast<uint32_t>(j);
+         float arg = bit_cast<float>(argn);
          auto [x0, x1, x2, x3] = bkend.call_with_return(arg);
          CHECK(x0 == x1);
          CHECK(x1 == x2);
@@ -173,68 +208,91 @@ TEST_CASE("test f32.sqrt", "[.float_tests]") {
    test_f32_unop(0x91);
 }
 
-/*
- * (module
- *  (func (export "fn") (param f32 f32) (result i64)
- *   (local.get 0)
- *   (local.get 1)
- *   (f32.min)
- *   (i32.reinterpret_f32)
- *   (i64.extend_i32_u)
- *  )
- * )
- */
-std::vector<uint8_t> f32_min_wasm = {
-   0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x60,
-   0x02, 0x7d, 0x7d, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x07, 0x06, 0x01,
-   0x02, 0x66, 0x6e, 0x00, 0x00, 0x0a, 0x0b, 0x01, 0x09, 0x00, 0x20, 0x00,
-   0x20, 0x01, 0x96, 0xbc, 0xad, 0x0b
-};
+void test_f32_binop(uint8_t op) {
+   /*
+    * (module
+    *  (func (export "fn") (param f32 f32) (result i64)
+    *   (local.get 0)
+    *   (local.get 1)
+    *   (op)
+    *   (i32.reinterpret_f32)
+    *   (i64.extend_i32_u)
+    *  )
+    * )
+    */
+   std::vector<uint8_t> f32_binop_wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x60,
+      0x02, 0x7d, 0x7d, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x07, 0x06, 0x01,
+      0x02, 0x66, 0x6e, 0x00, 0x00, 0x0a, 0x0b, 0x01, 0x09, 0x00, 0x20, 0x00,
+      0x20, 0x01, op, 0xbc, 0xad, 0x0b
+   };
+
+   multi_backend bkend{f32_binop_wasm};
+   for(int i = 0; i < (1 << 11); ++i) {
+      for(int j = -1; j <= 1; ++j) {
+         for(int k = 0; k < (1 << 11); ++k) {
+            for(int l = -1; l <= 1; ++l) {
+               float arg1 = bit_cast<float>((static_cast<uint32_t>(i) << 21) + static_cast<uint32_t>(j));
+               float arg2 = bit_cast<float>((static_cast<uint32_t>(k) << 21) + static_cast<uint32_t>(l));
+               auto [x0, x1, x2, x3] = bkend.call_with_return(arg1, arg2);
+               CHECK(x0 == x1);
+               CHECK(x1 == x2);
+               CHECK(x2 == x3);
+            }
+         }
+      }
+   }
+}
+
+TEST_CASE("test f32.add", "[.float_tests]") {
+   test_f32_binop(0x92);
+}
+
+TEST_CASE("test f32.sub", "[.float_tests]") {
+   test_f32_binop(0x93);
+}
+
+TEST_CASE("test f32.mul", "[.float_tests]") {
+   test_f32_binop(0x94);
+}
+
+TEST_CASE("test f32.div", "[.float_tests]") {
+   test_f32_binop(0x95);
+}
 
 TEST_CASE("test f32.min", "[.float_tests]") {
-   multi_backend bkend{f32_min_wasm};
-   for(int i = 0; i < (1 << 11); ++i) {
-      for(int j = -1; j <= 1; ++j) {
-         for(int k = 0; k < (1 << 11); ++k) {
-            for(int l = -1; l <= 1; ++l) {
-               float arg1 = bit_cast<float>((static_cast<uint32_t>(i) << 21) + static_cast<uint32_t>(j));
-               float arg2 = bit_cast<float>((static_cast<uint32_t>(k) << 21) + static_cast<uint32_t>(l));
-               auto [x0, x1, x2, x3] = bkend.call_with_return(arg1, arg2);
-               CHECK(x0 == x1);
-               CHECK(x1 == x2);
-               CHECK(x2 == x3);
-            }
-         }
-      }
-   }
+   test_f32_binop(0x96);
 }
-
-/*
- * (module
- *  (func (export "fn") (param f32 f32) (result i64)
- *   (local.get 0)
- *   (local.get 1)
- *   (f32.max)
- *   (i32.reinterpret_f32)
- *   (i64.extend_i32_u)
- *  )
- * )
- */
-std::vector<uint8_t> f32_max_wasm = {
-   0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x60,
-   0x02, 0x7d, 0x7d, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x07, 0x06, 0x01,
-   0x02, 0x66, 0x6e, 0x00, 0x00, 0x0a, 0x0b, 0x01, 0x09, 0x00, 0x20, 0x00,
-   0x20, 0x01, 0x97, 0xbc, 0xad, 0x0b
-};
 
 TEST_CASE("test f32.max", "[.float_tests]") {
-   multi_backend bkend{f32_max_wasm};
-   for(int i = 0; i < (1 << 11); ++i) {
+   test_f32_binop(0x97);
+}
+
+void test_f64_binop(uint8_t op) {
+   /*
+    * (module
+    *  (func (export "fn") (param f64 f64) (result i64)
+    *   (local.get 0)
+    *   (local.get 1)
+    *   (op)
+    *   (i64.reinterpret_f64)
+    *  )
+    * )
+    */
+   std::vector<uint8_t> f64_binop_wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x60,
+      0x02, 0x7c, 0x7c, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x07, 0x06, 0x01,
+      0x02, 0x66, 0x6e, 0x00, 0x00, 0x0a, 0x0a, 0x01, 0x08, 0x00, 0x20, 0x00,
+      0x20, 0x01, op, 0xbd, 0x0b
+   };
+
+   multi_backend bkend{f64_binop_wasm};
+   for(int i = 0; i < (1 << 14); ++i) {
       for(int j = -1; j <= 1; ++j) {
-         for(int k = 0; k < (1 << 11); ++k) {
+         for(int k = 0; k < (1 << 14); ++k) {
             for(int l = -1; l <= 1; ++l) {
-               float arg1 = bit_cast<float>((static_cast<uint32_t>(i) << 21) + static_cast<uint32_t>(j));
-               float arg2 = bit_cast<float>((static_cast<uint32_t>(k) << 21) + static_cast<uint32_t>(l));
+               double arg1 = bit_cast<double>((static_cast<uint64_t>(i) << 50) + static_cast<uint64_t>(j));
+               double arg2 = bit_cast<double>((static_cast<uint64_t>(k) << 50) + static_cast<uint64_t>(l));
                auto [x0, x1, x2, x3] = bkend.call_with_return(arg1, arg2);
                CHECK(x0 == x1);
                CHECK(x1 == x2);
@@ -245,72 +303,26 @@ TEST_CASE("test f32.max", "[.float_tests]") {
    }
 }
 
-/*
- * (module
- *  (func (export "fn") (param f64 f64) (result i64)
- *   (local.get 0)
- *   (local.get 1)
- *   (f64.min)
- *   (i64.reinterpret_f64)
- *  )
- * )
- */
-std::vector<uint8_t> f64_min_wasm = {
-   0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x60,
-   0x02, 0x7c, 0x7c, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x07, 0x06, 0x01,
-   0x02, 0x66, 0x6e, 0x00, 0x00, 0x0a, 0x0a, 0x01, 0x08, 0x00, 0x20, 0x00,
-   0x20, 0x01, 0xa4, 0xbd, 0x0b
-};
+TEST_CASE("test f64.add", "[.float_tests]") {
+   test_f64_binop(0xa0);
+}
+
+TEST_CASE("test f64.sub", "[.float_tests]") {
+   test_f64_binop(0xa1);
+}
+
+TEST_CASE("test f64.mul", "[.float_tests]") {
+   test_f64_binop(0xa2);
+}
+
+TEST_CASE("test f64.div", "[.float_tests]") {
+   test_f64_binop(0xa3);
+}
 
 TEST_CASE("test f64.min", "[.float_tests]") {
-   multi_backend bkend{f64_min_wasm};
-   for(int i = 0; i < (1 << 14); ++i) {
-      for(int j = -1; j <= 1; ++j) {
-         for(int k = 0; k < (1 << 14); ++k) {
-            for(int l = -1; l <= 1; ++l) {
-               double arg1 = bit_cast<double>((static_cast<uint64_t>(i) << 50) + static_cast<uint64_t>(j));
-               double arg2 = bit_cast<double>((static_cast<uint64_t>(k) << 50) + static_cast<uint64_t>(l));
-               auto [x0, x1, x2, x3] = bkend.call_with_return(arg1, arg2);
-               CHECK(x0 == x1);
-               CHECK(x1 == x2);
-               CHECK(x2 == x3);
-            }
-         }
-      }
-   }
+   test_f64_binop(0xa4);
 }
 
-/*
- * (module
- *  (func (export "fn") (param f64 f64) (result i64)
- *   (local.get 0)
- *   (local.get 1)
- *   (f64.max)
- *   (i64.reinterpret_f64)
- *  )
- * )
- */
-std::vector<uint8_t> f64_max_wasm = {
-   0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x60,
-   0x02, 0x7c, 0x7c, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x07, 0x06, 0x01,
-   0x02, 0x66, 0x6e, 0x00, 0x00, 0x0a, 0x0a, 0x01, 0x08, 0x00, 0x20, 0x00,
-   0x20, 0x01, 0xa5, 0xbd, 0x0b
-};
-
 TEST_CASE("test f64.max", "[.float_tests]") {
-   multi_backend bkend{f64_max_wasm};
-   for(int i = 0; i < (1 << 14); ++i) {
-      for(int j = -1; j <= 1; ++j) {
-         for(int k = 0; k < (1 << 14); ++k) {
-            for(int l = -1; l <= 1; ++l) {
-               double arg1 = bit_cast<double>((static_cast<uint64_t>(i) << 50) + static_cast<uint64_t>(j));
-               double arg2 = bit_cast<double>((static_cast<uint64_t>(k) << 50) + static_cast<uint64_t>(l));
-               auto [x0, x1, x2, x3] = bkend.call_with_return(arg1, arg2);
-               CHECK(x0 == x1);
-               CHECK(x1 == x2);
-               CHECK(x2 == x3);
-            }
-         }
-      }
-   }
+   test_f64_binop(0xa5);
 }
