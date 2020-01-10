@@ -72,65 +72,45 @@ namespace eosio { namespace vm {
 
       template <typename... Args>
       inline bool call_indirect(Host* host, uint32_t func_index, Args... args) {
-         try {
-            if constexpr (eos_vm_debug) {
-               //_ctx.execute_func_table(host, debug_visitor(_ctx), func_index, args...);
-               _ctx.execute_func_table(host, interpret_visitor(_ctx), func_index, args...);
-            } else {
-               _ctx.execute_func_table(host, interpret_visitor(_ctx), func_index, args...);
-            }
-            return true;
-         } catch (...) {
-            initialize(host);
-            throw;
+         if constexpr (eos_vm_debug) {
+            //_ctx.execute_func_table(host, debug_visitor(_ctx), func_index, args...);
+            _ctx.execute_func_table(host, interpret_visitor(_ctx), func_index, args...);
+         } else {
+            _ctx.execute_func_table(host, interpret_visitor(_ctx), func_index, args...);
          }
+         return true;
       }
 
       template <typename... Args>
       inline bool call(Host* host, uint32_t func_index, Args... args) {
-         try {
-            if constexpr (eos_vm_debug) {
-               //_ctx.execute(host, debug_visitor(_ctx), func_index, args...);
-               _ctx.execute(host, interpret_visitor(_ctx), func_index, args...);
-            } else {
-               _ctx.execute(host, interpret_visitor(_ctx), func_index, args...);
-            }
-            return true;
-         } catch (...) {
-            initialize(host);
-            throw;
+         if constexpr (eos_vm_debug) {
+            //_ctx.execute(host, debug_visitor(_ctx), func_index, args...);
+            _ctx.execute(host, interpret_visitor(_ctx), func_index, args...);
+         } else {
+            _ctx.execute(host, interpret_visitor(_ctx), func_index, args...);
          }
+         return true;
       }
 
       template <typename... Args>
       inline bool call(Host* host, const std::string_view& mod, const std::string_view& func, Args... args) {
-         try {
-            if constexpr (eos_vm_debug) {
-               //_ctx.execute(host, debug_visitor(_ctx), func, args...);
-               _ctx.execute(host, interpret_visitor(_ctx), func, args...);
-            } else {
-               _ctx.execute(host, interpret_visitor(_ctx), func, args...);
-            }
-            return true;
-         } catch (...) {
-            initialize(host);
-            throw;
+         if constexpr (eos_vm_debug) {
+            //_ctx.execute(host, debug_visitor(_ctx), func, args...);
+            _ctx.execute(host, interpret_visitor(_ctx), func, args...);
+         } else {
+            _ctx.execute(host, interpret_visitor(_ctx), func, args...);
          }
+         return true;
       }
 
       template <typename... Args>
       inline auto call_with_return(Host* host, const std::string_view& mod, const std::string_view& func,
                                    Args... args) {
-         try {
-            if constexpr (eos_vm_debug) {
-               //return _ctx.execute(host, debug_visitor(_ctx), func, args...);
-               return _ctx.execute(host, interpret_visitor(_ctx), func, args...);
-            } else {
-               return _ctx.execute(host, interpret_visitor(_ctx), func, args...);
-            }
-         } catch (...) {
-            initialize(host);
-            throw;
+         if constexpr (eos_vm_debug) {
+            //return _ctx.execute(host, debug_visitor(_ctx), func, args...);
+            return _ctx.execute(host, interpret_visitor(_ctx), func, args...);
+         } else {
+            return _ctx.execute(host, interpret_visitor(_ctx), func, args...);
          }
       }
 
