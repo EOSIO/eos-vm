@@ -54,8 +54,7 @@ include(EosVMBuildUtils)
 add_library(eos-vm INTERFACE)
 target_include_directories(eos-vm
                            INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include
-                                     ${CMAKE_CURRENT_SOURCE_DIR}/external/softfloat/source/include
-                                     ${CMAKE_CURRENT_SOURCE_DIR}/external/outcome/single-header)
+                                     ${CMAKE_CURRENT_SOURCE_DIR}/external/softfloat/source/include)
 
 # ##################################################################################################
 # Enable debugging stats for eos-vm.
@@ -73,11 +72,6 @@ if(ENABLE_SOFTFLOAT)
    endif()
    target_compile_definitions(eos-vm INTERFACE -DEOS_VM_SOFTFLOAT)
    target_link_libraries(eos-vm INTERFACE softfloat)
-endif()
-
-if(NOT USE_EXISTING_BOOST)
-   target_compile_definitions(eos-vm INTERFACE -DEOS_VM_USE_EXTERNAL_OUTCOME)
-   add_subdirectory(external/outcome)
 endif()
 
 if(ENABLE_MEMORY_OPS_ALIGNMENT)
