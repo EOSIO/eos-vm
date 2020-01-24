@@ -9,7 +9,7 @@ TEST_COMMAND="ctest -j$JOBS --output-on-failure -T Test"
 if [[ $(uname) == 'Darwin' ]]; then
 
     cd $BUILD_DIR
-    [[ $TRAVIS == true ]] && ccache -s
+    set +e
     $TEST_COMMAND
 
 else # Linux
@@ -24,9 +24,6 @@ else # Linux
     # Docker Commands
     if [[ $BUILDKITE == true ]]; then
         $CICD_DIR/generate-base-images.sh
-    elif [[ $TRAVIS == true ]]; then
-        ARGS="$ARGS -v /usr/lib/ccache -v $HOME/.ccache:/opt/.ccache -e JOBS -e TRAVIS -e CCACHE_DIR=/opt/.ccache"
-        COMMANDS="ccache -s && $COMMANDS"
     fi
 
     # Load BUILDKITE Environment Variables for use in docker run
