@@ -22,7 +22,7 @@ set( WASM_SPEC_TESTS_LOCATION "" CACHE STRING "The location of the webassembly s
 find_program(WAST2JSON wast2json)
 
 # These tests require manual maintenance
-set(SPEC_TESTS spec/elem_tests.cpp spec/func_ptrs_tests.cpp spec/globals_tests.cpp spec/memory_grow_tests.cpp spec/start_tests.cpp spec/names_tests.cpp)
+set(SPEC_TESTS spec/elem_tests.cpp spec/func_ptrs_tests.cpp spec/globals_tests.cpp spec/memory_grow_tests.cpp spec/names_tests.cpp)
 
 macro( add_spec_test_impl name source)
    list( APPEND SPEC_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/spec/${name}_tests.cpp )
@@ -57,7 +57,7 @@ foreach(testcase address align binary binary-leb128 block br br_if br_table brea
                  func i32 i64 if int_exprs int_literals labels left-to-right
                  load local_get local_set local_tee loop memory
                  memory_redundancy memory_size memory_trap nop return
-                 select stack store switch traps type typecheck
+                 select stack start store switch traps type typecheck
                  unreachable unreached-invalid unwind
                  utf8-custom-section-id utf8-import-field utf8-import-module utf8-invalid-encoding
                  )
@@ -80,10 +80,27 @@ target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_BINARY_DIR}
 
 add_executable(unit_tests main.cpp
                           allocator_tests.cpp
+                          eosio_max_nested_structures_tests.cpp
                           guarded_ptr_tests.cpp
                           varint_tests.cpp
                           variant_tests.cpp
                           host_functions_tests.cpp
+                          allow_code_after_function_end_tests.cpp
+                          allow_invalid_empty_local_set_tests.cpp
+                          allow_u32_limits_flags_tests.cpp
+                          forbid_export_mutable_globals_tests.cpp
+                          max_br_table_elements_tests.cpp
+                          max_code_bytes_tests.cpp
+                          max_func_local_bytes_tests.cpp
+                          max_linear_memory_init_tests.cpp
+                          max_local_sets_tests.cpp
+                          max_memory_offset_tests.cpp
+                          max_mutable_globals_tests.cpp
+                          max_nested_structures_tests.cpp
+                          max_pages_tests.cpp
+                          max_section_elements_tests.cpp
+                          max_table_elements_tests.cpp
+                          null_tests.cpp
                           reentry_tests.cpp
                           signals_tests.cpp
                           stack_restriction_tests.cpp

@@ -1,7 +1,7 @@
 FROM ubuntu:16.04
 # install dependencies
 RUN apt-get update && \
-    apt-get install -y build-essential git automake python2.7 python2.7-dev python3 python3-dev curl ccache
+    apt-get install -y build-essential git automake python2.7 python2.7-dev python3 python3-dev curl
 # build cmake
 RUN curl -LO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
     tar -xzf cmake-3.13.2.tar.gz && \

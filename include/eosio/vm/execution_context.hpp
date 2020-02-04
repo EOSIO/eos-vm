@@ -38,7 +38,7 @@ namespace eosio { namespace vm {
                return -1;
             _wasm_alloc->free<char>(-pages);
          } else {
-            if (!_mod.memories.size() || max_pages - sz < pages ||
+            if (!_mod.memories.size() || _max_pages - sz < pages ||
                 (_mod.memories[0].limits.flags && (static_cast<int32_t>(_mod.memories[0].limits.maximum) - sz < pages)))
                return -1;
             _wasm_alloc->alloc<char>(pages);
@@ -57,10 +57,13 @@ namespace eosio { namespace vm {
       inline void           set_wasm_allocator(wasm_allocator* alloc) { _wasm_alloc = alloc; }
       inline auto           get_wasm_allocator() { return _wasm_alloc; }
       inline char*          linear_memory() { return _linear_memory; }
+      void                  set_max_pages(std::uint32_t max_pages) { _max_pages = std::min(max_pages, static_cast<std::uint32_t>(vm::max_pages)); }
 
       inline std::error_code get_error_code() const { return _error_code; }
 
       inline void reset() {
+         EOS_VM_ASSERT(_mod.error == nullptr, wasm_interpreter_exception, _mod.error);
+
          _linear_memory = _wasm_alloc->get_base_ptr<char>();
          if (_mod.memories.size()) {
             // We'd better have reset the allocator before we get here
@@ -124,11 +127,19 @@ namespace eosio { namespace vm {
       char*                           _linear_memory    = nullptr;
       module&                         _mod;
       wasm_allocator*                 _wasm_alloc;
+      uint32_t                        _max_pages = max_pages;
       registered_host_functions<Host> _rhf;
       std::error_code                 _error_code;
    };
 
    struct jit_visitor { template<typename T> jit_visitor(T&&) {} };
+
+   template<typename Host>
+   class null_execution_context : public execution_context_base<null_execution_context<Host>, Host> {
+      using base_type = execution_context_base<null_execution_context<Host>, Host>;
+   public:
+      null_execution_context(module& m, std::uint32_t max_call_depth) : base_type(m) {}
+   };
 
    template<typename Host>
    class jit_execution_context : public execution_context_base<jit_execution_context<Host>, Host> {
@@ -141,6 +152,12 @@ namespace eosio { namespace vm {
       using base_type::_rhf;
       using base_type::_error_code;
       using base_type::handle_signal;
+
+      jit_execution_context(module& m, std::uint32_t max_call_depth) : base_type(m), _remaining_call_depth(max_call_depth) {}
+
+      void set_max_call_depth(std::uint32_t max_call_depth) {
+         _remaining_call_depth = max_call_depth;
+      }
 
       inline operand_stack& get_operand_stack() { return _os; }
 
@@ -249,7 +266,7 @@ namespace eosio { namespace vm {
       static native_value execute(native_value* data, native_value (*fun)(void*, void*), jit_execution_context* context, void* linear_memory, void* stack) {
          static_assert(sizeof(native_value) == 8, "8-bytes expected for native_value");
          native_value result;
-         unsigned stack_check = constants::max_call_depth + 1;
+         unsigned stack_check = context->_remaining_call_depth;
          register void* stack_top asm ("r12") = stack;
          // 0x1f80 is the default MXCSR value
          asm volatile(
@@ -298,11 +315,9 @@ namespace eosio { namespace vm {
       }
 
       Host * _host = nullptr;
+      uint32_t _remaining_call_depth;
 
       // This is only needed because the host function api uses operand stack
-      bounded_allocator _base_allocator = {
-         constants::max_stack_size * sizeof(operand_stack_elem)
-      };
       operand_stack _os;
    };
 
@@ -315,8 +330,21 @@ namespace eosio { namespace vm {
       using base_type::_linear_memory;
       using base_type::_error_code;
       using base_type::handle_signal;
-      execution_context(module& m) : base_type(m), _halt(exit_t{}) {}
+      execution_context(module& m, uint32_t max_call_depth)
+       : base_type(m), _base_allocator{max_call_depth*sizeof(activation_frame)},
+         _as{max_call_depth, _base_allocator}, _halt(exit_t{}) {}
 
+      void set_max_call_depth(uint32_t max_call_depth) {
+         static_assert(std::is_trivially_move_assignable_v<call_stack>, "This is seriously broken if call_stack move assignment might use the existing memory");
+         std::size_t mem_size = max_call_depth*sizeof(activation_frame);
+         if(mem_size > _base_allocator.mem_size) {
+            _base_allocator = bounded_allocator{mem_size};
+            _as = call_stack{max_call_depth, _base_allocator};
+         } else if (max_call_depth != _as.capacity()){
+            _base_allocator.index = 0;
+            _as = call_stack{max_call_depth, _base_allocator};
+         }
+      }
 
       inline void call(uint32_t index) {
          // TODO validate index is valid
@@ -639,7 +667,7 @@ namespace eosio { namespace vm {
       };
 
       bounded_allocator _base_allocator = {
-         (constants::max_stack_size + constants::max_call_depth + 1) * (std::max(sizeof(operand_stack_elem), sizeof(activation_frame)))
+         (constants::max_call_depth + 1) * sizeof(activation_frame)
       };
       execution_state _state;
       uint16_t                        _last_op_index    = 0;

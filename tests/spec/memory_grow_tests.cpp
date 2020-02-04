@@ -53,10 +53,10 @@ BACKEND_TEST_CASE( "Testing wasm <memory_grow_1_wasm>", "[memory_grow_1_wasm_tes
    CHECK(bkend.call_with_return(nullptr, "env", "grow", UINT32_C(1))->to_ui32() == UINT32_C(0));
    CHECK(bkend.call_with_return(nullptr, "env", "grow", UINT32_C(0))->to_ui32() == UINT32_C(1));
    CHECK(bkend.call_with_return(nullptr, "env", "grow", UINT32_C(2))->to_ui32() == UINT32_C(1));
-   //CHECK(bkend.call_with_return(nullptr, "env", "grow", UINT32_C(800))->to_ui32() == UINT32_C(3));
+   CHECK(bkend.call_with_return(nullptr, "env", "grow", UINT32_C(800))->to_ui32() == UINT32_C(3));
    CHECK(bkend.call_with_return(nullptr, "env", "grow", UINT32_C(65536))->to_ui32() == UINT32_C(4294967295));
    CHECK(bkend.call_with_return(nullptr, "env", "grow", UINT32_C(64736))->to_ui32() == UINT32_C(4294967295));
-   //CHECK(bkend.call_with_return(nullptr, "env", "grow", UINT32_C(1))->to_ui32() == UINT32_C(803));
+   CHECK(bkend.call_with_return(nullptr, "env", "grow", UINT32_C(1))->to_ui32() == UINT32_C(803));
 }
 
 BACKEND_TEST_CASE( "Testing wasm <memory_grow_2_wasm>", "[memory_grow_2_wasm_tests]" ) {
