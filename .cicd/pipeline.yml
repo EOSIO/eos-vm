@@ -63,6 +63,27 @@ steps:
           debug: true
           wait-network: true
     agents: "queue=mac-anka-large-node-fleet"
+    skip: $SKIP_MACOS_10_14
+
+  - label: ":darwin: macOS 10.15 - Build"
+    command:
+      - "brew install git cmake"
+      - "git clone $BUILDKITE_REPO eos-vm && cd eos-vm && git checkout $BUILDKITE_COMMIT && git submodule update --init --recursive"
+      - "cd eos-vm && ./.cicd/build.sh"
+      - "cd eos-vm && tar -pczf build.tar.gz build && buildkite-agent artifact upload build.tar.gz"
+    plugins:
+      - EOSIO/anka#v0.6.0:
+          no-volume: true
+          inherit-environment-vars: true
+          vm-name: 10.15.1_6C_14G_40G
+          vm-registry-tag: "clean::cicd::git-ssh::nas::brew::buildkite-agent"
+          modify-cpu: 12
+          modify-ram: 24
+          always-pull: true
+          debug: true
+          wait-network: true
+    agents: "queue=mac-anka-large-node-fleet"
+    skip: $SKIP_MACOS_10_15
 
   - wait
 
@@ -127,6 +148,25 @@ steps:
           debug: true
           wait-network: true
     agents: "queue=mac-anka-node-fleet"
+    skip: $SKIP_MACOS_10_14
+
+  - label: ":darwin: macOS 10.15 - Tests"
+    command:
+      - "brew install git cmake"
+      - "git clone $BUILDKITE_REPO eos-vm && cd eos-vm && git checkout $BUILDKITE_COMMIT && git submodule update --init --recursive"
+      - "cd eos-vm && buildkite-agent artifact download build.tar.gz . --step ':darwin: macOS 10.15 - Build' && tar -xzf build.tar.gz"
+      - "cd eos-vm && ./.cicd/tests.sh"
+    plugins:
+      - EOSIO/anka#v0.6.0:
+          no-volume: true
+          inherit-environment-vars: true
+          vm-name: 10.15.1_6C_14G_40G
+          vm-registry-tag: "clean::cicd::git-ssh::nas::brew::buildkite-agent"
+          always-pull: true
+          debug: true
+          wait-network: true
+    agents: "queue=mac-anka-node-fleet"
+    skip: $SKIP_MACOS_10_15
 
   - wait:
     continue_on_failure: true
