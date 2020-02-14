@@ -4,38 +4,41 @@
 #include <eosio/vm/watchdog.hpp>
 
 #include <iostream>
+#include <string>
 
 using namespace eosio;
 using namespace eosio::vm;
 
 #include "hello.wasm.hpp"
 
-namespace eosio { namespace vm {
-
-   template <>
-   struct wasm_type_converter<const char*> : linear_memory_access {
-      const char* from_wasm(const void* val) { validate_c_str(val); return static_cast<const char*>(val); }
-   };
-
-}}
-
-// example of host function as a raw C style function
-void eosio_assert(bool test, const char* msg) {
-   if (!test) {
-      std::cout << msg << std::endl;
-      throw 0;
-   }
-}
-
-void print_num(uint64_t n) { std::cout << "Number : " << n << "\n"; }
-
 struct example_host_methods {
+   void print_num(uint64_t n) { std::cout << "Number : " << n << "\n"; }
    // example of a host "method"
    void print_name(const char* nm) { std::cout << "Name : " << nm << " " << field << "\n"; }
    // example of another type of host function
-   static void* memset(void* ptr, int x, size_t n) { return ::memset(ptr, x, n); }
+   void* memset(void* ptr, int x, size_t n) { return ::memset(ptr, x, n); }
    std::string  field = "";
+
+   void eosio_assert(bool test, const char* msg) {
+      if (!test) {
+         std::cout << msg << std::endl;
+         throw 0;
+      }
+   }
+
+   void print_span(span<const char> s) {
+      std::cout << "Span : " << std::string{s.data(), s.size()} << "\n";
+   }
 };
+
+EOS_VM_PRECONDITION(test_name,
+      EOS_VM_INVOKE_ON([&](auto&& nm, auto&&... rest) {
+         if constexpr (std::is_same_v<std::remove_reference_t<decltype(nm)>, const char*>) {
+            std::string s = nm;
+            if (s == "eos-vm2")
+               throw "failure";
+         }
+   }))
 
 /**
  * Simple implementation of an interpreter using eos-vm.
@@ -48,27 +51,23 @@ int main(int argc, char** argv) {
    // Thread specific `allocator` used for wasm linear memory.
    wasm_allocator wa;
    // Specific the backend with example_host_methods for host functions.
-   using backend_t = eosio::vm::backend<example_host_methods>;
    using rhf_t     = eosio::vm::registered_host_functions<example_host_methods>;
+   using backend_t = eosio::vm::backend<rhf_t>;
 
    // register print_num
-   rhf_t::add<nullptr_t, &print_num, wasm_allocator>("env", "print_num");
+   rhf_t::add<&example_host_methods::print_num>("env", "print_num");
    // register eosio_assert
-   rhf_t::add<nullptr_t, &eosio_assert, wasm_allocator>("env", "eosio_assert");
+   rhf_t::add<&example_host_methods::eosio_assert>("env", "eosio_assert");
    // register print_name
-   rhf_t::add<example_host_methods, &example_host_methods::print_name, wasm_allocator>("env", "print_name");
+   rhf_t::add<&example_host_methods::print_name, test_name>("env", "print_name");
    // finally register memset
-   rhf_t::add<nullptr_t, &example_host_methods::memset, wasm_allocator>("env", "memset");
+   rhf_t::add<&example_host_methods::memset>("env", "memset");
+   rhf_t::add<&example_host_methods::print_span>("env", "print_span");
 
    watchdog wd{std::chrono::seconds(3)};
    try {
       // Instaniate a new backend using the wasm provided.
-      backend_t bkend(hello_wasm, rhf_t{});
-
-      // Point the backend to the allocator you want it to use.
-      bkend.set_wasm_allocator(&wa);
-      bkend.initialize();
-      // Resolve the host functions indices.
+      backend_t bkend(hello_wasm, &wa);
 
       // Instaniate a "host"
       example_host_methods ehm;

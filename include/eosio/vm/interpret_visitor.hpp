@@ -77,7 +77,7 @@ namespace eosio { namespace vm {
       }
       [[gnu::always_inline]] inline void operator()(const br_table_t& op) {
          const auto& in = context.pop_operand().to_ui32();
-         const auto& entry = op.table[std::min(in, op.size)]; 
+         const auto& entry = op.table[std::min(in, op.size)];
          context.jump(entry.stack_pop, entry.pc);
       }
       [[gnu::always_inline]] inline void operator()(const call_t& op) {

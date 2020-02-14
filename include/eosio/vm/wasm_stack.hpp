@@ -16,19 +16,19 @@ namespace eosio { namespace vm {
    class stack {
     public:
       template <typename Alloc=Allocator, typename = std::enable_if_t<std::is_same_v<Alloc, nullptr_t>, int>>
-      stack() 
+      stack()
          : _store(ElemSz) {}
 
       template <typename Alloc=Allocator, typename = std::enable_if_t<!std::is_same_v<Alloc, nullptr_t>, int>>
-      stack(Alloc&& alloc) 
+      stack(Alloc&& alloc)
          : _store(alloc, ElemSz) {}
 
-      void push(ElemT&& e) { 
+      void push(ElemT&& e) {
          if constexpr (std::is_same_v<Allocator, nullptr_t>) {
             if (_index >= _store.size())
                _store.resize(_store.size()*2);
          }
-         _store[_index++] = std::forward<ElemT>(e); 
+         _store[_index++] = std::forward<ElemT>(e);
       }
 
       ElemT pop() { return _store[--_index]; }
@@ -43,7 +43,7 @@ namespace eosio { namespace vm {
       }
       void  eat(uint32_t index) { _index = index; }
       // compact the last element to the element pointed to by index
-      void compact(uint32_t index) { 
+      void compact(uint32_t index) {
          _store[index] = _store[_index-1];
          _index = index+1;
       }
@@ -51,7 +51,8 @@ namespace eosio { namespace vm {
       ElemT&       peek() { return _store[_index - 1]; }
       const ElemT& peek() const { return _store[_index - 1]; }
       ElemT&       peek(size_t i) { return _store[_index - 1 - i]; }
-      ElemT        get_back(size_t i) { return _store[_index - 1 - i]; }
+      ElemT&       get_back(size_t i) { return _store[_index - 1 - i]; }
+      const ElemT& get_back(size_t i)const { return _store[_index - 1 - i]; }
       void         trim(size_t amt) { _index -= amt; }
       size_t       size() const { return _index; }
 

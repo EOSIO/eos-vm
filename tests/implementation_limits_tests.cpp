@@ -26,7 +26,7 @@ BACKEND_TEST_CASE( "Test call depth", "[call_depth]") {
    wasm_allocator wa;
    using backend_t = eosio::vm::backend<nullptr_t, TestType>;
    using rhf_t     = eosio::vm::registered_host_functions<nullptr_t>;
-   rhf_t::add<nullptr_t, &host_call, wasm_allocator>("env", "host.call");
+   rhf_t::add<nullptr_t, &host_call>("env", "host.call");
 
    backend_t bkend(implementation_limits_wasm_code);
    bkend.set_wasm_allocator(&wa);

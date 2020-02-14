@@ -26,7 +26,7 @@ find_package(Threads)
 link_libraries(Threads::Threads)
 
 # ##################################################################################################
-# Gate against Windows builds. 
+# Gate against Windows builds.
 # ##################################################################################################
 if (WIN32)
    message(FATAL_ERROR "EOS-VM currently only builds on Unix like OSes (Linux, Mac OSX)")

@@ -17,13 +17,13 @@ namespace eosio { namespace vm {
    };
 }}
 
-#define DECLARE_EXCEPTION(name, _code, _what)                                     \
-   struct name : public eosio::vm::exception {                          \
-      name(const char* msg) : msg(msg) {}                                         \
-      virtual const char* what()const throw() { return _what; }                   \
-      virtual const char* detail()const throw() { return msg; }                   \
-      uint32_t code()const { return _code; }                                      \
-      const char* msg;                                                            \
+#define DECLARE_EXCEPTION(name, _code, _what)                   \
+   struct name : public eosio::vm::exception {                  \
+      name(const char* msg) : msg(msg) {}                       \
+      virtual const char* what()const throw() { return _what; } \
+      virtual const char* detail()const throw() { return msg; } \
+      uint32_t code()const { return _code; }                    \
+      const char* msg;                                          \
    };
 
 namespace eosio { namespace vm {
@@ -41,4 +41,7 @@ namespace eosio { namespace vm {
    DECLARE_EXCEPTION( guarded_ptr_exception,             4010000, "pointer out of bounds" )
    DECLARE_EXCEPTION( timeout_exception,                 4010001, "timeout" )
    DECLARE_EXCEPTION( wasm_exit_exception,               4010002, "exit" )
+   DECLARE_EXCEPTION( span_exception,                    4020000, "span exception" )
 }} // eosio::vm
+
+#undef DECLARE_EXCEPTION

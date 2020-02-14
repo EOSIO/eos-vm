@@ -12,7 +12,6 @@
 
 #include <atomic>
 #include <exception>
-#include <fstream>
 #include <iostream>
 #include <optional>
 #include <string_view>
@@ -20,6 +19,36 @@
 #include <vector>
 
 namespace eosio { namespace vm {
+
+   namespace detail {
+      template <typename HostFunctions>
+      struct host_function_resolver {
+         constexpr host_function_resolver() = default;
+         template <typename Module>
+         inline constexpr explicit host_function_resolver(Module& mod) {
+            mod.finalize();
+            HostFunctions::resolve(mod);
+         }
+      };
+      template <>
+      struct host_function_resolver<nullptr_t> {
+         constexpr host_function_resolver() = default;
+         template <typename Module>
+         inline constexpr explicit host_function_resolver(Module& mod){}
+      };
+
+      template <typename HostFunctions>
+      struct host_type {
+         using type = typename HostFunctions::host_type_t;
+      };
+      template <>
+      struct host_type<nullptr_t> {
+         using type = nullptr_t;
+      };
+
+      template <typename HF>
+      using host_type_t = typename host_type<HF>::type;
+   }
 
    struct jit {
       template<typename Host>
@@ -37,80 +66,85 @@ namespace eosio { namespace vm {
       static constexpr bool is_jit = false;
    };
 
-   template <typename Host, typename Impl = interpreter>
-   class backend {
+   template <typename HostFunctions = nullptr_t, typename Impl = interpreter>
+   class backend : public detail::host_function_resolver<HostFunctions> {
+      using host_t     = detail::host_type_t<HostFunctions>;
     public:
-      using host_t = Host;
-
-      template <typename HostFunctions = nullptr_t>
-      backend(wasm_code& code, HostFunctions = nullptr) : _ctx(typename Impl::template parser<Host>{ _mod.allocator }.parse_module(code, _mod)) {
-	 if constexpr (!std::is_same_v<HostFunctions, nullptr_t>)
-            HostFunctions::resolve(_mod);
-	 _mod.finalize();
-      }
-      template <typename HostFunctions = nullptr_t>
-      backend(wasm_code_ptr& ptr, size_t sz, HostFunctions = nullptr) : _ctx(typename Impl::template parser<Host>{ _mod.allocator }.parse_module2(ptr, sz, _mod)) {
-	 if constexpr (!std::is_same_v<HostFunctions, nullptr_t>)
-            HostFunctions::resolve(_mod);
-	 _mod.finalize();
+      template <typename Host = detail::host_type_t<HostFunctions>>
+      backend(wasm_code& code, wasm_allocator* alloc=nullptr, Host* host=nullptr)
+         : memory_alloc(alloc), ctx(typename Impl::template parser<Host>{ mod.allocator }.parse_module(code, mod)) {
+         mod.finalize();
+         ctx.set_wasm_allocator(alloc);
+         if constexpr (!std::is_same_v<HostFunctions, nullptr_t>)
+            HostFunctions::resolve(mod);
+         if (alloc)
+            initialize(host);
       }
 
-      template <typename... Args>
+      template <typename Host = detail::host_type_t<HostFunctions>>
+      backend(wasm_code_ptr& ptr, size_t sz, wasm_allocator* alloc=nullptr, Host* host=nullptr) : ctx(typename Impl::template parser<Host>{ mod.allocator }.parse_module2(ptr, sz, mod)) {
+         mod.finalize();
+         ctx.set_wasm_allocator(alloc);
+         if constexpr (!std::is_same_v<HostFunctions, nullptr_t>)
+            HostFunctions::resolve(mod);
+         if (alloc)
+            initialize(host);
+      }
+
+      template <typename Host, typename... Args>
       inline bool operator()(Host* host, const std::string_view& mod, const std::string_view& func, Args... args) {
          return call(host, mod, func, args...);
       }
 
+      template <typename Host = detail::host_type_t<HostFunctions>>
       inline backend& initialize(Host* host=nullptr) {
-         if(_mod.memories.size())
-            _walloc->reset(_mod.memories[0].limits.initial);
+         if(mod.memories.size())
+            memory_alloc->reset(mod.memories[0].limits.initial);
          else
-            _walloc->reset();
-         _ctx.reset();
-         _ctx.execute_start(host, interpret_visitor(_ctx));
+            memory_alloc->reset();
+         ctx.reset();
+         if (host)
+            ctx.execute_start(host, interpret_visitor(ctx));
          return *this;
       }
 
-      template <typename... Args>
+      template <typename Host, typename... Args>
       inline bool call_indirect(Host* host, uint32_t func_index, Args... args) {
          if constexpr (eos_vm_debug) {
-            //_ctx.execute_func_table(host, debug_visitor(_ctx), func_index, args...);
-            _ctx.execute_func_table(host, interpret_visitor(_ctx), func_index, args...);
+            ctx.execute_func_table(host, debug_visitor(ctx), func_index, args...);
          } else {
-            _ctx.execute_func_table(host, interpret_visitor(_ctx), func_index, args...);
+            ctx.execute_func_table(host, interpret_visitor(ctx), func_index, args...);
          }
          return true;
       }
 
-      template <typename... Args>
+      template <typename Host, typename... Args>
       inline bool call(Host* host, uint32_t func_index, Args... args) {
          if constexpr (eos_vm_debug) {
-            //_ctx.execute(host, debug_visitor(_ctx), func_index, args...);
-            _ctx.execute(host, interpret_visitor(_ctx), func_index, args...);
+            ctx.execute(host, debug_visitor(ctx), func_index, args...);
          } else {
-            _ctx.execute(host, interpret_visitor(_ctx), func_index, args...);
+            ctx.execute(host, interpret_visitor(ctx), func_index, args...);
          }
          return true;
       }
 
-      template <typename... Args>
+      template <typename Host, typename... Args>
       inline bool call(Host* host, const std::string_view& mod, const std::string_view& func, Args... args) {
          if constexpr (eos_vm_debug) {
-            //_ctx.execute(host, debug_visitor(_ctx), func, args...);
-            _ctx.execute(host, interpret_visitor(_ctx), func, args...);
+            ctx.execute(host, debug_visitor(ctx), func, args...);
          } else {
-            _ctx.execute(host, interpret_visitor(_ctx), func, args...);
+            ctx.execute(host, interpret_visitor(ctx), func, args...);
          }
          return true;
       }
 
-      template <typename... Args>
+      template <typename Host, typename... Args>
       inline auto call_with_return(Host* host, const std::string_view& mod, const std::string_view& func,
                                    Args... args) {
          if constexpr (eos_vm_debug) {
-            //return _ctx.execute(host, debug_visitor(_ctx), func, args...);
-            return _ctx.execute(host, interpret_visitor(_ctx), func, args...);
+            return ctx.execute(host, debug_visitor(ctx), func, args...);
          } else {
-            return _ctx.execute(host, interpret_visitor(_ctx), func, args...);
+            return ctx.execute(host, interpret_visitor(ctx), func, args...);
          }
       }
 
@@ -134,13 +168,13 @@ namespace eosio { namespace vm {
          std::atomic<bool>       _timed_out = false;
          auto reenable_code = scope_guard{[&](){
             if (_timed_out) {
-               _mod.allocator.enable_code(Impl::is_jit);
+               mod.allocator.enable_code(Impl::is_jit);
             }
          }};
          try {
             auto wd_guard = wd.scoped_run([this,&_timed_out]() {
                _timed_out = true;
-               _mod.allocator.disable_code();
+               mod.allocator.disable_code();
             });
             static_cast<F&&>(f)();
          } catch(wasm_memory_exception&) {
@@ -152,51 +186,35 @@ namespace eosio { namespace vm {
          }
       }
 
-      template <typename Watchdog>
+      template <typename Watchdog, typename Host=nullptr_t>
       inline void execute_all(Watchdog&& wd, Host* host = nullptr) {
          timed_run(static_cast<Watchdog&&>(wd), [&]() {
-            for (int i = 0; i < _mod.exports.size(); i++) {
-               if (_mod.exports[i].kind == external_kind::Function) {
-                  std::string s{ (const char*)_mod.exports[i].field_str.raw(), _mod.exports[i].field_str.size() };
+            for (int i = 0; i < mod.exports.size(); i++) {
+               if (mod.exports[i].kind == external_kind::Function) {
+                  std::string s{ (const char*)mod.exports[i].field_str.raw(), mod.exports[i].field_str.size() };
 	          if constexpr (eos_vm_debug) {
-                     print_result(_ctx.execute(host, debug_visitor(_ctx), s));
+                     print_result(ctx.execute(host, debug_visitor(ctx), s));
 	          } else {
-	             _ctx.execute(host, interpret_visitor(_ctx), s);
+	             ctx.execute(host, interpret_visitor(ctx), s);
 	          }
                }
             }
          });
       }
 
-      inline void set_wasm_allocator(wasm_allocator* walloc) {
-         _walloc = walloc;
-         _ctx.set_wasm_allocator(walloc);
+      inline void set_wasm_allocator(wasm_allocator* alloc) {
+         memory_alloc = alloc;
+         ctx.set_wasm_allocator(memory_alloc);
       }
 
-      inline wasm_allocator* get_wasm_allocator() { return _walloc; }
-      inline module&         get_module() { return _mod; }
-      inline void            exit(const std::error_code& ec) { _ctx.exit(ec); }
-      inline auto&           get_context() { return _ctx; }
-
-      static std::vector<uint8_t> read_wasm(const std::string& fname) {
-         std::ifstream wasm_file(fname, std::ios::binary);
-         if (!wasm_file.is_open())
-            throw std::runtime_error("wasm file not found");
-         wasm_file.seekg(0, std::ios::end);
-         std::vector<uint8_t> wasm;
-         int                  len = wasm_file.tellg();
-         if (len < 0)
-            throw std::runtime_error("wasm file length is -1");
-         wasm.resize(len);
-         wasm_file.seekg(0, std::ios::beg);
-         wasm_file.read((char*)wasm.data(), wasm.size());
-         wasm_file.close();
-         return wasm;
-      }
+      inline wasm_allocator* get_wasm_allocator() { return memory_alloc; }
+      inline module&         get_module() { return mod; }
+      inline void            exit(const std::error_code& ec) { ctx.exit(ec); }
+      inline auto&           get_context() { return ctx; }
 
     private:
-      wasm_allocator*         _walloc = nullptr; // non owning pointer
-      module                  _mod;
-      typename Impl::template context<Host> _ctx;
+      wasm_allocator*                       memory_alloc = nullptr; // non owning pointer
+      module                                mod;
+      typename Impl::template context<host_t> ctx;
    };
 }} // namespace eosio::vm
