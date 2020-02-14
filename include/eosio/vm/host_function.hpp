@@ -35,7 +35,7 @@ namespace eosio { namespace vm {
    struct construct_derived<Derived, nullptr_t> {
       static nullptr_t value(nullptr_t) { return nullptr; }
    };
-   
+
    // Workaround for compiler bug handling C++g17 auto template parameters.
    // The parameter is not treated as being type-dependent in all contexts,
    // causing early evaluation of the containing expression.
@@ -76,6 +76,44 @@ namespace eosio { namespace vm {
       inline void validate_c_str(const void* ptr) {
          volatile auto check = std::strlen(reinterpret_cast<const char*>(ptr));
          ignore_unused_variable_warning(check);
+      }
+
+      template <typename Filter>
+      static constexpr std::size_t filter_arg_count_v = std::tuple_size_v<decltype(get_args_full(&Filter::create))>;
+
+      template <typename Filter, typename Args, std::size_t... Is>
+      auto construct_filtered_impl(Args&& args, std::index_sequence<Is...>) {
+         return Filter::create(std::get<Is>(args)...);
+      }
+
+      template <typename Filter, typename Args, std::size_t... Is>
+      auto construct_rest_impl(Args&& args, std::index_sequence<Is...>) {
+         return std::tuple{std::get<Is+filter_arg_count_v<Filter>>(args)...};
+      }
+
+      template <typename Filter, typename... Args>
+      auto construct_filtered(Args&&... args) {
+         using args_is = std::make_index_sequence<filter_arg_count_v<Filter>>;
+         auto rest = construct_rest_impl<Filter>(std::tuple{std::forward<Args>(args)...}, std::make_index_sequence<sizeof...(Args) - filter_arg_count_v<Filter>>());
+         return std::pair{construct_filtered_impl<Filter>(std::tuple{std::forward<Args>(args)...}, args_is()), rest};
+      }
+
+      template <auto Operator, typename Filter, typename Args, size_t... Is>
+      auto call_operator(const Filter& filtered, Args&& args, std::index_sequence<Is...>) {
+         const auto& new_filtered = construct_filtered<Filter>(std::get<Is>(args)...);
+         const auto& retval = Operator(filtered, new_filtered.first);
+         using rest_t = std::decay_t<decltype(new_filtered.second)>;
+         if constexpr (std::tuple_size_v<rest_t> == 0) {
+            return retval;
+         } else {
+            return retval && detail::call_operator<Operator, Filter>(filtered, std::move(new_filtered.second), std::make_index_sequence<std::tuple_size_v<rest_t>>());
+         }
+      }
+
+      template <auto Operator, typename Filter, typename... Args>
+      auto call_operator(Args&&... args) {
+         const auto& filtered = construct_filtered<Filter>(std::forward<Args>(args)...);
+         return call_operator<Operator, Filter>(filtered.first, std::move(filtered.second), std::make_index_sequence<std::tuple_size_v<decltype(filtered.second)>>());
       }
    }
 
@@ -145,6 +183,62 @@ namespace eosio { namespace vm {
       }
 
       aligned_ptr_wrapper<T, Align> _impl;
+   };
+
+   template <auto Operation, template<typename> typename Filter, typename T>
+   struct filtered_wrapper {
+      constexpr filtered_wrapper(Filter<T>* ptr) : ptr(ptr) {}
+
+      template <typename... Args>
+      constexpr auto fold(Args... args) const {
+         return detail::call_operator<Operation, Filter<T>>(std::forward<Args>(args)...);
+      }
+
+      template <template<typename> typename Other, typename U>
+      static constexpr bool is_type_of(Other<U>&&) {
+         return std::is_same_v<Other<nullptr_t>, Filter<nullptr_t>>;
+      }
+
+      constexpr operator T*() const {
+         return &copy;
+      }
+
+      using deduced_full_ts    = decltype(get_args_full(AUTO_PARAM_WORKAROUND(Operation)));
+      using res_t              = decltype(get_return_t(AUTO_PARAM_WORKAROUND(Operation)));
+      static constexpr auto is = std::make_index_sequence<std::tuple_size_v<deduced_full_ts>>();
+
+      Filter<T>* ptr;
+   };
+
+
+
+   template <typename T>
+   struct copied_ptr_wrapper {
+      copied_ptr_wrapper(void* ptr) : ptr(ptr) {
+         copy = T{};
+         memcpy( &copy, ptr, sizeof(T) );
+      }
+
+      ~copied_ptr_wrapper() {
+         memcpy( ptr, &copy, sizeof(T) );
+      }
+
+      constexpr operator T*() const {
+         return &copy;
+      }
+
+      void* ptr;
+      mutable std::remove_cv_t<T> copy;
+   };
+
+   template <typename T>
+   struct copied_ref_wrapper {
+      constexpr copied_ref_wrapper(void* ptr) : _impl(ptr) {}
+      constexpr operator T&() const {
+         return *static_cast<T*>(_impl);
+      }
+
+      copied_ptr_wrapper<T> _impl;
    };
 
    template<typename T, std::size_t Align = alignof(T)>
@@ -272,8 +366,11 @@ namespace eosio { namespace vm {
       // Calls from_wasm with the correct arguments
       template<typename A, typename SourceType, typename WAlloc, typename Tail, typename T, std::size_t... Is>
       decltype(auto) get_value_impl(std::index_sequence<Is...>, WAlloc* alloc, T&& val, const Tail& tail) {
-         return detail::init_wasm_type_converter(wasm_type_converter<A>{}, alloc)
-            .from_wasm(get_value<SourceType>(alloc, static_cast<T&&>(val), tail), cons_get<Is>(tail)...);
+         auto retval = detail::init_wasm_type_converter(wasm_type_converter<A>{}, alloc)
+                       .from_wasm(get_value<SourceType>(alloc, static_cast<T&&>(val), tail), cons_get<Is>(tail)...);
+         if constexpr (filtered_wrapper::is_type_of(retval))
+            retval.fold(cons_get<Is>(tail)...);
+         return retval;
       }
 
       // Matches a specific overload of a function and deduces the first argument
