@@ -185,29 +185,44 @@ namespace eosio { namespace vm {
       aligned_ptr_wrapper<T, Align> _impl;
    };
 
-   template <auto Operation, template<typename> typename Filter, typename T>
+   template <typename T>
+   struct has_fold {
+      template <class C>
+      static std::true_type test(decltype(&C::template fold));
+
+      template <class>
+      static std::false_type test(...);
+
+      static constexpr bool value = std::is_same_v<decltype(test<T>(0)), std::true_type>;
+   };
+
+   template <typename T>
+   inline constexpr bool has_fold_v = has_fold<T>::value;
+
+   template <auto Operation, typename Filter>
    struct filtered_wrapper {
-      constexpr filtered_wrapper(Filter<T>* ptr) : ptr(ptr) {}
+      constexpr filtered_wrapper(Filter&& ptr) : ptr(std::move(ptr)) {}
 
       template <typename... Args>
       constexpr auto fold(Args... args) const {
-         return detail::call_operator<Operation, Filter<T>>(std::forward<Args>(args)...);
+         return detail::call_operator<Operation, Filter>(std::forward<Args>(args)...);
       }
 
-      template <template<typename> typename Other, typename U>
-      static constexpr bool is_type_of(Other<U>&&) {
-         return std::is_same_v<Other<nullptr_t>, Filter<nullptr_t>>;
-      }
-
+      template <typename T>
       constexpr operator T*() const {
-         return &copy;
+         return reinterpret_cast<T*>(ptr.value);
+      }
+
+      template <typename T>
+      constexpr operator T() const {
+         return *(T*)(this);
       }
 
       using deduced_full_ts    = decltype(get_args_full(AUTO_PARAM_WORKAROUND(Operation)));
       using res_t              = decltype(get_return_t(AUTO_PARAM_WORKAROUND(Operation)));
       static constexpr auto is = std::make_index_sequence<std::tuple_size_v<deduced_full_ts>>();
 
-      Filter<T>* ptr;
+      Filter ptr;
    };
 
 
@@ -368,9 +383,9 @@ namespace eosio { namespace vm {
       decltype(auto) get_value_impl(std::index_sequence<Is...>, WAlloc* alloc, T&& val, const Tail& tail) {
          auto retval = detail::init_wasm_type_converter(wasm_type_converter<A>{}, alloc)
                        .from_wasm(get_value<SourceType>(alloc, static_cast<T&&>(val), tail), cons_get<Is>(tail)...);
-         if constexpr (filtered_wrapper::is_type_of(retval))
+         if constexpr (has_fold_v<decltype(retval)>)
             retval.fold(cons_get<Is>(tail)...);
-         return retval;
+         return std::move(retval);
       }
 
       // Matches a specific overload of a function and deduces the first argument
