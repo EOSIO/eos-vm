@@ -91,7 +91,7 @@ add_executable(unit_tests main.cpp
                           forbid_export_mutable_globals_tests.cpp
                           max_br_table_elements_tests.cpp
                           max_code_bytes_tests.cpp
-                          max_func_local_bytes_tests.cpp
+                          #max_func_local_bytes_tests.cpp
                           max_linear_memory_init_tests.cpp
                           max_local_sets_tests.cpp
                           max_memory_offset_tests.cpp
@@ -108,7 +108,8 @@ add_executable(unit_tests main.cpp
                           implementation_limits_tests.cpp
                           instantiation_tests.cpp
                           backend_tests.cpp
-                          vector_tests.cpp)
+                          vector_tests.cpp
+                          x86_64_encoder_tests.cpp)
 
 target_link_libraries(unit_tests eos-vm Catch2::Catch2)
 

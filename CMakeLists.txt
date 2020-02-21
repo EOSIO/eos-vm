@@ -26,7 +26,7 @@ find_package(Threads)
 link_libraries(Threads::Threads)
 
 # ##################################################################################################
-# Gate against Windows builds. 
+# Gate against Windows builds.
 # ##################################################################################################
 if (WIN32)
    message(FATAL_ERROR "EOS-VM currently only builds on Unix like OSes (Linux, Mac OSX)")
@@ -43,6 +43,8 @@ option(ENABLE_INSTALL "enable this library to be installed" ON)
 option(ENABLE_MEMORY_OPS_ALIGNMENT "enable the backend to obey alignment hints" OFF)
 option(ENABLE_TOOLS "enable building of tools" ON)
 option(ENABLE_TESTS "enable building of unit tests, spec tests" OFF)
+option(ENABLE_DEBUG "enable EOS_VM_DEBUG for output" OFF)
+
 cmake_dependent_option(ENABLE_FUZZ_TESTS "enable fuzz testing" OFF "ENABLE_TESTS" ON)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/modules")
@@ -76,6 +78,13 @@ endif()
 
 if(ENABLE_MEMORY_OPS_ALIGNMENT)
    target_compile_definitions(eos-vm INTERFACE -DEOS_VM_ALIGN_MEMORY_OPS)
+endif()
+
+# ##################################################################################################
+# Build eos-vm with eos_vm_debug
+# ##################################################################################################
+if(ENABLE_DEBUG)
+   target_compile_definitions(eos-vm INTERFACE -DEOS_VM_DEBUG)
 endif()
 
 # ##################################################################################################

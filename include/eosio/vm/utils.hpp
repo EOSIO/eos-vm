@@ -1,5 +1,7 @@
 #pragma once
 
+#include <eosio/vm/debug.hpp>
+
 #include <cstdlib>
 #include <functional>
 #include <string>

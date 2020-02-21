@@ -283,12 +283,18 @@ namespace eosio { namespace vm {
          return ptr;
       }
 
-      void * start_code() {
+      void* start_code() {
          _offset = align_to_page(_offset);
          return _base + _offset;
       }
+
       template<bool IsJit>
-      void end_code(void * code_base) {
+      void end_code() {
+         end_code<IsJit>(_base);
+      }
+
+      template<bool IsJit>
+      void end_code(void* code_base) {
          assert((char*)code_base >= _base);
          assert((char*)code_base <= (_base+_offset));
          _offset = align_to_page(_offset);
