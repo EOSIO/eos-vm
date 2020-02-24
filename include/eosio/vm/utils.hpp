@@ -58,4 +58,19 @@ namespace eosio { namespace vm {
 
    template<typename... T>
    void ignore_unused_variable_warning(T&...) {}
+
+   template <char...Str>
+   struct compile_time_string {
+      static constexpr const char value[] = {Str..., '\0'};
+   };
+
 }} // namespace eosio::vm
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-string-literal-operator-template"
+   template <typename T, T... Str>
+   inline constexpr auto operator""_cts() {
+      constexpr auto x = eosio::vm::compile_time_string<Str...>{};
+      return x;
+   }
+#pragma clang diagnostic pop

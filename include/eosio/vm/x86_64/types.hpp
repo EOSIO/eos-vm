@@ -45,8 +45,6 @@ namespace eosio { namespace vm { namespace x86_64 {
       };
    } // namespace prefix
 
-   struct optional_ty {};
-
    struct sib {
       constexpr sib(uint8_t s, uint8_t i, uint8_t b) : scale(s), index(i), base(b) {}
       constexpr sib(uint8_t val) : value(val) {}
@@ -62,30 +60,32 @@ namespace eosio { namespace vm { namespace x86_64 {
    };
 
    // type used to represent a memory operand
-   template <std::size_t>
+   template <std::size_t Size>
    struct mem {
       template <typename Reg1, typename Reg2>
-      constexpr mem(Reg1 base, Reg2 index, uint8_t scale = 0, uint32_t disp = 0)
-         : value(scale, index.reg, base.reg), displacement(disp),
+      constexpr mem(Reg1 base, Reg2 index, uint8_t scale, uint32_t disp)
+         : value(scale, index.value, base.value), displacement(disp),
            is_32_bit(base.size == 32) {
          //EOS_VM_ASSERT(base.size == 32 || base.size == 64, x86_64_encoder_exception, "base is not 32 or 64 bits");
       }
 
       template <typename Reg1, typename Reg2>
-      constexpr mem(Reg1 base, Reg2 index, uint32_t disp = 0)
-         : value(0, index.reg, base.reg), displacement(disp),
+      constexpr mem(Reg1 base, Reg2 index, uint32_t disp)
+         : value(0, index.value, base.value), displacement(disp),
            is_32_bit(base.size == 32) {
          //EOS_VM_ASSERT(base.size == 32 || base.size == 64, x86_64_encoder_exception, "base is not 32 or 64 bits");
       }
 
       template <typename Reg1>
-      constexpr mem(Reg1 base, uint32_t disp = 0)
-         : value(0, 0, base.reg), displacement(disp), skip_sib(true),
+      constexpr mem(Reg1 base, uint32_t disp)
+         : value(0, 0, base.value), displacement(disp), skip_sib(true),
            is_32_bit(base.size == 32) {
          //EOS_VM_ASSERT(base.size == 32 || base.size == 64, x86_64_encoder_exception, "base is not 32 or 64 bits");
       }
 
       constexpr mem() = default;
+
+      constexpr explicit operator uint8_t()const { return value.value; }
 
       constexpr bool is_displacement_8()const {
          return displacement <= std::numeric_limits<uint8_t>::max();
@@ -98,6 +98,7 @@ namespace eosio { namespace vm { namespace x86_64 {
       // used for memory operands with only a base and displacement
       bool     skip_sib     = false;
       bool     is_32_bit    = false;
+      static constexpr uint8_t size = Size;
    };
 
    using mem8  = mem<8>;
@@ -116,7 +117,7 @@ namespace eosio { namespace vm { namespace x86_64 {
    };
 
    template <typename T>
-   inline constexpr bool is_mem_reg() {
+   inline constexpr bool is_mem_reg_type() {
       return std::is_same_v<std::decay_t<T>, mem_reg8>  ||
              std::is_same_v<std::decay_t<T>, mem_reg16> ||
              std::is_same_v<std::decay_t<T>, mem_reg32> ||
@@ -124,50 +125,71 @@ namespace eosio { namespace vm { namespace x86_64 {
    }
 
    template <typename T>
-   inline constexpr bool is_mem(T&& op) {
-      if constexpr (is_mem_reg<T>()) {
-         std::cout << "is_mem\n";
+   inline constexpr bool is_mem_type() {
+      return std::is_same_v<std::decay_t<T>, mem8> ||
+             std::is_same_v<std::decay_t<T>, mem16> ||
+             std::is_same_v<std::decay_t<T>, mem32> ||
+             std::is_same_v<std::decay_t<T>, mem64>;
+   }
+
+   template <typename T>
+   inline constexpr bool is_reg_type() {
+      return std::is_same_v<std::decay_t<T>, reg8>  ||
+             std::is_same_v<std::decay_t<T>, reg16> ||
+             std::is_same_v<std::decay_t<T>, reg32> ||
+             std::is_same_v<std::decay_t<T>, reg64>;
+   }
+
+   template <typename T>
+   inline constexpr bool is_mem_value(T&& op) {
+      if constexpr (!is_mem_reg_type<T>()) {
+         return is_mem_type<T>();
+      } else {
          return op.template is_a<mem8>()  ||
                 op.template is_a<mem16>() ||
                 op.template is_a<mem32>() ||
                 op.template is_a<mem64>() ;
-      } else {
-         return std::is_same_v<std::decay_t<T>, mem8>  ||
-                std::is_same_v<std::decay_t<T>, mem16> ||
-                std::is_same_v<std::decay_t<T>, mem32> ||
-                std::is_same_v<std::decay_t<T>, mem64>;
       }
    }
 
    template <typename T>
-   inline constexpr bool is_reg(T&& op) {
-      if constexpr (is_mem_reg<T>()) {
+   inline constexpr bool is_reg_value(T&& op) {
+      if constexpr (!is_mem_reg_type<T>()) {
+         return is_reg_type<T>();
+      } else {
          return op.template is_a<reg8>()  ||
                 op.template is_a<reg16>() ||
                 op.template is_a<reg32>() ||
                 op.template is_a<reg64>();
-      } else {
-         return std::is_same_v<std::decay_t<T>, reg8>  ||
-                std::is_same_v<std::decay_t<T>, reg16> ||
-                std::is_same_v<std::decay_t<T>, reg32> ||
-                std::is_same_v<std::decay_t<T>, reg64>;
       }
    }
 
    template <typename T>
    inline constexpr auto get_reg(T&& op) {
-      if constexpr (is_mem_reg<T>())
-         return op.template get<mem_reg_index::reg_index>().reg;
+      if constexpr (is_mem_reg_type<T>())
+         return op.template get<mem_reg_index::reg_index>().value;
       else
-         return op.reg;
+         return op.value;
    }
 
    template <typename T>
    inline constexpr auto get_mem(T&& op) {
-      if constexpr (is_mem_reg<T>())
+      if constexpr (is_mem_reg_type<T>())
          return op.template get<mem_reg_index::mem_index>().value;
       else
          return op.value;
+   }
+
+   template <typename T>
+   inline constexpr uint8_t get_value(T&& op) {
+      if constexpr(is_mem_reg_type<T>()) {
+         if (is_mem_value(op))
+            return (uint8_t)op.template get<mem_reg_index::mem_index>();
+         else
+            return (uint8_t)op.template get<mem_reg_index::reg_index>();
+      } else {
+         return (uint8_t)op;
+      }
    }
 
    struct modrm {
@@ -249,4 +271,19 @@ namespace eosio { namespace vm { namespace x86_64 {
       };
    };
 
+
+   template <typename T>
+   constexpr uint8_t get_type_bitwidth() {
+      if constexpr (is_mem_reg_type<T>()) {
+         using ret_type = std::decay_t<decltype(std::declval<T>().template get<mem_reg_index::mem_index>())>;
+         return ret_type::size;
+      } else if constexpr (is_reg_type<T>() || is_mem_type<T>()) {
+         return std::decay_t<T>::size;
+      } else {
+         return 0;
+      }
+   }
+
+   template <typename T>
+   static constexpr uint8_t bitwidth_v = get_type_bitwidth<T>();
 }}} // namespace eosio::vm::x86_64
