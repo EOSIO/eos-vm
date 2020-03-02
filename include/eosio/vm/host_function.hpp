@@ -117,11 +117,10 @@ namespace eosio { namespace vm {
       }
    }
 
-   template <typename T, std::size_t Align>
+   template <typename T>
    struct aligned_ptr_wrapper {
-      static_assert(Align % alignof(T) == 0, "Must align to at least the alignment of T");
       aligned_ptr_wrapper(void* ptr) : ptr(ptr) {
-        if (reinterpret_cast<std::uintptr_t>(ptr) % Align != 0) {
+        if (reinterpret_cast<std::uintptr_t>(ptr) % alignof(T) != 0) {
             copy = T{};
             memcpy( &(*copy), ptr, sizeof(T) );
          }
@@ -144,11 +143,10 @@ namespace eosio { namespace vm {
       aligned_ptr_wrapper(const aligned_ptr_wrapper&) = delete;
    };
 
-   template <typename T, std::size_t Align>
+   template <typename T>
    struct aligned_array_wrapper {
-      static_assert(Align % alignof(T) == 0, "Must align to at least the alignment of T");
       aligned_array_wrapper(void* ptr, uint32_t size) : ptr(ptr), size(size) {
-         if (reinterpret_cast<std::uintptr_t>(ptr) % Align != 0) {
+         if (reinterpret_cast<std::uintptr_t>(ptr) % alignof(T) != 0) {
             copy.reset(new std::remove_cv_t<T>[size]);
             memcpy( copy.get(), ptr, sizeof(T) * size );
          }
@@ -175,14 +173,14 @@ namespace eosio { namespace vm {
       aligned_array_wrapper(const aligned_array_wrapper&) = delete;
    };
 
-   template <typename T, std::size_t Align>
+   template <typename T>
    struct aligned_ref_wrapper {
       constexpr aligned_ref_wrapper(void* ptr) : _impl(ptr) {}
       constexpr operator T&() const {
          return *static_cast<T*>(_impl);
       }
 
-      aligned_ptr_wrapper<T, Align> _impl;
+      aligned_ptr_wrapper<T> _impl;
    };
 
    template <typename T>
@@ -204,8 +202,8 @@ namespace eosio { namespace vm {
       constexpr filtered_wrapper(Filter&& ptr) : ptr(std::move(ptr)) {}
 
       template <typename... Args>
-      constexpr auto fold(Args... args) const {
-         return detail::call_operator<Operation, Filter>(std::forward<Args>(args)...);
+      constexpr void fold(Args... args) const {
+         detail::call_operator<Operation, Filter>(std::forward<Args>(args)...);
       }
 
       template <typename T>
@@ -256,18 +254,45 @@ namespace eosio { namespace vm {
       copied_ptr_wrapper<T> _impl;
    };
 
-   template<typename T, std::size_t Align = alignof(T)>
+   template<typename T>
    struct aligned_ptr {
-      aligned_ptr(const aligned_ptr_wrapper<T, Align>& wrapper) : _ptr(wrapper) {}
+      aligned_ptr(const aligned_ptr_wrapper<T>& wrapper) : _ptr(wrapper) {}
       operator T*() const { return _ptr; }
       T* _ptr;
    };
 
-   template<typename T, std::size_t Align = alignof(T)>
+   template<typename T>
    struct aligned_ref {
-      aligned_ref(const aligned_ptr_wrapper<T, Align>& wrapper) : _ptr(wrapper) {}
+      aligned_ref(const aligned_ptr_wrapper<T>& wrapper) : _ptr(wrapper) {}
       operator T&() const { return *_ptr; }
       T* _ptr;
+   };
+
+   // TODO type
+   struct type_converter {
+      // bool type
+      static uint32_t to_wasm(bool val) { return val; }
+      static bool     from_wasm(bool, uint32_t val) { return val == 1; }
+
+      template <typename T>
+      static void* to_wasm(T* val) { return static_cast<void*>(val); }
+
+      template <typename T>
+      static void* to_wasm(const T* val) { return static_cast<void*>(val); }
+
+      template <typename T>
+      static void* to_wasm(T& val) { return static_cast<void*>(&val); }
+
+      template <typename T>
+      static void* to_wasm(const T& val) { return static_cast<void*>(&val); }
+
+      // aligned_ptr<T>
+      template <typename T>
+      static aligned_ptr_wrapper<T> from_wasm(aligned_ptr<T>, void* ptr) { return {ptr}; }
+
+      // aligned_ref<T>
+      template <typename T>
+      static aligned_ptr_wrapper<T> from_wasm(aligned_ref<T>, void* ptr) { return {ptr}; }
    };
 
    // This class can be specialized to define a conversion to/from wasm.
@@ -381,11 +406,11 @@ namespace eosio { namespace vm {
       // Calls from_wasm with the correct arguments
       template<typename A, typename SourceType, typename WAlloc, typename Tail, typename T, std::size_t... Is>
       decltype(auto) get_value_impl(std::index_sequence<Is...>, WAlloc* alloc, T&& val, const Tail& tail) {
-         auto retval = detail::init_wasm_type_converter(wasm_type_converter<A>{}, alloc)
+         const auto& retval = detail::init_wasm_type_converter(wasm_type_converter<A>{}, alloc)
                        .from_wasm(get_value<SourceType>(alloc, static_cast<T&&>(val), tail), cons_get<Is>(tail)...);
          if constexpr (has_fold_v<decltype(retval)>)
             retval.fold(cons_get<Is>(tail)...);
-         return std::move(retval);
+         return retval;
       }
 
       // Matches a specific overload of a function and deduces the first argument
@@ -520,14 +545,14 @@ namespace eosio { namespace vm {
       static uint32_t to_wasm(bool val) { return val? 1 : 0; }
    };
 
-   template<typename T, std::size_t Align>
-   struct wasm_type_converter<aligned_ptr<T, Align>> {
-      aligned_ptr_wrapper<T, Align> from_wasm(void* ptr) { return {ptr}; }
+   template<typename T>
+   struct wasm_type_converter<aligned_ptr<T>> {
+      aligned_ptr_wrapper<T> from_wasm(void* ptr) { return {ptr}; }
    };
 
-   template<typename T, std::size_t Align>
-   struct wasm_type_converter<aligned_ref<T, Align>> {
-      aligned_ptr_wrapper<T, Align> from_wasm(void* ptr) { return {ptr}; }
+   template<typename T>
+   struct wasm_type_converter<aligned_ref<T>> {
+      aligned_ptr_wrapper<T> from_wasm(void* ptr) { return {ptr}; }
    };
 
    template <typename T>
@@ -550,6 +575,7 @@ namespace eosio { namespace vm {
          return vm::to_wasm_type<typename detail::get_wasm_type<T>::type>();
    }
 
+   /* TODO delete
    template <uint8_t Type>
    struct _to_wasm_t;
 
@@ -575,6 +601,7 @@ namespace eosio { namespace vm {
 
    template <typename T>
    using to_wasm_t = typename _to_wasm_t<to_wasm_type<T>()>::type;
+   */
 
    template<auto F, typename Derived, typename Host, typename... T>
    decltype(auto) invoke_with_host(Host* host, T&&... args) {
