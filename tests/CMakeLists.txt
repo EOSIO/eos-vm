@@ -88,6 +88,7 @@ add_executable(unit_tests main.cpp
                           allow_code_after_function_end_tests.cpp
                           allow_invalid_empty_local_set_tests.cpp
                           allow_u32_limits_flags_tests.cpp
+                          allow_zero_blocktype_tests.cpp
                           forbid_export_mutable_globals_tests.cpp
                           max_br_table_elements_tests.cpp
                           max_code_bytes_tests.cpp
