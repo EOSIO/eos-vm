@@ -58,6 +58,14 @@ struct options {
    bool allow_zero_blocktype = false;
    // Determines which components are counted towards max_function_local_bytes
    max_func_local_bytes_flags_t max_func_local_bytes_flags = max_func_local_bytes_flags_t::locals | max_func_local_bytes_flags_t::stack;
+
+   // Whether to use softfloat.
+   //
+   // @warning Hardware floating point is only strictly deterministic
+   // with jit.  When using hardware floating point with the interpreter,
+   // the behavior depends on the C++ implementation and differs from
+   // the behavior with softfloat.
+   static constexpr bool use_softfloat = true;
 };
 
 struct default_options {
