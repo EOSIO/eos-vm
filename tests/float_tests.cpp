@@ -25,25 +25,25 @@ struct multi_backend {
    explicit multi_backend(std::vector<uint8_t>& code) :
      soft_interpreter_backend(code),
      soft_jit_backend(code),
-     hard_interpreter_backend(code),
+     //hard_interpreter_backend(code),
      hard_jit_backend(code)
    {
       soft_interpreter_backend.set_wasm_allocator(&wa);
-      hard_interpreter_backend.set_wasm_allocator(&wa);
+      //hard_interpreter_backend.set_wasm_allocator(&wa);
       soft_jit_backend.set_wasm_allocator(&wa);
       hard_jit_backend.set_wasm_allocator(&wa);
    }
    backend<nullptr_t, interpreter, softfloat_config> soft_interpreter_backend;
    backend<nullptr_t, jit, softfloat_config> soft_jit_backend;
-   backend<nullptr_t, interpreter, hardfloat_config> hard_interpreter_backend;
+   //backend<nullptr_t, interpreter, hardfloat_config> hard_interpreter_backend;
    backend<nullptr_t, jit, hardfloat_config> hard_jit_backend;
    template<typename... A>
    std::tuple<uint64_t, uint64_t, uint64_t, uint64_t> call_with_return(A... a) {
       auto x0 = soft_interpreter_backend.call_with_return(nullptr, "env", "fn", a...)->to_ui64();
       auto x1 = soft_jit_backend.call_with_return(nullptr, "env", "fn", a...)->to_ui64();
-      auto x2 = hard_interpreter_backend.call_with_return(nullptr, "env", "fn", a...)->to_ui64();
+      // auto x2 = hard_interpreter_backend.call_with_return(nullptr, "env", "fn", a...)->to_ui64();
       auto x3 = hard_jit_backend.call_with_return(nullptr, "env", "fn", a...)->to_ui64();
-      return {x0, x1, x2, x3};
+      return {x0, x1, /*x2,*/x3, x3};
    }
 };
 
