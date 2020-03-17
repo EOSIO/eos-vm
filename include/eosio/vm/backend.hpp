@@ -26,7 +26,7 @@ namespace eosio { namespace vm {
       template<typename Host>
       using context = jit_execution_context<Host>;
       template<typename Host, typename Options>
-      using parser = binary_parser<machine_code_writer<jit_execution_context<Host>>, Options>;
+      using parser = binary_parser<machine_code_writer<jit_execution_context<Host>, detail::get_use_softfloat<Options>()>, Options>;
       static constexpr bool is_jit = true;
    };
 
@@ -87,7 +87,7 @@ namespace eosio { namespace vm {
          else
             _walloc->reset();
          _ctx.reset();
-         _ctx.execute_start(host, interpret_visitor(_ctx));
+         _ctx.execute_start(host, visitor_type(_ctx));
          return *this;
       }
 
@@ -96,9 +96,9 @@ namespace eosio { namespace vm {
          try {
             if constexpr (eos_vm_debug) {
                //_ctx.execute_func_table(host, debug_visitor(_ctx), func_index, args...);
-               _ctx.execute_func_table(host, interpret_visitor(_ctx), func_index, args...);
+               _ctx.execute_func_table(host, visitor_type(_ctx), func_index, args...);
             } else {
-               _ctx.execute_func_table(host, interpret_visitor(_ctx), func_index, args...);
+               _ctx.execute_func_table(host, visitor_type(_ctx), func_index, args...);
             }
             return true;
          } catch (...) {
@@ -112,9 +112,9 @@ namespace eosio { namespace vm {
          try {
             if constexpr (eos_vm_debug) {
                //_ctx.execute(host, debug_visitor(_ctx), func_index, args...);
-               _ctx.execute(host, interpret_visitor(_ctx), func_index, args...);
+               _ctx.execute(host, visitor_type(_ctx), func_index, args...);
             } else {
-               _ctx.execute(host, interpret_visitor(_ctx), func_index, args...);
+               _ctx.execute(host, visitor_type(_ctx), func_index, args...);
             }
             return true;
          } catch (...) {
@@ -128,9 +128,9 @@ namespace eosio { namespace vm {
          try {
             if constexpr (eos_vm_debug) {
                //_ctx.execute(host, debug_visitor(_ctx), func, args...);
-               _ctx.execute(host, interpret_visitor(_ctx), func, args...);
+               _ctx.execute(host, visitor_type(_ctx), func, args...);
             } else {
-               _ctx.execute(host, interpret_visitor(_ctx), func, args...);
+               _ctx.execute(host, visitor_type(_ctx), func, args...);
             }
             return true;
          } catch (...) {
@@ -145,9 +145,9 @@ namespace eosio { namespace vm {
          try {
             if constexpr (eos_vm_debug) {
                //return _ctx.execute(host, debug_visitor(_ctx), func, args...);
-               return _ctx.execute(host, interpret_visitor(_ctx), func, args...);
+               return _ctx.execute(host, visitor_type(_ctx), func, args...);
             } else {
-               return _ctx.execute(host, interpret_visitor(_ctx), func, args...);
+               return _ctx.execute(host, visitor_type(_ctx), func, args...);
             }
          } catch (...) {
             initialize(host);
@@ -202,7 +202,7 @@ namespace eosio { namespace vm {
 	          if constexpr (eos_vm_debug) {
                      print_result(_ctx.execute(host, debug_visitor(_ctx), s));
 	          } else {
-	             _ctx.execute(host, interpret_visitor(_ctx), s);
+	             _ctx.execute(host, visitor_type(_ctx), s);
 	          }
                }
             }
@@ -236,6 +236,7 @@ namespace eosio { namespace vm {
       }
 
     private:
+      using visitor_type = interpret_visitor<typename Impl::template context<Host>, detail::get_use_softfloat<Options>()>;
       wasm_allocator*         _walloc = nullptr; // non owning pointer
       module                  _mod;
       typename Impl::template context<Host> _ctx;

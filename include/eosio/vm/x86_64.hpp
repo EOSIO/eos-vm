@@ -28,9 +28,10 @@ namespace eosio { namespace vm {
    //   the stack.
    //
    // - The base of memory is stored in rsi
+   // - Remaining stack depth is in rbx
    //
    // - FIXME: Factor the machine instructions into a separate assembler class.
-   template<typename Context>
+   template<typename Context, bool use_softfloat = true>
    class machine_code_writer {
     public:
       machine_code_writer(growable_allocator& alloc, std::size_t source_bytes, module& mod) :
@@ -1372,8 +1373,14 @@ namespace eosio { namespace vm {
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_f32_ceil));
          }
-         // roundss 0b1010, (%rsp), %xmm0
-         emit_bytes(0x66, 0x0f, 0x3a, 0x0a, 0x04, 0x24, 0x0a);
+         // movss (%rsp), %xmm0
+         emit_bytes(0xf3, 0x0f, 0x10, 0x04, 0x24);
+         // ucomiss %xmm0, %xmm0
+         emit_bytes(0x0f, 0x2e, 0xc0);
+         // jp LDONE
+         emit_bytes(0x7a, 0x0b);
+         // roundss 0b1010, %xmm0, %xmm0
+         emit_bytes(0x66, 0x0f, 0x3a, 0x0a, 0xc0, 0x0a);
          // movss %xmm0, (%rsp)
          emit_bytes(0xf3, 0x0f, 0x11, 0x04, 0x24);
       }
@@ -1383,8 +1390,14 @@ namespace eosio { namespace vm {
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_f32_floor));
          }
-         // roundss 0b1001, (%rsp), %xmm0
-         emit_bytes(0x66, 0x0f, 0x3a, 0x0a, 0x04, 0x24, 0x09);
+         // movss (%rsp), %xmm0
+         emit_bytes(0xf3, 0x0f, 0x10, 0x04, 0x24);
+         // ucomiss %xmm0, %xmm0
+         emit_bytes(0x0f, 0x2e, 0xc0);
+         // jp LDONE
+         emit_bytes(0x7a, 0x0b);
+         // roundss 0b1001, %xmm0, %xmm0
+         emit_bytes(0x66, 0x0f, 0x3a, 0x0a, 0xc0, 0x09);
          // movss %xmm0, (%rsp)
          emit_bytes(0xf3, 0x0f, 0x11, 0x04, 0x24);
       }
@@ -1394,8 +1407,14 @@ namespace eosio { namespace vm {
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_f32_trunc));
          }
-         // roundss 0b1011, (%rsp), %xmm0
-         emit_bytes(0x66, 0x0f, 0x3a, 0x0a, 0x04, 0x24, 0x0b);
+         // movss (%rsp), %xmm0
+         emit_bytes(0xf3, 0x0f, 0x10, 0x04, 0x24);
+         // ucomiss %xmm0, %xmm0
+         emit_bytes(0x0f, 0x2e, 0xc0);
+         // jp LDONE
+         emit_bytes(0x7a, 0x0b);
+         // roundss 0b1011, %xmm0, %xmm0
+         emit_bytes(0x66, 0x0f, 0x3a, 0x0a, 0xc0, 0x0b);
          // movss %xmm0, (%rsp)
          emit_bytes(0xf3, 0x0f, 0x11, 0x04, 0x24);
       }
@@ -1405,8 +1424,14 @@ namespace eosio { namespace vm {
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_f32_nearest));
          }
-         // roundss 0b1000, (%rsp), %xmm0
-         emit_bytes(0x66, 0x0f, 0x3a, 0x0a, 0x04, 0x24, 0x08);
+         // movss (%rsp), %xmm0
+         emit_bytes(0xf3, 0x0f, 0x10, 0x04, 0x24);
+         // ucomiss %xmm0, %xmm0
+         emit_bytes(0x0f, 0x2e, 0xc0);
+         // jp LDONE
+         emit_bytes(0x7a, 0x0b);
+         // roundss 0b1000, %xmm0, %xmm0
+         emit_bytes(0x66, 0x0f, 0x3a, 0x0a, 0xc0, 0x08);
          // movss %xmm0, (%rsp)
          emit_bytes(0xf3, 0x0f, 0x11, 0x04, 0x24);
       }
@@ -1441,37 +1466,58 @@ namespace eosio { namespace vm {
          emit_f32_binop(0x5e, CHOOSE_FN(_eosio_f32_div));
       }
       void emit_f32_min() {
-         auto icount = softfloat_instr(47, 44);
+         auto icount = softfloat_instr(63, 44);
         if constexpr(use_softfloat) {
            emit_f32_binop_softfloat(CHOOSE_FN(_eosio_f32_min));
            return;
         }
-        // mov (%rsp), %eax
-        emit_bytes(0x8b, 0x04, 0x24);
-        // test %eax, %eax
-        emit_bytes(0x85, 0xc0);
-        // je ZERO
-        emit_bytes(0x0f, 0x84);
-        void* zero = emit_branch_target32();
+
         // movss 8(%rsp), %xmm0
         emit_bytes(0xf3, 0x0f, 0x10, 0x44, 0x24, 0x08);
-        // minss (%rsp), %xmm0
-        emit_bytes(0xf3, 0x0f, 0x5d, 0x04, 0x24);
-        // jmp DONE
-        emit_bytes(0xe9);
-        void* done = emit_branch_target32();
-        // ZERO:
-        fix_branch(zero, code);
+        // ucomiss %xmm0, %xmm0
+        emit_bytes(0x0f, 0x2e, 0xc0);
+        // jp DONE
+        emit_bytes(0x7a, 0x30);
         // movss (%rsp), %xmm0
         emit_bytes(0xf3, 0x0f, 0x10, 0x04, 0x24);
-        // minss 8(%rsp), %xmm0
-        emit_bytes(0xf3, 0x0f, 0x5d, 0x44, 0x24, 0x08);
+        // ucomiss %xmm0, %xmm0
+        emit_bytes(0x0f, 0x2e, 0xc0);
+
+        // mov (%rsp), %eax
+        emit_bytes(0x8b, 0x04, 0x24);
+        // jp SECOND
+        emit_bytes(0x7a, 0x1f);
+        // mov 8(%rsp), %r8d
+        emit_bytes(0x44, 0x8b, 0x44, 0x24, 0x08);
+
+        // mov %eax, %ecx
+        emit_bytes(0x89, 0xc1);
+        // mov %r8d, %edx
+        emit_bytes(0x44, 0x89, 0xc2);
+        // sar $31, %ecx
+        emit_bytes(0xc1, 0xf9, 0x1f);
+        // sar $31, %edx
+        emit_bytes(0xc1, 0xfa, 0x1f);
+        // shr $1, %ecx
+        emit_bytes(0xd1, 0xe9);
+        // shr $1, %edx
+        emit_bytes(0xd1, 0xea);
+        // xor %eax, %ecx
+        emit_bytes(0x31, 0xc1);
+        // xor %r8d, %edx
+        emit_bytes(0x44, 0x31, 0xc2);
+        // cmp %ecx, %edx
+        emit_bytes(0x39, 0xca);
+        // cmovl %r8d, %eax
+        emit_bytes(0x41, 0x0f, 0x4c, 0xc0);
+
+        // SECOND:
+        // mov %eax, 8(%rsp)
+        emit_bytes(0x89, 0x44, 0x24, 0x08);
+
         // DONE:
-        fix_branch(done, code);
         // add $8, %rsp
         emit_bytes(0x48, 0x83, 0xc4, 0x08);
-        // movss %xmm0, (%rsp)
-        emit_bytes(0xf3, 0x0f, 0x11, 0x04, 0x24);
       }
       void emit_f32_max() {
          auto icount = softfloat_instr(47, 44);
@@ -1479,32 +1525,53 @@ namespace eosio { namespace vm {
            emit_f32_binop_softfloat(CHOOSE_FN(_eosio_f32_max));
            return;
         }
-        // mov (%rsp), %eax
-        emit_bytes(0x8b, 0x04, 0x24);
-        // test %eax, %eax
-        emit_bytes(0x85, 0xc0);
-        // je ZERO
-        emit_bytes(0x0f, 0x84);
-        void* zero = emit_branch_target32();
-        // movss (%rsp), %xmm0
-        emit_bytes(0xf3, 0x0f, 0x10, 0x04, 0x24);
-        // maxss 8(%rsp), %xmm0
-        emit_bytes(0xf3, 0x0f, 0x5f, 0x44, 0x24, 0x08);
-        // jmp DONE
-        emit_bytes(0xe9);
-        void* done = emit_branch_target32();
-        // ZERO:
-        fix_branch(zero, code);
+
         // movss 8(%rsp), %xmm0
         emit_bytes(0xf3, 0x0f, 0x10, 0x44, 0x24, 0x08);
-        // maxss (%rsp), %xmm0
-        emit_bytes(0xf3, 0x0f, 0x5f, 0x04, 0x24);
+        // ucomiss %xmm0, %xmm0
+        emit_bytes(0x0f, 0x2e, 0xc0);
+        // jp DONE
+        emit_bytes(0x7a, 0x30);
+        // movss (%rsp), %xmm0
+        emit_bytes(0xf3, 0x0f, 0x10, 0x04, 0x24);
+        // ucomiss %xmm0, %xmm0
+        emit_bytes(0x0f, 0x2e, 0xc0);
+
+        // mov (%rsp), %eax
+        emit_bytes(0x8b, 0x04, 0x24);
+        // jp SECOND
+        emit_bytes(0x7a, 0x1f);
+        // mov 8(%rsp), %r8d
+        emit_bytes(0x44, 0x8b, 0x44, 0x24, 0x08);
+
+        // mov %eax, %ecx
+        emit_bytes(0x89, 0xc1);
+        // mov %r8d, %edx
+        emit_bytes(0x44, 0x89, 0xc2);
+        // sar $31, %ecx
+        emit_bytes(0xc1, 0xf9, 0x1f);
+        // sar $31, %edx
+        emit_bytes(0xc1, 0xfa, 0x1f);
+        // shr $1, %ecx
+        emit_bytes(0xd1, 0xe9);
+        // shr $1, %edx
+        emit_bytes(0xd1, 0xea);
+        // xor %eax, %ecx
+        emit_bytes(0x31, 0xc1);
+        // xor %r8d, %edx
+        emit_bytes(0x44, 0x31, 0xc2);
+        // cmp %ecx, %edx
+        emit_bytes(0x39, 0xca);
+        // cmovg %r8d, %eax
+        emit_bytes(0x41, 0x0f, 0x4f, 0xc0);
+
+        // SECOND:
+        // mov %eax, 8(%rsp)
+        emit_bytes(0x89, 0x44, 0x24, 0x08);
+
         // DONE:
-        fix_branch(done, code);
         // add $8, %rsp
         emit_bytes(0x48, 0x83, 0xc4, 0x08);
-        // movss %xmm0, (%rsp)
-        emit_bytes(0xf3, 0x0f, 0x11, 0x04, 0x24);
       }
 
       void emit_f32_copysign() {
@@ -1554,46 +1621,70 @@ namespace eosio { namespace vm {
       }
 
       void emit_f64_ceil() {
-         auto icount = softfloat_instr(12, 38);
+         auto icount = softfloat_instr(22, 38);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_f64_ceil));
          }
-         // roundsd 0b1010, (%rsp), %xmm0
-         emit_bytes(0x66, 0x0f, 0x3a, 0x0b, 0x04, 0x24, 0x0a);
+         // movsd (%rsp), %xmm0
+         emit_bytes(0xf2, 0x0f, 0x10, 0x04, 0x24);
+         // ucomisd %xmm0, %xmm0
+         emit_bytes(0x66, 0x0f, 0x2e, 0xc0);
+         // jp DONE
+         emit_bytes(0x7a, 0x0b);
+         // roundsd 0b1010, %xmm0, %xmm0
+         emit_bytes(0x66, 0x0f, 0x3a, 0x0b, 0xc0, 0x0a);
          // movsd %xmm0, (%rsp)
          emit_bytes(0xf2, 0x0f, 0x11, 0x04, 0x24);
       }
 
       void emit_f64_floor() {
-         auto icount = softfloat_instr(12, 38);
+         auto icount = softfloat_instr(22, 38);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_f64_floor));
          }
-         // roundsd 0b1001, (%rsp), %xmm0
-         emit_bytes(0x66, 0x0f, 0x3a, 0x0b, 0x04, 0x24, 0x09);
-         // movss %xmm0, (%rsp)
+         // movsd (%rsp), %xmm0
+         emit_bytes(0xf2, 0x0f, 0x10, 0x04, 0x24);
+         // ucomisd %xmm0, %xmm0
+         emit_bytes(0x66, 0x0f, 0x2e, 0xc0);
+         // jp DONE
+         emit_bytes(0x7a, 0x0b);
+         // roundsd 0b1001, %xmm0, %xmm0
+         emit_bytes(0x66, 0x0f, 0x3a, 0x0b, 0xc0, 0x09);
+         // movsd %xmm0, (%rsp)
          emit_bytes(0xf2, 0x0f, 0x11, 0x04, 0x24);
       }
 
       void emit_f64_trunc() {
-         auto icount = softfloat_instr(12, 38);
+         auto icount = softfloat_instr(22, 38);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_f64_trunc));
          }
-         // roundsd 0b1011, (%rsp), %xmm0
-         emit_bytes(0x66, 0x0f, 0x3a, 0x0b, 0x04, 0x24, 0x0b);
-         // movss %xmm0, (%rsp)
+         // movsd (%rsp), %xmm0
+         emit_bytes(0xf2, 0x0f, 0x10, 0x04, 0x24);
+         // ucomisd %xmm0, %xmm0
+         emit_bytes(0x66, 0x0f, 0x2e, 0xc0);
+         // jp DONE
+         emit_bytes(0x7a, 0x0b);
+         // roundsd 0b1011, %xmm0, %xmm0
+         emit_bytes(0x66, 0x0f, 0x3a, 0x0b, 0xc0, 0x0b);
+         // movsd %xmm0, (%rsp)
          emit_bytes(0xf2, 0x0f, 0x11, 0x04, 0x24);
       }
 
       void emit_f64_nearest() {
-         auto icount = softfloat_instr(12, 38);
+         auto icount = softfloat_instr(22, 38);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_f64_nearest));
          }
-         // roundsd 0b1000, (%rsp), %xmm0
-         emit_bytes(0x66, 0x0f, 0x3a, 0x0b, 0x04, 0x24, 0x08);
-         // movss %xmm0, (%rsp)
+         // movsd (%rsp), %xmm0
+         emit_bytes(0xf2, 0x0f, 0x10, 0x04, 0x24);
+         // ucomisd %xmm0, %xmm0
+         emit_bytes(0x66, 0x0f, 0x2e, 0xc0);
+         // jp DONE
+         emit_bytes(0x7a, 0x0b);
+         // roundsd 0b1010, %xmm0, %xmm0
+         emit_bytes(0x66, 0x0f, 0x3a, 0x0b, 0xc0, 0x08);
+         // movsd %xmm0, (%rsp)
          emit_bytes(0xf2, 0x0f, 0x11, 0x04, 0x24);
       }
 
@@ -1627,70 +1718,112 @@ namespace eosio { namespace vm {
          emit_f64_binop(0x5e, CHOOSE_FN(_eosio_f64_div));
       }
       void emit_f64_min() {
-         auto icount = softfloat_instr(49, 47);
+         auto icount = softfloat_instr(73, 47);
          if(use_softfloat) {
             emit_f64_binop_softfloat(CHOOSE_FN(_eosio_f64_min));
             return;
          }
-         // mov (%rsp), %rax
-         emit_bytes(0x48, 0x8b, 0x04, 0x24);
-         // test %rax, %rax
-         emit_bytes(0x48, 0x85, 0xc0);
-         // je ZERO
-         emit_bytes(0x0f, 0x84);
-         void* zero = emit_branch_target32();
+
          // movsd 8(%rsp), %xmm0
          emit_bytes(0xf2, 0x0f, 0x10, 0x44, 0x24, 0x08);
-         // minsd (%rsp), %xmm0
-         emit_bytes(0xf2, 0x0f, 0x5d, 0x04, 0x24);
-         // jmp DONE
-         emit_bytes(0xe9);
-         void* done = emit_branch_target32();
-         // ZERO:
-         fix_branch(zero, code);
+         // ucomisd %xmm0, %xmm0
+         emit_bytes(0x66, 0x0f, 0x2e, 0xc0);
+         // jp DONE
+         emit_bytes(0x7a, 0x3a);
          // movsd (%rsp), %xmm0
-         emit_bytes(0xf2, 0x0f, 0x10, 0x04, 0x24);
-         // minsd 8(%rsp), %xmm0
-         emit_bytes(0xf2, 0x0f, 0x5d, 0x44, 0x24, 0x08);
+         emit_bytes(0xf2, 0x0f, 0x10, 0x0c, 0x24);
+         // ucomiss %xmm0, %xmm0
+         emit_bytes(0x66, 0x0f, 0x2e, 0xc9);
+
+         // mov (%rsp), %rax
+         emit_bytes(0x48, 0x8b, 0x04, 0x24);
+         // jp SECOND
+         emit_bytes(0x7a, 0x26);
+         // mov 8(%rsp), %r8
+         emit_bytes(0x4c, 0x8b, 0x44, 0x24, 0x08);
+
+         // mov %rax, %rcx
+         emit_bytes(0x48, 0x89, 0xc1);
+         // mov %r8, %edx
+         emit_bytes(0x48, 0x89, 0xc2);
+         // sar $63, %ecx
+         emit_bytes(0x48, 0xc1, 0xf9, 0x3f);
+         // sar $63, %edx
+         emit_bytes(0x48, 0xc1, 0xfa, 0x3f);
+         // shr $1, %ecx
+         emit_bytes(0x48, 0xd1, 0xe9);
+         // shr $1, %edx
+         emit_bytes(0x48, 0xd1, 0xea);
+         // xor %rax, %rcx
+         emit_bytes(0x48, 0x31, 0xc1);
+         // xor %r8, %rdx
+         emit_bytes(0x4c, 0x31, 0xc2);
+         // cmp %rcx, %rdx
+         emit_bytes(0x48, 0x39, 0xca);
+         // cmovl %r8, %rax
+         emit_bytes(0x49, 0x0f, 0x4c, 0xc0);
+
+         // SECOND:
+         // mov %rax, 8(%rsp)
+         emit_bytes(0x48, 0x89, 0x44, 0x24, 0x08);
+
          // DONE:
-         fix_branch(done, code);
          // add $8, %rsp
          emit_bytes(0x48, 0x83, 0xc4, 0x08);
-         // movsd %xmm0, (%rsp)
-         emit_bytes(0xf2, 0x0f, 0x11, 0x04, 0x24);
       }
       void emit_f64_max() {
-         auto icount = softfloat_instr(49, 47);
+         auto icount = softfloat_instr(73, 47);
          if(use_softfloat) {
             emit_f64_binop_softfloat(CHOOSE_FN(_eosio_f64_max));
             return;
          }
-         // mov (%rsp), %rax
-         emit_bytes(0x48, 0x8b, 0x04, 0x24);
-         // test %rax, %rax
-         emit_bytes(0x48, 0x85, 0xc0);
-         // je ZERO
-         emit_bytes(0x0f, 0x84);
-         void* zero = emit_branch_target32();
-         // maxsd (%rsp), %xmm0
-         emit_bytes(0xf2, 0x0f, 0x10, 0x04, 0x24);
-         // maxsd 8(%rsp), %xmm0
-         emit_bytes(0xf2, 0x0f, 0x5f, 0x44, 0x24, 0x08);
-         // jmp DONE
-         emit_bytes(0xe9);
-         void* done = emit_branch_target32();
-         // ZERO:
-         fix_branch(zero, code);
+
          // movsd 8(%rsp), %xmm0
          emit_bytes(0xf2, 0x0f, 0x10, 0x44, 0x24, 0x08);
-         // maxsd (%rsp), %xmm0
-         emit_bytes(0xf2, 0x0f, 0x5f, 0x04, 0x24);
+         // ucomisd %xmm0, %xmm0
+         emit_bytes(0x66, 0x0f, 0x2e, 0xc0);
+         // jp DONE
+         emit_bytes(0x7a, 0x3a);
+         // movsd (%rsp), %xmm0
+         emit_bytes(0xf2, 0x0f, 0x10, 0x0c, 0x24);
+         // ucomiss %xmm0, %xmm0
+         emit_bytes(0x66, 0x0f, 0x2e, 0xc9);
+
+         // mov (%rsp), %rax
+         emit_bytes(0x48, 0x8b, 0x04, 0x24);
+         // jp SECOND
+         emit_bytes(0x7a, 0x26);
+         // mov 8(%rsp), %r8
+         emit_bytes(0x4c, 0x8b, 0x44, 0x24, 0x08);
+
+         // mov %rax, %rcx
+         emit_bytes(0x48, 0x89, 0xc1);
+         // mov %r8, %edx
+         emit_bytes(0x48, 0x89, 0xc2);
+         // sar $63, %ecx
+         emit_bytes(0x48, 0xc1, 0xf9, 0x3f);
+         // sar $63, %edx
+         emit_bytes(0x48, 0xc1, 0xfa, 0x3f);
+         // shr $1, %ecx
+         emit_bytes(0x48, 0xd1, 0xe9);
+         // shr $1, %edx
+         emit_bytes(0x48, 0xd1, 0xea);
+         // xor %rax, %rcx
+         emit_bytes(0x48, 0x31, 0xc1);
+         // xor %r8, %rdx
+         emit_bytes(0x4c, 0x31, 0xc2);
+         // cmp %rcx, %rdx
+         emit_bytes(0x48, 0x39, 0xca);
+         // cmovg %r8, %rax
+         emit_bytes(0x49, 0x0f, 0x4f, 0xc0);
+
+         // SECOND:
+         // mov %rax, 8(%rsp)
+         emit_bytes(0x48, 0x89, 0x44, 0x24, 0x08);
+
          // DONE:
-         fix_branch(done, code);
          // add $8, %rsp
          emit_bytes(0x48, 0x83, 0xc4, 0x08);
-         // movsd %xmm0, (%rsp)
-         emit_bytes(0xf2, 0x0f, 0x11, 0x04, 0x24);
       }
 
       void emit_f64_copysign() {

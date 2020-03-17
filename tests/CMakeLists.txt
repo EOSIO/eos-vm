@@ -80,6 +80,7 @@ target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_BINARY_DIR}
 
 add_executable(unit_tests main.cpp
                           allocator_tests.cpp
+                          float_tests.cpp
                           eosio_max_nested_structures_tests.cpp
                           guarded_ptr_tests.cpp
                           varint_tests.cpp
@@ -119,6 +120,10 @@ target_compile_definitions(eos_vm_spec_tests PUBLIC -DCATCH_CONFIG_NO_POSIX_SIGN
 target_compile_definitions(unit_tests PUBLIC -DCATCH_CONFIG_NO_POSIX_SIGNALS)
 
 add_executable( spec_test_generator ${CMAKE_CURRENT_SOURCE_DIR}/spec_test_generator/spec_test_generator.cpp )
+
+add_executable( gen_float_test gen_float_test.cpp )
+target_include_directories( gen_float_test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include )
+target_link_libraries(gen_float_test eos-vm)
 
 catch_discover_tests( eos_vm_spec_tests )
 catch_discover_tests( unit_tests )
