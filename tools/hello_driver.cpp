@@ -66,14 +66,14 @@ int main(int argc, char** argv) {
 
    watchdog wd{std::chrono::seconds(3)};
    try {
+      example_host_methods ehm;
       // Instaniate a new backend using the wasm provided.
-      backend_t bkend(hello_wasm, &wa);
+      backend_t bkend(hello_wasm, ehm, &wa);
 
       // Instaniate a "host"
-      example_host_methods ehm;
       ehm.field = "testing";
       // Execute apply.
-      bkend(&ehm, "env", "apply", (uint64_t)std::atoi(argv[1]), (uint64_t)std::atoi(argv[2]),
+      bkend(ehm, "env", "apply", (uint64_t)std::atoi(argv[1]), (uint64_t)std::atoi(argv[2]),
             (uint64_t)std::atoi(argv[3]));
 
    } catch (...) { std::cerr << "eos-vm interpreter error\n"; }

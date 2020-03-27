@@ -59,7 +59,7 @@ foreach(testcase address align binary binary-leb128 block br br_if br_table brea
                  memory_redundancy memory_size memory_trap nop return
                  select stack store switch traps type typecheck
                  unreachable unreached-invalid unwind
-                 utf8-custom-section-id utf8-import-field utf8-import-module utf8-invalid-encoding
+                 utf8-custom-section-id utf8-import-field utf8-import-module
                  )
    add_spec_test(${testcase})
 endforeach()
@@ -83,9 +83,10 @@ add_executable(unit_tests main.cpp
                           guarded_ptr_tests.cpp
                           varint_tests.cpp
                           variant_tests.cpp
-                          host_functions_tests.cpp
+                          #host_functions_tests.cpp
                           reentry_tests.cpp
                           signals_tests.cpp
+                          span_tests.cpp
                           stack_restriction_tests.cpp
                           watchdog_tests.cpp
                           implementation_limits_tests.cpp

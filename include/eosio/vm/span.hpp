@@ -4,15 +4,19 @@
 
 #include <array>
 #include <cstdint>
+#include <limits>
 
 namespace eosio { namespace vm {
+   inline static constexpr std::size_t dynamic_extent = std::numeric_limits<std::size_t>::max();
    // TODO after C++20 use std::span as fundamental type
-   template <typename T>
+   template <typename T, std::size_t Extent = dynamic_extent>
    class span {
+      static_assert( Extent == 1 || Extent == dynamic_extent,
+            "only a static extent of 1 is currently available" );
       public:
          using iterator = T*;
          template <typename It>
-         inline constexpr span(It first, std::size_t len) : first_elem(first), last_elem(first + len) {}
+         inline constexpr span(It first, std::size_t len = Extent) : first_elem(first), last_elem(first + len) {}
          template <typename It>
          inline constexpr span(It first, It last) : first_elem(first), last_elem(last) {
             EOS_VM_ASSERT(last >= first, span_exception, "last iterator < first iterator");
@@ -68,7 +72,9 @@ namespace eosio { namespace vm {
             return last(offset).first(len);
          }
 
-         bool operator==(const span& other) const { return first_elem == other.first_elem && last_elem == other.last_elem; }
+         bool operator==(const span& other) const {
+            return first_elem == other.first_elem && last_elem == other.last_elem;
+         }
 
       private:
          iterator first_elem;

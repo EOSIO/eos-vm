@@ -176,6 +176,7 @@ struct init_backend {
 
       rhf_t::resolve(bkend.get_module());
    }
+
    template<typename T>
    void add(const std::string& name) {
       rhf_t::template add<Transform, &Functions::template put<T>>("env", "put_" + name);

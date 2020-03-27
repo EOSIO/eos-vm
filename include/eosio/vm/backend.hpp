@@ -22,22 +22,6 @@ namespace eosio { namespace vm {
 
    namespace detail {
       template <typename HostFunctions>
-      struct host_function_resolver {
-         constexpr host_function_resolver() = default;
-         template <typename Module>
-         inline constexpr explicit host_function_resolver(Module& mod) {
-            mod.finalize();
-            HostFunctions::resolve(mod);
-         }
-      };
-      template <>
-      struct host_function_resolver<nullptr_t> {
-         constexpr host_function_resolver() = default;
-         template <typename Module>
-         inline constexpr explicit host_function_resolver(Module& mod){}
-      };
-
-      template <typename HostFunctions>
       struct host_type {
          using type = typename HostFunctions::host_type_t;
       };
@@ -67,49 +51,74 @@ namespace eosio { namespace vm {
    };
 
    template <typename HostFunctions = nullptr_t, typename Impl = interpreter>
-   class backend : public detail::host_function_resolver<HostFunctions> {
+   class backend {
       using host_t     = detail::host_type_t<HostFunctions>;
+      using context_t  = typename Impl::template context<host_t>;
+      using parser_t   = typename Impl::template parser<host_t>;
     public:
-      template <typename Host = detail::host_type_t<HostFunctions>>
-      backend(wasm_code& code, wasm_allocator* alloc=nullptr, Host* host=nullptr)
-         : memory_alloc(alloc), ctx(typename Impl::template parser<Host>{ mod.allocator }.parse_module(code, mod)) {
+      backend(wasm_code& code, host_t& host, wasm_allocator* alloc)
+         : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module(code, mod)) {
          mod.finalize();
          ctx.set_wasm_allocator(alloc);
-         if constexpr (!std::is_same_v<HostFunctions, nullptr_t>)
-            HostFunctions::resolve(mod);
+         HostFunctions::resolve(mod);
          if (alloc)
             initialize(host);
       }
 
-      template <typename Host = detail::host_type_t<HostFunctions>>
-      backend(wasm_code_ptr& ptr, size_t sz, wasm_allocator* alloc=nullptr, Host* host=nullptr) : ctx(typename Impl::template parser<Host>{ mod.allocator }.parse_module2(ptr, sz, mod)) {
+      backend(wasm_code& code, wasm_allocator* alloc)
+         : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module(code, mod)) {
          mod.finalize();
          ctx.set_wasm_allocator(alloc);
-         if constexpr (!std::is_same_v<HostFunctions, nullptr_t>)
-            HostFunctions::resolve(mod);
+         if (alloc)
+            initialize();
+      }
+
+      backend(wasm_code_ptr& ptr, size_t sz, host_t& host, wasm_allocator* alloc)
+         : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module2(ptr, sz, mod)) {
+         mod.finalize();
+         ctx.set_wasm_allocator(alloc);
+         HostFunctions::resolve(mod);
          if (alloc)
             initialize(host);
       }
 
-      template <typename Host, typename... Args>
-      inline bool operator()(Host* host, const std::string_view& mod, const std::string_view& func, Args... args) {
+      backend(wasm_code_ptr& ptr, size_t sz, wasm_allocator* alloc)
+         : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module2(ptr, sz, mod)) {
+         mod.finalize();
+         ctx.set_wasm_allocator(alloc);
+         if (alloc)
+            initialize();
+      }
+
+      template <typename... Args>
+      inline auto operator()(host_t& host, const std::string_view& mod, const std::string_view& func, Args... args) {
          return call(host, mod, func, args...);
       }
 
-      template <typename Host = detail::host_type_t<HostFunctions>>
-      inline backend& initialize(Host* host=nullptr) {
+      template <typename... Args>
+      inline bool operator()(const std::string_view& mod, const std::string_view& func, Args... args) {
+         return call(mod, func, args...);
+      }
+
+      inline backend& initialize() {
          if(mod.memories.size())
             memory_alloc->reset(mod.memories[0].limits.initial);
          else
             memory_alloc->reset();
          ctx.reset();
-         if (host)
-            ctx.execute_start(host, interpret_visitor(ctx));
+         if constexpr (std::is_same_v<host_t, standalone_function_t>)
+            ctx.execute_start(nullptr, interpret_visitor(ctx));
          return *this;
       }
 
-      template <typename Host, typename... Args>
-      inline bool call_indirect(Host* host, uint32_t func_index, Args... args) {
+      inline backend& initialize(host_t& host) {
+         initialize();
+         ctx.execute_start(&host, interpret_visitor(ctx));
+         return *this;
+      }
+
+      template <typename... Args>
+      inline bool call_indirect(host_t* host, uint32_t func_index, Args... args) {
          if constexpr (eos_vm_debug) {
             ctx.execute_func_table(host, debug_visitor(ctx), func_index, args...);
          } else {
@@ -118,8 +127,8 @@ namespace eosio { namespace vm {
          return true;
       }
 
-      template <typename Host, typename... Args>
-      inline bool call(Host* host, uint32_t func_index, Args... args) {
+      template <typename... Args>
+      inline bool call(host_t* host, uint32_t func_index, Args... args) {
          if constexpr (eos_vm_debug) {
             ctx.execute(host, debug_visitor(ctx), func_index, args...);
          } else {
@@ -128,39 +137,42 @@ namespace eosio { namespace vm {
          return true;
       }
 
-      template <typename Host, typename... Args>
-      inline bool call(Host* host, const std::string_view& mod, const std::string_view& func, Args... args) {
+      template <typename... Args>
+      inline bool call(host_t& host, const std::string_view& mod, const std::string_view& func, Args... args) {
          if constexpr (eos_vm_debug) {
-            ctx.execute(host, debug_visitor(ctx), func, args...);
+            ctx.execute(&host, debug_visitor(ctx), func, args...);
          } else {
-            ctx.execute(host, interpret_visitor(ctx), func, args...);
+            ctx.execute(&host, interpret_visitor(ctx), func, args...);
          }
          return true;
       }
 
-      template <typename Host, typename... Args>
-      inline auto call_with_return(Host* host, const std::string_view& mod, const std::string_view& func,
-                                   Args... args) {
+      template <typename... Args>
+      inline bool call(const std::string_view& mod, const std::string_view& func, Args... args) {
          if constexpr (eos_vm_debug) {
-            return ctx.execute(host, debug_visitor(ctx), func, args...);
+            ctx.execute(nullptr, debug_visitor(ctx), func, args...);
          } else {
-            return ctx.execute(host, interpret_visitor(ctx), func, args...);
+            ctx.execute(nullptr, interpret_visitor(ctx), func, args...);
+         }
+         return true;
+      }
+
+      template <typename... Args>
+      inline auto call_with_return(host_t& host, const std::string_view& mod, const std::string_view& func, Args...args ) {
+         if constexpr (eos_vm_debug) {
+            return ctx.execute(&host, debug_visitor(ctx), func, args...);
+         } else {
+            return ctx.execute(&host, interpret_visitor(ctx), func, args...);
          }
       }
 
-      void print_result(const std::optional<operand_stack_elem>& result) {
-         if(result) {
-            std::cout << "result: ";
-            if (result->is_a<i32_const_t>())
-               std::cout << "i32:" << result->to_ui32();
-            else if (result->is_a<i64_const_t>())
-               std::cout << "i64:" << result->to_ui64();
-            else if (result->is_a<f32_const_t>())
-               std::cout << "f32:" << result->to_f32();
-            else if (result->is_a<f64_const_t>())
-              std::cout << "f64:" << result->to_f64();
-            std::cout << std::endl;
-        }
+      template <typename... Args>
+      inline auto call_with_return(const std::string_view& mod, const std::string_view& func, Args... args) {
+         if constexpr (eos_vm_debug) {
+            return ctx.execute(nullptr, debug_visitor(ctx), func, args...);
+         } else {
+            return ctx.execute(nullptr, interpret_visitor(ctx), func, args...);
+         }
       }
 
       template<typename Watchdog, typename F>
@@ -186,8 +198,8 @@ namespace eosio { namespace vm {
          }
       }
 
-      template <typename Watchdog, typename Host=nullptr_t>
-      inline void execute_all(Watchdog&& wd, Host* host = nullptr) {
+      template <typename Watchdog>
+      inline void execute_all(Watchdog&& wd, host_t& host) {
          timed_run(static_cast<Watchdog&&>(wd), [&]() {
             for (int i = 0; i < mod.exports.size(); i++) {
                if (mod.exports[i].kind == external_kind::Function) {
@@ -196,6 +208,22 @@ namespace eosio { namespace vm {
                      print_result(ctx.execute(host, debug_visitor(ctx), s));
 	          } else {
 	             ctx.execute(host, interpret_visitor(ctx), s);
+	          }
+               }
+            }
+         });
+      }
+
+      template <typename Watchdog>
+      inline void execute_all(Watchdog&& wd) {
+         timed_run(static_cast<Watchdog&&>(wd), [&]() {
+            for (int i = 0; i < mod.exports.size(); i++) {
+               if (mod.exports[i].kind == external_kind::Function) {
+                  std::string s{ (const char*)mod.exports[i].field_str.raw(), mod.exports[i].field_str.size() };
+	          if constexpr (eos_vm_debug) {
+                     print_result(ctx.execute(debug_visitor(ctx), s));
+	          } else {
+	             ctx.execute(nullptr, interpret_visitor(ctx), s);
 	          }
                }
             }
@@ -213,8 +241,8 @@ namespace eosio { namespace vm {
       inline auto&           get_context() { return ctx; }
 
     private:
-      wasm_allocator*                       memory_alloc = nullptr; // non owning pointer
-      module                                mod;
-      typename Impl::template context<host_t> ctx;
+      wasm_allocator* memory_alloc = nullptr; // non owning pointer
+      module          mod;
+      context_t       ctx;
    };
 }} // namespace eosio::vm

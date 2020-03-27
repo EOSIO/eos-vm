@@ -12,7 +12,7 @@
 using namespace eosio;
 using namespace eosio::vm;
 
-TEST_CASE("small parse test", "[small_parse_test]") { 
+TEST_CASE("small parse test", "[small_parse_test]") {
    module mod;
    binary_parser bp{mod.allocator};
    wasm_code error = { 0x01, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00 };
@@ -25,8 +25,8 @@ TEST_CASE("small parse test", "[small_parse_test]") {
    CHECKL(n == constants::magic);
 }
 /*
-BOOST_AUTO_TEST_CASE(actual_wasm_test) { 
-   try {  
+BOOST_AUTO_TEST_CASE(actual_wasm_test) {
+   try {
       static const std::vector<std::pair <std::vector<uint8_t>, std::vector<uint8_t>>> system_contract_types = {
          {{types::i32,types::i32}, {}},
          {{types::i32,types::i32,types::i64},{}},
@@ -104,7 +104,7 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          for ( int i=0; i < mod.imports.size(); i++ ) {
             BOOST_CHECK_EQUAL( mod.imports.at(i).kind, external_kind::Function );
          }
-         
+
          for ( int i=0; i < mod.functions.size(); i++ ) {
             //std::cout << "FUNC " << mod.imports.size()+i << " : " << mod.functions.at(i) << "\n";
          }
@@ -113,7 +113,7 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          BOOST_CHECK_EQUAL( mod.tables.at(0).limits.flags, true );
          BOOST_CHECK_EQUAL( mod.tables.at(0).limits.initial, 0x1A );
          BOOST_CHECK_EQUAL( mod.tables.at(0).limits.maximum, 0x1A );
-        
+
          BOOST_CHECK_EQUAL( mod.memories.at(0).limits.flags, false );
          BOOST_CHECK_EQUAL( mod.memories.at(0).limits.initial, 0x01 );
 
@@ -124,7 +124,7 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          BOOST_CHECK_EQUAL( mod.globals.at(0).type.mutability, true );
          BOOST_CHECK_EQUAL( mod.globals.at(1).type.mutability, false );
          BOOST_CHECK_EQUAL( mod.globals.at(2).type.mutability, false );
-       
+
          BOOST_CHECK_EQUAL( mod.globals.at(0).init.opcode, opcodes::i32_const );
          BOOST_CHECK_EQUAL( mod.globals.at(1).init.opcode, opcodes::i32_const );
          BOOST_CHECK_EQUAL( mod.globals.at(2).init.opcode, opcodes::i32_const );
@@ -133,7 +133,7 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          BOOST_CHECK_EQUAL( mod.globals.at(1).init.value.i32, 12244 );
          BOOST_CHECK_EQUAL( mod.globals.at(2).init.value.i32, 12244 );
 
-         BOOST_CHECK( memcmp((char*)mod.exports.at(0).field_str.raw(), "memory", mod.exports.at(0).field_len) == 0 && 
+         BOOST_CHECK( memcmp((char*)mod.exports.at(0).field_str.raw(), "memory", mod.exports.at(0).field_len) == 0 &&
                mod.exports.at(0).kind == external_kind::Memory );
          BOOST_CHECK( memcmp((char*)mod.exports.at(1).field_str.raw(), "__heap_base", mod.exports.at(1).field_len) == 0 &&
                mod.exports.at(1).kind == external_kind::Global );
@@ -171,7 +171,7 @@ BOOST_AUTO_TEST_CASE(actual_wasm_test) {
          }
       }
 
-   } FC_LOG_AND_RETHROW() 
+   } FC_LOG_AND_RETHROW()
 }
 BOOST_AUTO_TEST_SUITE_END()
 

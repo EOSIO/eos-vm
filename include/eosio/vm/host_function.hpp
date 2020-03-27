@@ -96,10 +96,7 @@ namespace eosio { namespace vm {
                                                           EOS_VM_TO_WASM_IMPL,   \
                                                           EOS_VM_TO_WASM_ERROR)(__VA_ARGS__)
 
-#define EOS_VM_TYPE_CONVERTER_SETUP \
-   using base_type = running_context<Execution_Interface>; \
-   using base_type::running_context;                       \
-   using elem_type = decltype(std::declval<type_converter>().get_interface().operand_from_back(0));
+#define EOS_VM_TYPE(...) decltype(std::declval<__VA_ARGS__>())
 
    template <typename Execution_Interface=execution_interface>
    struct type_converter : public running_context<Execution_Interface> {
@@ -115,12 +112,8 @@ namespace eosio { namespace vm {
       EOS_VM_FROM_WASM(T, span<T>, (elem_type&& ptr, elem_type&& len)) { return {as_value<T*>(std::move(ptr)), as_value<wasm_size_t>(std::move(len))}; }
 
       EOS_VM_FROM_WASM(T, reference_proxy<span<T>>, (elem_type&& ptr, elem_type&& len)) { return {as_value<T*>(std::move(ptr)), as_value<wasm_size_t>(std::move(len))}; }
-      EOS_VM_FROM_WASM(T, reference_proxy<T, true>, (elem_type&& ptr)) { return {as_value<T*>(std::move(ptr))}; }
+      EOS_VM_FROM_WASM(T, EOS_VM_TYPE(reference_proxy<T, true>), (elem_type&& ptr)) { return {as_value<T*>(std::move(ptr))}; }
       EOS_VM_FROM_WASM(T, reference_proxy<T>, (elem_type&& ptr)) { return {as_value<T*>(std::move(ptr))}; }
-
-      // passthrough
-      template <typename T>
-      T from_wasm(T&& val) const { return val; }
 
       template<typename T>
       inline auto as_value(elem_type&& val) const {
@@ -162,16 +155,6 @@ namespace eosio { namespace vm {
    };
 
    namespace detail {
-      template <typename T, typename Cls, typename... Args>
-      auto from_wasm_overload(T(Cls::*)(Args...)) -> std::tuple<Args...>;
-      template <typename T, typename Cls, typename... Args>
-      auto from_wasm_overload(T(Cls::*)(Args...)const) ->std::tuple<Args...>;
-
-      template <typename R, typename T, typename Cls>
-      auto to_wasm_overload(R(Cls::*)(T)) -> R;
-      template <typename R, typename T, typename Cls>
-      auto to_wasm_overload(R(Cls::*)(T)const) -> R;
-
       template <class TC, typename T>
       using from_wasm_type_deducer_t = flatten_parameters_t<&TC::template from_wasm<T>>;
       template <class TC, typename T>
@@ -179,9 +162,6 @@ namespace eosio { namespace vm {
 
       template <std::size_t N, typename Type_Converter>
       inline constexpr auto& pop_value(Type_Converter& tc) { return tc.get_interface().operand_from_back(N); }
-
-      template <std::size_t N>
-      struct value_encoded_type { static constexpr std::size_t value = N; };
 
       template <typename T, class Type_Converter>
       inline constexpr std::size_t value_operand_size() {
@@ -212,7 +192,10 @@ namespace eosio { namespace vm {
       inline constexpr decltype(auto) create_value(Type_Converter& tc, std::index_sequence<Is...>) {
          constexpr std::size_t offset = total_operands_v<Args, Type_Converter> - 1;
          if constexpr (!std::is_same_v<no_match_t, std::decay_t<decltype(tc.template as_value<S>(pop_value<offset - At>(tc)))>>)
-            return tc.template from_wasm<S>( tc.template as_value<S>(pop_value<offset - At>(tc)) );
+            if constexpr (EOS_VM_HAS_TEMPLATE_MEMBER(tc, from_wasm<S>))
+               return tc.template from_wasm<S>( tc.template as_value<S>(pop_value<offset - At>(tc)) );
+            else
+               return tc.template as_value<S>(pop_value<offset - At>(tc));
          else {
             return tc.template from_wasm<S>(pop_value<offset - (At + Is)>(tc)...);
          }
@@ -342,31 +325,36 @@ namespace eosio { namespace vm {
       using type_converter_t      = Type_Converter;
 
       struct mappings {
-         std::unordered_map<host_func_pair, uint32_t,                            host_func_pair_hash> named_mapping;
-         std::vector<std::function<void(Cls*, Type_Converter&)>>                 functions;
-         size_t                                                                  current_index = 0;
-      };
+         std::unordered_map<host_func_pair, uint32_t, host_func_pair_hash> named_mapping;
+         std::vector<std::function<void(Cls*, Type_Converter&)>>           functions;
+         size_t                                                            current_index = 0;
 
-      static mappings& get_mappings() {
-         static mappings _mappings;
-         return _mappings;
-      }
+         template <auto F, typename R, typename Args, typename Preconditions>
+         void add_mapping(const std::string& mod, const std::string& name) {
+            named_mapping[{mod, name}] = current_index++;
+            functions.push_back(
+                  create_function<Cls, F, Preconditions, R, Args, Type_Converter>(
+                     std::make_index_sequence<std::tuple_size_v<Args>>()));
+         }
+
+         static mappings& get() {
+            static mappings instance;
+            return instance;
+         }
+      };
 
       template <auto Func, typename... Preconditions>
       static void add(const std::string& mod, const std::string& name) {
-         using deduced_full_ts                         = flatten_parameters_t<Func>;
-         using res_t                                   = return_type_t<Func>;
-         using preconditions                           = std::tuple<Preconditions...>;
-         static constexpr auto is                      = std::make_index_sequence<std::tuple_size_v<deduced_full_ts>>();
-         auto& current_mappings                        = get_mappings();
-         current_mappings.named_mapping[{ mod, name }] = current_mappings.current_index++;
-         current_mappings.functions.push_back(create_function<Cls, Func, preconditions, res_t, deduced_full_ts, Type_Converter>(is));
+         using args          = flatten_parameters_t<Func>;
+         using res           = return_type_t<Func>;
+         using preconditions = std::tuple<Preconditions...>;
+         mappings::get().template add_mapping<Func, res, args, preconditions>(mod, name);
       }
 
       template <typename Module>
       static void resolve(Module& mod) {
          auto& imports          = mod.import_functions;
-         auto& current_mappings = get_mappings();
+         auto& current_mappings = mappings::get();
          for (int i = 0; i < mod.imports.size(); i++) {
             std::string mod_name =
                   std::string((char*)mod.imports[i].module_str.raw(), mod.imports[i].module_str.size());
@@ -378,19 +366,9 @@ namespace eosio { namespace vm {
       }
 
       void operator()(Cls* host, Execution_Interface ei, uint32_t index) {
-         const auto& _func = get_mappings().functions[index];
+         const auto& _func = mappings::get().functions[index];
          auto tc = Type_Converter{std::move(ei)};
          std::invoke(_func, host, tc);
       }
    };
-
-   template <typename Cls, typename Cls2, auto F>
-   struct registered_function {
-      registered_function(std::string mod, std::string name) {
-         registered_host_functions<Cls>::template add<Cls2, F>(mod, name);
-      }
-   };
-
-#undef AUTO_PARAM_WORKAROUND
-
 }} // namespace eosio::vm

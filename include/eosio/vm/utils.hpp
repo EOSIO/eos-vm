@@ -3,6 +3,8 @@
 #include <cstdlib>
 #include <functional>
 #include <fstream>
+#include <iostream>
+#include <optional>
 #include <string>
 #include <memory>
 #include <cxxabi.h>
@@ -24,7 +26,7 @@
 
 namespace eosio { namespace vm {
    // helper to read a wasm file into a vector of bytes
-   std::vector<uint8_t> read_wasm(const std::string& fname) {
+   inline std::vector<uint8_t> read_wasm(const std::string& fname) {
       std::ifstream wasm_file(fname, std::ios::binary);
       if (!wasm_file.is_open())
          throw std::runtime_error("wasm file not found");
@@ -38,6 +40,28 @@ namespace eosio { namespace vm {
       wasm_file.read((char*)wasm.data(), wasm.size());
       wasm_file.close();
       return wasm;
+   }
+
+   // forward declarations
+   struct i32_const_t;
+   struct i64_const_t;
+   struct f32_const_t;
+   struct f64_const_t;
+
+   template <typename StackElem>
+   inline void print_result(const std::optional<StackElem>& result) {
+      if(result) {
+         std::cout << "result: ";
+         if (result->template is_a<i32_const_t>())
+            std::cout << "i32:" << result->to_ui32();
+         else if (result->template is_a<i64_const_t>())
+            std::cout << "i64:" << result->to_ui64();
+         else if (result->template is_a<f32_const_t>())
+            std::cout << "f32:" << result->to_f32();
+         else if (result->template is_a<f64_const_t>())
+           std::cout << "f64:" << result->to_f64();
+         std::cout << std::endl;
+     }
    }
 
    // helpers for std::visit

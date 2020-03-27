@@ -20,6 +20,25 @@
        }, [](...) constexpr { return false; }                  \
     }(eosio::vm::detail::wrapper_t<TY>{})
 
+#define EOS_VM_HAS_TEMPLATE_MEMBER(ARG, NAME)                  \
+   eosio::vm::detail::overloaded {                             \
+        [&](auto&& f, std::enable_if_t<std::is_class_v<std::decay_t<decltype(f)>> && \
+                        eosio::vm::detail::pass_type<          \
+                            decltype(&(std::decay_t<decltype(f)>::type::template NAME))>(), int> = 0) constexpr { \
+                            return true;                       \
+       }, [](...) constexpr { return false; }                  \
+    }(eosio::vm::detail::wrapper_t<decltype(ARG)>{})
+
+#define EOS_VM_HAS_TEMPLATE_MEMBER_TY(TY, NAME)                \
+   eosio::vm::detail::overloaded {                             \
+        [](auto&& f, std::enable_if_t<std::is_class_v<TY> &&   \
+                        eosio::vm::detail::pass_type<          \
+                            decltype(&(std::decay_t<decltype(f)>::type::template NAME))>(), int> = 0) constexpr { \
+                            return true;                       \
+       }, [](...) constexpr { return false; }                  \
+    }(eosio::vm::detail::wrapper_t<TY>{})
+
+
 // Workaround for compiler bug handling C++g17 auto template parameters.
 // The parameter is not treated as being type-dependent in all contexts,
 // causing early evaluation of the containing expression.
