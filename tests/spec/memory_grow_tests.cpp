@@ -30,8 +30,8 @@ BACKEND_TEST_CASE( "Testing wasm <memory_grow_0_wasm>", "[memory_grow_0_wasm_tes
    CHECK(bkend.call_with_return(nullptr, "env", "load_at_zero")->to_ui32() == UINT32_C(0));
    CHECK(!bkend.call_with_return(nullptr, "env", "store_at_zero"));
    CHECK(bkend.call_with_return(nullptr, "env", "load_at_zero")->to_ui32() == UINT32_C(2));
-   //CHECK_THROWS_AS(bkend(nullptr, "env", "store_at_page_size"), std::exception);
-   //CHECK_THROWS_AS(bkend(nullptr, "env", "load_at_page_size"), std::exception);
+   CHECK_THROWS_AS(bkend(nullptr, "env", "store_at_page_size"), std::exception);
+   CHECK_THROWS_AS(bkend(nullptr, "env", "load_at_page_size"), std::exception);
    CHECK(bkend.call_with_return(nullptr, "env", "grow", UINT32_C(4))->to_ui32() == UINT32_C(1));
    CHECK(bkend.call_with_return(nullptr, "env", "size")->to_ui32() == UINT32_C(5));
    CHECK(bkend.call_with_return(nullptr, "env", "load_at_zero")->to_ui32() == UINT32_C(2));
@@ -123,7 +123,7 @@ BACKEND_TEST_CASE( "Testing wasm <memory_grow_4_wasm>", "[memory_grow_4_wasm_tes
    CHECK(bkend.call_with_return(nullptr, "env", "as-call_indirect-first")->to_ui32() == UINT32_C(4294967295));
    CHECK(bkend.call_with_return(nullptr, "env", "as-call_indirect-mid")->to_ui32() == UINT32_C(4294967295));
    CHECK(bkend.call_with_return(nullptr, "env", "as-call_indirect-last")->to_ui32() == UINT32_C(4294967295));
-   //CHECK_THROWS_AS(bkend(nullptr, "env", "as-call_indirect-index"), std::exception);
+   CHECK_THROWS_AS(bkend(nullptr, "env", "as-call_indirect-index"), std::exception);
    CHECK(!bkend.call_with_return(nullptr, "env", "as-local.set-value"));
    CHECK(bkend.call_with_return(nullptr, "env", "as-local.tee-value")->to_ui32() == UINT32_C(1));
    CHECK(!bkend.call_with_return(nullptr, "env", "as-global.set-value"));
@@ -140,5 +140,35 @@ BACKEND_TEST_CASE( "Testing wasm <memory_grow_4_wasm>", "[memory_grow_4_wasm_tes
    CHECK(bkend.call_with_return(nullptr, "env", "as-compare-left")->to_ui32() == UINT32_C(1));
    CHECK(bkend.call_with_return(nullptr, "env", "as-compare-right")->to_ui32() == UINT32_C(1));
    CHECK(bkend.call_with_return(nullptr, "env", "as-memory.grow-size")->to_ui32() == UINT32_C(1));
+}
+
+BACKEND_TEST_CASE( "Testing wasm <memory_grow_5_wasm>", "[memory_grow_5_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "memory_grow.5.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
+BACKEND_TEST_CASE( "Testing wasm <memory_grow_6_wasm>", "[memory_grow_6_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "memory_grow.6.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
+BACKEND_TEST_CASE( "Testing wasm <memory_grow_7_wasm>", "[memory_grow_7_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "memory_grow.7.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
+BACKEND_TEST_CASE( "Testing wasm <memory_grow_8_wasm>", "[memory_grow_8_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "memory_grow.8.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
+}
+
+BACKEND_TEST_CASE( "Testing wasm <memory_grow_9_wasm>", "[memory_grow_9_wasm_tests]" ) {
+   using backend_t = backend<std::nullptr_t, TestType>;
+   auto code = backend_t::read_wasm( std::string(wasm_directory) + "memory_grow.9.wasm");
+   CHECK_THROWS_AS(backend_t(code), std::exception);
 }
 
