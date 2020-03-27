@@ -50,6 +50,8 @@ macro( add_spec_test name )
    endif()
 endmacro()
 
+if (ENABLE_SPEC_TESTS)
+
 foreach(testcase address align binary binary-leb128 block br br_if br_table break-drop call_indirect
                  call const conversions custom data
                  endianness f32 f32_bitwise f32_cmp f64 f64_bitwise f64_cmp
@@ -78,6 +80,12 @@ target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
 target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include )
 target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/spec )
 
+target_compile_definitions(eos_vm_spec_tests PUBLIC -DCATCH_CONFIG_NO_POSIX_SIGNALS)
+
+catch_discover_tests( eos_vm_spec_tests )
+
+endif(ENABLE_SPEC_TESTS)
+
 add_executable(unit_tests main.cpp
                           allocator_tests.cpp
                           guarded_ptr_tests.cpp
@@ -98,10 +106,8 @@ target_link_libraries(unit_tests eos-vm Catch2::Catch2)
 # ##############
 # disable catch2 from installing it's own signal handlers
 # ##############
-target_compile_definitions(eos_vm_spec_tests PUBLIC -DCATCH_CONFIG_NO_POSIX_SIGNALS)
 target_compile_definitions(unit_tests PUBLIC -DCATCH_CONFIG_NO_POSIX_SIGNALS)
 
 add_executable( spec_test_generator ${CMAKE_CURRENT_SOURCE_DIR}/spec_test_generator/spec_test_generator.cpp )
 
-catch_discover_tests( eos_vm_spec_tests )
 catch_discover_tests( unit_tests )

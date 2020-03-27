@@ -15,5 +15,6 @@ TEST_CASE("span static_extent tests", "[span_static_extent]") {
    CHECK(s.front() == a);
    CHECK(3 == a);
 
-   CHECK_THROWS_AS(span<int>(&a, &a), eosio::vm::span_exception);
+   int* lta = &a;
+   CHECK_THROWS_AS(span<int>(&a, lta-1), eosio::vm::span_exception);
 }

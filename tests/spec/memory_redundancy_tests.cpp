@@ -18,10 +18,10 @@ BACKEND_TEST_CASE( "Testing wasm <memory_redundancy_0_wasm>", "[memory_redundanc
    auto code = read_wasm( std::string(wasm_directory) + "memory_redundancy.0.wasm");
    backend_t bkend( code, &wa );
    CHECK(bkend.call_with_return("env", "test_store_to_load")->to_ui32() == UINT32_C(128));
-bkend(nullptr, "env", "zero_everything");
+bkend("env", "zero_everything");
    CHECK(bkend.call_with_return("env", "test_redundant_load")->to_ui32() == UINT32_C(128));
-bkend(nullptr, "env", "zero_everything");
+bkend("env", "zero_everything");
    CHECK(bit_cast<uint32_t>(bkend.call_with_return("env", "test_dead_store")->to_f32()) == UINT32_C(35));
-bkend(nullptr, "env", "zero_everything");
+bkend("env", "zero_everything");
    CHECK(bkend.call_with_return("env", "malloc_aliasing")->to_ui32() == UINT32_C(43));
 }

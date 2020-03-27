@@ -43,6 +43,7 @@ option(ENABLE_INSTALL "enable this library to be installed" ON)
 option(ENABLE_MEMORY_OPS_ALIGNMENT "enable the backend to obey alignment hints" OFF)
 option(ENABLE_TOOLS "enable building of tools" ON)
 option(ENABLE_TESTS "enable building of unit tests, spec tests" OFF)
+cmake_dependent_option(ENABLE_SPEC_TESTS "enable wasm spec tests" ON "ENABLE_TESTS" ON)
 cmake_dependent_option(ENABLE_FUZZ_TESTS "enable fuzz testing" OFF "ENABLE_TESTS" ON)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/modules")
@@ -102,7 +103,7 @@ if(ENABLE_TESTS)
    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/Catch2)
    include(external/Catch2/contrib/Catch.cmake)
    add_subdirectory(tests)
-   if (NOT EXISTS ${CMAKE_BINARY_DIR}/wasms)
+   if (NOT EXISTS ${CMAKE_BINARY_DIR}/wasms AND ENABLE_SPEC_TESTS)
       include(ExternalProject)
       ExternalProject_Add(
          eos_vm_test_wasms
