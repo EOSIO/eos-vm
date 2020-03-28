@@ -57,6 +57,8 @@ target_include_directories(eos-vm
                            INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include
                                      ${CMAKE_CURRENT_SOURCE_DIR}/external/softfloat/source/include
                                      ${CMAKE_CURRENT_SOURCE_DIR}/external/outcome/single-header)
+# ignore the C++17 register warning until clean up
+target_compile_options( eos-vm INTERFACE "-Wno-register" )
 
 # ##################################################################################################
 # Enable debugging stats for eos-vm.

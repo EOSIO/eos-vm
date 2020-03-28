@@ -14,7 +14,7 @@ namespace eosio { namespace vm {
       template <typename T>
       inline void push_operand(T&& op) { os.push(std::forward<T>(op)); }
       inline auto pop_operand() { return os.pop(); }
-      inline const auto& operand_from_back(std::size_t index) { return os.get_back(index); }
+      inline const auto& operand_from_back(std::size_t index) const { return os.get_back(index); }
 
       void* memory; // address of beginning of linear memory
       operand_stack& os;

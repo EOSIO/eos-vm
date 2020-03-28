@@ -26,8 +26,8 @@ namespace eosio { namespace vm {
          using type = typename HostFunctions::host_type_t;
       };
       template <>
-      struct host_type<nullptr_t> {
-         using type = nullptr_t;
+      struct host_type<std::nullptr_t> {
+         using type = std::nullptr_t;
       };
 
       template <typename HF>
@@ -50,7 +50,7 @@ namespace eosio { namespace vm {
       static constexpr bool is_jit = false;
    };
 
-   template <typename HostFunctions = nullptr_t, typename Impl = interpreter>
+   template <typename HostFunctions = std::nullptr_t, typename Impl = interpreter>
    class backend {
       using host_t     = detail::host_type_t<HostFunctions>;
       using context_t  = typename Impl::template context<host_t>;

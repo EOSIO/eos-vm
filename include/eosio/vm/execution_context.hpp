@@ -240,13 +240,15 @@ namespace eosio { namespace vm {
          return result;
       }
 
-      /* TODO abstract this and clean this up a bit */
+      /* TODO abstract this and clean this up a bit, this really doesn't belong here */
       template<int Count>
       static native_value execute(native_value* data, native_value (*fun)(void*, void*), jit_execution_context* context, void* linear_memory, void* stack) {
          static_assert(sizeof(native_value) == 8, "8-bytes expected for native_value");
          native_value result;
          unsigned stack_check = constants::max_call_depth + 1;
-         void* stack_top asm ("r12") = stack;
+         // TODO refactor this whole thing to not need all of this, should be generated from the backend
+         // currently ignoring register c++17 warning
+         register void* stack_top asm ("r12") = stack;
          // 0x1f80 is the default MXCSR value
          asm volatile(
             "test %[stack_top], %[stack_top]; "

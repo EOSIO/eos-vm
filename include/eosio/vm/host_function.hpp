@@ -22,9 +22,9 @@
 
 namespace eosio { namespace vm {
    // types for host functions to use
-   typedef std::uint32_t wasm_ptr_t;
-   typedef std::uint32_t wasm_size_t;
-   typedef nullptr_t     standalone_function_t;
+   typedef std::uint32_t  wasm_ptr_t;
+   typedef std::uint32_t  wasm_size_t;
+   typedef std::nullptr_t standalone_function_t;
    struct no_match_t {};
 
    template <typename Execution_Interface=execution_interface>
@@ -39,6 +39,7 @@ namespace eosio { namespace vm {
       inline T* access_as(wasm_ptr_t addr) const { return reinterpret_cast<T*>(access(addr)); }
 
       inline Execution_Interface& get_interface() { return interface; }
+      inline const Execution_Interface& get_interface() const { return interface; }
 
       template <typename T>
       inline void validate_pointer(const T* ptr, wasm_size_t len) {
@@ -104,19 +105,19 @@ namespace eosio { namespace vm {
       using base_type::running_context;
 
       // TODO clean this up and figure out a more elegant way to get this for the macro
-      using elem_type = decltype(std::declval<type_converter>().get_interface().operand_from_back(0));
+      using elem_type = operand_stack_elem;
 
-      EOS_VM_FROM_WASM(bool, (elem_type&& value)) { return as_value<uint32_t>(value) ? 1 : 0; }
+      EOS_VM_FROM_WASM(bool, (const elem_type& value)) { return as_value<uint32_t>(value) ? 1 : 0; }
       EOS_VM_TO_WASM(bool, (bool value)) { return as_result<uint32_t>(value ? 1 : 0); }
 
-      EOS_VM_FROM_WASM(T, span<T>, (elem_type&& ptr, elem_type&& len)) { return {as_value<T*>(std::move(ptr)), as_value<wasm_size_t>(std::move(len))}; }
+      EOS_VM_FROM_WASM(T, span<T>, (const elem_type& ptr, const elem_type& len)) { return {as_value<T*>(std::move(ptr)), as_value<wasm_size_t>(std::move(len))}; }
 
-      EOS_VM_FROM_WASM(T, reference_proxy<span<T>>, (elem_type&& ptr, elem_type&& len)) { return {as_value<T*>(std::move(ptr)), as_value<wasm_size_t>(std::move(len))}; }
-      EOS_VM_FROM_WASM(T, EOS_VM_TYPE(reference_proxy<T, true>), (elem_type&& ptr)) { return {as_value<T*>(std::move(ptr))}; }
-      EOS_VM_FROM_WASM(T, reference_proxy<T>, (elem_type&& ptr)) { return {as_value<T*>(std::move(ptr))}; }
+      EOS_VM_FROM_WASM(T, reference_proxy<span<T>>, (const elem_type& ptr, const elem_type& len)) { return {as_value<T*>(std::move(ptr)), as_value<wasm_size_t>(std::move(len))}; }
+      EOS_VM_FROM_WASM(T, EOS_VM_TYPE(reference_proxy<T, true>), (const elem_type& ptr)) { return {as_value<T*>(std::move(ptr))}; }
+      EOS_VM_FROM_WASM(T, reference_proxy<T>, (const elem_type& ptr)) { return {as_value<T*>(std::move(ptr))}; }
 
       template<typename T>
-      inline auto as_value(elem_type&& val) const {
+      inline auto as_value(const elem_type& val) const {
          if constexpr (std::is_integral_v<T> && sizeof(T) == 4)
             return static_cast<const T&&>(val.template get<i32_const_t>().data.ui);
          else if constexpr (std::is_integral_v<T> && sizeof(T) == 8)
@@ -202,8 +203,8 @@ namespace eosio { namespace vm {
       }
 
       template <typename S, typename Type_Converter>
-      inline constexpr std::size_t skip_amount(Type_Converter& tc) {
-         if constexpr (!std::is_same_v<no_match_t, std::decay_t<decltype(tc.template as_value<S>(pop_value<0>(tc)))>>)
+      inline constexpr std::size_t skip_amount() {
+         if constexpr (!std::is_same_v<no_match_t, std::decay_t<decltype(std::declval<Type_Converter>().template as_value<S>(pop_value<0>(std::declval<const Type_Converter&>())))>>)
             return 1;
          else
             return std::tuple_size_v<from_wasm_type_deducer_t<Type_Converter, S>>;
@@ -214,8 +215,8 @@ namespace eosio { namespace vm {
          if constexpr (At >= std::tuple_size_v<Args>)
             return std::tuple<>{};
          else {
-            using source_t      = std::tuple_element_t<At, Args>;
-            constexpr size_t skip_amt = skip_amount<source_t>(tc);
+            using source_t = std::tuple_element_t<At, Args>;
+            constexpr std::size_t skip_amt = skip_amount<source_t, Type_Converter>();
             return std::tuple_cat(std::tuple<source_t>{create_value<Args, source_t, At>(tc, std::make_index_sequence<skip_amt>{})}, get_values<Args, At + skip_amt>(tc));
          }
       }
