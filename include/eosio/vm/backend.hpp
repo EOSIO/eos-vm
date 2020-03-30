@@ -201,11 +201,7 @@ namespace eosio { namespace vm {
             for (int i = 0; i < mod.exports.size(); i++) {
                if (mod.exports[i].kind == external_kind::Function) {
                   std::string s{ (const char*)mod.exports[i].field_str.raw(), mod.exports[i].field_str.size() };
-                  if constexpr (eos_vm_debug) {
-                     print_result(ctx.execute(host, debug_visitor(ctx), s));
-                  } else {
-                     ctx.execute(host, interpret_visitor(ctx), s);
-                  }
+                  ctx.execute(host, interpret_visitor(ctx), s);
                }
             }
          });
@@ -217,11 +213,7 @@ namespace eosio { namespace vm {
             for (int i = 0; i < mod.exports.size(); i++) {
                if (mod.exports[i].kind == external_kind::Function) {
                   std::string s{ (const char*)mod.exports[i].field_str.raw(), mod.exports[i].field_str.size() };
-                  if constexpr (eos_vm_debug) {
-                     print_result(ctx.execute(debug_visitor(ctx), s));
-                  } else {
-                     ctx.execute(nullptr, interpret_visitor(ctx), s);
-                  }
+                  ctx.execute(nullptr, interpret_visitor(ctx), s);
                }
             }
          });

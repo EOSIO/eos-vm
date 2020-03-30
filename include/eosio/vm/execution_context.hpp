@@ -47,8 +47,6 @@ namespace eosio { namespace vm {
          return sz;
       }
 
-      inline auto&       get_operand_stack() { return _os; }
-      inline const auto& get_operand_stack() const { return _os; }
       inline int32_t current_linear_memory() const { return _wasm_alloc->get_current_page(); }
       inline void    exit(std::error_code err = std::error_code()) {
          // FIXME: system_error?
@@ -56,11 +54,13 @@ namespace eosio { namespace vm {
          throw wasm_exit_exception{"Exiting"};
       }
 
-      inline module&        get_module() { return _mod; }
-      inline void           set_wasm_allocator(wasm_allocator* alloc) { _wasm_alloc = alloc; }
-      inline auto           get_wasm_allocator() { return _wasm_alloc; }
-      inline char*          linear_memory() { return _linear_memory; }
-      inline auto           get_interface() { return execution_interface{ linear_memory(), get_operand_stack() }; }
+      inline module&     get_module() { return _mod; }
+      inline void        set_wasm_allocator(wasm_allocator* alloc) { _wasm_alloc = alloc; }
+      inline auto        get_wasm_allocator() { return _wasm_alloc; }
+      inline char*       linear_memory() { return _linear_memory; }
+      inline auto&       get_operand_stack() { return _os; }
+      inline const auto& get_operand_stack() const { return _os; }
+      inline auto        get_interface() { return execution_interface{ _linear_memory, &_os }; }
 
       inline std::error_code get_error_code() const { return _error_code; }
 
@@ -132,35 +132,37 @@ namespace eosio { namespace vm {
       using base_type = execution_context_base<jit_execution_context<Host>, Host>;
    public:
       using base_type::execute;
-      using base_type::_linear_memory;
       using base_type::base_type;
       using base_type::_mod;
       using base_type::_rhf;
       using base_type::_error_code;
       using base_type::handle_signal;
+      using base_type::get_operand_stack;
+      using base_type::linear_memory;
+      using base_type::get_interface;
 
 
       inline native_value call_host_function(native_value* stack, uint32_t index) {
          const auto& ft = _mod.get_function_type(index);
          uint32_t num_params = ft.param_types.size();
 #ifndef NDEBUG
-         uint32_t original_operands = base_type::get_operand_stack().size();
+         uint32_t original_operands = get_operand_stack().size();
 #endif
          for(uint32_t i = 0; i < ft.param_types.size(); ++i) {
             switch(ft.param_types[i]) {
-             case i32: base_type::get_operand_stack().push(i32_const_t{stack[num_params - i - 1].i32}); break;
-             case i64: base_type::get_operand_stack().push(i64_const_t{stack[num_params - i - 1].i64}); break;
-             case f32: base_type::get_operand_stack().push(f32_const_t{stack[num_params - i - 1].f32}); break;
-             case f64: base_type::get_operand_stack().push(f64_const_t{stack[num_params - i - 1].f64}); break;
+             case i32: get_operand_stack().push(i32_const_t{stack[num_params - i - 1].i32}); break;
+             case i64: get_operand_stack().push(i64_const_t{stack[num_params - i - 1].i64}); break;
+             case f32: get_operand_stack().push(f32_const_t{stack[num_params - i - 1].f32}); break;
+             case f64: get_operand_stack().push(f64_const_t{stack[num_params - i - 1].f64}); break;
              default: assert(!"Unexpected type in param_types.");
             }
          }
-         _rhf(_host, base_type::get_interface(), _mod.import_functions[index]);
+         _rhf(_host, get_interface(), _mod.import_functions[index]);
          native_value result{uint32_t{0}};
          // guarantee that the junk bits are zero, to avoid problems.
          auto set_result = [&result](auto val) { std::memcpy(&result, &val, sizeof(val)); };
          if(ft.return_count) {
-            operand_stack_elem el = base_type::get_operand_stack().pop();
+            operand_stack_elem el = get_operand_stack().pop();
             switch(ft.return_type) {
              case i32: set_result(el.to_ui32()); break;
              case i64: set_result(el.to_ui64()); break;
@@ -169,20 +171,21 @@ namespace eosio { namespace vm {
              default: assert(!"Unexpected function return type.");
             }
          }
-         assert(base_type::get_operand_stack().size() == original_operands);
+
+         //assert(get_operand_stack().size() == original_operands);
          return result;
       }
 
       inline void reset() {
          base_type::reset();
-         base_type::get_operand_stack().eat(0);
+         get_operand_stack().eat(0);
       }
 
       template <typename... Args>
       inline std::optional<operand_stack_elem> execute(Host* host, jit_visitor, uint32_t func_index, Args... args) {
          auto saved_host = _host;
-         auto saved_os_size = base_type::get_operand_stack().size();
-         auto g = scope_guard([&](){ _host = saved_host; base_type::get_operand_stack().eat(saved_os_size); });
+         auto saved_os_size = get_operand_stack().size();
+         auto g = scope_guard([&](){ _host = saved_host; get_operand_stack().eat(saved_os_size); });
 
          _host = host;
 
@@ -209,7 +212,7 @@ namespace eosio { namespace vm {
                auto fn = reinterpret_cast<native_value (*)(void*, void*)>(_mod.code[func_index - _mod.get_imported_functions_size()].jit_code_offset + _mod.allocator._code_base);
 
                vm::invoke_with_signal_handler([&]() {
-                  result = execute<sizeof...(Args)>(args_raw, fn, this, _linear_memory, stack);
+                  result = execute<sizeof...(Args)>(args_raw, fn, this, base_type::linear_memory(), stack);
                }, &handle_signal);
             }
          } catch(wasm_exit_exception&) {
@@ -234,7 +237,7 @@ namespace eosio { namespace vm {
          // make sure that the garbage bits are always zero.
          native_value result;
          std::memset(&result, 0, sizeof(result));
-         auto tc = type_converter<execution_interface>{base_type::get_interface()};
+         auto tc = type_converter<execution_interface>{get_interface()};
          auto transformed_value = detail::resolve_result(tc, static_cast<T&&>(value)).data;
          std::memcpy(&result, &transformed_value, sizeof(transformed_value));
          return result;
@@ -309,9 +312,12 @@ namespace eosio { namespace vm {
     public:
       using base_type::_mod;
       using base_type::_rhf;
-      using base_type::_linear_memory;
       using base_type::_error_code;
       using base_type::handle_signal;
+      using base_type::get_operand_stack;
+      using base_type::linear_memory;
+      using base_type::get_interface;
+
       execution_context(module& m) : base_type(m), _halt(exit_t{}) {}
 
 
@@ -323,7 +329,7 @@ namespace eosio { namespace vm {
             type_check(ft);
             inc_pc();
             push_call( activation_frame{ nullptr, 0 } );
-            _rhf(_state.host, base_type::get_interface(), _mod.import_functions[index]);
+            _rhf(_state.host, get_interface(), _mod.import_functions[index]);
             pop_call();
          } else {
             // const auto& ft = _mod.types[_mod.functions[index - _mod.get_imported_functions_size()]];
@@ -336,24 +342,24 @@ namespace eosio { namespace vm {
 
       void print_stack() {
          std::cout << "STACK { ";
-         for (int i = 0; i < base_type::get_operand_stack().size(); i++) {
+         for (int i = 0; i < get_operand_stack().size(); i++) {
             std::cout << "(" << i << ")";
             visit(overloaded { [&](i32_const_t el) { std::cout << "i32:" << el.data.ui << ", "; },
                                [&](i64_const_t el) { std::cout << "i64:" << el.data.ui << ", "; },
                                [&](f32_const_t el) { std::cout << "f32:" << el.data.f << ", "; },
                                [&](f64_const_t el) { std::cout << "f64:" << el.data.f << ", "; },
-                               [&](auto el) { std::cout << "(INDEX " << el.index() << "), "; } }, base_type::get_operand_stack().get(i));
+                               [&](auto el) { std::cout << "(INDEX " << el.index() << "), "; } }, get_operand_stack().get(i));
          }
          std::cout << " }\n";
       }
 
       inline uint32_t       table_elem(uint32_t i) { return _mod.tables[0].table[i]; }
-      inline void           push_operand(operand_stack_elem el) { base_type::get_operand_stack().push(std::move(el)); }
-      inline operand_stack_elem get_operand(uint16_t index) const { return base_type::get_operand_stack().get(_last_op_index + index); }
-      inline void           eat_operands(uint16_t index) { base_type::get_operand_stack().eat(index); }
-      inline void           compact_operand(uint16_t index) { base_type::get_operand_stack().compact(index); }
-      inline void           set_operand(uint16_t index, const operand_stack_elem& el) { base_type::get_operand_stack().set(_last_op_index + index, el); }
-      inline uint16_t       current_operands_index() const { return base_type::get_operand_stack().current_index(); }
+      inline void           push_operand(operand_stack_elem el) { get_operand_stack().push(std::move(el)); }
+      inline operand_stack_elem get_operand(uint16_t index) const { return get_operand_stack().get(_last_op_index + index); }
+      inline void           eat_operands(uint16_t index) { get_operand_stack().eat(index); }
+      inline void           compact_operand(uint16_t index) { get_operand_stack().compact(index); }
+      inline void           set_operand(uint16_t index, const operand_stack_elem& el) { get_operand_stack().set(_last_op_index + index, el); }
+      inline uint16_t       current_operands_index() const { return get_operand_stack().current_index(); }
       inline void           push_call(activation_frame&& el) { _as.push(std::move(el)); }
       inline activation_frame pop_call() { return _as.pop(); }
       inline uint32_t       call_depth()const { return _as.size(); }
@@ -364,7 +370,7 @@ namespace eosio { namespace vm {
             return_pc = _state.pc + 1;
 
          _as.push( activation_frame{ return_pc, _last_op_index } );
-         _last_op_index = base_type::get_operand_stack().size() - _mod.get_function_type(index).param_types.size();
+         _last_op_index = get_operand_stack().size() - _mod.get_function_type(index).param_types.size();
       }
 
       inline void apply_pop_call(uint32_t num_locals, uint16_t return_count) {
@@ -372,12 +378,12 @@ namespace eosio { namespace vm {
          _state.pc = af.pc;
          _last_op_index = af.last_op_index;
          if (return_count)
-            compact_operand(base_type::get_operand_stack().size() - num_locals - 1);
+            compact_operand(get_operand_stack().size() - num_locals - 1);
          else
-            eat_operands(base_type::get_operand_stack().size() - num_locals);
+            eat_operands(get_operand_stack().size() - num_locals);
       }
-      inline operand_stack_elem  pop_operand() { return base_type::get_operand_stack().pop(); }
-      inline operand_stack_elem& peek_operand(size_t i = 0) { return base_type::get_operand_stack().peek(i); }
+      inline operand_stack_elem  pop_operand() { return get_operand_stack().pop(); }
+      inline operand_stack_elem& peek_operand(size_t i = 0) { return get_operand_stack().peek(i); }
       inline operand_stack_elem  get_global(uint32_t index) {
          EOS_VM_ASSERT(index < _mod.globals.size(), wasm_interpreter_exception, "global index out of range");
          const auto& gl = _mod.globals[index];
@@ -465,7 +471,7 @@ namespace eosio { namespace vm {
       inline void reset() {
          base_type::reset();
          _state = execution_state{};
-         base_type::get_operand_stack().eat(_state.os_index);
+         get_operand_stack().eat(_state.os_index);
          _as.eat(_state.as_index);
       }
 
@@ -500,10 +506,10 @@ namespace eosio { namespace vm {
 
          _state.host             = host;
          _state.as_index         = _as.size();
-         _state.os_index         = base_type::get_operand_stack().size();
+         _state.os_index         = get_operand_stack().size();
 
          auto cleanup = scope_guard([&]() {
-            base_type::get_operand_stack().eat(_state.os_index);
+            get_operand_stack().eat(_state.os_index);
             _as.eat(_state.as_index);
             _state = saved_state;
 
@@ -515,7 +521,7 @@ namespace eosio { namespace vm {
          type_check(_mod.get_function_type(func_index));
 
          if (func_index < _mod.get_imported_functions_size()) {
-            _rhf(_state.host, base_type::get_interface(), _mod.import_functions[func_index]);
+            _rhf(_state.host, get_interface(), _mod.import_functions[func_index]);
          } else {
             _state.pc = _mod.get_function_pc(func_index);
             setup_locals(func_index);
@@ -535,10 +541,10 @@ namespace eosio { namespace vm {
          set_relative_pc(new_pc);
          if ((pop_info & 0x80000000u)) {
             const auto& op = pop_operand();
-            eat_operands(base_type::get_operand_stack().size() - ((pop_info & 0x7FFFFFFFu) - 1));
+            eat_operands(get_operand_stack().size() - ((pop_info & 0x7FFFFFFFu) - 1));
             push_operand(op);
          } else {
-            eat_operands(base_type::get_operand_stack().size() - pop_info);
+            eat_operands(get_operand_stack().size() - pop_info);
          }
       }
 
@@ -546,7 +552,7 @@ namespace eosio { namespace vm {
 
       template <typename... Args>
       void push_args(Args&&... args) {
-         auto tc = type_converter<execution_interface>{base_type::get_interface()};
+         auto tc = type_converter<execution_interface>{get_interface()};
          (... , push_operand(detail::resolve_result(tc, std::move(args))));
       }
 

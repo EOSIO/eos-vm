@@ -72,4 +72,17 @@ namespace eosio { namespace vm {
       std::size_t size;
       std::unique_ptr<std::remove_cv_t<T>[]> copy = nullptr;
    };
+
+   template <typename T>
+   constexpr inline std::true_type is_reference_proxy_type(reference_proxy<T>) { return {}; }
+
+   template <typename T, bool LA>
+   constexpr inline std::true_type is_reference_proxy_type(reference_proxy<T, LA>) { return {}; }
+
+   template <typename T>
+   constexpr inline std::false_type is_reference_proxy_type(T) { return {}; }
+
+   template <typename T>
+   constexpr inline static bool is_reference_proxy_type_v = std::is_same_v<decltype(is_reference_proxy_type(std::declval<T>())), std::true_type>;
+
 }} // ns eosio::vm
