@@ -25,7 +25,7 @@ namespace eosio { namespace vm {
       EOS_VM_EMPTY_OPS(EOS_VM_CREATE_ENUM)
       EOS_VM_ERROR_OPS(EOS_VM_CREATE_ENUM)
    };
-   
+
    struct opcode_utils {
       std::map<uint16_t, std::string> opcode_map{
          EOS_VM_CONTROL_FLOW_OPS(EOS_VM_CREATE_MAP)
@@ -47,7 +47,7 @@ namespace eosio { namespace vm {
          EOS_VM_EMPTY_OPS(EOS_VM_CREATE_MAP)
          EOS_VM_ERROR_OPS(EOS_VM_CREATE_MAP)
       };
-   }; 
+   };
 
    enum imm_types {
       none,

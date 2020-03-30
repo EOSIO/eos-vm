@@ -11,12 +11,11 @@
 
 using namespace eosio;
 using namespace eosio::vm;
-extern wasm_allocator wa;
 
 BACKEND_TEST_CASE( "Testing wasm <func_0_wasm>", "[func_0_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "func.0.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
    CHECK(!bkend.call_with_return("env", "type-use-1"));
    CHECK(bkend.call_with_return("env", "type-use-2")->to_ui32() == UINT32_C(0));
    CHECK(!bkend.call_with_return("env", "type-use-3", UINT32_C(1)));
@@ -91,7 +90,7 @@ BACKEND_TEST_CASE( "Testing wasm <func_0_wasm>", "[func_0_wasm_tests]" ) {
 BACKEND_TEST_CASE( "Testing wasm <func_1_wasm>", "[func_1_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "func.1.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
 }
 
 BACKEND_TEST_CASE( "Testing wasm <func_14_wasm>", "[func_14_wasm_tests]" ) {
@@ -199,7 +198,7 @@ BACKEND_TEST_CASE( "Testing wasm <func_29_wasm>", "[func_29_wasm_tests]" ) {
 BACKEND_TEST_CASE( "Testing wasm <func_3_wasm>", "[func_3_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "func.3.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
    CHECK(!bkend.call_with_return("env", "signature-explicit-reused"));
    CHECK(!bkend.call_with_return("env", "signature-implicit-reused"));
    CHECK(!bkend.call_with_return("env", "signature-explicit-duplicate"));

@@ -11,12 +11,11 @@
 
 using namespace eosio;
 using namespace eosio::vm;
-extern wasm_allocator wa;
 
 BACKEND_TEST_CASE( "Testing wasm <memory_trap_0_wasm>", "[memory_trap_0_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "memory_trap.0.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
    CHECK(!bkend.call_with_return("env", "store", UINT32_C(4294967292), UINT32_C(42)));
    CHECK(bkend.call_with_return("env", "load", UINT32_C(4294967292))->to_ui32() == UINT32_C(42));
    CHECK_THROWS_AS(bkend("env", "store", UINT32_C(4294967293), UINT32_C(13)), std::exception);
@@ -35,7 +34,7 @@ BACKEND_TEST_CASE( "Testing wasm <memory_trap_0_wasm>", "[memory_trap_0_wasm_tes
 BACKEND_TEST_CASE( "Testing wasm <memory_trap_1_wasm>", "[memory_trap_1_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "memory_trap.1.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
    CHECK_THROWS_AS(bkend("env", "i32.store", UINT32_C(65536), UINT32_C(0)), std::exception);
    CHECK_THROWS_AS(bkend("env", "i32.store", UINT32_C(65535), UINT32_C(0)), std::exception);
    CHECK_THROWS_AS(bkend("env", "i32.store", UINT32_C(65534), UINT32_C(0)), std::exception);

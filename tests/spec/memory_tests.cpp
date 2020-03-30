@@ -11,18 +11,17 @@
 
 using namespace eosio;
 using namespace eosio::vm;
-extern wasm_allocator wa;
 
 BACKEND_TEST_CASE( "Testing wasm <memory_0_wasm>", "[memory_0_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "memory.0.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
 }
 
 BACKEND_TEST_CASE( "Testing wasm <memory_1_wasm>", "[memory_1_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "memory.1.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
 }
 
 BACKEND_TEST_CASE( "Testing wasm <memory_10_wasm>", "[memory_10_wasm_tests]" ) {
@@ -88,7 +87,7 @@ BACKEND_TEST_CASE( "Testing wasm <memory_19_wasm>", "[memory_19_wasm_tests]" ) {
 BACKEND_TEST_CASE( "Testing wasm <memory_2_wasm>", "[memory_2_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "memory.2.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
 }
 
 BACKEND_TEST_CASE( "Testing wasm <memory_20_wasm>", "[memory_20_wasm_tests]" ) {
@@ -124,7 +123,7 @@ BACKEND_TEST_CASE( "Testing wasm <memory_24_wasm>", "[memory_24_wasm_tests]" ) {
 BACKEND_TEST_CASE( "Testing wasm <memory_25_wasm>", "[memory_25_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "memory.25.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
    CHECK(bkend.call_with_return("env", "data")->to_ui32() == UINT32_C(1));
    CHECK(bit_cast<uint64_t>(bkend.call_with_return("env", "cast")->to_f64()) == UINT64_C(4631107791820423168));
    CHECK(bkend.call_with_return("env", "i32_load8_s", UINT32_C(4294967295))->to_ui32() == UINT32_C(4294967295));
@@ -172,7 +171,7 @@ BACKEND_TEST_CASE( "Testing wasm <memory_25_wasm>", "[memory_25_wasm_tests]" ) {
 BACKEND_TEST_CASE( "Testing wasm <memory_3_wasm>", "[memory_3_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "memory.3.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
 }
 
 BACKEND_TEST_CASE( "Testing wasm <memory_4_wasm>", "[memory_4_wasm_tests]" ) {
@@ -190,21 +189,21 @@ BACKEND_TEST_CASE( "Testing wasm <memory_5_wasm>", "[memory_5_wasm_tests]" ) {
 BACKEND_TEST_CASE( "Testing wasm <memory_6_wasm>", "[memory_6_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "memory.6.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
    CHECK(bkend.call_with_return("env", "memsize")->to_ui32() == UINT32_C(0));
 }
 
 BACKEND_TEST_CASE( "Testing wasm <memory_7_wasm>", "[memory_7_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "memory.7.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
    CHECK(bkend.call_with_return("env", "memsize")->to_ui32() == UINT32_C(0));
 }
 
 BACKEND_TEST_CASE( "Testing wasm <memory_8_wasm>", "[memory_8_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "memory.8.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
    CHECK(bkend.call_with_return("env", "memsize")->to_ui32() == UINT32_C(1));
 }
 

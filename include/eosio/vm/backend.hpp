@@ -55,39 +55,37 @@ namespace eosio { namespace vm {
       using host_t     = detail::host_type_t<HostFunctions>;
       using context_t  = typename Impl::template context<host_t>;
       using parser_t   = typename Impl::template parser<host_t>;
+      void construct(host_t* host=nullptr) {
+         mod.finalize();
+         ctx.set_wasm_allocator(memory_alloc);
+         if constexpr (!std::is_same_v<HostFunctions, std::nullptr_t>)
+            HostFunctions::resolve(mod);
+         initialize(host);
+      }
     public:
+      backend(wasm_code&& code, host_t& host, wasm_allocator* alloc)
+         : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module(code, mod)) {
+         construct(&host);
+      }
+      backend(wasm_code&& code, wasm_allocator* alloc)
+         : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module(code, mod)) {
+         construct();
+      }
       backend(wasm_code& code, host_t& host, wasm_allocator* alloc)
          : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module(code, mod)) {
-         mod.finalize();
-         ctx.set_wasm_allocator(alloc);
-         HostFunctions::resolve(mod);
-         if (alloc)
-            initialize(host);
+         construct(&host);
       }
-
       backend(wasm_code& code, wasm_allocator* alloc)
          : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module(code, mod)) {
-         mod.finalize();
-         ctx.set_wasm_allocator(alloc);
-         if (alloc)
-            initialize();
+         construct();
       }
-
       backend(wasm_code_ptr& ptr, size_t sz, host_t& host, wasm_allocator* alloc)
          : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module2(ptr, sz, mod)) {
-         mod.finalize();
-         ctx.set_wasm_allocator(alloc);
-         HostFunctions::resolve(mod);
-         if (alloc)
-            initialize(host);
+         construct(&host);
       }
-
       backend(wasm_code_ptr& ptr, size_t sz, wasm_allocator* alloc)
          : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module2(ptr, sz, mod)) {
-         mod.finalize();
-         ctx.set_wasm_allocator(alloc);
-         if (alloc)
-            initialize();
+         construct();
       }
 
       template <typename... Args>
@@ -100,21 +98,20 @@ namespace eosio { namespace vm {
          return call(mod, func, args...);
       }
 
-      inline backend& initialize() {
-         if(mod.memories.size())
-            memory_alloc->reset(mod.memories[0].limits.initial);
-         else
-            memory_alloc->reset();
-         ctx.reset();
-         if constexpr (std::is_same_v<host_t, standalone_function_t>)
-            ctx.execute_start(nullptr, interpret_visitor(ctx));
+      inline backend& initialize(host_t* host=nullptr) {
+         if (memory_alloc) {
+            if (mod.memories.size())
+               memory_alloc->reset(mod.memories[0].limits.initial);
+            else
+               memory_alloc->reset();
+            ctx.reset();
+            ctx.execute_start(host, interpret_visitor(ctx));
+         }
          return *this;
       }
 
       inline backend& initialize(host_t& host) {
-         initialize();
-         ctx.execute_start(&host, interpret_visitor(ctx));
-         return *this;
+         return initialize(&host);
       }
 
       template <typename... Args>
@@ -158,7 +155,7 @@ namespace eosio { namespace vm {
       }
 
       template <typename... Args>
-      inline auto call_with_return(host_t& host, const std::string_view& mod, const std::string_view& func, Args...args ) {
+      inline auto call_with_return(host_t& host, const std::string_view& mod, const std::string_view& func, Args... args ) {
          if constexpr (eos_vm_debug) {
             return ctx.execute(&host, debug_visitor(ctx), func, args...);
          } else {
@@ -204,11 +201,11 @@ namespace eosio { namespace vm {
             for (int i = 0; i < mod.exports.size(); i++) {
                if (mod.exports[i].kind == external_kind::Function) {
                   std::string s{ (const char*)mod.exports[i].field_str.raw(), mod.exports[i].field_str.size() };
-	          if constexpr (eos_vm_debug) {
+                  if constexpr (eos_vm_debug) {
                      print_result(ctx.execute(host, debug_visitor(ctx), s));
-	          } else {
-	             ctx.execute(host, interpret_visitor(ctx), s);
-	          }
+                  } else {
+                     ctx.execute(host, interpret_visitor(ctx), s);
+                  }
                }
             }
          });
@@ -220,11 +217,11 @@ namespace eosio { namespace vm {
             for (int i = 0; i < mod.exports.size(); i++) {
                if (mod.exports[i].kind == external_kind::Function) {
                   std::string s{ (const char*)mod.exports[i].field_str.raw(), mod.exports[i].field_str.size() };
-	          if constexpr (eos_vm_debug) {
+                  if constexpr (eos_vm_debug) {
                      print_result(ctx.execute(debug_visitor(ctx), s));
-	          } else {
-	             ctx.execute(nullptr, interpret_visitor(ctx), s);
-	          }
+                  } else {
+                     ctx.execute(nullptr, interpret_visitor(ctx), s);
+                  }
                }
             }
          });

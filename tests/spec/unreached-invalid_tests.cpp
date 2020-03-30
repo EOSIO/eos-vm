@@ -11,7 +11,6 @@
 
 using namespace eosio;
 using namespace eosio::vm;
-extern wasm_allocator wa;
 
 BACKEND_TEST_CASE( "Testing wasm <unreached-invalid_0_wasm>", "[unreached-invalid_0_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;

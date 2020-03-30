@@ -11,12 +11,11 @@
 
 using namespace eosio;
 using namespace eosio::vm;
-extern wasm_allocator wa;
 
 BACKEND_TEST_CASE( "Testing wasm <func_ptrs_0_wasm>", "[func_ptrs_0_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "func_ptrs.0.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
 
    CHECK(bkend.call_with_return("env", "one")->to_ui32() == UINT32_C(13));
    CHECK(bkend.call_with_return("env", "two", UINT32_C(13))->to_ui32() == UINT32_C(14));
@@ -29,7 +28,7 @@ bkend("env", "four", UINT32_C(83));
 BACKEND_TEST_CASE( "Testing wasm <func_ptrs_8_wasm>", "[func_ptrs_8_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "func_ptrs.8.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
 
    CHECK(bkend.call_with_return("env", "callt", UINT32_C(0))->to_ui32() == UINT32_C(1));
    CHECK(bkend.call_with_return("env", "callt", UINT32_C(1))->to_ui32() == UINT32_C(2));
@@ -56,7 +55,7 @@ BACKEND_TEST_CASE( "Testing wasm <func_ptrs_8_wasm>", "[func_ptrs_8_wasm_tests]"
 BACKEND_TEST_CASE( "Testing wasm <func_ptrs_9_wasm>", "[func_ptrs_9_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "func_ptrs.9.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
 
    CHECK(bkend.call_with_return("env", "callt", UINT32_C(0))->to_ui32() == UINT32_C(1));
    CHECK(bkend.call_with_return("env", "callt", UINT32_C(1))->to_ui32() == UINT32_C(2));

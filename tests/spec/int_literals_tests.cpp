@@ -11,12 +11,11 @@
 
 using namespace eosio;
 using namespace eosio::vm;
-extern wasm_allocator wa;
 
 BACKEND_TEST_CASE( "Testing wasm <int_literals_0_wasm>", "[int_literals_0_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "int_literals.0.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
    CHECK(bkend.call_with_return("env", "i32.test")->to_ui32() == UINT32_C(195940365));
    CHECK(bkend.call_with_return("env", "i32.umax")->to_ui32() == UINT32_C(4294967295));
    CHECK(bkend.call_with_return("env", "i32.smax")->to_ui32() == UINT32_C(2147483647));

@@ -11,24 +11,23 @@
 
 using namespace eosio;
 using namespace eosio::vm;
-extern wasm_allocator wa;
 
 BACKEND_TEST_CASE( "Testing wasm <custom_0_wasm>", "[custom_0_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "custom.0.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
 }
 
 BACKEND_TEST_CASE( "Testing wasm <custom_1_wasm>", "[custom_1_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "custom.1.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
 }
 
 BACKEND_TEST_CASE( "Testing wasm <custom_2_wasm>", "[custom_2_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "custom.2.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
 }
 
 BACKEND_TEST_CASE( "Testing wasm <custom_3_wasm>", "[custom_3_wasm_tests]" ) {

@@ -5,6 +5,7 @@
 #include <array>
 #include <cstdint>
 #include <limits>
+#include <type_traits>
 
 namespace eosio { namespace vm {
    inline static constexpr std::size_t dynamic_extent = std::numeric_limits<std::size_t>::max();
@@ -16,7 +17,7 @@ namespace eosio { namespace vm {
       public:
          using iterator = T*;
          template <typename It>
-         inline constexpr span(It first, std::size_t len = Extent) : first_elem(first), last_elem(first + len) {}
+         inline constexpr span(It first, std::size_t len = Extent) : first_elem(first), last_elem(first + len - 1) {}
          template <typename It>
          inline constexpr span(It first, It last) : first_elem(first), last_elem(last) {
             EOS_VM_ASSERT(last >= first, span_exception, "last iterator < first iterator");
@@ -60,16 +61,17 @@ namespace eosio { namespace vm {
 
          inline constexpr span first(std::size_t len) const {
             EOS_VM_ASSERT(first_elem + len <= last_elem, span_exception, "length overflows span");
-            return {first_elem, first_elem + len};
+            return {first_elem, first_elem + len - 1};
          }
 
          inline constexpr span last(std::size_t len) const {
             EOS_VM_ASSERT(last_elem - len >= first_elem, span_exception, "length underflows span");
-            return {last_elem - len, last_elem};
+            return {last_elem - len + 1, last_elem};
          }
 
          inline constexpr span subspan(std::size_t offset, std::size_t len) const {
-            return last(offset).first(len);
+            EOS_VM_ASSERT(first_elem + offset + len <= last_elem, span_exception, "length overflows span");
+            return {first_elem + offset, len};
          }
 
          bool operator==(const span& other) const {
@@ -80,4 +82,15 @@ namespace eosio { namespace vm {
          iterator first_elem;
          iterator last_elem;
    };
+
+   namespace detail {
+      template <typename T>
+      constexpr std::true_type is_span_type(span<T>) { return {}; }
+      template <typename T>
+      constexpr std::false_type is_span_type(T) { return {}; }
+   } // ns eosio::vm::detail
+
+   template <typename T>
+   constexpr inline static bool is_span_type_v = std::is_same_v<decltype(detail::is_span_type(std::declval<T>())), std::true_type>;
+
 }} // ns eosio::vm

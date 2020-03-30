@@ -21,6 +21,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+set(CMAKE_CXX_FLAGS "-fdiagnostics-color=always")
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 find_package(Threads)
 link_libraries(Threads::Threads)

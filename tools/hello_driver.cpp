@@ -32,12 +32,10 @@ struct example_host_methods {
 };
 
 EOS_VM_PRECONDITION(test_name,
-      EOS_VM_INVOKE_ON([&](auto&& nm, auto&&... rest) {
-         if constexpr (std::is_same_v<std::remove_reference_t<decltype(nm)>, const char*>) {
-            std::string s = nm;
-            if (s == "eos-vm2")
-               throw "failure";
-         }
+      EOS_VM_INVOKE_ON(const char*, [&](auto&& nm, auto&&... rest) {
+         std::string s = nm;
+         if (s == "eos-vm2")
+            throw "failure";
    }))
 
 /**

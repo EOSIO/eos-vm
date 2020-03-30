@@ -11,12 +11,11 @@
 
 using namespace eosio;
 using namespace eosio::vm;
-extern wasm_allocator wa;
 
 BACKEND_TEST_CASE( "Testing wasm <local_tee_0_wasm>", "[local_tee_0_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "local_tee.0.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
    CHECK(bkend.call_with_return("env", "type-local-i32")->to_ui32() == UINT32_C(0));
    CHECK(bkend.call_with_return("env", "type-local-i64")->to_ui64() == UINT32_C(0));
    CHECK(bit_cast<uint32_t>(bkend.call_with_return("env", "type-local-f32")->to_f32()) == UINT32_C(0));

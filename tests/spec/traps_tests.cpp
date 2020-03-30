@@ -11,12 +11,11 @@
 
 using namespace eosio;
 using namespace eosio::vm;
-extern wasm_allocator wa;
 
 BACKEND_TEST_CASE( "Testing wasm <traps_0_wasm>", "[traps_0_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "traps.0.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
    CHECK_THROWS_AS(bkend("env", "no_dce.i32.div_s", UINT32_C(1), UINT32_C(0)), std::exception);
    CHECK_THROWS_AS(bkend("env", "no_dce.i32.div_u", UINT32_C(1), UINT32_C(0)), std::exception);
    CHECK_THROWS_AS(bkend("env", "no_dce.i64.div_s", UINT64_C(1), UINT64_C(0)), std::exception);
@@ -28,7 +27,7 @@ BACKEND_TEST_CASE( "Testing wasm <traps_0_wasm>", "[traps_0_wasm_tests]" ) {
 BACKEND_TEST_CASE( "Testing wasm <traps_1_wasm>", "[traps_1_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "traps.1.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
    CHECK_THROWS_AS(bkend("env", "no_dce.i32.rem_s", UINT32_C(1), UINT32_C(0)), std::exception);
    CHECK_THROWS_AS(bkend("env", "no_dce.i32.rem_u", UINT32_C(1), UINT32_C(0)), std::exception);
    CHECK_THROWS_AS(bkend("env", "no_dce.i64.rem_s", UINT64_C(1), UINT64_C(0)), std::exception);
@@ -38,7 +37,7 @@ BACKEND_TEST_CASE( "Testing wasm <traps_1_wasm>", "[traps_1_wasm_tests]" ) {
 BACKEND_TEST_CASE( "Testing wasm <traps_2_wasm>", "[traps_2_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "traps.2.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
    CHECK_THROWS_AS(bkend("env", "no_dce.i32.trunc_f32_s", bit_cast<float>(UINT32_C(2143289344))), std::exception);
    CHECK_THROWS_AS(bkend("env", "no_dce.i32.trunc_f32_u", bit_cast<float>(UINT32_C(2143289344))), std::exception);
    CHECK_THROWS_AS(bkend("env", "no_dce.i32.trunc_f64_s", bit_cast<double>(UINT64_C(9221120237041090560))), std::exception);
@@ -52,7 +51,7 @@ BACKEND_TEST_CASE( "Testing wasm <traps_2_wasm>", "[traps_2_wasm_tests]" ) {
 BACKEND_TEST_CASE( "Testing wasm <traps_3_wasm>", "[traps_3_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "traps.3.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
    CHECK_THROWS_AS(bkend("env", "no_dce.i32.load", UINT32_C(65536)), std::exception);
    CHECK_THROWS_AS(bkend("env", "no_dce.i32.load16_s", UINT32_C(65536)), std::exception);
    CHECK_THROWS_AS(bkend("env", "no_dce.i32.load16_u", UINT32_C(65536)), std::exception);

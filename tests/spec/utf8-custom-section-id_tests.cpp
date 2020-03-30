@@ -11,7 +11,6 @@
 
 using namespace eosio;
 using namespace eosio::vm;
-extern wasm_allocator wa;
 
 BACKEND_TEST_CASE( "Testing wasm <utf8-custom-section-id_0_wasm>", "[utf8-custom-section-id_0_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;

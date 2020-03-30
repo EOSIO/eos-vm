@@ -92,6 +92,7 @@ add_executable(unit_tests main.cpp
                           varint_tests.cpp
                           variant_tests.cpp
                           #host_functions_tests.cpp
+                          preconditions_tests.cpp
                           reentry_tests.cpp
                           signals_tests.cpp
                           span_tests.cpp

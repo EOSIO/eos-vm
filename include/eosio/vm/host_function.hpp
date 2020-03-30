@@ -99,6 +99,24 @@ namespace eosio { namespace vm {
 
 #define EOS_VM_TYPE(...) decltype(std::declval<__VA_ARGS__>())
 
+   template <typename T>
+   struct reference {
+      constexpr reference(void* ptr) : value(reinterpret_cast<T*>(ptr)) {}
+
+      constexpr T& get() { return *value; }
+      constexpr const T& get() const { return *value; }
+      T* value;
+   };
+
+   template <typename T>
+   constexpr auto is_reference_type(reference<T>) { return std::true_type{}; }
+
+   template <typename T>
+   constexpr auto is_reference_type(T&&) { return std::false_type{}; }
+
+   template <typename T>
+   inline constexpr bool is_reference_type_v = std::is_same_v<decltype(is_reference_type(std::declval<T>())), std::true_type>;
+
    template <typename Execution_Interface=execution_interface>
    struct type_converter : public running_context<Execution_Interface> {
       using base_type = running_context<Execution_Interface>;
@@ -119,17 +137,17 @@ namespace eosio { namespace vm {
       template<typename T>
       inline auto as_value(const elem_type& val) const {
          if constexpr (std::is_integral_v<T> && sizeof(T) == 4)
-            return static_cast<const T&&>(val.template get<i32_const_t>().data.ui);
+            return static_cast<T>(val.template get<i32_const_t>().data.ui);
          else if constexpr (std::is_integral_v<T> && sizeof(T) == 8)
-            return static_cast<const T&&>(val.template get<i64_const_t>().data.ui);
+            return static_cast<T>(val.template get<i64_const_t>().data.ui);
          else if constexpr (std::is_floating_point_v<T> && sizeof(T) == 4)
-            return static_cast<const T&&>(val.template get<f32_const_t>().data.f);
+            return static_cast<T>(val.template get<f32_const_t>().data.f);
          else if constexpr (std::is_floating_point_v<T> && sizeof(T) == 8)
-            return static_cast<const T&&>(val.template get<f64_const_t>().data.f);
+            return static_cast<T>(val.template get<f64_const_t>().data.f);
          else if constexpr (std::is_pointer_v<T>)
             return reinterpret_cast<T>(this->access(val.template get<i32_const_t>().data.ui));
          else if constexpr (std::is_lvalue_reference_v<T>)
-            return static_cast<T>(*reinterpret_cast<std::remove_reference_t<T>*>(this->access(val.template get<i32_const_t>().data.ui)));
+            return reference<std::decay_t<T>>(this->access(val.template get<i32_const_t>().data.ui));
          else
             return no_match_t{};
       }
@@ -189,35 +207,49 @@ namespace eosio { namespace vm {
       template <typename Args, class Type_Converter>
       static inline constexpr std::size_t total_operands_v = total_operands<Args, 0, Type_Converter>();
 
+      template <typename S, typename Type_Converter>
+      constexpr bool has_as_value() {
+         return !std::is_same_v<no_match_t, std::decay_t<decltype(
+               std::declval<Type_Converter>().template as_value<S>(pop_value<0>(std::declval<Type_Converter&>())))>>;
+      }
+
+      template <typename S, typename Type_Converter>
+      constexpr inline static bool has_from_wasm_v = EOS_VM_HAS_TEMPLATE_MEMBER_TY(Type_Converter, from_wasm<S>);
+
       template <typename Args, typename S, std::size_t At, class Type_Converter, std::size_t... Is>
-      inline constexpr decltype(auto) create_value(Type_Converter& tc, std::index_sequence<Is...>) {
+      inline constexpr auto create_value(Type_Converter& tc, std::index_sequence<Is...>) {
          constexpr std::size_t offset = total_operands_v<Args, Type_Converter> - 1;
-         if constexpr (!std::is_same_v<no_match_t, std::decay_t<decltype(tc.template as_value<S>(pop_value<offset - At>(tc)))>>)
-            if constexpr (EOS_VM_HAS_TEMPLATE_MEMBER(tc, from_wasm<S>))
+         if constexpr (has_as_value<S, Type_Converter>()) {
+            if constexpr (has_from_wasm_v<S, Type_Converter>) {
                return tc.template from_wasm<S>( tc.template as_value<S>(pop_value<offset - At>(tc)) );
-            else
+            } else {
                return tc.template as_value<S>(pop_value<offset - At>(tc));
-         else {
+            }
+         } else {
+            static_assert(has_from_wasm_v<S, Type_Converter>, "no type conversion found for type, define a from_wasm for this type");
             return tc.template from_wasm<S>(pop_value<offset - (At + Is)>(tc)...);
          }
       }
 
       template <typename S, typename Type_Converter>
       inline constexpr std::size_t skip_amount() {
-         if constexpr (!std::is_same_v<no_match_t, std::decay_t<decltype(std::declval<Type_Converter>().template as_value<S>(pop_value<0>(std::declval<const Type_Converter&>())))>>)
+         if constexpr (has_as_value<S, Type_Converter>()) {
             return 1;
-         else
+         } else {
             return std::tuple_size_v<from_wasm_type_deducer_t<Type_Converter, S>>;
+         }
       }
 
-      template <typename Args, std::size_t At, class Type_Converter>
-      inline constexpr decltype(auto) get_values(Type_Converter& tc) {
+      template <typename Args, std::size_t At, std::size_t Skip_Amt, class Type_Converter>
+      inline constexpr auto get_values(Type_Converter& tc) {
          if constexpr (At >= std::tuple_size_v<Args>)
             return std::tuple<>{};
          else {
             using source_t = std::tuple_element_t<At, Args>;
             constexpr std::size_t skip_amt = skip_amount<source_t, Type_Converter>();
-            return std::tuple_cat(std::tuple<source_t>{create_value<Args, source_t, At>(tc, std::make_index_sequence<skip_amt>{})}, get_values<Args, At + skip_amt>(tc));
+            using created_t = decltype(create_value<Args, source_t, Skip_Amt>(tc, std::make_index_sequence<skip_amt>{}));
+            return std::tuple_cat(std::tuple(create_value<Args, source_t, Skip_Amt>(tc, std::make_index_sequence<skip_amt>{})),
+                  get_values<Args, At+1, Skip_Amt + skip_amt>(tc));
          }
       }
 
@@ -229,21 +261,35 @@ namespace eosio { namespace vm {
             return tc.to_wasm(static_cast<T&&>(val));
       }
 
-      template <typename F>
+      template <typename T>
+      constexpr decltype(auto) decayer(T& t) { return static_cast<std::decay_t<T>>(t); }
+
+      template <typename T>
+      constexpr decltype(auto) decayer(T&& t) { return std::forward<T>(t); }
+
+      template <typename T>
+      decltype(auto) convert_type(T&& t) {
+         if constexpr (is_reference_type_v<std::decay_t<T>>)
+            return decayer(t).get();
+         else
+            return decayer(t);
+      }
+
+      struct invoke_on_all_t {};
+
+      template <typename T, typename F>
       inline constexpr void invoke_on_impl(F&& fn) {}
 
-      template <typename F, typename Arg, typename... Args>
+      template <typename T, typename F, typename Arg, typename... Args>
       inline constexpr void invoke_on_impl(F&& fn, Arg&& arg, Args&&... args) {
-          // TODO need to fix this back up, somehow this has stopped working
-          //if constexpr (std::is_same_v<decltype(parameter_at<0>(fn)), Arg>)
-          //   std::invoke(fn, std::forward<Arg>(arg));
-          std::invoke(fn, std::forward<Arg>(arg), std::forward<Args>(args)...);
-          invoke_on_impl(static_cast<F&&>(fn), std::forward<Args>(args)...);
+          if constexpr (std::is_same_v<T, Arg> || std::is_same_v<T, invoke_on_all_t>)
+             std::invoke(fn, std::forward<Arg>(arg), std::forward<Args>(args)...);
+          invoke_on_impl<T>(std::forward<F>(fn), std::forward<Args>(args)...);
       }
 
       template <typename Precondition, typename Type_Converter, typename Args, std::size_t... Is>
       inline static auto precondition_runner(Type_Converter& ctx, Args&& args, std::index_sequence<Is...>) {
-         return Precondition::condition(ctx, std::get<Is>(args)...);
+         return Precondition::condition(ctx, convert_type(std::get<Is>(args))...);
       }
 
       template <std::size_t I, typename Preconditions, typename Type_Converter, typename... Args>
@@ -252,24 +298,27 @@ namespace eosio { namespace vm {
             return preconditions_runner<I+1, Preconditions>(ctx,
                   precondition_runner<std::tuple_element_t<I, Preconditions>>(ctx, std::move(tup), std::make_index_sequence<sizeof...(Args)>{}));
          else
-            return static_cast<std::tuple<Args...>&&>(tup);
+            return std::move(tup);
       }
    } //ns detail
 
-   template <typename... Args, typename F>
+   template <typename T, typename... Args, typename F>
    void invoke_on(F&& func, Args&&... args) {
-      detail::invoke_on_impl(static_cast<F&&>(func), std::forward<Args>(args)...);
+      detail::invoke_on_impl<T>(static_cast<F&&>(func), std::forward<Args>(args)...);
    }
 
-#define EOS_VM_INVOKE_ON(CONDITION) \
-    invoke_on(CONDITION, std::forward<Args>(args)...);
+#define EOS_VM_INVOKE_ON(TYPE, CONDITION) \
+    invoke_on<TYPE>(CONDITION, std::forward<Args>(args)...);
+
+#define EOS_VM_INVOKE_ON_ALL(CONDITION) \
+    invoke_on<detail::invoke_on_all_t>(CONDITION, std::forward<Args>(args)...);
 
 #define EOS_VM_PRECONDITION(NAME, ...)                                       \
    struct NAME {                                                             \
       template <typename Type_Converter, typename... Args>                   \
-      inline static decltype(auto) condition(Type_Converter& ctx, Args&&... args) { \
+      inline static decltype(auto) condition(Type_Converter& ctx, Args... args) { \
         __VA_ARGS__;                                                         \
-        return std::forward_as_tuple(args...);                               \
+        return std::tuple(args...);                                          \
       }                                                                      \
    };
 
@@ -278,18 +327,19 @@ namespace eosio { namespace vm {
       return detail::preconditions_runner<0, Preconditions>(tc, std::move(args));
    }
 
+
    template <auto F, typename Preconditions, typename Host, typename Args, typename Type_Converter, std::size_t... Is>
    decltype(auto) invoke_with_host_impl(Type_Converter& tc, Host* host, Args&& args, std::index_sequence<Is...>) {
       if constexpr (std::is_same_v<Host, standalone_function_t>)
-         return std::invoke(F, std::get<Is>(invoke_with_preconditions<F, Preconditions>(tc, args))...);
+         return std::invoke(F, detail::convert_type(std::get<Is>(invoke_with_preconditions<F, Preconditions>(tc, args)))...);
       else
-         return std::invoke(F, host, std::get<Is>(invoke_with_preconditions<F, Preconditions>(tc, args))...);
+         return std::invoke(F, host, detail::convert_type(std::get<Is>(invoke_with_preconditions<F, Preconditions>(tc, args)))...);
    }
 
    template <auto F, typename Preconditions, typename Args, typename Type_Converter, typename Host, std::size_t... Is>
    decltype(auto) invoke_with_host(Type_Converter& tc, Host* host, std::index_sequence<Is...>) {
-      constexpr std::size_t args_size = std::tuple_size_v<decltype(detail::get_values<Args, 0>(tc))>;
-      return invoke_with_host_impl<F, Preconditions>(tc, host, detail::get_values<Args, 0>(tc), std::make_index_sequence<args_size>{});
+      constexpr std::size_t args_size = std::tuple_size_v<decltype(detail::get_values<Args, 0, 0>(tc))>;
+      return invoke_with_host_impl<F, Preconditions>(tc, host, detail::get_values<Args, 0, 0>(tc), std::make_index_sequence<args_size>{});
    }
 
    template<typename Type_Converter, typename T>

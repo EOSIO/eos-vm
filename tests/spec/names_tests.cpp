@@ -11,26 +11,25 @@
 
 using namespace eosio;
 using namespace eosio::vm;
-extern wasm_allocator wa;
 
 BACKEND_TEST_CASE( "Testing wasm <names_0_wasm>", "[names_0_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "names.0.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
    CHECK(bkend.call_with_return("env", "foo")->to_ui32() == UINT32_C(0));
 }
 
 BACKEND_TEST_CASE( "Testing wasm <names_1_wasm>", "[names_1_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "names.1.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
    CHECK(bkend.call_with_return("env", "foo")->to_ui32() == UINT32_C(1));
 }
 
 BACKEND_TEST_CASE( "Testing wasm <names_2_wasm>", "[names_2_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "names.2.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
    CHECK(bkend.call_with_return("env", "")->to_ui32() == UINT32_C(0));
    CHECK(bkend.call_with_return("env", "0")->to_ui32() == UINT32_C(1));
    CHECK(bkend.call_with_return("env", "-0")->to_ui32() == UINT32_C(2));
@@ -513,8 +512,8 @@ BACKEND_TEST_CASE( "Testing wasm <names_2_wasm>", "[names_2_wasm_tests]" ) {
 BACKEND_TEST_CASE( "Testing wasm <names_3_wasm>", "[names_3_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "names.3.wasm");
-   backend_t bkend( code, &wa );
-   bkend.set_wasm_allocator( &wa );
+   backend_t bkend( code, get_wasm_allocator() );
+   bkend.set_wasm_allocator( get_wasm_allocator() );
    bkend.initialize(nullptr);
 
    CHECK(!bkend.call_with_return("env", "print32", UINT32_C(42), UINT32_C(123)));

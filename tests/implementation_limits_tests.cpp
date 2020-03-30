@@ -29,7 +29,9 @@ BACKEND_TEST_CASE( "Test call depth", "[call_depth]") {
 
    rhf_t::add<&host_call>("env", "host.call");
 
-   backend_t bkend(implementation_limits_wasm_code, &wa);
+   backend_t bkend(implementation_limits_wasm_code, get_wasm_allocator());
+
+   rhf_t::resolve(bkend.get_module());
 
    CHECK(!bkend.call_with_return("env", "call", (uint32_t)250));
    CHECK_THROWS_AS(bkend.call("env", "call", (uint32_t)251), std::exception);

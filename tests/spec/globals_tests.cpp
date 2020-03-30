@@ -11,12 +11,11 @@
 
 using namespace eosio;
 using namespace eosio::vm;
-extern wasm_allocator wa;
 
 BACKEND_TEST_CASE( "Testing wasm <globals_0_wasm>", "[globals_0_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "globals.0.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
    CHECK(bkend.call_with_return("env", "get-a")->to_ui32() == UINT32_C(4294967294));
    CHECK(bkend.call_with_return("env", "get-b")->to_ui64() == UINT32_C(18446744073709551611));
    CHECK(bkend.call_with_return("env", "get-x")->to_ui32() == UINT32_C(4294967284));
@@ -69,25 +68,25 @@ BACKEND_TEST_CASE( "Testing wasm <globals_0_wasm>", "[globals_0_wasm_tests]" ) {
 /*
 TEST_CASE( "Testing wasm <globals_14_wasm>", "[globals_14_wasm_tests]" ) {
    auto code = read_wasm( std::string(wasm_directory) + "globals.14.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
 }
 */
 
 BACKEND_TEST_CASE( "Testing wasm <globals_17_wasm>", "[globals_17_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "globals.17.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
 }
 
 BACKEND_TEST_CASE( "Testing wasm <globals_2_wasm>", "[globals_2_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "globals.2.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
 }
 
 BACKEND_TEST_CASE( "Testing wasm <globals_3_wasm>", "[globals_3_wasm_tests]" ) {
    using backend_t = backend<standalone_function_t, TestType>;
    auto code = read_wasm( std::string(wasm_directory) + "globals.3.wasm");
-   backend_t bkend( code, &wa );
+   backend_t bkend( code, get_wasm_allocator() );
 }
 
