@@ -16,7 +16,7 @@ struct example_host_methods {
    // example of a host "method"
    void print_name(const char* nm) { std::cout << "Name : " << nm << " " << field << "\n"; }
    // example of another type of host function
-   void* memset(void* ptr, int x, size_t n) { return ::memset(ptr, x, n); }
+   void* memset(char* ptr, int x, size_t n) { return ::memset(ptr, x, n); }
    std::string  field = "";
 
    void eosio_assert(bool test, const char* msg) {

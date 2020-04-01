@@ -409,6 +409,7 @@ namespace eosio { namespace vm {
          raw += syspagesize;
          page = 0;
       }
+
       void reset(uint32_t new_pages) {
          if (page != -1) {
             memset(raw, '\0', page_size * page); // zero the memory
@@ -418,12 +419,13 @@ namespace eosio { namespace vm {
             EOS_VM_ASSERT(err == 0, wasm_bad_alloc, "mprotect failed");
          }
          // no need to mprotect if the size hasn't changed
-         if (new_pages != page && page > 0) {
+         if (new_pages != static_cast<uint32_t>(page) && page > 0) {
             int err = mprotect(raw, page_size * page, PROT_NONE); // protect the entire region of memory
             EOS_VM_ASSERT(err == 0, wasm_bad_alloc, "mprotect failed");
          }
          page = 0;
       }
+
       // Signal no memory defined
       void reset() {
          if (page != -1) {
@@ -434,6 +436,7 @@ namespace eosio { namespace vm {
          }
          page = -1;
       }
+
       template <typename T>
       inline T* get_base_ptr() const {
          return reinterpret_cast<T*>(raw);

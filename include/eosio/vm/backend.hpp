@@ -173,7 +173,7 @@ namespace eosio { namespace vm {
       }
 
       template<typename Watchdog, typename F>
-      void timed_run(Watchdog&& wd, F&& f) {
+      inline void timed_run(Watchdog&& wd, F&& f) {
          std::atomic<bool>       _timed_out = false;
          auto reenable_code = scope_guard{[&](){
             if (_timed_out) {

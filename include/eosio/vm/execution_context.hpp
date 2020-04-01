@@ -237,7 +237,7 @@ namespace eosio { namespace vm {
          // make sure that the garbage bits are always zero.
          native_value result;
          std::memset(&result, 0, sizeof(result));
-         auto tc = type_converter<execution_interface>{get_interface()};
+         auto tc = type_converter<Host, execution_interface>{_host, get_interface()};
          auto transformed_value = detail::resolve_result(tc, static_cast<T&&>(value)).data;
          std::memcpy(&result, &transformed_value, sizeof(transformed_value));
          return result;
@@ -552,7 +552,7 @@ namespace eosio { namespace vm {
 
       template <typename... Args>
       void push_args(Args&&... args) {
-         auto tc = type_converter<execution_interface>{get_interface()};
+         auto tc = type_converter<Host, execution_interface>{_host, get_interface()};
          (... , push_operand(detail::resolve_result(tc, std::move(args))));
       }
 
@@ -648,5 +648,6 @@ namespace eosio { namespace vm {
       uint16_t                        _last_op_index    = 0;
       call_stack                      _as = { _base_allocator };
       opcode                          _halt;
+      Host*                           _host = nullptr;
    };
 }} // namespace eosio::vm

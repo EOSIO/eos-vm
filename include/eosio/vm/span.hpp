@@ -55,6 +55,7 @@ namespace eosio { namespace vm {
          }
 
          inline constexpr T* data() { return first_elem; }
+         inline constexpr const T* data() const { return first_elem; }
          inline constexpr std::size_t size() const { return last_elem - first_elem; }
          inline constexpr std::size_t size_bytes() const { return size() * sizeof(T); }
          inline constexpr bool empty() const { return size() == 0; }
