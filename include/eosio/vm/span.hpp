@@ -15,9 +15,17 @@ namespace eosio { namespace vm {
       static_assert( Extent == 1 || Extent == dynamic_extent,
             "only a static extent of 1 is currently available" );
       public:
+         using element_type = T;
+         using value_type = std::remove_cv_t<T>;
+         using size_type = std::size_t;
+         using difference_type = std::ptrdiff_t;
+         using pointer = T*;
+         using const_pointer = const T*;
+         using reference = T&;
+         using const_reference = const T&;
          using iterator = T*;
          template <typename It>
-         inline constexpr span(It first, std::size_t len = Extent) : first_elem(first), last_elem(first + len - 1) {}
+         inline constexpr span(It first, std::size_t len) : first_elem(first), last_elem(first + len - 1) {}
          template <typename It>
          inline constexpr span(It first, It last) : first_elem(first), last_elem(last) {
             EOS_VM_ASSERT(last >= first, span_exception, "last iterator < first iterator");

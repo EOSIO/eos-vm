@@ -7,7 +7,7 @@ using eosio::vm::span;
 TEST_CASE("span static_extent tests", "[span_static_extent]") {
    // currently we only support a static extent of 1
    int a = 0;
-   span<int, 1> s(&a);
+   span<int, 1> s(&a, 1);
 
    CHECK(s.data() == std::addressof(a));
    CHECK(s.front() == a);

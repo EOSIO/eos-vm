@@ -135,7 +135,7 @@ namespace eosio { namespace vm {
       template <typename T>
       auto from_wasm(const elem_type& ptr, const elem_type& len) const
          -> std::enable_if_t<is_span_type_v<T>, T> {
-         return {as_value<dependent_type_t<T>*>(std::move(ptr)), as_value<wasm_size_t>(std::move(len))};
+         return {as_value<typename T::pointer>(std::move(ptr)), as_value<wasm_size_t>(std::move(len))};
       }
 
       template <typename T>
@@ -441,8 +441,8 @@ namespace eosio { namespace vm {
 
       template <auto Func, typename... Preconditions>
       static void add(const std::string& mod, const std::string& name) {
-         using args          = flatten_parameters_t<Func>;
-         using res           = return_type_t<Func>;
+         using args          = flatten_parameters_t<AUTO_PARAM_WORKAROUND(Func)>;
+         using res           = return_type_t<AUTO_PARAM_WORKAROUND(Func)>;
          using preconditions = std::tuple<Preconditions...>;
          mappings::get().template add_mapping<Func, res, args, preconditions>(mod, name);
       }

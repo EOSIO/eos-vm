@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 #include <memory>
+#include <vector>
 #include <cxxabi.h>
 
 #if !defined(LIKELY) && !defined(UNLIKELY)
