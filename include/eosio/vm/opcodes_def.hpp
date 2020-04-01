@@ -283,25 +283,25 @@
 
 namespace eosio { namespace vm { namespace detail {
    template <std::size_t I, std::size_t Name_N, std::size_t Fmt_N>
-   inline constexpr std::string format_str_impl(const char (&name)[Name_N], const char (&fmt)[Fmt_N]) {
-      return std::string(fmt);
+   inline const char* format_str_impl(const char (&name)[Name_N], const char (&fmt)[Fmt_N]) {
+      return fmt;
    }
    template <std::size_t I, std::size_t Name_N, std::size_t Fmt_N, typename Arg, typename... Args>
-   inline constexpr std::string format_str_impl(const char (&name)[Name_N], const char (&fmt)[Fmt_N], Arg&& arg, Args&&... args) {
+   inline const char* format_str_impl(const char (&name)[Name_N], const char (&fmt)[Fmt_N], Arg&& arg, Args&&... args) {
       if constexpr (I == Fmt_N) {
-         return std::string("");
+         return "";
       } else {
          if (fmt[I] == '%')
-            return std::to_string(std::forward<Arg>(arg)) + format_str_impl<I+1>(name, fmt, std::forward<Args>(args)...);
+            return std::string(std::to_string(std::forward<Arg>(arg)) + format_str_impl<I+1>(name, fmt, std::forward<Args>(args)...)).c_str();
          else if (fmt[I] == '!')
-            return std::string(name) + format_str_impl<I+1>(name, fmt, std::forward<Args>(args)...);
+            return std::string(std::string(name) + format_str_impl<I+1>(name, fmt, std::forward<Args>(args)...)).c_str();
          else
-            return std::string(1, fmt[I]) + format_str_impl<I+1>(name, fmt, std::forward<Args>(args)...);
+            return std::string(std::string(1, fmt[I]) + format_str_impl<I+1>(name, fmt, std::forward<Args>(args)...)).c_str();
       }
    }
 
    template <std::size_t Name_N, std::size_t Fmt_N, typename... Args>
-   inline constexpr std::string fmt_str(const char (&name)[Name_N], const char (&fmt)[Fmt_N], Args&&... args) {
+   inline const char* fmt_str(const char (&name)[Name_N], const char (&fmt)[Fmt_N], Args&&... args) {
       return format_str_impl<0>(name, fmt, std::forward<Args>(args)...);
    }
 }}} // ns eosio::vm::detail
