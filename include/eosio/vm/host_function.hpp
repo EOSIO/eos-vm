@@ -321,6 +321,11 @@ namespace eosio { namespace vm {
          }
       }
 
+      template <typename T>
+      decltype(auto) convert_type(T&& t) { return static_cast<T&&>(t); }
+      template <typename T>
+      decltype(auto) convert_type(reference<T> t) { return static_cast<T&>(t); }
+
       template <typename Precondition, typename Type_Converter, typename Args, std::size_t... Is>
       inline static auto precondition_runner(Type_Converter& ctx, Args&& args, std::index_sequence<Is...>) {
          return Precondition::condition(ctx, std::get<Is>(std::forward<Args>(args))...);
@@ -365,9 +370,9 @@ namespace eosio { namespace vm {
    template <auto F, typename Preconditions, typename Type_Converter, typename Host, typename... Args>
    decltype(auto) invoke_impl(Type_Converter& tc, Host* host, Args&&... args) {
       if constexpr (std::is_same_v<Host, standalone_function_t>)
-         return std::invoke(F, std::forward<Args&&>(args)...);
+         return std::invoke(F, detail::convert_type(static_cast<Args&&>(args))...);
       else
-         return std::invoke(F, host, std::forward<Args&&>(args)...);
+         return std::invoke(F, host, detail::convert_type(static_cast<Args&&>(args))...);
    }
 
    template <auto F, typename Preconditions, typename Host, typename Args, typename Type_Converter, std::size_t... Is>
