@@ -1972,7 +1972,7 @@ namespace eosio { namespace vm {
         emit_bytes(0xf3, 0x0f, 0x11, 0x04, 0x24);
       }
       void emit_f32_demote_f64() {
-         auto icount = softfloat_instr(10, 38);
+         auto icount = softfloat_instr(16, 38);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_f64_demote));
          }
@@ -1980,6 +1980,11 @@ namespace eosio { namespace vm {
          emit_bytes(0xf2, 0x0f, 0x5a, 0x04, 0x24);
          // movss %xmm0, (%rsp)
          emit_bytes(0xf3, 0x0f, 0x11, 0x04, 0x24);
+         // Zero out the high 4 bytes
+         // xor %eax, %eax
+         emit_bytes(0x31, 0xc0);
+         // mov %eax, 4(%rsp)
+         emit_bytes(0x89, 0x44, 0x24, 0x04);
       }
       void emit_f64_convert_s_i32() {
          auto icount = softfloat_instr(10, 37);

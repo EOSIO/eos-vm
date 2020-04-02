@@ -6,6 +6,7 @@
   "invalid limits"
 )
 
+;; This is the maximum allowed under the wasm spec.
 (module (memory 65536))
 
 (module binary

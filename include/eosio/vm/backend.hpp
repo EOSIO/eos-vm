@@ -6,6 +6,7 @@
 #include <eosio/vm/debug_visitor.hpp>
 #include <eosio/vm/execution_context.hpp>
 #include <eosio/vm/interpret_visitor.hpp>
+#include <eosio/vm/null_writer.hpp>
 #include <eosio/vm/parser.hpp>
 #include <eosio/vm/types.hpp>
 #include <eosio/vm/x86_64.hpp>
@@ -24,40 +25,60 @@ namespace eosio { namespace vm {
    struct jit {
       template<typename Host>
       using context = jit_execution_context<Host>;
-      template<typename Host>
-      using parser = binary_parser<machine_code_writer<jit_execution_context<Host>>>;
+      template<typename Host, typename Options>
+      using parser = binary_parser<machine_code_writer<jit_execution_context<Host>>, Options>;
       static constexpr bool is_jit = true;
    };
 
    struct interpreter {
       template<typename Host>
       using context = execution_context<Host>;
-      template<typename Host>
-      using parser = binary_parser<bitcode_writer>;
+      template<typename Host, typename Options>
+      using parser = binary_parser<bitcode_writer, Options>;
       static constexpr bool is_jit = false;
    };
 
-   template <typename Host, typename Impl = interpreter>
+   struct null_backend {
+      template<typename Host>
+      using context = null_execution_context<Host>;
+      template<typename Host, typename Options>
+      using parser = binary_parser<null_writer, Options>;
+      static constexpr bool is_jit = false;
+   };
+
+   template <typename Host, typename Impl = interpreter, typename Options = default_options>
    class backend {
     public:
       using host_t = Host;
 
       template <typename HostFunctions = nullptr_t>
-      backend(wasm_code& code, HostFunctions = nullptr) : _ctx(typename Impl::template parser<Host>{ _mod.allocator }.parse_module(code, _mod)) {
+      backend(wasm_code& code, HostFunctions = nullptr, const Options& options = Options{})
+        : _ctx(typename Impl::template parser<Host, Options>{ _mod.allocator, options }.parse_module(code, _mod), detail::get_max_call_depth(options)) {
+         _ctx.set_max_pages(detail::get_max_pages(options));
+	 _mod.finalize();
 	 if constexpr (!std::is_same_v<HostFunctions, nullptr_t>)
             HostFunctions::resolve(_mod);
-	 _mod.finalize();
       }
       template <typename HostFunctions = nullptr_t>
-      backend(wasm_code_ptr& ptr, size_t sz, HostFunctions = nullptr) : _ctx(typename Impl::template parser<Host>{ _mod.allocator }.parse_module2(ptr, sz, _mod)) {
+      backend(wasm_code_ptr& ptr, size_t sz, HostFunctions = nullptr, const Options& options = Options{})
+        : _ctx(typename Impl::template parser<Host, Options>{ _mod.allocator, options }.parse_module2(ptr, sz, _mod), detail::get_max_call_depth(options)) {
+         _ctx.set_max_pages(detail::get_max_pages(options));
+	 _mod.finalize();
 	 if constexpr (!std::is_same_v<HostFunctions, nullptr_t>)
             HostFunctions::resolve(_mod);
-	 _mod.finalize();
       }
 
       template <typename... Args>
       inline bool operator()(Host* host, const std::string_view& mod, const std::string_view& func, Args... args) {
          return call(host, mod, func, args...);
+      }
+
+      // Only dynamic options matter.  Parser options will be ignored.
+      inline backend& initialize(Host* host, const Options& new_options) {
+         _ctx.set_max_call_depth(detail::get_max_call_depth(new_options));
+         _ctx.set_max_pages(detail::get_max_pages(new_options));
+         initialize(host);
+         return *this;
       }
 
       inline backend& initialize(Host* host=nullptr) {
@@ -73,8 +94,7 @@ namespace eosio { namespace vm {
       template <typename... Args>
       inline bool call_indirect(Host* host, uint32_t func_index, Args... args) {
          if constexpr (eos_vm_debug) {
-            //_ctx.execute_func_table(host, debug_visitor(_ctx), func_index, args...);
-            _ctx.execute_func_table(host, interpret_visitor(_ctx), func_index, args...);
+            _ctx.execute_func_table(host, debug_visitor(_ctx), func_index, args...);
          } else {
             _ctx.execute_func_table(host, interpret_visitor(_ctx), func_index, args...);
          }
@@ -84,8 +104,7 @@ namespace eosio { namespace vm {
       template <typename... Args>
       inline bool call(Host* host, uint32_t func_index, Args... args) {
          if constexpr (eos_vm_debug) {
-            //_ctx.execute(host, debug_visitor(_ctx), func_index, args...);
-            _ctx.execute(host, interpret_visitor(_ctx), func_index, args...);
+            _ctx.execute(host, debug_visitor(_ctx), func_index, args...);
          } else {
             _ctx.execute(host, interpret_visitor(_ctx), func_index, args...);
          }
@@ -95,8 +114,7 @@ namespace eosio { namespace vm {
       template <typename... Args>
       inline bool call(Host* host, const std::string_view& mod, const std::string_view& func, Args... args) {
          if constexpr (eos_vm_debug) {
-            //_ctx.execute(host, debug_visitor(_ctx), func, args...);
-            _ctx.execute(host, interpret_visitor(_ctx), func, args...);
+            _ctx.execute(host, debug_visitor(_ctx), func, args...);
          } else {
             _ctx.execute(host, interpret_visitor(_ctx), func, args...);
          }
@@ -107,8 +125,7 @@ namespace eosio { namespace vm {
       inline auto call_with_return(Host* host, const std::string_view& mod, const std::string_view& func,
                                    Args... args) {
          if constexpr (eos_vm_debug) {
-            //return _ctx.execute(host, debug_visitor(_ctx), func, args...);
-            return _ctx.execute(host, interpret_visitor(_ctx), func, args...);
+            return _ctx.execute(host, debug_visitor(_ctx), func, args...);
          } else {
             return _ctx.execute(host, interpret_visitor(_ctx), func, args...);
          }
