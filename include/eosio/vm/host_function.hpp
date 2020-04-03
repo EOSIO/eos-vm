@@ -400,7 +400,8 @@ namespace eosio { namespace vm {
    template <typename Cls, auto F, typename Preconditions, typename R, typename Args, typename Type_Converter, size_t... Is>
    auto create_function(std::index_sequence<Is...>) {
       return std::function<void(Cls*, Type_Converter& )>{ [](Cls* self, Type_Converter& tc) {
-            maybe_push_result(tc, (invoke_with_host<F, Preconditions, Args>(tc, self, std::index_sequence<Is...>{}), maybe_void), sizeof...(Is));
+            maybe_push_result(tc, (invoke_with_host<F, Preconditions, Args>(tc, self, std::index_sequence<Is...>{}), maybe_void),
+                              detail::total_operands_v<Args, Type_Converter>);
          }
       };
    }

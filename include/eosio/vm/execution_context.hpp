@@ -200,7 +200,7 @@ namespace eosio { namespace vm {
             }
          }
 
-         //assert(get_operand_stack().size() == original_operands);
+         assert(get_operand_stack().size() == original_operands);
          return result;
       }
 
