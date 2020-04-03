@@ -26,8 +26,35 @@
 
 namespace eosio { namespace vm {
 
+   namespace detail {
+      template <typename HostFunctions>
+      struct host_type {
+         using type = typename HostFunctions::host_type_t;
+      };
+      template <>
+      struct host_type<std::nullptr_t> {
+         using type = std::nullptr_t;
+      };
+
+      template <typename HF>
+      using host_type_t = typename host_type<HF>::type;
+
+      template <typename HostFunctions>
+      struct type_converter {
+         using type = typename HostFunctions::type_converter_t;
+      };
+      template <>
+      struct type_converter<std::nullptr_t> {
+         using type = eosio::vm::type_converter<std::nullptr_t, eosio::vm::execution_interface>;
+      };
+
+      template <typename HF>
+      using type_converter_t = typename type_converter<HF>::type;
+   }
+
    template<typename Derived, typename Host>
    class execution_context_base {
+      using host_type  = detail::host_type_t<Host>;
     public:
       Derived& derived() { return static_cast<Derived&>(*this); }
       execution_context_base(module& m) : _mod(m) {}
@@ -90,14 +117,14 @@ namespace eosio { namespace vm {
       }
 
       template <typename Visitor, typename... Args>
-      inline std::optional<operand_stack_elem> execute(Host* host, Visitor&& visitor, const std::string_view func,
+      inline std::optional<operand_stack_elem> execute(host_type* host, Visitor&& visitor, const std::string_view func,
                                                Args... args) {
          uint32_t func_index = _mod.get_exported_function(func);
          return derived().execute(host, std::forward<Visitor>(visitor), func_index, std::forward<Args>(args)...);
       }
 
       template <typename Visitor, typename... Args>
-      inline void execute_start(Host* host, Visitor&& visitor) {
+      inline void execute_start(host_type* host, Visitor&& visitor) {
          if (_mod.start != std::numeric_limits<uint32_t>::max())
             derived().execute(host, std::forward<Visitor>(visitor), _mod.start);
       }
@@ -120,7 +147,7 @@ namespace eosio { namespace vm {
       char*                           _linear_memory    = nullptr;
       module&                         _mod;
       wasm_allocator*                 _wasm_alloc;
-      registered_host_functions<Host> _rhf;
+      Host                            _rhf;
       std::error_code                 _error_code;
       operand_stack                   _os;
    };
@@ -130,6 +157,7 @@ namespace eosio { namespace vm {
    template<typename Host>
    class jit_execution_context : public execution_context_base<jit_execution_context<Host>, Host> {
       using base_type = execution_context_base<jit_execution_context<Host>, Host>;
+      using host_type  = detail::host_type_t<Host>;
    public:
       using base_type::execute;
       using base_type::base_type;
@@ -182,7 +210,7 @@ namespace eosio { namespace vm {
       }
 
       template <typename... Args>
-      inline std::optional<operand_stack_elem> execute(Host* host, jit_visitor, uint32_t func_index, Args... args) {
+      inline std::optional<operand_stack_elem> execute(host_type* host, jit_visitor, uint32_t func_index, Args... args) {
          auto saved_host = _host;
          auto saved_os_size = get_operand_stack().size();
          auto g = scope_guard([&](){ _host = saved_host; get_operand_stack().eat(saved_os_size); });
@@ -237,7 +265,7 @@ namespace eosio { namespace vm {
          // make sure that the garbage bits are always zero.
          native_value result;
          std::memset(&result, 0, sizeof(result));
-         auto tc = type_converter<Host, execution_interface>{_host, get_interface()};
+         auto tc = detail::type_converter_t<Host>{_host, get_interface()};
          auto transformed_value = detail::resolve_result(tc, static_cast<T&&>(value)).data;
          std::memcpy(&result, &transformed_value, sizeof(transformed_value));
          return result;
@@ -298,7 +326,7 @@ namespace eosio { namespace vm {
          return result;
       }
 
-      Host * _host = nullptr;
+      host_type * _host = nullptr;
 
       // This is only needed because the host function api uses operand stack
       bounded_allocator _base_allocator = {
@@ -309,6 +337,7 @@ namespace eosio { namespace vm {
    template <typename Host>
    class execution_context : public execution_context_base<execution_context<Host>, Host> {
       using base_type = execution_context_base<execution_context<Host>, Host>;
+      using host_type  = detail::host_type_t<Host>;
     public:
       using base_type::_mod;
       using base_type::_rhf;
@@ -476,26 +505,26 @@ namespace eosio { namespace vm {
       }
 
       template <typename Visitor, typename... Args>
-      inline std::optional<operand_stack_elem> execute_func_table(Host* host, Visitor&& visitor, uint32_t table_index,
+      inline std::optional<operand_stack_elem> execute_func_table(host_type* host, Visitor&& visitor, uint32_t table_index,
                                                           Args... args) {
          return execute(host, std::forward<Visitor>(visitor), table_elem(table_index), std::forward<Args>(args)...);
       }
 
       template <typename Visitor, typename... Args>
-      inline std::optional<operand_stack_elem> execute(Host* host, Visitor&& visitor, const std::string_view func,
+      inline std::optional<operand_stack_elem> execute(host_type* host, Visitor&& visitor, const std::string_view func,
                                                Args... args) {
          uint32_t func_index = _mod.get_exported_function(func);
          return execute(host, std::forward<Visitor>(visitor), func_index, std::forward<Args>(args)...);
       }
 
       template <typename Visitor, typename... Args>
-      inline void execute_start(Host* host, Visitor&& visitor) {
+      inline void execute_start(host_type* host, Visitor&& visitor) {
          if (_mod.start != std::numeric_limits<uint32_t>::max())
             execute(host, std::forward<Visitor>(visitor), _mod.start);
       }
 
       template <typename Visitor, typename... Args>
-      inline std::optional<operand_stack_elem> execute(Host* host, Visitor&& visitor, uint32_t func_index, Args... args) {
+      inline std::optional<operand_stack_elem> execute(host_type* host, Visitor&& visitor, uint32_t func_index, Args... args) {
          EOS_VM_ASSERT(func_index < std::numeric_limits<uint32_t>::max(), wasm_interpreter_exception,
                        "cannot execute function, function not found");
 
@@ -552,7 +581,7 @@ namespace eosio { namespace vm {
 
       template <typename... Args>
       void push_args(Args&&... args) {
-         auto tc = type_converter<Host, execution_interface>{_host, get_interface()};
+         auto tc = detail::type_converter_t<Host>{_host, get_interface()};
          (... , push_operand(detail::resolve_result(tc, std::move(args))));
       }
 
@@ -634,7 +663,7 @@ namespace eosio { namespace vm {
 #undef CREATE_TABLE_ENTRY
 
       struct execution_state {
-         Host* host                = nullptr;
+         host_type* host           = nullptr;
          uint32_t as_index         = 0;
          uint32_t os_index         = 0;
          opcode*  pc               = nullptr;
@@ -648,6 +677,6 @@ namespace eosio { namespace vm {
       uint16_t                        _last_op_index    = 0;
       call_stack                      _as = { _base_allocator };
       opcode                          _halt;
-      Host*                           _host = nullptr;
+      host_type*                      _host = nullptr;
    };
 }} // namespace eosio::vm
