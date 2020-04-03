@@ -56,7 +56,7 @@ BACKEND_TEST_CASE("Test max_pages static fail", "[max_pages_test]") {
 BACKEND_TEST_CASE("Test max_pages static pass", "[max_pages_test]") {
    using backend_t = backend<std::nullptr_t, TestType, static_options_3>;
    backend_t backend(mem_wasm, &wa);
-   CHECK(backend.call_with_return(nullptr, "env", "f")->to_i32() == -1);
+   CHECK(backend.call_with_return("env", "f")->to_i32() == -1);
 }
 
 BACKEND_TEST_CASE("Test max_pages dynamic fail", "[max_pages_test]") {
@@ -67,9 +67,9 @@ BACKEND_TEST_CASE("Test max_pages dynamic fail", "[max_pages_test]") {
 BACKEND_TEST_CASE("Test max_pages dynamic pass", "[max_pages_test]") {
    using backend_t = backend<std::nullptr_t, TestType, dynamic_options>;
    backend_t backend(mem_wasm, &wa, dynamic_options{3});
-   CHECK(backend.call_with_return(nullptr, "env", "f")->to_i32() == -1);
+   CHECK(backend.call_with_return("env", "f")->to_i32() == -1);
    backend.initialize(nullptr, dynamic_options{4});
-   CHECK(backend.call_with_return(nullptr, "env", "f")->to_i32() == 3);
+   CHECK(backend.call_with_return("env", "f")->to_i32() == 3);
    backend.initialize(nullptr, dynamic_options{3});
    CHECK_THROWS_AS(backend.initialize(nullptr, dynamic_options{2}), std::exception);
 }

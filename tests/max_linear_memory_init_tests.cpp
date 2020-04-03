@@ -99,7 +99,8 @@ BACKEND_TEST_CASE("Test max_linear_memory_init default", "[max_linear_memory_ini
    backend_t backendempty13(empty_13_data_wasm, &wa);
    backend_t backendone11(one_11_data_wasm, &wa);
    backend_t backendone12(one_12_data_wasm, &wa);
-   backend_t backendwrap(wrap_data_wasm, &wa);
+   // This is well formed but should fail linking
+   CHECK_THROWS_AS(backend_t(wrap_data_wasm, &wa), wasm_memory_exception);
 }
 
 BACKEND_TEST_CASE("Test max_linear_memory_init static", "[max_linear_memory_init_test]") {
@@ -119,7 +120,7 @@ BACKEND_TEST_CASE("Test max_linear_memory_init unlimited", "[max_linear_memory_i
    backend_t backendempty13(empty_13_data_wasm, &wa);
    backend_t backendone11(one_11_data_wasm, &wa);
    backend_t backendone12(one_12_data_wasm, &wa);
-   backend_t backendwrap(wrap_data_wasm, &wa);
+   CHECK_THROWS_AS(backend_t(wrap_data_wasm, &wa), wasm_memory_exception);
 }
 
 BACKEND_TEST_CASE("Test max_linear_memory_init dynamic", "[max_linear_memory_init_test]") {

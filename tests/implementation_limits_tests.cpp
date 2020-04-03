@@ -64,25 +64,25 @@ BACKEND_TEST_CASE( "Test call depth dynamic", "[call_depth]") {
 
    rhf_t::resolve(bkend.get_module());
 
-   CHECK(!bkend.call_with_return(nullptr, "env", "call", (uint32_t)150));
-   CHECK_THROWS_AS(bkend.call(nullptr, "env", "call", (uint32_t)151), std::exception);
-   CHECK(!bkend.call_with_return(nullptr, "env", "call.indirect", (uint32_t)150));
-   CHECK_THROWS_AS(bkend.call(nullptr, "env", "call.indirect", (uint32_t)151), std::exception);
+   CHECK(!bkend.call_with_return("env", "call", (uint32_t)150));
+   CHECK_THROWS_AS(bkend.call("env", "call", (uint32_t)151), std::exception);
+   CHECK(!bkend.call_with_return("env", "call.indirect", (uint32_t)150));
+   CHECK_THROWS_AS(bkend.call("env", "call.indirect", (uint32_t)151), std::exception);
    // The host call is added to the recursive function, so we have one fewer frames
-   CHECK(!bkend.call_with_return(nullptr, "env", "call.host", (uint32_t)149));
-   CHECK_THROWS_AS(bkend.call(nullptr, "env", "call.host", (uint32_t)150), std::exception);
-   CHECK(!bkend.call_with_return(nullptr, "env", "call.indirect.host", (uint32_t)149));
-   CHECK_THROWS_AS(bkend.call(nullptr, "env", "call.indirect.host", (uint32_t)150), std::exception);
+   CHECK(!bkend.call_with_return("env", "call.host", (uint32_t)149));
+   CHECK_THROWS_AS(bkend.call("env", "call.host", (uint32_t)150), std::exception);
+   CHECK(!bkend.call_with_return("env", "call.indirect.host", (uint32_t)149));
+   CHECK_THROWS_AS(bkend.call("env", "call.indirect.host", (uint32_t)150), std::exception);
 
    bkend.initialize(nullptr, dynamic_options{51});
 
-   CHECK(!bkend.call_with_return(nullptr, "env", "call", (uint32_t)50));
-   CHECK_THROWS_AS(bkend.call(nullptr, "env", "call", (uint32_t)51), std::exception);
-   CHECK(!bkend.call_with_return(nullptr, "env", "call.indirect", (uint32_t)50));
-   CHECK_THROWS_AS(bkend.call(nullptr, "env", "call.indirect", (uint32_t)51), std::exception);
+   CHECK(!bkend.call_with_return("env", "call", (uint32_t)50));
+   CHECK_THROWS_AS(bkend.call("env", "call", (uint32_t)51), std::exception);
+   CHECK(!bkend.call_with_return("env", "call.indirect", (uint32_t)50));
+   CHECK_THROWS_AS(bkend.call("env", "call.indirect", (uint32_t)51), std::exception);
    // The host call is added to the recursive function, so we have one fewer frames
-   CHECK(!bkend.call_with_return(nullptr, "env", "call.host", (uint32_t)49));
-   CHECK_THROWS_AS(bkend.call(nullptr, "env", "call.host", (uint32_t)50), std::exception);
-   CHECK(!bkend.call_with_return(nullptr, "env", "call.indirect.host", (uint32_t)49));
-   CHECK_THROWS_AS(bkend.call(nullptr, "env", "call.indirect.host", (uint32_t)50), std::exception);
+   CHECK(!bkend.call_with_return("env", "call.host", (uint32_t)49));
+   CHECK_THROWS_AS(bkend.call("env", "call.host", (uint32_t)50), std::exception);
+   CHECK(!bkend.call_with_return("env", "call.indirect.host", (uint32_t)49));
+   CHECK_THROWS_AS(bkend.call("env", "call.indirect.host", (uint32_t)50), std::exception);
 }

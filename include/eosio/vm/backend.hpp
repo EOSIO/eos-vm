@@ -75,32 +75,32 @@ namespace eosio { namespace vm {
       }
     public:
       backend(wasm_code&& code, host_t& host, wasm_allocator* alloc, const Options& options = Options{})
-         : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module(code, mod), detail::get_max_call_depth(options)) {
+         : memory_alloc(alloc), ctx(parser_t{ mod.allocator, options }.parse_module(code, mod), detail::get_max_call_depth(options)) {
          ctx.set_max_pages(detail::get_max_pages(options));
          construct(&host);
       }
       backend(wasm_code&& code, wasm_allocator* alloc, const Options& options = Options{})
-         : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module(code, mod), detail::get_max_call_depth(options)) {
+         : memory_alloc(alloc), ctx(parser_t{ mod.allocator, options }.parse_module(code, mod), detail::get_max_call_depth(options)) {
          ctx.set_max_pages(detail::get_max_pages(options));
          construct();
       }
       backend(wasm_code& code, host_t& host, wasm_allocator* alloc, const Options& options = Options{})
-         : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module(code, mod), detail::get_max_call_depth(options)) {
+         : memory_alloc(alloc), ctx(parser_t{ mod.allocator, options }.parse_module(code, mod), detail::get_max_call_depth(options)) {
          ctx.set_max_pages(detail::get_max_pages(options));
          construct(&host);
       }
       backend(wasm_code& code, wasm_allocator* alloc, const Options& options = Options{})
-         : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module(code, mod), detail::get_max_call_depth(options)) {
+         : memory_alloc(alloc), ctx(parser_t{ mod.allocator, options }.parse_module(code, mod), detail::get_max_call_depth(options)) {
          ctx.set_max_pages(detail::get_max_pages(options));
          construct();
       }
       backend(wasm_code_ptr& ptr, size_t sz, host_t& host, wasm_allocator* alloc, const Options& options = Options{})
-         : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module2(ptr, sz, mod), detail::get_max_call_depth(options)) {
+         : memory_alloc(alloc), ctx(parser_t{ mod.allocator, options }.parse_module2(ptr, sz, mod), detail::get_max_call_depth(options)) {
          ctx.set_max_pages(detail::get_max_pages(options));
          construct(&host);
       }
       backend(wasm_code_ptr& ptr, size_t sz, wasm_allocator* alloc, const Options& options = Options{})
-         : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module2(ptr, sz, mod), detail::get_max_call_depth(options)) {
+         : memory_alloc(alloc), ctx(parser_t{ mod.allocator, options }.parse_module2(ptr, sz, mod), detail::get_max_call_depth(options)) {
          ctx.set_max_pages(detail::get_max_pages(options));
          construct();
       }
