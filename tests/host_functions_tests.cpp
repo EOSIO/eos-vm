@@ -135,7 +135,7 @@ struct member_host_function {
    template<typename T>
    void put(T t) { global_test_value<T> = t; }
    template<typename T>
-   T get() { return global_test_value<T>; }
+   T get() const { return global_test_value<T>; }
 };
 
 struct discard_host_function {};

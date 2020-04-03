@@ -1130,7 +1130,8 @@ const string test_preamble_1 = "backend_t bkend( code, &wa );";
 
 std::string cpp_string(const picojson::value& x) {
    std::string result = "\"";
-   for(unsigned char ch : x.to_str()) {
+   std::string original = x.to_str();
+   for(unsigned char ch : original) {
      if ((unsigned char)ch < 0x20 || (unsigned char)ch > 0x7F) {
          // Use a three digit octal escape, because that won't
          // accidentally consume the following characters.
@@ -1146,7 +1147,11 @@ std::string cpp_string(const picojson::value& x) {
       }
    }
    result += "\"";
-   return result;
+   // If the string contains a null byte, make sure that we don't truncate the literal
+   if(original.find('\0') == std::string::npos)
+      return result;
+   else
+      return "std::string(" + result + ", " + std::to_string(original.size()) + ")";
 }
 
 string generate_test_call(picojson::object obj, string expected_t, string expected_v) {
@@ -1269,7 +1274,12 @@ const std::set<std::string> blacklist = {
    "data.2.wasm",
    "data.4.wasm", "data.5.wasm", "data.6.wasm", "data.7.wasm", "data.8.wasm", "data.10.wasm",
    "data.13.wasm", "data.17.wasm", "data.19.wasm", "data.20.wasm", "data.21.wasm",
-   "data.22.wasm", "data.23.wasm", "data.24.wasm", "data.30.wasm", "data.32.wasm", "data.36.wasm", "data.38.wasm"
+   "data.22.wasm", "data.23.wasm", "data.24.wasm", "data.30.wasm", "data.32.wasm", "data.36.wasm", "data.38.wasm",
+   "elem.2.wasm", "elem.4.wasm", "elem.5.wasm", "elem.6.wasm", "elem.9.wasm",
+   "elem.11.wasm", "elem.14.wasm", "elem.15.wasm", "elem.16.wasm", "elem.17.wasm", "elem.23.wasm",
+   "elem.25.wasm", "elem.27.wasm", "elem.29.wasm", "elem.37.wasm", "elem.39.wasm", "elem.40.wasm",
+   "func_ptrs.0.wasm", "globals.14.wasm", "names.3.wasm",
+   "start.5.wasm", "start.6.wasm", "start.7.wasm"
 };
 
 void generate_tests(const map<string, vector<picojson::object>>& mappings) {

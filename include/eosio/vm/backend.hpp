@@ -6,6 +6,7 @@
 #include <eosio/vm/debug_visitor.hpp>
 #include <eosio/vm/execution_context.hpp>
 #include <eosio/vm/interpret_visitor.hpp>
+#include <eosio/vm/null_writer.hpp>
 #include <eosio/vm/parser.hpp>
 #include <eosio/vm/types.hpp>
 #include <eosio/vm/x86_64.hpp>
@@ -37,54 +38,70 @@ namespace eosio { namespace vm {
    struct jit {
       template<typename Host>
       using context = jit_execution_context<Host>;
-      template<typename Host>
-      using parser = binary_parser<machine_code_writer<jit_execution_context<Host>>>;
+      template<typename Host, typename Options>
+      using parser = binary_parser<machine_code_writer<jit_execution_context<Host>>, Options>;
       static constexpr bool is_jit = true;
    };
 
    struct interpreter {
       template<typename Host>
       using context = execution_context<Host>;
-      template<typename Host>
-      using parser = binary_parser<bitcode_writer>;
+      template<typename Host, typename Options>
+      using parser = binary_parser<bitcode_writer, Options>;
       static constexpr bool is_jit = false;
    };
 
-   template <typename HostFunctions = std::nullptr_t, typename Impl = interpreter>
+   struct null_backend {
+      template<typename Host>
+      using context = null_execution_context<Host>;
+      template<typename Host, typename Options>
+      using parser = binary_parser<null_writer, Options>;
+      static constexpr bool is_jit = false;
+   };
+
+   template <typename HostFunctions = std::nullptr_t, typename Impl = interpreter, typename Options = default_options>
    class backend {
       using host_t     = detail::host_type_t<HostFunctions>;
       using context_t  = typename Impl::template context<host_t>;
-      using parser_t   = typename Impl::template parser<host_t>;
+      using parser_t   = typename Impl::template parser<host_t, Options>;
       void construct(host_t* host=nullptr) {
          mod.finalize();
          ctx.set_wasm_allocator(memory_alloc);
          if constexpr (!std::is_same_v<HostFunctions, std::nullptr_t>)
             HostFunctions::resolve(mod);
-         initialize(host);
+         // FIXME: should not hard code knowledge of null_backend here
+         if constexpr (!std::is_same_v<Impl, null_backend>)
+            initialize(host);
       }
     public:
-      backend(wasm_code&& code, host_t& host, wasm_allocator* alloc)
-         : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module(code, mod)) {
+      backend(wasm_code&& code, host_t& host, wasm_allocator* alloc, const Options& options = Options{})
+         : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module(code, mod), detail::get_max_call_depth(options)) {
+         ctx.set_max_pages(detail::get_max_pages(options));
          construct(&host);
       }
-      backend(wasm_code&& code, wasm_allocator* alloc)
-         : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module(code, mod)) {
+      backend(wasm_code&& code, wasm_allocator* alloc, const Options& options = Options{})
+         : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module(code, mod), detail::get_max_call_depth(options)) {
+         ctx.set_max_pages(detail::get_max_pages(options));
          construct();
       }
-      backend(wasm_code& code, host_t& host, wasm_allocator* alloc)
-         : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module(code, mod)) {
+      backend(wasm_code& code, host_t& host, wasm_allocator* alloc, const Options& options = Options{})
+         : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module(code, mod), detail::get_max_call_depth(options)) {
+         ctx.set_max_pages(detail::get_max_pages(options));
          construct(&host);
       }
-      backend(wasm_code& code, wasm_allocator* alloc)
-         : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module(code, mod)) {
+      backend(wasm_code& code, wasm_allocator* alloc, const Options& options = Options{})
+         : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module(code, mod), detail::get_max_call_depth(options)) {
+         ctx.set_max_pages(detail::get_max_pages(options));
          construct();
       }
-      backend(wasm_code_ptr& ptr, size_t sz, host_t& host, wasm_allocator* alloc)
-         : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module2(ptr, sz, mod)) {
+      backend(wasm_code_ptr& ptr, size_t sz, host_t& host, wasm_allocator* alloc, const Options& options = Options{})
+         : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module2(ptr, sz, mod), detail::get_max_call_depth(options)) {
+         ctx.set_max_pages(detail::get_max_pages(options));
          construct(&host);
       }
-      backend(wasm_code_ptr& ptr, size_t sz, wasm_allocator* alloc)
-         : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module2(ptr, sz, mod)) {
+      backend(wasm_code_ptr& ptr, size_t sz, wasm_allocator* alloc, const Options& options = Options{})
+         : memory_alloc(alloc), ctx(parser_t{ mod.allocator }.parse_module2(ptr, sz, mod), detail::get_max_call_depth(options)) {
+         ctx.set_max_pages(detail::get_max_pages(options));
          construct();
       }
 
@@ -96,6 +113,14 @@ namespace eosio { namespace vm {
       template <typename... Args>
       inline bool operator()(const std::string_view& mod, const std::string_view& func, Args... args) {
          return call(mod, func, args...);
+      }
+
+      // Only dynamic options matter.  Parser options will be ignored.
+      inline backend& initialize(host_t* host, const Options& new_options) {
+         ctx.set_max_call_depth(detail::get_max_call_depth(new_options));
+         ctx.set_max_pages(detail::get_max_pages(new_options));
+         initialize(host);
+         return *this;
       }
 
       inline backend& initialize(host_t* host=nullptr) {

@@ -4,6 +4,7 @@
 #include <eosio/vm/constants.hpp>
 #include <eosio/vm/exceptions.hpp>
 #include <eosio/vm/leb128.hpp>
+#include <eosio/vm/options.hpp>
 #include <eosio/vm/sections.hpp>
 #include <eosio/vm/types.hpp>
 #include <eosio/vm/utils.hpp>
@@ -18,10 +19,186 @@
 
 namespace eosio { namespace vm {
 
-   template <typename Writer>
+   namespace detail {
+
+   static constexpr unsigned get_size_for_type(uint8_t type) {
+      switch(type) {
+       case types::i32:
+       case types::f32:
+          return 4;
+       case types::i64:
+       case types::f64:
+          return 8;
+       default: return 0;
+      }
+   }
+
+   template<typename Options, typename Enable = void>
+   struct max_mutable_globals_checker {
+      constexpr void on_mutable_global(const Options&, uint8_t) {}
+   };
+
+   template<typename Options>
+   using max_mutable_globals_t = decltype(std::declval<Options>().max_mutable_global_bytes);
+
+   template<typename Options>
+   struct max_mutable_globals_checker<Options, std::void_t<max_mutable_globals_t<Options>>> {
+      static_assert(std::is_unsigned_v<std::decay_t<max_mutable_globals_t<Options>>>, "max_mutable_globals must be an unsigned integer type");
+      void on_mutable_global(const Options& options, uint8_t type) {
+         unsigned size = get_size_for_type(type);
+         _counter += size;
+         EOS_VM_ASSERT(_counter <= options.max_mutable_global_bytes && _counter >= size, wasm_parse_exception, "mutable globals exceeded limit");
+      }
+      std::decay_t<max_mutable_globals_t<Options>> _counter = 0;
+   };
+
+#define PARSER_OPTION(name, default_, type)                                   \
+   template<typename Options>                                                 \
+   type get_ ## name(const Options& options, long) { (void)options; return default_; } \
+   template<typename Options>                                                 \
+   auto get_ ## name(const Options& options, int) -> decltype(options.name) { \
+     return options.name;                                                     \
+   }                                                                          \
+   template<typename Options>                                                 \
+   type get_ ## name(const Options& options) { return detail::get_ ## name(options, 0); }
+
+#define MAX_ELEMENTS(name, default_)\
+   PARSER_OPTION(name, default_, std::uint32_t)
+
+   MAX_ELEMENTS(max_table_elements, 0xFFFFFFFFu)
+   MAX_ELEMENTS(max_section_elements, 0xFFFFFFFFu)
+
+   MAX_ELEMENTS(max_type_section_elements, detail::get_max_section_elements(options))
+   MAX_ELEMENTS(max_import_section_elements, detail::get_max_section_elements(options))
+   MAX_ELEMENTS(max_function_section_elements, detail::get_max_section_elements(options))
+   MAX_ELEMENTS(max_global_section_elements, detail::get_max_section_elements(options))
+   MAX_ELEMENTS(max_export_section_elements, detail::get_max_section_elements(options))
+   MAX_ELEMENTS(max_element_section_elements, detail::get_max_section_elements(options))
+   MAX_ELEMENTS(max_data_section_elements, detail::get_max_section_elements(options))
+
+   MAX_ELEMENTS(max_element_segment_elements, 0xFFFFFFFFu)
+   MAX_ELEMENTS(max_data_segment_bytes, 0xFFFFFFFFu)
+
+   PARSER_OPTION(max_linear_memory_init, 0xFFFFFFFFFFFFFFFFu, std::uint64_t)
+   PARSER_OPTION(max_func_local_bytes_flags, max_func_local_bytes_flags_t::locals | max_func_local_bytes_flags_t::stack, max_func_local_bytes_flags_t);
+
+   template<typename Options, typename Enable = void>
+   struct max_func_local_bytes_checker {
+      explicit max_func_local_bytes_checker(const Options&, const func_type& /*ft*/) {}
+      void on_local(const Options&, std::uint8_t, const std::uint32_t) {}
+      void push_stack(const Options& /*options*/, std::uint8_t /*type*/) {}
+      void pop_stack(std::uint8_t /*type*/) {}
+      void push_unreachable() {}
+      void pop_unreachable() {}
+      static constexpr bool is_defined = false;
+   };
+   template<typename Options>
+   struct max_func_local_bytes_checker<Options, std::void_t<decltype(std::declval<Options>().max_func_local_bytes)>> {
+      explicit max_func_local_bytes_checker(const Options& options, const func_type& ft) {
+         if ((detail::get_max_func_local_bytes_flags(options) & max_func_local_bytes_flags_t::params) != (max_func_local_bytes_flags_t)0) {
+            for(std::uint32_t i = 0; i < ft.param_types.size(); ++i) {
+               on_type(options, ft.param_types.at(i));
+            }
+         }
+      }
+      void on_type(const Options& options, std::uint8_t type) {
+         unsigned size = get_size_for_type(type);
+         _count += size;
+         EOS_VM_ASSERT(_count <= options.max_func_local_bytes && _count >= size, wasm_parse_exception, "local variable limit exceeded");
+      }
+      void on_local(const Options& options, std::uint8_t type, std::uint32_t count) {
+         if ((detail::get_max_func_local_bytes_flags(options) & max_func_local_bytes_flags_t::locals) != (max_func_local_bytes_flags_t)0) {
+            uint64_t size = get_size_for_type(type);
+            size *= count;
+            _count += size;
+            EOS_VM_ASSERT(_count <= options.max_func_local_bytes && _count >= size, wasm_parse_exception, "local variable limit exceeded");
+         }
+      }
+      std::decay_t<decltype(std::declval<Options>().max_func_local_bytes)> _count = 0;
+      static constexpr bool is_defined = true;
+   };
+   template<typename Options>
+   constexpr auto get_max_func_local_bytes_no_stack_c(int) -> decltype(Options::max_func_local_bytes_flags == (max_func_local_bytes_flags_t)0)
+   { return (Options::max_func_local_bytes_flags & max_func_local_bytes_flags_t::stack) == (max_func_local_bytes_flags_t)0; }
+   template<typename Options>
+   constexpr auto get_max_func_local_bytes_no_stack_c(long) -> bool { return false; }
+
+   template<typename Options, typename Enable = void>
+   struct max_func_local_bytes_stack_checker : max_func_local_bytes_checker<Options> {
+      explicit constexpr max_func_local_bytes_stack_checker(const max_func_local_bytes_checker<Options>& base) : max_func_local_bytes_checker<Options>(base) {}
+      void push_stack(const Options& options, std::uint8_t type) {
+         if(unreachable_depth == 0 && (detail::get_max_func_local_bytes_flags(options) & max_func_local_bytes_flags_t::stack) != (max_func_local_bytes_flags_t)0) {
+            this->on_type(options, type);
+         }
+      }
+      void pop_stack(const Options& options, std::uint8_t type) {
+         if(unreachable_depth == 0 && (detail::get_max_func_local_bytes_flags(options) & max_func_local_bytes_flags_t::stack) != (max_func_local_bytes_flags_t)0) {
+            this->_count -= get_size_for_type(type);
+         }
+      }
+      void push_unreachable() {
+         ++unreachable_depth;
+      }
+      void pop_unreachable() {
+         --unreachable_depth;
+      }
+      std::uint32_t unreachable_depth = 0;
+   };
+   template<typename Options>
+   struct max_func_local_bytes_stack_checker<Options, std::enable_if_t<!max_func_local_bytes_checker<Options>::is_defined ||
+                                                                       get_max_func_local_bytes_no_stack_c<Options>(0)>> {
+      explicit constexpr max_func_local_bytes_stack_checker(const max_func_local_bytes_checker<Options>&) {}
+      void push_stack(const Options& /*options*/, std::uint8_t /*type*/) {}
+      void pop_stack(const Options& /*options*/, std::uint8_t /*type*/) {}
+      void push_unreachable() {}
+      void pop_unreachable() {}
+   };
+
+   MAX_ELEMENTS(max_local_sets, 0xFFFFFFFFu)
+   MAX_ELEMENTS(max_nested_structures, 0xFFFFFFFFu)
+   MAX_ELEMENTS(max_br_table_elements, 0xFFFFFFFFu)
+
+   // Matches the behavior of eosio::chain::wasm_validations::nested_validator
+   template<typename Options, typename Enable = void>
+   struct eosio_max_nested_structures_checker {
+      void on_control(const Options&) {}
+      void on_end(const Options&) {}
+   };
+   template<typename Options>
+   struct eosio_max_nested_structures_checker<Options, std::void_t<decltype(std::declval<Options>().eosio_max_nested_structures)>> {
+      void on_control(const Options& options) {
+         ++_count;
+         EOS_VM_ASSERT(_count <= options.eosio_max_nested_structures, wasm_parse_exception, "Nested depth exceeded");
+      }
+      void on_end(const Options& options) {
+         if(_count == 0) ++_count;
+         else --_count;
+      }
+      std::decay_t<decltype(std::declval<Options>().eosio_max_nested_structures)> _count = 0;
+   };
+
+   MAX_ELEMENTS(max_symbol_bytes, 0xFFFFFFFFu)
+   MAX_ELEMENTS(max_memory_offset, 0xFFFFFFFFu)
+   MAX_ELEMENTS(max_code_bytes, 0xFFFFFFFFu)
+   MAX_ELEMENTS(max_pages, 0xFFFFFFFFu)
+   MAX_ELEMENTS(max_call_depth, 251)
+
+   PARSER_OPTION(forbid_export_mutable_globals, false, bool);
+   PARSER_OPTION(allow_code_after_function_end, false, bool);
+   PARSER_OPTION(allow_u32_limits_flags, false, bool);
+   PARSER_OPTION(allow_invalid_empty_local_set, false, bool);
+
+   PARSER_OPTION(allow_zero_blocktype, false, bool)
+
+#undef MAX_ELEMENTS
+#undef PARSER_OPTION
+
+   }
+
+   template <typename Writer, typename Options = default_options>
    class binary_parser {
     public:
-      binary_parser(growable_allocator& alloc) : _allocator(alloc) {}
+      explicit binary_parser(growable_allocator& alloc, const Options& options = Options{}) : _allocator(alloc), _options(options) {}
 
       template <typename T>
       using vec = guarded_vector<T>;
@@ -89,8 +266,9 @@ namespace eosio { namespace vm {
          }
       }
 
-      guarded_vector<uint8_t> parse_utf8_string(wasm_code_ptr& code) {
+      guarded_vector<uint8_t> parse_utf8_string(wasm_code_ptr& code, std::uint32_t max_size) {
          auto len        = parse_varuint32(code);
+         EOS_VM_ASSERT(len <= max_size, wasm_parse_exception, "name too long");
          auto guard = code.scoped_shrink_bounds(len);
          auto result = guarded_vector<uint8_t>{ _allocator, len };
          result.copy(code.raw(), len);
@@ -149,7 +327,10 @@ namespace eosio { namespace vm {
                   parse_section<section_id::memory_section>(code_ptr, mod.memories);
                   break;
                case section_id::global_section: parse_section<section_id::global_section>(code_ptr, mod.globals); break;
-               case section_id::export_section: parse_section<section_id::export_section>(code_ptr, mod.exports); break;
+               case section_id::export_section:
+                  parse_section<section_id::export_section>(code_ptr, mod.exports);
+                  validate_exports();
+                  break;
                case section_id::start_section: parse_section<section_id::start_section>(code_ptr, mod.start); break;
                case section_id::element_section:
                   parse_section<section_id::element_section>(code_ptr, mod.elements);
@@ -174,14 +355,14 @@ namespace eosio { namespace vm {
       }
 
       inline void parse_custom(wasm_code_ptr& code) {
-         parse_utf8_string(code); // ignored, but needs to be validated
+         parse_utf8_string(code, 0xFFFFFFFFu); // ignored, but needs to be validated
          // skip to the end of the section
          code += code.bounds() - code.offset();
       }
 
       void parse_import_entry(wasm_code_ptr& code, import_entry& entry) {
-         entry.module_str = parse_utf8_string(code);
-         entry.field_str = parse_utf8_string(code);
+         entry.module_str = parse_utf8_string(code, detail::get_max_symbol_bytes(_options));
+         entry.field_str = parse_utf8_string(code, detail::get_max_symbol_bytes(_options));
          entry.kind = (external_kind)(*code++);
          auto type  = parse_varuint32(code);
          switch ((uint8_t)entry.kind) {
@@ -193,15 +374,25 @@ namespace eosio { namespace vm {
          }
       }
 
+      uint8_t parse_flags(wasm_code_ptr& code) {
+         if (detail::get_allow_u32_limits_flags(_options)) {
+            return parse_varuint32(code) & 0x1;
+         } else {
+            EOS_VM_ASSERT(*code == 0x0 || *code == 0x1, wasm_parse_exception, "invalid flags");
+            return *code++;
+         }
+      }
+
       void parse_table_type(wasm_code_ptr& code, table_type& tt) {
          tt.element_type   = *code++;
          EOS_VM_ASSERT(tt.element_type == types::anyfunc, wasm_parse_exception, "table must have type anyfunc");
-         tt.limits.flags   = (parse_varuint32(code) & 0x1);
+         tt.limits.flags   = parse_flags(code);
          tt.limits.initial = parse_varuint32(code);
          if (tt.limits.flags) {
             tt.limits.maximum = parse_varuint32(code);
             EOS_VM_ASSERT(tt.limits.initial <= tt.limits.maximum, wasm_parse_exception, "table max size less than min size");
          }
+         EOS_VM_ASSERT(tt.limits.initial <= detail::get_max_table_elements(_options), wasm_parse_exception, "table size exceeds limit");
          tt.table = decltype(tt.table){ _allocator, tt.limits.initial };
          for (uint32_t i = 0; i < tt.limits.initial; i++) tt.table[i] = std::numeric_limits<uint32_t>::max();
       }
@@ -213,13 +404,18 @@ namespace eosio { namespace vm {
                        wasm_parse_exception, "invalid global content type");
 
          gv.type.mutability = parse_varuint1(code);
+         if(gv.type.mutability)
+            on_mutable_global(ct);
          parse_init_expr(code, gv.init, ct);
          gv.current = gv.init;
       }
 
       void parse_memory_type(wasm_code_ptr& code, memory_type& mt) {
-         mt.limits.flags   = (parse_varuint32(code) & 0x1);
+         mt.limits.flags   = parse_flags(code);
          mt.limits.initial = parse_varuint32(code);
+         // Implementation limits
+         EOS_VM_ASSERT(mt.limits.initial <= detail::get_max_pages(_options), wasm_parse_exception, "initial memory out of range");
+         // WASM specification
          EOS_VM_ASSERT(mt.limits.initial <= 65536u, wasm_parse_exception, "initial memory out of range");
          if (mt.limits.flags) {
             mt.limits.maximum = parse_varuint32(code);
@@ -229,20 +425,25 @@ namespace eosio { namespace vm {
       }
 
       void parse_export_entry(wasm_code_ptr& code, export_entry& entry) {
-         entry.field_str = parse_utf8_string(code);
+         entry.field_str = parse_utf8_string(code, detail::get_max_symbol_bytes(_options));
          entry.kind  = (external_kind)(*code++);
          entry.index = parse_varuint32(code);
          switch(entry.kind) {
             case external_kind::Function: EOS_VM_ASSERT(entry.index < _mod->get_functions_total(), wasm_parse_exception, "function export out of range"); break;
             case external_kind::Table: EOS_VM_ASSERT(entry.index < _mod->tables.size(), wasm_parse_exception, "table export out of range"); break;
             case external_kind::Memory: EOS_VM_ASSERT(entry.index < _mod->memories.size(), wasm_parse_exception, "memory export out of range"); break;
-            case external_kind::Global: EOS_VM_ASSERT(entry.index < _mod->globals.size(), wasm_parse_exception, "global export out of range"); break;
+            case external_kind::Global:
+               EOS_VM_ASSERT(entry.index < _mod->globals.size(), wasm_parse_exception, "global export out of range");
+               EOS_VM_ASSERT(!detail::get_forbid_export_mutable_globals(_options) || !_mod->globals.at(entry.index).type.mutability,
+                             wasm_parse_exception, "cannot export mutable globals");
+               break;
             default: EOS_VM_ASSERT(false, wasm_parse_exception, "Unknown export kind"); break;
          }
       }
 
       void parse_func_type(wasm_code_ptr& code, func_type& ft) {
          ft.form                              = *code++;
+         EOS_VM_ASSERT(ft.form == 0x60, wasm_parse_exception, "invalid function type");
          decltype(ft.param_types) param_types = { _allocator, parse_varuint32(code) };
          for (size_t i = 0; i < param_types.size(); i++) {
             uint8_t pt        = *code++;
@@ -272,6 +473,7 @@ namespace eosio { namespace vm {
          EOS_VM_ASSERT(es.index == 0, wasm_parse_exception, "only table index of 0 is supported");
          parse_init_expr(code, es.offset, types::i32);
          uint32_t           size  = parse_varuint32(code);
+         EOS_VM_ASSERT(size <= detail::get_max_element_segment_elements(_options), wasm_parse_exception, "elem segment too large");
          decltype(es.elems) elems = { _allocator, size };
          for (uint32_t i = 0; i < size; i++) {
             uint32_t index                     = parse_varuint32(code);
@@ -315,17 +517,22 @@ namespace eosio { namespace vm {
 
       void parse_function_body(wasm_code_ptr& code, function_body& fb, std::size_t idx) {
          fb.size   = parse_varuint32(code);
+         EOS_VM_ASSERT(fb.size <= detail::get_max_code_bytes(_options), wasm_parse_exception, "Function body too large");
          const auto&         before    = code.offset();
          const auto&         local_cnt = parse_varuint32(code);
          _current_function_index++;
+         EOS_VM_ASSERT(local_cnt <= detail::get_max_local_sets(_options), wasm_parse_exception, "Number of local sets exceeds limit");
          decltype(fb.locals) locals    = { _allocator, local_cnt };
+         func_type& ft = _mod->types.at(_mod->functions.at(idx));
+         detail::max_func_local_bytes_checker<Options> local_checker(_options, ft);
          // parse the local entries
          for (size_t i = 0; i < local_cnt; i++) {
             auto count = parse_varuint32(code);
             auto type = *code++;
-            if (count == 0) type = types::i32;
+            if (detail::get_allow_invalid_empty_local_set(_options) && count == 0) type = types::i32;
             EOS_VM_ASSERT(type == types::i32 || type == types::i64 || type == types::f32 || type == types::f64,
                           wasm_parse_exception, "invalid local type");
+            local_checker.on_local(_options, type, count);
             locals.at(i).count = count;
             locals.at(i).type  = type;
          }
@@ -333,11 +540,12 @@ namespace eosio { namespace vm {
 
          fb.size -= code.offset() - before;
          auto guard = code.scoped_shrink_bounds(fb.size);
-         _function_bodies.emplace_back(code.raw(), fb.size);
+         _function_bodies.emplace_back(wasm_code_ptr{code.raw(), fb.size}, local_checker);
 
          code += fb.size-1;
-         EOS_VM_ASSERT(*code++ == 0x0B, wasm_parse_exception, "failed parsing function body, expected 'end'");
-
+         EOS_VM_ASSERT(detail::get_allow_code_after_function_end(_options) || *code == 0x0B,
+                       wasm_parse_exception, "failed parsing function body, expected 'end'");
+         ++code;
       }
 
       // The control stack holds either address of the target of the
@@ -358,11 +566,15 @@ namespace eosio { namespace vm {
 
       static constexpr uint8_t any_type = 0x82;
       struct operand_stack_type_tracker {
-        std::vector<uint8_t> state = { scope_tag };
+         explicit operand_stack_type_tracker(const detail::max_func_local_bytes_stack_checker<Options> local_bytes_checker, const Options& options)
+          : local_bytes_checker(local_bytes_checker), options(options) {}
+         std::vector<uint8_t> state = { scope_tag };
          static constexpr uint8_t unreachable_tag = 0x80;
          static constexpr uint8_t scope_tag = 0x81;
          uint32_t operand_depth = 0;
          uint32_t maximum_operand_depth = 0;
+         detail::max_func_local_bytes_stack_checker<Options> local_bytes_checker;
+         const Options& options;
          void push(uint8_t type) {
             assert(type != unreachable_tag && type != scope_tag);
             assert(type == types::i32 || type == types::i64 || type == types::f32 || type == types::f64 || type == any_type);
@@ -370,6 +582,7 @@ namespace eosio { namespace vm {
             ++operand_depth;
             maximum_operand_depth = std::max(operand_depth, maximum_operand_depth);
             state.push_back(type);
+            local_bytes_checker.push_stack(options, type);
          }
          void pop(uint8_t expected) {
             assert(expected != unreachable_tag && expected != scope_tag);
@@ -377,6 +590,7 @@ namespace eosio { namespace vm {
             EOS_VM_ASSERT(!state.empty(), wasm_parse_exception, "unexpected pop");
             if (state.back() != unreachable_tag) {
                EOS_VM_ASSERT(state.back() == expected || state.back() == any_type, wasm_parse_exception, "wrong type");
+               local_bytes_checker.pop_stack(options, expected);
                --operand_depth;
                state.pop_back();
             }
@@ -388,6 +602,7 @@ namespace eosio { namespace vm {
             else {
                uint8_t result = state.back();
                --operand_depth;
+               local_bytes_checker.pop_stack(options, result);
                state.pop_back();
                return result;
             }
@@ -403,6 +618,7 @@ namespace eosio { namespace vm {
                   --operand_depth;
                state.pop_back();
             }
+            local_bytes_checker.push_unreachable();
             state.push_back(unreachable_tag);
          }
          void push_scope() {
@@ -412,6 +628,7 @@ namespace eosio { namespace vm {
             pop(expected_result);
             EOS_VM_ASSERT(!state.empty(), wasm_parse_exception, "unexpected end");
             if (state.back() == unreachable_tag) {
+               local_bytes_checker.pop_unreachable();
                state.pop_back();
             }
             EOS_VM_ASSERT(state.back() == scope_tag, wasm_parse_exception, "unexpected end");
@@ -458,9 +675,10 @@ namespace eosio { namespace vm {
          std::vector<uint32_t> _boundaries;
       };
 
-      void parse_function_body_code(wasm_code_ptr& code, size_t bounds, Writer& code_writer, const func_type& ft, const local_types_t& local_types) {
+      void parse_function_body_code(wasm_code_ptr& code, size_t bounds, const detail::max_func_local_bytes_stack_checker<Options>& local_bytes_checker,
+                                    Writer& code_writer, const func_type& ft, const local_types_t& local_types) {
          // Initialize the control stack with the current function as the sole element
-         operand_stack_type_tracker op_stack;
+         operand_stack_type_tracker op_stack{local_bytes_checker, _options};
          std::vector<pc_element_t> pc_stack{{
                op_stack.depth(),
                ft.return_count ? ft.return_type : static_cast<uint32_t>(types::pseudo),
@@ -502,7 +720,7 @@ namespace eosio { namespace vm {
          // Handles branches to the end of the scope and pops the pc_stack
          auto exit_scope = [&]() {
             // There must be at least one element
-            EOS_VM_ASSERT(pc_stack.size(), wasm_invalid_element, "unexpected end instruction");
+            EOS_VM_ASSERT(pc_stack.size(), wasm_parse_exception, "unexpected end instruction");
             // an if with an empty else cannot have a return value
             EOS_VM_ASSERT(!pc_stack.back().is_if || pc_stack.back().expected_result == types::pseudo, wasm_parse_exception, "wrong type");
             auto end_pos = code_writer.emit_end();
@@ -515,19 +733,28 @@ namespace eosio { namespace vm {
             pc_stack.pop_back();
          };
 
+         auto check_in_bounds = [&]{
+            EOS_VM_ASSERT(!detail::get_allow_code_after_function_end(_options) || !pc_stack.empty(),
+                          wasm_parse_exception, "code after function end");
+         };
+
          while (code.offset() < bounds) {
-            EOS_VM_ASSERT(pc_stack.size() <= constants::max_nested_structures, wasm_parse_exception,
+            EOS_VM_ASSERT(pc_stack.size() <= detail::get_max_nested_structures(_options), wasm_parse_exception,
                           "nested structures validation failure");
 
             switch (*code++) {
-               case opcodes::unreachable: code_writer.emit_unreachable(); op_stack.start_unreachable(); break;
+               case opcodes::unreachable: check_in_bounds(); code_writer.emit_unreachable(); op_stack.start_unreachable(); break;
                case opcodes::nop: code_writer.emit_nop(); break;
                case opcodes::end: {
+                  check_in_bounds();
                   exit_scope();
-                  EOS_VM_ASSERT(!pc_stack.empty() || code.offset() == bounds, wasm_parse_exception, "function too short");
+                  EOS_VM_ASSERT(detail::get_allow_code_after_function_end(_options) ||
+                                !pc_stack.empty() || code.offset() == bounds, wasm_parse_exception, "function too short");
+                  _nested_checker.on_end(_options);
                   break;
                }
                case opcodes::return_: {
+                  check_in_bounds();
                   uint32_t label = pc_stack.size() - 1;
                   auto branch = code_writer.emit_return(compute_depth_change(label));
                   handle_branch_target(label, branch);
@@ -535,7 +762,7 @@ namespace eosio { namespace vm {
                } break;
                case opcodes::block: {
                   uint32_t expected_result = *code++;
-                  if(expected_result == 0)
+                  if(detail::get_allow_zero_blocktype(_options) && expected_result == 0)
                      expected_result = types::pseudo;
                   EOS_VM_ASSERT(expected_result == types::i32 || expected_result == types::i64 ||
                                 expected_result == types::f32 || expected_result == types::f64 ||
@@ -544,10 +771,11 @@ namespace eosio { namespace vm {
                   pc_stack.push_back({op_stack.depth(), expected_result, expected_result, false, std::vector<branch_t>{}});
                   code_writer.emit_block();
                   op_stack.push_scope();
+                  _nested_checker.on_control(_options);
                } break;
                case opcodes::loop: {
                   uint32_t expected_result = *code++;
-                  if(expected_result == 0)
+                  if(detail::get_allow_zero_blocktype(_options) && expected_result == 0)
                      expected_result = types::pseudo;
                   EOS_VM_ASSERT(expected_result == types::i32 || expected_result == types::i64 ||
                                 expected_result == types::f32 || expected_result == types::f64 ||
@@ -556,10 +784,12 @@ namespace eosio { namespace vm {
                   auto pos = code_writer.emit_loop();
                   pc_stack.push_back({op_stack.depth(), expected_result, types::pseudo, false, pos});
                   op_stack.push_scope();
+                  _nested_checker.on_control(_options);
                } break;
                case opcodes::if_: {
+                  check_in_bounds();
                   uint32_t expected_result = *code++;
-                  if(expected_result == 0)
+                  if(detail::get_allow_zero_blocktype(_options) && expected_result == 0)
                      expected_result = types::pseudo;
                   EOS_VM_ASSERT(expected_result == types::i32 || expected_result == types::i64 ||
                                 expected_result == types::f32 || expected_result == types::f64 ||
@@ -569,8 +799,10 @@ namespace eosio { namespace vm {
                   op_stack.pop(types::i32);
                   pc_stack.push_back({op_stack.depth(), expected_result, expected_result, true, std::vector{branch}});
                   op_stack.push_scope();
+                  _nested_checker.on_control(_options);
                } break;
                case opcodes::else_: {
+                  check_in_bounds();
                   auto& old_index = pc_stack.back();
                   EOS_VM_ASSERT(old_index.is_if, wasm_parse_exception, "else outside if");
                   auto& relocations = std::get<std::vector<branch_t>>(old_index.relocations);
@@ -583,22 +815,27 @@ namespace eosio { namespace vm {
                   // branches to the corresponding `end`
                   relocations[0] = code_writer.emit_else(relocations[0]);
                   old_index.is_if = false;
+                  _nested_checker.on_control(_options);
                   break;
                }
                case opcodes::br: {
+                  check_in_bounds();
                   uint32_t label = parse_varuint32(code);
                   auto branch = code_writer.emit_br(compute_depth_change(label));
                   handle_branch_target(label, branch);
                   op_stack.start_unreachable();
                } break;
                case opcodes::br_if: {
+                  check_in_bounds();
                   uint32_t label = parse_varuint32(code);
                   op_stack.pop(types::i32);
                   auto branch = code_writer.emit_br_if(compute_depth_change(label));
                   handle_branch_target(label, branch);
                } break;
                case opcodes::br_table: {
+                  check_in_bounds();
                   size_t table_size = parse_varuint32(code);
+                  EOS_VM_ASSERT(table_size <= detail::get_max_br_table_elements(_options), wasm_parse_exception, "Too many labels in br_table");
                   uint8_t result_type;
                   op_stack.pop(types::i32);
                   auto handler = code_writer.emit_br_table(table_size);
@@ -621,6 +858,7 @@ namespace eosio { namespace vm {
                   op_stack.start_unreachable();
                } break;
                case opcodes::call: {
+                  check_in_bounds();
                   uint32_t funcnum = parse_varuint32(code);
                   const func_type& ft = _mod->get_function_type(funcnum);
                   for(uint32_t i = 0; i < ft.param_types.size(); ++i)
@@ -631,6 +869,7 @@ namespace eosio { namespace vm {
                   code_writer.emit_call(ft, funcnum);
                } break;
                case opcodes::call_indirect: {
+                  check_in_bounds();
                   uint32_t functypeidx = parse_varuint32(code);
                   const func_type& ft = _mod->types.at(functypeidx);
                   EOS_VM_ASSERT(_mod->tables.size() > 0, wasm_parse_exception, "call_indirect requires a table");
@@ -645,8 +884,9 @@ namespace eosio { namespace vm {
                   code++; // 0x00
                   break;
                }
-               case opcodes::drop: code_writer.emit_drop(); op_stack.pop(); break;
+               case opcodes::drop: check_in_bounds(); code_writer.emit_drop(); op_stack.pop(); break;
                case opcodes::select: {
+                  check_in_bounds();
                   code_writer.emit_select();
                   op_stack.pop(types::i32);
                   uint8_t t0 = op_stack.pop();
@@ -660,11 +900,13 @@ namespace eosio { namespace vm {
                   code_writer.emit_get_local(local_idx);
                } break;
                case opcodes::set_local: {
+                  check_in_bounds();
                   uint32_t local_idx = parse_varuint32(code);
                   op_stack.pop(local_types[local_idx]);
                   code_writer.emit_set_local(local_idx);
                } break;
                case opcodes::tee_local: {
+                  check_in_bounds();
                   uint32_t local_idx = parse_varuint32(code);
                   op_stack.top(local_types[local_idx]);
                   code_writer.emit_tee_local(local_idx);
@@ -675,6 +917,7 @@ namespace eosio { namespace vm {
                   code_writer.emit_get_global(global_idx);
                } break;
                case opcodes::set_global: {
+                  check_in_bounds();
                   uint32_t global_idx = parse_varuint32(code);
                   EOS_VM_ASSERT(_mod->globals.at(global_idx).type.mutability, wasm_parse_exception, "cannot set const global");
                   op_stack.pop(_mod->globals.at(global_idx).type.content_type);
@@ -682,10 +925,12 @@ namespace eosio { namespace vm {
                } break;
 #define LOAD_OP(op_name, max_align, type)                            \
                case opcodes::op_name: {                              \
+                  check_in_bounds();                                 \
                   EOS_VM_ASSERT(_mod->memories.size() > 0, wasm_parse_exception, "load requires memory"); \
                   uint32_t alignment = parse_varuint32(code);        \
                   uint32_t offset = parse_varuint32(code);           \
                   EOS_VM_ASSERT(alignment <= uint32_t(max_align), wasm_parse_exception, "alignment cannot be greater than size."); \
+                  EOS_VM_ASSERT(offset <= detail::get_max_memory_offset(_options), wasm_parse_exception, "load offset too large."); \
                   op_stack.pop(types::i32);                          \
                   op_stack.push(types::type);                        \
                   code_writer.emit_ ## op_name( alignment, offset ); \
@@ -710,10 +955,12 @@ namespace eosio { namespace vm {
 
 #define STORE_OP(op_name, max_align, type)                           \
                case opcodes::op_name: {                              \
+                  check_in_bounds();                                 \
                   EOS_VM_ASSERT(_mod->memories.size() > 0, wasm_parse_exception, "store requires memory"); \
                   uint32_t alignment = parse_varuint32(code);        \
                   uint32_t offset = parse_varuint32(code);           \
                   EOS_VM_ASSERT(alignment <= uint32_t(max_align), wasm_parse_exception, "alignment cannot be greater than size."); \
+                  EOS_VM_ASSERT(offset <= detail::get_max_memory_offset(_options), wasm_parse_exception, "store offset too large."); \
                   op_stack.pop(types::type);                         \
                   op_stack.pop(types::i32);                          \
                   code_writer.emit_ ## op_name( alignment, offset ); \
@@ -739,6 +986,7 @@ namespace eosio { namespace vm {
                   code_writer.emit_current_memory();
                   break;
                case opcodes::grow_memory:
+                  check_in_bounds();
                   EOS_VM_ASSERT(_mod->memories.size() != 0, wasm_parse_exception, "memory.grow requires memory");
                   op_stack.pop(types::i32);
                   op_stack.push(types::i32);
@@ -758,11 +1006,11 @@ namespace eosio { namespace vm {
                } break;
 
 #define UNOP(opname) \
-               case opcodes::opname: code_writer.emit_ ## opname(); op_stack.pop(types::A); op_stack.push(types::R); break;
+               case opcodes::opname: check_in_bounds(); code_writer.emit_ ## opname(); op_stack.pop(types::A); op_stack.push(types::R); break;
 #define BINOP(opname) \
-               case opcodes::opname: code_writer.emit_ ## opname(); op_stack.pop(types::A); op_stack.pop(types::A); op_stack.push(types::R); break;
+               case opcodes::opname: check_in_bounds(); code_writer.emit_ ## opname(); op_stack.pop(types::A); op_stack.pop(types::A); op_stack.push(types::R); break;
 #define CASTOP(dst, opname, src)                                         \
-               case opcodes::dst ## _ ## opname ## _ ## src: code_writer.emit_ ## dst ## _ ## opname ## _ ## src(); op_stack.pop(types::src); op_stack.push(types::dst); break;
+               case opcodes::dst ## _ ## opname ## _ ## src: check_in_bounds(); code_writer.emit_ ## dst ## _ ## opname ## _ ## src(); op_stack.pop(types::src); op_stack.push(types::dst); break;
 
 #define R i32
 #define A i32
@@ -912,7 +1160,7 @@ namespace eosio { namespace vm {
 #undef CASTOP
 #undef UNOP
 #undef BINOP
-               case opcodes::error: code_writer.emit_error(); break;
+               default: EOS_VM_ASSERT(false, wasm_parse_exception, "Illegal instruction");
             }
          }
          EOS_VM_ASSERT( pc_stack.empty(), wasm_parse_exception, "function body too long" );
@@ -924,6 +1172,9 @@ namespace eosio { namespace vm {
          ds.index = parse_varuint32(code);
          parse_init_expr(code, ds.offset, types::i32);
          auto len =  parse_varuint32(code);
+         EOS_VM_ASSERT(len <= detail::get_max_data_segment_bytes(_options), wasm_parse_exception, "data segment too large.");
+         EOS_VM_ASSERT(static_cast<uint64_t>(static_cast<uint32_t>(ds.offset.value.i32)) + len <= detail::get_max_linear_memory_init(_options),
+                       wasm_parse_exception, "out-of-bounds data section");
          auto guard = code.scoped_shrink_bounds(len);
          ds.data = decltype(ds.data){ _allocator, len};
          ds.data.copy(code.raw(), len);
@@ -931,8 +1182,9 @@ namespace eosio { namespace vm {
       }
 
       template <typename Elem, typename ParseFunc>
-      inline void parse_section_impl(wasm_code_ptr& code, vec<Elem>& elems, ParseFunc&& elem_parse) {
+      inline void parse_section_impl(wasm_code_ptr& code, vec<Elem>& elems, std::uint32_t max_elements, ParseFunc&& elem_parse) {
          auto count = parse_varuint32(code);
+         EOS_VM_ASSERT(count <= max_elements, wasm_parse_exception, "number of section elements exceeded limit");
          elems      = vec<Elem>{ _allocator, count };
          for (size_t i = 0; i < count; i++) { elem_parse(code, elems.at(i), i); }
       }
@@ -940,27 +1192,31 @@ namespace eosio { namespace vm {
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                             code,
                                 vec<typename std::enable_if_t<id == section_id::type_section, func_type>>& elems) {
-         parse_section_impl(code, elems, [&](wasm_code_ptr& code, func_type& ft, std::size_t /*idx*/) { parse_func_type(code, ft); });
+         parse_section_impl(code, elems, detail::get_max_type_section_elements(_options),
+                            [&](wasm_code_ptr& code, func_type& ft, std::size_t /*idx*/) { parse_func_type(code, ft); });
       }
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                                  code,
                                 vec<typename std::enable_if_t<id == section_id::import_section, import_entry>>& elems) {
-         parse_section_impl(code, elems, [&](wasm_code_ptr& code, import_entry& ie, std::size_t /*idx*/) { parse_import_entry(code, ie); });
+         parse_section_impl(code, elems, detail::get_max_import_section_elements(_options),
+                            [&](wasm_code_ptr& code, import_entry& ie, std::size_t /*idx*/) { parse_import_entry(code, ie); });
       }
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                                code,
                                 vec<typename std::enable_if_t<id == section_id::function_section, uint32_t>>& elems) {
-         parse_section_impl(code, elems, [&](wasm_code_ptr& code, uint32_t& elem, std::size_t /*idx*/) { elem = parse_varuint32(code); });
+         parse_section_impl(code, elems, detail::get_max_function_section_elements(_options),
+                            [&](wasm_code_ptr& code, uint32_t& elem, std::size_t /*idx*/) { elem = parse_varuint32(code); });
       }
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                               code,
                                 vec<typename std::enable_if_t<id == section_id::table_section, table_type>>& elems) {
-         parse_section_impl(code, elems, [&](wasm_code_ptr& code, table_type& tt, std::size_t /*idx*/) { parse_table_type(code, tt); });
+         parse_section_impl(code, elems, 1,
+                            [&](wasm_code_ptr& code, table_type& tt, std::size_t /*idx*/) { parse_table_type(code, tt); });
       }
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                                 code,
                                 vec<typename std::enable_if_t<id == section_id::memory_section, memory_type>>& elems) {
-         parse_section_impl(code, elems, [&](wasm_code_ptr& code, memory_type& mt, std::size_t idx) {
+         parse_section_impl(code, elems, 1, [&](wasm_code_ptr& code, memory_type& mt, std::size_t idx) {
             EOS_VM_ASSERT(idx == 0, wasm_parse_exception, "only one memory is permitted");
             parse_memory_type(code, mt);
          });
@@ -969,29 +1225,33 @@ namespace eosio { namespace vm {
       inline void
       parse_section(wasm_code_ptr&                                                                     code,
                     vec<typename std::enable_if_t<id == section_id::global_section, global_variable>>& elems) {
-         parse_section_impl(code, elems,
+         parse_section_impl(code, elems, detail::get_max_global_section_elements(_options),
                             [&](wasm_code_ptr& code, global_variable& gv, std::size_t /*idx*/) { parse_global_variable(code, gv); });
       }
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                                  code,
                                 vec<typename std::enable_if_t<id == section_id::export_section, export_entry>>& elems) {
-         parse_section_impl(code, elems, [&](wasm_code_ptr& code, export_entry& ee, std::size_t /*idx*/) { parse_export_entry(code, ee); });
+         parse_section_impl(code, elems, detail::get_max_export_section_elements(_options),
+                            [&](wasm_code_ptr& code, export_entry& ee, std::size_t /*idx*/) { parse_export_entry(code, ee); });
       }
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                        code,
                                 typename std::enable_if_t<id == section_id::start_section, uint32_t>& start) {
          start = parse_varuint32(code);
+         const func_type& ft = _mod->get_function_type(start);
+         EOS_VM_ASSERT(ft.return_count == 0 && ft.param_types.size() == 0, wasm_parse_exception, "wrong type for start");
       }
       template <uint8_t id>
       inline void
       parse_section(wasm_code_ptr&                                                                   code,
                     vec<typename std::enable_if_t<id == section_id::element_section, elem_segment>>& elems) {
-         parse_section_impl(code, elems, [&](wasm_code_ptr& code, elem_segment& es, std::size_t /*idx*/) { parse_elem_segment(code, es); });
+         parse_section_impl(code, elems, detail::get_max_element_section_elements(_options),
+                            [&](wasm_code_ptr& code, elem_segment& es, std::size_t /*idx*/) { parse_elem_segment(code, es); });
       }
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                                 code,
                                 vec<typename std::enable_if_t<id == section_id::code_section, function_body>>& elems) {
-         parse_section_impl(code, elems,
+         parse_section_impl(code, elems, detail::get_max_function_section_elements(_options),
                             [&](wasm_code_ptr& code, function_body& fb, std::size_t idx) { parse_function_body(code, fb, idx); });
          EOS_VM_ASSERT( elems.size() == _mod->functions.size(), wasm_parse_exception, "code section must have the same size as the function section" );
          Writer code_writer(_allocator, code.bounds() - code.offset(), *_mod);
@@ -1000,7 +1260,7 @@ namespace eosio { namespace vm {
             func_type& ft = _mod->types.at(_mod->functions.at(i));
             local_types_t local_types(ft, fb.locals);
             code_writer.emit_prologue(ft, fb.locals, i);
-            parse_function_body_code(_function_bodies[i], fb.size, code_writer, ft, local_types);
+            parse_function_body_code(_function_bodies[i].first, fb.size, _function_bodies[i].second, code_writer, ft, local_types);
             code_writer.emit_epilogue(ft, fb.locals, i);
             code_writer.finalize(fb);
          }
@@ -1008,7 +1268,8 @@ namespace eosio { namespace vm {
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                                code,
                                 vec<typename std::enable_if_t<id == section_id::data_section, data_segment>>& elems) {
-         parse_section_impl(code, elems, [&](wasm_code_ptr& code, data_segment& ds, std::size_t /*idx*/) { parse_data_segment(code, ds); });
+         parse_section_impl(code, elems, detail::get_max_data_section_elements(_options),
+                            [&](wasm_code_ptr& code, data_segment& ds, std::size_t /*idx*/) { parse_data_segment(code, ds); });
       }
 
       template <size_t N>
@@ -1025,11 +1286,33 @@ namespace eosio { namespace vm {
          return result;
       }
 
+      void on_mutable_global(uint8_t type) {
+         _globals_checker.on_mutable_global(_options, type);
+      }
+
+      void validate_exports() const {
+         std::vector<const guarded_vector<uint8_t>*> export_names;
+         export_names.reserve(_mod->exports.size());
+         for (uint32_t i = 0; i < _mod->exports.size(); ++i) {
+            export_names.push_back(&_mod->exports[i].field_str);
+         }
+         std::sort(export_names.begin(), export_names.end(), [](auto* lhs, auto* rhs) {
+            return std::lexicographical_compare(lhs->raw(), lhs->raw() + lhs->size(), rhs->raw(), rhs->raw() + rhs->size());
+         });
+         auto it = std::adjacent_find(export_names.begin(), export_names.end(), [](auto* lhs, auto* rhs) {
+            return lhs->size() == rhs->size() && std::equal(lhs->raw(), lhs->raw() + lhs->size(), rhs->raw());
+         });
+         EOS_VM_ASSERT(it == export_names.end(), wasm_parse_exception, "duplicate export name");
+      }
+
     private:
       growable_allocator& _allocator;
+      Options             _options;
       module*             _mod; // non-owning weak pointer
       int64_t             _current_function_index = -1;
       uint64_t            _maximum_function_stack_usage = 0; // non-parameter locals + stack
-      std::vector<wasm_code_ptr>  _function_bodies;
+      std::vector<std::pair<wasm_code_ptr, detail::max_func_local_bytes_stack_checker<Options>>>  _function_bodies;
+      detail::max_mutable_globals_checker<Options> _globals_checker;
+      detail::eosio_max_nested_structures_checker<Options> _nested_checker;
    };
 }} // namespace eosio::vm

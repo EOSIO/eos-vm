@@ -40,6 +40,7 @@ else # Linux
     eval docker run $ARGS $evars $FULL_TAG bash -c \"$COMMANDS\"
     EXIT_STATUS=$?
 fi
+# buildkite
 if [[ "$BUILDKITE" == 'true' ]]; then
     cd build
     # upload artifacts

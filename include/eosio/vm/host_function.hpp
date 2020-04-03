@@ -405,6 +405,63 @@ namespace eosio { namespace vm {
       };
    }
 
+#if 0
+   template <typename T>
+   constexpr auto to_wasm_type_v = to_wasm_type<T>();
+
+   struct host_function {
+      std::vector<value_type> params;
+      std::vector<value_type> ret;
+   };
+
+   inline bool operator==(const host_function& lhs, const func_type& rhs) {
+      return lhs.params.size() == rhs.param_types.size() &&
+         std::equal(lhs.params.begin(), lhs.params.end(), rhs.param_types.raw()) &&
+         lhs.ret.size() == rhs.return_count &&
+         (lhs.ret.size() == 0 || lhs.ret[0] == rhs.return_type);
+   }
+   inline bool operator==(const func_type& lhs, const host_function& rhs) {
+      return rhs == lhs;
+   }
+
+   template<typename A0, typename... A>
+   void get_args(value_type* out) {
+      *out++ = detail::get_arg_type<A0, A...>();
+      if constexpr (sizeof...(A) != 0) {
+         get_args<A...>(out);
+      }
+   }
+
+   template <typename Ret, typename... Args>
+   host_function function_types_provider() {
+      host_function hf;
+      hf.params.resize(sizeof...(Args));
+      if constexpr (sizeof...(Args) != 0) {
+         get_args<Args...>(hf.params.data());
+      }
+      if constexpr (to_wasm_type_v<Ret> != types::ret_void) {
+         hf.ret = { to_wasm_type_v<Ret> };
+      }
+      return hf;
+   }
+
+   template <typename Ret, typename... Args>
+   host_function function_types_provider(Ret (*func)(Args...)) {
+      return function_types_provider<Ret, Args...>();
+   }
+
+   template <typename Ret, typename Cls, typename... Args>
+   host_function function_types_provider(Ret (Cls::*func)(Args...)) {
+      return function_types_provider<Ret, Args...>();
+   }
+
+   template <typename Ret, typename Cls, typename... Args>
+   host_function function_types_provider(Ret (Cls::*func)(Args...) const) {
+      return function_types_provider<Ret, Args...>();
+   }
+
+#endif
+
    using host_func_pair = std::pair<std::string, std::string>;
 
    struct host_func_pair_hash {
@@ -431,6 +488,7 @@ namespace eosio { namespace vm {
             functions.push_back(
                   create_function<Cls, F, Preconditions, R, Args, Type_Converter>(
                      std::make_index_sequence<std::tuple_size_v<Args>>()));
+            //host_functions.push_back(function_types_provider(AUTO_PARAM_WORKAROUND(F)));
          }
 
          static mappings& get() {
@@ -458,6 +516,9 @@ namespace eosio { namespace vm {
             EOS_VM_ASSERT(current_mappings.named_mapping.count({ mod_name, fn_name }), wasm_link_exception,
                           "no mapping for imported function");
             imports[i] = current_mappings.named_mapping[{ mod_name, fn_name }];
+            const import_entry& entry = mod.imports[i];
+            EOS_VM_ASSERT(entry.kind == Function, wasm_link_exception, "importing non-function");
+            //EOS_VM_ASSERT(current_mappings.host_functions[imports[i]] == mod.types[entry.type.func_t], wasm_link_exception, "wrong type for imported function");
          }
       }
 

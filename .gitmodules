@@ -1,9 +1,6 @@
 [submodule "external/Catch2"]
 	path = external/Catch2
 	url = https://github.com/catchorg/Catch2
-[submodule "external/outcome"]
-	path = external/outcome
-	url = https://github.com/ned14/outcome
 [submodule "external/softfloat"]
 	path = external/softfloat
 	url = https://github.com/eosio/berkeley-softfloat-3

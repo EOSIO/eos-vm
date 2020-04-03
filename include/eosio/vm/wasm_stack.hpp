@@ -12,19 +12,25 @@
 #include <eosio/vm/vector.hpp>
 
 namespace eosio { namespace vm {
-   template <typename ElemT, size_t ElemSz, typename Allocator = std::nullptr_t >
+   using std::nullptr_t;
+
+   template <typename ElemT, size_t ElemSz, typename Allocator = nullptr_t >
    class stack {
     public:
       template <typename Alloc=Allocator, typename = std::enable_if_t<std::is_same_v<Alloc, std::nullptr_t>, int>>
       stack()
          : _store(ElemSz) {}
 
-      template <typename Alloc=Allocator, typename = std::enable_if_t<!std::is_same_v<Alloc, std::nullptr_t>, int>>
+      template <typename Alloc=Allocator, typename = std::enable_if_t<!std::is_same_v<Alloc, nullptr_t>, int>>
       stack(Alloc&& alloc)
          : _store(alloc, ElemSz) {}
 
-      void push(ElemT&& e) {
-         if constexpr (std::is_same_v<Allocator, std::nullptr_t>) {
+      template <typename Alloc=Allocator, typename = std::enable_if_t<!std::is_same_v<Alloc, nullptr_t>, int>>
+      stack(uint32_t n, Alloc&& alloc)
+         : _store(alloc, n) {}
+
+      void push(ElemT&& e) { 
+         if constexpr (std::is_same_v<Allocator, nullptr_t>) {
             if (_index >= _store.size())
                _store.resize(_store.size()*2);
          }
@@ -55,6 +61,7 @@ namespace eosio { namespace vm {
       const ElemT& get_back(size_t i)const { return _store[_index - 1 - i]; }
       void         trim(size_t amt) { _index -= amt; }
       size_t       size() const { return _index; }
+      size_t       capacity() const { return _store.size(); }
 
     private:
       using base_data_store_t = std::conditional_t<std::is_same_v<Allocator, std::nullptr_t>, unmanaged_vector<ElemT>, managed_vector<ElemT, Allocator>>;
@@ -63,7 +70,7 @@ namespace eosio { namespace vm {
       size_t            _index = 0;
    };
 
-   using operand_stack = stack<operand_stack_elem, constants::max_stack_size>;
+   using operand_stack = stack<operand_stack_elem, constants::initial_stack_size>;
    using call_stack    = stack<activation_frame,   constants::max_call_depth + 1, bounded_allocator>;
 
 }} // namespace eosio::vm
