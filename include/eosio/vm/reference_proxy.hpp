@@ -61,7 +61,7 @@ namespace eosio { namespace vm {
       inline constexpr reference_proxy(T* ptr, uint32_t size)
          : original_ptr(ptr),
            copy( is_aligned(ptr) ? nullptr : new std::remove_cv_t<T>[size] ),
-           _span( copy ? ptr : copy.get(), size ) {}
+           _span( copy ? copy.get() : ptr, size ) {}
       inline constexpr reference_proxy(const reference_proxy&) = delete;
       inline constexpr reference_proxy(reference_proxy&&) = default;
       inline ~reference_proxy() {
@@ -110,6 +110,11 @@ namespace eosio { namespace vm {
       constexpr auto get_dependent_type() -> std::enable_if_t<is_reference_proxy_type_v<T>, typename T::dependent_type>;
       template <typename T>
       constexpr auto get_dependent_type() -> std::enable_if_t<!is_reference_proxy_type_v<T>, T>;
+      // Help OSX clang
+      template <typename U>
+      auto get_dependent_type(reference_proxy<U, true>) -> U;
+      template <typename U>
+      auto get_dependent_type(reference_proxy<U, false>) -> U;
       template <typename T>
       constexpr inline std::true_type is_legacy(reference_proxy<T, true>);
       template <typename T>
