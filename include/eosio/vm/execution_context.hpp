@@ -26,6 +26,15 @@
 
 namespace eosio { namespace vm {
 
+   struct null_host_functions {
+      template<typename... A>
+      void operator()(A&&...) const {
+         EOS_VM_ASSERT(false, wasm_interpreter_exception,
+                       "Should never get here because it's impossible to link a module "
+                       "that imports any host functions, when no host functions are available");
+      }
+   };
+
    namespace detail {
       template <typename HostFunctions>
       struct host_type {
@@ -50,6 +59,17 @@ namespace eosio { namespace vm {
 
       template <typename HF>
       using type_converter_t = typename type_converter<HF>::type;
+
+      template <typename HostFunctions>
+      struct host_invoker {
+         using type = HostFunctions;
+      };
+      template <>
+      struct host_invoker<std::nullptr_t> {
+         using type = null_host_functions;
+      };
+      template <typename HF>
+      using host_invoker_t = typename host_invoker<HF>::type;
    }
 
    template<typename Derived, typename Host>
@@ -147,7 +167,7 @@ namespace eosio { namespace vm {
       char*                           _linear_memory    = nullptr;
       module&                         _mod;
       wasm_allocator*                 _wasm_alloc;
-      Host                            _rhf;
+      detail::host_invoker_t<Host>    _rhf;
       std::error_code                 _error_code;
       operand_stack                   _os;
    };
