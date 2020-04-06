@@ -107,7 +107,7 @@ namespace eosio { namespace vm {
       constexpr reference(void* ptr) : value(reinterpret_cast<T*>(ptr)) {}
 
       operator T&() { return *value; }
-      operator const T&() { return *value; }
+      //operator const T&() { return *value; }
       T* value;
    };
 
@@ -147,7 +147,7 @@ namespace eosio { namespace vm {
       }
 
       template <typename T>
-      auto from_wasm(const elem_type& ptr, const elem_type& len) const
+      auto from_wasm(const elem_type& ptr) const
          -> std::enable_if_t< is_reference_proxy_type_v<T> &&
                               is_reference_proxy_legacy_v<T> &&
                               !is_span_type_v<dependent_type_t<T>>, T> {
@@ -155,7 +155,7 @@ namespace eosio { namespace vm {
       }
 
       template <typename T>
-      auto from_wasm(const elem_type& ptr, const elem_type& len) const
+      auto from_wasm(const elem_type& ptr) const
          -> std::enable_if_t< is_reference_proxy_type_v<T> &&
                               !is_reference_proxy_legacy_v<T> &&
                               !is_span_type_v<dependent_type_t<T>>, T> {
