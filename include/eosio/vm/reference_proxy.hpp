@@ -61,7 +61,10 @@ namespace eosio { namespace vm {
       inline constexpr reference_proxy(T* ptr, uint32_t size)
          : original_ptr(ptr),
            copy( is_aligned(ptr) ? nullptr : new std::remove_cv_t<T>[size] ),
-           _span( copy ? copy.get() : ptr, size ) {}
+           _span( copy ? copy.get() : ptr, size ) {
+         if (copy)
+            memcpy( copy.get(), original_ptr, _span.size_bytes() );
+      }
       inline constexpr reference_proxy(const reference_proxy&) = delete;
       inline constexpr reference_proxy(reference_proxy&&) = default;
       inline ~reference_proxy() {
