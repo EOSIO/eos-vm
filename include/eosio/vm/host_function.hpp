@@ -107,7 +107,7 @@ namespace eosio { namespace vm {
       constexpr reference(void* ptr) : value(reinterpret_cast<T*>(ptr)) {}
 
       operator T&() { return *value; }
-      operator const T&() { return *value; }
+      //operator const T&() { return *value; }
       T* value;
    };
 
