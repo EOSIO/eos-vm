@@ -46,7 +46,7 @@ namespace eosio { namespace vm {
          ctx.set_wasm_allocator(memory_alloc);
          if constexpr (!std::is_same_v<HostFunctions, std::nullptr_t>)
             HostFunctions::resolve(mod);
-         //initialize(host);
+         initialize(host);
       }
     public:
       backend(wasm_code&& code, host_t& host, wasm_allocator* alloc)
