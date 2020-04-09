@@ -85,20 +85,6 @@ namespace eosio { namespace vm {
 #define EOS_VM_FROM_WASM(...) EOS_VM_GET_MACRO(__VA_ARGS__, EOS_VM_FROM_WASM_T_IMPL, \
                                                             EOS_VM_FROM_WASM_IMPL,   \
                                                             EOS_VM_FROM_WASM_ERROR)(__VA_ARGS__)
-#define EOS_VM_TO_WASM_ERROR(...) \
-   static_assert(false, "EOS_VM_TO_WASM supplied with the wrong number of arguments");
-
-#define EOS_VM_TO_WASM_T_IMPL(TEMPLATE_T, TYPE, PARAMS)              \
-   template <typename T ## _T, typename T=dependent_type_t<T ## _T>> \
-   auto to_wasm PARAMS const -> std::enable_if_t<std::is_same_v<T ## _T, TYPE>, elem_type>
-
-#define EOS_VM_TO_WASM_IMPL(TYPE, PARAMS) \
-   template <typename T>                  \
-   auto to_wasm PARAMS const -> std::enable_if_t<std::is_same_v<T, TYPE>, elem_type>
-
-#define EOS_VM_TO_WASM(...) EOS_VM_GET_MACRO(__VA_ARGS__, EOS_VM_TO_WASM_T_IMPL, \
-                                                          EOS_VM_TO_WASM_IMPL,   \
-                                                          EOS_VM_TO_WASM_ERROR)(__VA_ARGS__)
 
 #define EOS_VM_TYPE(...) decltype(std::declval<__VA_ARGS__>())
 
@@ -129,37 +115,39 @@ namespace eosio { namespace vm {
       // TODO clean this up and figure out a more elegant way to get this for the macro
       using elem_type = operand_stack_elem;
 
-      EOS_VM_FROM_WASM(bool, (const elem_type& value)) { return as_value<uint32_t>(value) ? 1 : 0; }
-      EOS_VM_TO_WASM(bool, (bool value)) { return as_result<uint32_t>(value ? 1 : 0); }
+      EOS_VM_FROM_WASM(bool, (uint32_t value)) { return value ? 1 : 0; }
+      uint32_t to_wasm(bool&& value) { return value ? 1 : 0; }
+      template<typename T>
+      no_match_t to_wasm(T&&);
 
       template <typename T>
-      auto from_wasm(const elem_type& ptr, const elem_type& len) const
+      auto from_wasm(typename T::pointer ptr, wasm_size_t len) const
          -> std::enable_if_t<is_span_type_v<T>, T> {
-         return {as_value<typename T::pointer>(std::move(ptr)), as_value<wasm_size_t>(std::move(len))};
+         return {ptr, len};
       }
 
       template <typename T>
-      auto from_wasm(const elem_type& ptr, const elem_type& len) const
+      auto from_wasm(reference_proxy_dependent_type_t<T>* ptr, wasm_size_t len) const
          -> std::enable_if_t< is_reference_proxy_type_v<T> &&
                               !is_reference_proxy_legacy_v<T> &&
                               is_span_type_v<dependent_type_t<T>>, T> {
-         return {as_value<reference_proxy_dependent_type_t<T>*>(std::move(ptr)), as_value<wasm_size_t>(std::move(len))};
+         return {ptr, len};
       }
 
       template <typename T>
-      auto from_wasm(const elem_type& ptr) const
+      auto from_wasm(reference_proxy_dependent_type_t<T>* ptr) const
          -> std::enable_if_t< is_reference_proxy_type_v<T> &&
                               is_reference_proxy_legacy_v<T> &&
                               !is_span_type_v<dependent_type_t<T>>, T> {
-         return {as_value<reference_proxy_dependent_type_t<T>*>(std::move(ptr))};
+         return {ptr};
       }
 
       template <typename T>
-      auto from_wasm(const elem_type& ptr) const
+      auto from_wasm(reference_proxy_dependent_type_t<T>* ptr) const
          -> std::enable_if_t< is_reference_proxy_type_v<T> &&
                               !is_reference_proxy_legacy_v<T> &&
                               !is_span_type_v<dependent_type_t<T>>, T> {
-         return {as_value<reference_proxy_dependent_type_t<T>*>(std::move(ptr))};
+         return {ptr};
       }
 
       template<typename T>
@@ -205,7 +193,7 @@ namespace eosio { namespace vm {
       template <class TC, typename T>
       using from_wasm_type_deducer_t = flatten_parameters_t<&TC::template from_wasm<T>>;
       template <class TC, typename T>
-      using to_wasm_type_deducer_t = return_type_t<&TC::template to_wasm<T>>;
+      using to_wasm_type_deducer_t = decltype(std::declval<TC>().to_wasm(std::declval<T>()));
 
       template <std::size_t N, typename Type_Converter>
       inline constexpr const auto& pop_value(Type_Converter& tc) { return tc.get_interface().operand_from_back(N); }
@@ -250,20 +238,21 @@ namespace eosio { namespace vm {
       constexpr inline static bool has_from_wasm_v = EOS_VM_HAS_TEMPLATE_MEMBER_TY(Type_Converter, from_wasm<S>);
 
       template <typename S, typename Type_Converter>
-      constexpr inline static bool has_to_wasm_v = EOS_VM_HAS_TEMPLATE_MEMBER_TY(Type_Converter, to_wasm<S>);
+      constexpr inline static bool has_to_wasm_v =
+         !std::is_same_v<no_match_t, to_wasm_type_deducer_t<Type_Converter, S>>;
+
+      struct HHH {};
+      static_assert(!has_to_wasm_v<int, type_converter<HHH>>);
 
       template <typename Args, typename S, std::size_t At, class Type_Converter, std::size_t... Is>
       inline constexpr auto create_value(Type_Converter& tc, std::index_sequence<Is...>) {
          constexpr std::size_t offset = total_operands_v<Args, Type_Converter> - 1;
-         if constexpr (has_as_value<S, Type_Converter>()) {
-            if constexpr (has_from_wasm_v<S, Type_Converter>) {
-               return tc.template from_wasm<S>( tc.template as_value<S>(pop_value<offset - At>(tc)) );
-            } else {
-               return tc.template as_value<S>(pop_value<offset - At>(tc));
-            }
+         if constexpr (has_from_wasm_v<S, Type_Converter>) {
+            using arg_types = from_wasm_type_deducer_t<Type_Converter, S>;
+            return tc.template from_wasm<S>(tc.template as_value<std::tuple_element_t<Is, arg_types>>(pop_value<offset - (At + Is)>(tc))...);
          } else {
-            static_assert(has_from_wasm_v<S, Type_Converter>, "no type conversion found for type, define a from_wasm for this type");
-            return tc.template from_wasm<S>(pop_value<offset - (At + Is)>(tc)...);
+            static_assert(has_as_value<S, Type_Converter>(), "no type conversion found for type, define a from_wasm for this type");
+            return tc.template as_value<S>(pop_value<offset - At>(tc));
          }
       }
 
@@ -291,14 +280,10 @@ namespace eosio { namespace vm {
 
       template <typename Type_Converter, typename T>
       constexpr auto resolve_result(Type_Converter& tc, T&& val) {
-         if constexpr (has_as_result<T, Type_Converter>()) {
-            if constexpr (has_to_wasm_v<T, Type_Converter>) {
-               return tc.template to_wasm<T>(tc.template as_result<T>(static_cast<T&&>(val)));
-            } else {
-               return tc.template as_result<T>(static_cast<T&&>(val));
-            }
+         if constexpr (has_to_wasm_v<T, Type_Converter>) {
+            return tc.as_result(tc.to_wasm(static_cast<T&&>(val)));
          } else {
-            return tc.template to_wasm<T>(static_cast<T&&>(val));
+            return tc.as_result(static_cast<T&&>(val));
          }
       }
 
