@@ -12,8 +12,14 @@
 
 namespace eosio { namespace vm {
 
-   inline thread_local static std::atomic<sigjmp_buf*> signal_dest = ATOMIC_VAR_INIT(nullptr);
-   inline thread_local static std::exception_ptr saved_exception{nullptr};
+   // Fixes a duplicate symbol build issue when building with `-fvisibility=hidden`
+   __attribute__((visibility("default")))
+   inline thread_local std::atomic<sigjmp_buf*> signal_dest = ATOMIC_VAR_INIT(nullptr);
+
+   // Fixes a duplicate symbol build issue when building with `-fvisibility=hidden`
+   __attribute__((visibility("default")))
+   inline thread_local std::exception_ptr saved_exception{nullptr};
+
    template<int Sig>
    inline struct sigaction prev_signal_handler;
 
