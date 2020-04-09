@@ -44,13 +44,13 @@ namespace eosio { namespace vm {
       inline decltype(auto) get_host() { return *host; }
 
       template <typename T>
-      inline void validate_pointer(const T* ptr, wasm_size_t len) {
+      inline void validate_pointer(const T* ptr, wasm_size_t len) const {
          EOS_VM_ASSERT( len <= std::numeric_limits<wasm_size_t>::max() / (wasm_size_t)sizeof(T), wasm_interpreter_exception, "length will overflow" );
          volatile auto check_addr = *(reinterpret_cast<const char*>(ptr) + (len * sizeof(T)) - 1);
          ignore_unused_variable_warning(check_addr);
       }
 
-      inline void validate_null_terminated_pointer(const char* ptr) {
+      inline void validate_null_terminated_pointer(const char* ptr) const {
          volatile auto check_addr = std::strlen(ptr);
          ignore_unused_variable_warning(check_addr);
       }
@@ -123,6 +123,7 @@ namespace eosio { namespace vm {
       template <typename T>
       auto from_wasm(typename T::pointer ptr, wasm_size_t len) const
          -> std::enable_if_t<is_span_type_v<T>, T> {
+         this->validate_pointer(ptr, len);
          return {ptr, len};
       }
 
@@ -131,6 +132,7 @@ namespace eosio { namespace vm {
          -> std::enable_if_t< is_reference_proxy_type_v<T> &&
                               !is_reference_proxy_legacy_v<T> &&
                               is_span_type_v<dependent_type_t<T>>, T> {
+         this->validate_pointer(ptr, len);
          return {ptr, len};
       }
 
@@ -139,6 +141,7 @@ namespace eosio { namespace vm {
          -> std::enable_if_t< is_reference_proxy_type_v<T> &&
                               is_reference_proxy_legacy_v<T> &&
                               !is_span_type_v<dependent_type_t<T>>, T> {
+         this->validate_pointer(ptr, 1);
          return {ptr};
       }
 
@@ -147,6 +150,7 @@ namespace eosio { namespace vm {
          -> std::enable_if_t< is_reference_proxy_type_v<T> &&
                               !is_reference_proxy_legacy_v<T> &&
                               !is_span_type_v<dependent_type_t<T>>, T> {
+         this->validate_pointer(ptr, 1);
          return {ptr};
       }
 
