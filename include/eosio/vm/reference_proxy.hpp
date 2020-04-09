@@ -19,21 +19,22 @@ namespace eosio { namespace vm {
       inline constexpr reference_proxy(const reference_proxy&) = delete;
       inline constexpr reference_proxy(reference_proxy&& other) : original_ptr(other.original_ptr), copy(other.copy) {
          other.copy.reset();
+         other.original_ptr = nullptr;
       }
       inline ~reference_proxy() {
          if constexpr (!std::is_const_v<internal_type>)
-            if (copy || !LegacyAlign)
+            if (copy)
                memcpy( original_ptr, std::addressof(*copy), sizeof(internal_type) );
       }
       constexpr operator internal_type*() const {
-         if (copy || !LegacyAlign)
+         if (copy)
             return std::addressof(*copy);
          else
             return original_ptr;
       }
 
       constexpr operator internal_type&() const {
-         if (copy || !LegacyAlign)
+         if (copy)
             return *copy;
          else
             return *static_cast<internal_type*>(original_ptr);
