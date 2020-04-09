@@ -44,14 +44,14 @@ namespace eosio { namespace vm {
       inline decltype(auto) get_host() { return *host; }
 
       template <typename T>
-      inline void validate_pointer(const T* ptr, wasm_size_t len) const {
+      inline void validate_pointer(const void* ptr, wasm_size_t len) const {
          EOS_VM_ASSERT( len <= std::numeric_limits<wasm_size_t>::max() / (wasm_size_t)sizeof(T), wasm_interpreter_exception, "length will overflow" );
          volatile auto check_addr = *(reinterpret_cast<const char*>(ptr) + (len * sizeof(T)) - 1);
          ignore_unused_variable_warning(check_addr);
       }
 
-      inline void validate_null_terminated_pointer(const char* ptr) const {
-         volatile auto check_addr = std::strlen(ptr);
+      inline void validate_null_terminated_pointer(const void* ptr) const {
+         volatile auto check_addr = std::strlen(static_cast<const char*>(ptr));
          ignore_unused_variable_warning(check_addr);
       }
       Host_Type* host;
@@ -121,36 +121,36 @@ namespace eosio { namespace vm {
       no_match_t to_wasm(T&&);
 
       template <typename T>
-      auto from_wasm(typename T::pointer ptr, wasm_size_t len) const
+      auto from_wasm(void* ptr, wasm_size_t len) const
          -> std::enable_if_t<is_span_type_v<T>, T> {
-         this->validate_pointer(ptr, len);
-         return {ptr, len};
+         this->template validate_pointer<typename T::value_type>(ptr, len);
+         return {static_cast<typename T::pointer>(ptr), len};
       }
 
       template <typename T>
-      auto from_wasm(reference_proxy_dependent_type_t<T>* ptr, wasm_size_t len) const
+      auto from_wasm(void* ptr, wasm_size_t len) const
          -> std::enable_if_t< is_reference_proxy_type_v<T> &&
                               !is_reference_proxy_legacy_v<T> &&
                               is_span_type_v<dependent_type_t<T>>, T> {
-         this->validate_pointer(ptr, len);
+         this->template validate_pointer<reference_proxy_dependent_type_t<T>>(ptr, len);
          return {ptr, len};
       }
 
       template <typename T>
-      auto from_wasm(reference_proxy_dependent_type_t<T>* ptr) const
+      auto from_wasm(void* ptr) const
          -> std::enable_if_t< is_reference_proxy_type_v<T> &&
                               is_reference_proxy_legacy_v<T> &&
                               !is_span_type_v<dependent_type_t<T>>, T> {
-         this->validate_pointer(ptr, 1);
+         this->template validate_pointer<reference_proxy_dependent_type_t<T>>(ptr, 1);
          return {ptr};
       }
 
       template <typename T>
-      auto from_wasm(reference_proxy_dependent_type_t<T>* ptr) const
+      auto from_wasm(void* ptr) const
          -> std::enable_if_t< is_reference_proxy_type_v<T> &&
                               !is_reference_proxy_legacy_v<T> &&
                               !is_span_type_v<dependent_type_t<T>>, T> {
-         this->validate_pointer(ptr, 1);
+         this->template validate_pointer<reference_proxy_dependent_type_t<T>*>(ptr, 1);
          return {ptr};
       }
 
@@ -164,8 +164,8 @@ namespace eosio { namespace vm {
             return static_cast<T>(val.template get<f32_const_t>().data.f);
          else if constexpr (std::is_floating_point_v<T> && sizeof(T) == 8)
             return static_cast<T>(val.template get<f64_const_t>().data.f);
-         else if constexpr (std::is_pointer_v<T>)
-            return base_type::template access_as<std::remove_pointer_t<T>>(val.template get<i32_const_t>().data.ui);
+         else if constexpr (std::is_void_v<std::decay_t<std::remove_pointer_t<T>>>)
+            return base_type::access(val.template get<i32_const_t>().data.ui);
          else if constexpr (std::is_lvalue_reference_v<T>)
             return reference<std::decay_t<T>>(base_type::template access_as<std::decay_t<T>>(val.template get<i32_const_t>().data.ui));
          else

@@ -10,7 +10,7 @@ namespace eosio { namespace vm {
    struct reference_proxy {
       using internal_type = std::conditional_t<std::is_pointer_v<T>, std::remove_pointer_t<T>, std::remove_reference_t<T>>;
       inline constexpr reference_proxy(internal_type& val) : reference_proxy(std::addressof(val)) {}
-      inline constexpr reference_proxy(internal_type* ptr) : original_ptr(ptr) {
+      inline constexpr reference_proxy(void* ptr) : original_ptr(ptr) {
          if (reinterpret_cast<std::uintptr_t>(original_ptr) % alignof(internal_type) != 0 || !LegacyAlign) {
             copy.emplace();
             memcpy( std::addressof(*copy), original_ptr, sizeof(internal_type) );
@@ -36,7 +36,7 @@ namespace eosio { namespace vm {
          if (copy || !LegacyAlign)
             return *copy;
          else
-            return *original_ptr;
+            return *static_cast<internal_type*>(original_ptr);
       }
 
       constexpr internal_type* get() { return (internal_type*)*this; }
@@ -48,17 +48,17 @@ namespace eosio { namespace vm {
       static constexpr bool is_legacy() { return LegacyAlign; }
       using dependent_type = T;
 
-      internal_type* original_ptr;
+      void* original_ptr;
       mutable std::optional<std::remove_cv_t<internal_type>> copy;
    };
 
    template <typename T>
    struct reference_proxy<span<T>> {
-      inline constexpr bool is_aligned(T* ptr) { return reinterpret_cast<std::uintptr_t>(original_ptr) % alignof(T) == 0; }
-      inline constexpr reference_proxy(T* ptr, uint32_t size)
+      inline constexpr bool is_aligned(void* ptr) { return reinterpret_cast<std::uintptr_t>(original_ptr) % alignof(T) == 0; }
+      inline constexpr reference_proxy(void* ptr, uint32_t size)
          : original_ptr(ptr),
            copy( is_aligned(ptr) ? nullptr : new std::remove_cv_t<T>[size] ),
-           _span( copy ? copy.get() : ptr, size ) {
+           _span( copy ? copy.get() : static_cast<T*>(ptr), size ) {
          if (copy)
             memcpy( copy.get(), original_ptr, _span.size_bytes() );
       }
@@ -87,7 +87,7 @@ namespace eosio { namespace vm {
 
       static constexpr bool is_legacy() { return false; }
 
-      T* original_ptr;
+      void* original_ptr;
       std::unique_ptr<std::remove_cv_t<T>[]> copy = nullptr;
       span<T> _span;
       using dependent_type = T;
