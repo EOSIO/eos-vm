@@ -159,7 +159,7 @@ namespace eosio { namespace vm {
       static void type_check_args(const func_type& ft, Args&&...) {
          EOS_VM_ASSERT(sizeof...(Args) == ft.param_types.size(), wasm_interpreter_exception, "wrong number of arguments");
          uint32_t i = 0;
-         // EOS_VM_ASSERT((... && (to_wasm_type<Args>() == ft.param_types.at(i++))), wasm_interpreter_exception, "unexpected argument type");
+         EOS_VM_ASSERT((... && (to_wasm_type_v<detail::type_converter_t<Host>, Args> == ft.param_types.at(i++))), wasm_interpreter_exception, "unexpected argument type");
       }
 
       static void handle_signal(int sig) {
