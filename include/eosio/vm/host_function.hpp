@@ -35,9 +35,6 @@ namespace eosio { namespace vm {
 
       inline void* access(wasm_ptr_t addr=0) const { return (char*)interface.get_memory() + addr; }
 
-      template <typename T=char>
-      inline T* access_as(wasm_ptr_t addr) const { return reinterpret_cast<T*>(access(addr)); }
-
       inline Execution_Interface& get_interface() { return interface; }
       inline const Execution_Interface& get_interface() const { return interface; }
 
@@ -166,8 +163,6 @@ namespace eosio { namespace vm {
             return static_cast<T>(val.template get<f64_const_t>().data.f);
          else if constexpr (std::is_void_v<std::decay_t<std::remove_pointer_t<T>>>)
             return base_type::access(val.template get<i32_const_t>().data.ui);
-         else if constexpr (std::is_lvalue_reference_v<T>)
-            return reference<std::decay_t<T>>(base_type::template access_as<std::decay_t<T>>(val.template get<i32_const_t>().data.ui));
          else
             return no_match_t{};
       }
@@ -246,7 +241,7 @@ namespace eosio { namespace vm {
          !std::is_same_v<no_match_t, to_wasm_type_deducer_t<Type_Converter, S>>;
 
       template <typename Args, typename S, std::size_t At, class Type_Converter, std::size_t... Is>
-      inline constexpr auto create_value(Type_Converter& tc, std::index_sequence<Is...>) {
+      inline constexpr decltype(auto) create_value(Type_Converter& tc, std::index_sequence<Is...>) {
          constexpr std::size_t offset = total_operands_v<Args, Type_Converter> - 1;
          if constexpr (has_from_wasm_v<S, Type_Converter>) {
             using arg_types = from_wasm_type_deducer_t<Type_Converter, S>;
@@ -272,10 +267,10 @@ namespace eosio { namespace vm {
             return std::tuple<>{};
          else {
             using source_t = std::tuple_element_t<At, Args>;
-            using tuple_t  = std::conditional_t<std::is_lvalue_reference_v<source_t>, reference<std::decay_t<source_t>>, source_t>;
             constexpr std::size_t skip_amt = skip_amount<source_t, Type_Converter>();
+            using converted_t = decltype(create_value<Args, source_t, Skip_Amt>(tc, std::make_index_sequence<skip_amt>{}));
             auto tail = get_values<Args, At+1, Skip_Amt + skip_amt>(tc);
-            return std::tuple_cat(std::tuple<tuple_t>(create_value<Args, source_t, Skip_Amt>(tc, std::make_index_sequence<skip_amt>{})),
+            return std::tuple_cat(std::tuple<converted_t>(create_value<Args, source_t, Skip_Amt>(tc, std::make_index_sequence<skip_amt>{})),
                                   std::move(tail));
          }
       }
@@ -350,7 +345,7 @@ namespace eosio { namespace vm {
       template <typename Type_Converter, typename... Args>                   \
       inline static decltype(auto) condition(Type_Converter& ctx, Args&&... args) { \
         __VA_ARGS__;                                                         \
-        return std::tuple<Args...>(std::move(args)...);                      \
+        return std::tuple<Args...>(static_cast<Args&&>(args)...);            \
       }                                                                      \
    };
 
