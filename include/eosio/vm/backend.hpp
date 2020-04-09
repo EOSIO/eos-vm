@@ -21,20 +21,6 @@
 
 namespace eosio { namespace vm {
 
-   namespace detail {
-      template <typename HostFunctions>
-      struct host_type {
-         using type = typename HostFunctions::host_type_t;
-      };
-      template <>
-      struct host_type<std::nullptr_t> {
-         using type = std::nullptr_t;
-      };
-
-      template <typename HF>
-      using host_type_t = typename host_type<HF>::type;
-   }
-
    struct jit {
       template<typename Host>
       using context = jit_execution_context<Host>;
@@ -62,8 +48,8 @@ namespace eosio { namespace vm {
    template <typename HostFunctions = std::nullptr_t, typename Impl = interpreter, typename Options = default_options>
    class backend {
       using host_t     = detail::host_type_t<HostFunctions>;
-      using context_t  = typename Impl::template context<host_t>;
-      using parser_t   = typename Impl::template parser<host_t, Options>;
+      using context_t  = typename Impl::template context<HostFunctions>;
+      using parser_t   = typename Impl::template parser<HostFunctions, Options>;
       void construct(host_t* host=nullptr) {
          mod.finalize();
          ctx.set_wasm_allocator(memory_alloc);
