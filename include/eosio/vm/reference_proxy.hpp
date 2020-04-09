@@ -9,35 +9,32 @@ namespace eosio { namespace vm {
    template <typename T, bool LegacyAlign=false>
    struct reference_proxy {
       using internal_type = std::conditional_t<std::is_pointer_v<T>, std::remove_pointer_t<T>, std::remove_reference_t<T>>;
-      inline constexpr reference_proxy(internal_type& val) : original_ptr(std::addressof(val)) {
-         if (reinterpret_cast<std::uintptr_t>(original_ptr) % alignof(internal_type) != 0 || !LegacyAlign) {
-            copy.reset(new std::remove_cv_t<internal_type>());
-            memcpy( copy.get(), original_ptr, sizeof(internal_type) );
-         }
-      }
+      inline constexpr reference_proxy(internal_type& val) : reference_proxy(std::addressof(val)) {}
       inline constexpr reference_proxy(internal_type* ptr) : original_ptr(ptr) {
          if (reinterpret_cast<std::uintptr_t>(original_ptr) % alignof(internal_type) != 0 || !LegacyAlign) {
-            copy.reset(new std::remove_cv_t<internal_type>());
-            memcpy( copy.get(), original_ptr, sizeof(internal_type) );
+            copy.emplace();
+            memcpy( std::addressof(*copy), original_ptr, sizeof(internal_type) );
          }
       }
       inline constexpr reference_proxy(const reference_proxy&) = delete;
-      inline constexpr reference_proxy(reference_proxy&&) = default;
+      inline constexpr reference_proxy(reference_proxy&& other) : original_ptr(other.original_ptr), copy(other.copy) {
+         other.copy.reset();
+      }
       inline ~reference_proxy() {
          if constexpr (!std::is_const_v<internal_type>)
             if (copy || !LegacyAlign)
-               memcpy( original_ptr, copy.get(), sizeof(internal_type) );
+               memcpy( original_ptr, std::addressof(*copy), sizeof(internal_type) );
       }
       constexpr operator internal_type*() const {
          if (copy || !LegacyAlign)
-            return copy.get();
+            return std::addressof(*copy);
          else
             return original_ptr;
       }
 
       constexpr operator internal_type&() const {
          if (copy || !LegacyAlign)
-            return *copy.get();
+            return *copy;
          else
             return *original_ptr;
       }
@@ -52,7 +49,7 @@ namespace eosio { namespace vm {
       using dependent_type = T;
 
       internal_type* original_ptr;
-      std::unique_ptr<std::remove_cv_t<internal_type>> copy = nullptr;
+      mutable std::optional<std::remove_cv_t<internal_type>> copy;
    };
 
    template <typename T>
