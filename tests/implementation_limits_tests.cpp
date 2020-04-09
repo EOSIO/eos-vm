@@ -54,8 +54,8 @@ BACKEND_TEST_CASE( "Test call depth", "[call_depth]") {
 
 BACKEND_TEST_CASE( "Test call depth dynamic", "[call_depth]") {
    wasm_allocator wa;
-   using backend_t = eosio::vm::backend<standalone_function_t, TestType, dynamic_options>;
    using rhf_t     = eosio::vm::registered_host_functions<standalone_function_t>;
+   using backend_t = eosio::vm::backend<rhf_t, TestType, dynamic_options>;
    rhf_t::add<&host_call>("env", "host.call");
 
    backend_t bkend(implementation_limits_wasm_code, nullptr, dynamic_options{151});
