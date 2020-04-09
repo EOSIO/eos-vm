@@ -245,9 +245,6 @@ namespace eosio { namespace vm {
       constexpr inline static bool has_to_wasm_v =
          !std::is_same_v<no_match_t, to_wasm_type_deducer_t<Type_Converter, S>>;
 
-      struct HHH {};
-      static_assert(!has_to_wasm_v<int, type_converter<HHH>>);
-
       template <typename Args, typename S, std::size_t At, class Type_Converter, std::size_t... Is>
       inline constexpr auto create_value(Type_Converter& tc, std::index_sequence<Is...>) {
          constexpr std::size_t offset = total_operands_v<Args, Type_Converter> - 1;
@@ -277,8 +274,9 @@ namespace eosio { namespace vm {
             using source_t = std::tuple_element_t<At, Args>;
             using tuple_t  = std::conditional_t<std::is_lvalue_reference_v<source_t>, reference<std::decay_t<source_t>>, source_t>;
             constexpr std::size_t skip_amt = skip_amount<source_t, Type_Converter>();
+            auto tail = get_values<Args, At+1, Skip_Amt + skip_amt>(tc);
             return std::tuple_cat(std::tuple<tuple_t>(create_value<Args, source_t, Skip_Amt>(tc, std::make_index_sequence<skip_amt>{})),
-                  get_values<Args, At+1, Skip_Amt + skip_amt>(tc));
+                                  std::move(tail));
          }
       }
 
