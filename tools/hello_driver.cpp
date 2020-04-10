@@ -31,6 +31,14 @@ struct example_host_methods {
    }
 };
 
+struct cnv : type_converter<example_host_methods> {
+   using type_converter::type_converter;
+   using type_converter::from_wasm;
+   EOS_VM_FROM_WASM(bool, (uint32_t value)) { return value ? 1 : 0; }
+   EOS_VM_FROM_WASM(char*, (void* ptr)) { return static_cast<char*>(ptr); }
+   EOS_VM_FROM_WASM(const char*, (void* ptr)) { return static_cast<char*>(ptr); }
+};
+
 EOS_VM_PRECONDITION(test_name,
       EOS_VM_INVOKE_ON(const char*, [&](auto&& nm, auto&&... rest) {
          std::string s = nm;
@@ -49,7 +57,7 @@ int main(int argc, char** argv) {
    // Thread specific `allocator` used for wasm linear memory.
    wasm_allocator wa;
    // Specific the backend with example_host_methods for host functions.
-   using rhf_t     = eosio::vm::registered_host_functions<example_host_methods>;
+   using rhf_t     = eosio::vm::registered_host_functions<example_host_methods, execution_interface, cnv>;
    using backend_t = eosio::vm::backend<rhf_t>;
 
    // register print_num

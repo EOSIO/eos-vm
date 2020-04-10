@@ -73,8 +73,17 @@ EOS_VM_PRECONDITION(check2_all,
          check2++;
       }));
 
+struct cnv : type_converter<standalone_function_t> {
+   using type_converter::from_wasm;
+   using type_converter::type_converter;
+   EOS_VM_FROM_WASM(char*, (void* ptr)) { return static_cast<char*>(ptr); }
+   EOS_VM_FROM_WASM(const char*, (void* ptr)) { return static_cast<char*>(ptr); }
+   EOS_VM_FROM_WASM(float*, (void* ptr)) { return static_cast<float*>(ptr); }
+   EOS_VM_FROM_WASM(int&, (void* ptr)) { return *static_cast<int*>(ptr); }
+};
+
 BACKEND_TEST_CASE("Testing invoke_on", "[preconditions_tests]") {
-   using rhf_t = registered_host_functions<standalone_function_t>;
+   using rhf_t = registered_host_functions<standalone_function_t, execution_interface, cnv>;
    using backend_t = backend<rhf_t, TestType>;
 
 /*
