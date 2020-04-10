@@ -118,7 +118,7 @@ namespace eosio { namespace vm {
       static constexpr bool is_defined = true;
    };
    template<typename Options>
-   constexpr auto get_max_func_local_bytes_no_stack_c(int) -> decltype(Options::max_func_local_bytes_flags == (max_func_local_bytes_flags_t)0)
+   constexpr auto get_max_func_local_bytes_no_stack_c(int) -> std::enable_if_t<std::is_pointer_v<decltype(&Options::max_func_local_bytes_flags)>, bool>
    { return (Options::max_func_local_bytes_flags & max_func_local_bytes_flags_t::stack) == (max_func_local_bytes_flags_t)0; }
    template<typename Options>
    constexpr auto get_max_func_local_bytes_no_stack_c(long) -> bool { return false; }
