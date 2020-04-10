@@ -72,7 +72,7 @@ void c_style_host_function_4(const state_t& ss) {
 
 // Combinations:
 // Member/Free
-// host object/converted host object/no host object/discarded host object - done
+// host object/no host object - done
 // parameters: none/bool/int32_t/uint32_t/int64_t/uint64_t/float/double/cv-pointer/cv-reference/two
 // result: void/bool/int32_t/uint32_t/int64_t/uint64_t/float/double/cv-pointer/cv_reference - done
 // call/call_indirect/direct execution - done
@@ -86,29 +86,21 @@ void c_style_host_function_4(const state_t& ss) {
 // - wasm1/wasm2 mixed -> native -> exit wasm2
 
 
-namespace eosio { namespace vm {
-   template<typename T>
-   struct wasm_type_converter<T*> {
-      static T* from_wasm(void* val) {
-         return (T*)val;
-      }
-      static void* to_wasm(T* val) {
-         return (void*)val;
-      }
-   };
-
-   template<typename T>
-   struct wasm_type_converter<T&> {
-      static T& from_wasm(T* val) {
-         return *val;
-      }
-      static T* to_wasm(T& val) {
-        return std::addressof(val);
-      }
-   };
-}}
-
 namespace {
+
+template<typename Host>
+struct cnv : type_converter<Host> {
+   using type_converter<Host>::type_converter;
+   using type_converter<Host>::from_wasm;
+   template<typename T>
+   auto from_wasm(void* ptr) const -> std::enable_if_t<std::is_pointer_v<T>, T> {
+      return static_cast<T>(ptr);
+   }
+   template<typename T>
+   auto from_wasm(void* ptr) const -> std::enable_if_t<std::is_lvalue_reference_v<T>, T> {
+      return *static_cast<std::remove_reference_t<T>*>(ptr);
+   }
+};
 
 template<typename T>
 struct ref {
@@ -138,12 +130,6 @@ struct member_host_function {
    T get() const { return global_test_value<T>; }
 };
 
-struct discard_host_function {};
-
-struct transform_host_function {
-   operator member_host_function() { return {}; }
-};
-
 }
 
 #include "host_functions_tests_1.wasm.hpp"
@@ -152,9 +138,13 @@ wasm_code host_functions_tests_1_code{
    host_functions_tests_1_wasm + 0,
    host_functions_tests_1_wasm + sizeof(host_functions_tests_1_wasm)};
 
-template<class Functions, class Host, class Transform, class Impl>
+template<class Functions, class Host, class Impl>
 struct init_backend {
-   init_backend(Host* host) : _host(host) {
+   init_backend(Host* host) : bkend{host_functions_tests_1_code, (init_host_functions(), &wa)}, _host(host) {
+      rhf_t::resolve(bkend.get_module());
+   }
+
+   static void init_host_functions() {
       add<bool>("b");
       add<int32_t>("i32");
       add<uint32_t>("ui32");
@@ -170,33 +160,39 @@ struct init_backend {
       add<const char&>("cref");
       add<volatile char&>("vref");
       add<const volatile char&>("cvref");
-
-      bkend.set_wasm_allocator(&wa);
-      bkend.initialize(nullptr);
-
-      rhf_t::resolve(bkend.get_module());
    }
 
    template<typename T>
-   void add(const std::string& name) {
-      rhf_t::template add<Transform, &Functions::template put<T>>("env", "put_" + name);
-      rhf_t::template add<Transform, &Functions::template get<T>>("env", "get_" + name);
+   static void add(const std::string& name) {
+      rhf_t::template add<&Functions::template put<T>>("env", "put_" + name);
+      rhf_t::template add<&Functions::template get<T>>("env", "get_" + name);
    }
    // forwarding functions
    template<typename... A>
-   auto call_with_return(A&&... a) { return bkend.call_with_return(_host, static_cast<A&&>(a)...); }
+   auto call_with_return(A&&... a) {
+      if constexpr (std::is_same_v<Host, std::nullptr_t>) {
+         return bkend.call_with_return(static_cast<A&&>(a)...);
+      } else {
+         return bkend.call_with_return(*_host, static_cast<A&&>(a)...);
+      }
+   }
    template<typename... A>
-   auto call(A&&... a) { return bkend.call(_host, static_cast<A&&>(a)...); }
+   auto call(A&&... a) {
+      if constexpr (std::is_same_v<Host, std::nullptr_t>) {
+         return bkend.call(static_cast<A&&>(a)...);
+      } else {
+         return bkend.call(*_host, static_cast<A&&>(a)...);
+      }
+   }
    decltype(auto) get_context() { return bkend.get_context(); }
 
-   using backend_t = eosio::vm::backend<Host, Impl>;
-   using rhf_t     = eosio::vm::registered_host_functions<Host>;
+   using rhf_t     = eosio::vm::registered_host_functions<Host, execution_interface, cnv<Host>>;
+   using backend_t = eosio::vm::backend<rhf_t, Impl>;
    wasm_allocator wa;
-   backend_t bkend{host_functions_tests_1_code};
+   backend_t bkend{host_functions_tests_1_code, &wa};
    Host * _host;
 };
 
-// FIXME: allow direct calling of an imported and exported function
 const std::vector<std::string> fun_prefixes = { "", "call.", "call_indirect." };
 
 template<typename T>
@@ -306,13 +302,9 @@ void test_parameters(Backend&& bkend) {
 }
 
 BACKEND_TEST_CASE( "Test host function parameters", "[host_functions_parameters]" ) {
-   test_parameters(init_backend<static_host_function, nullptr_t, nullptr_t, TestType>{nullptr});
+   test_parameters(init_backend<static_host_function, nullptr_t, TestType>{nullptr});
    member_host_function mhf;
-   test_parameters(init_backend<member_host_function, member_host_function, member_host_function, TestType>{&mhf});
-   discard_host_function dhf;
-   test_parameters(init_backend<static_host_function, discard_host_function, nullptr_t, TestType>{&dhf});
-   transform_host_function thf;
-   test_parameters(init_backend<member_host_function, transform_host_function, member_host_function, TestType>{&thf});
+   test_parameters(init_backend<member_host_function, member_host_function, TestType>{&mhf});
 }
 
 template<class Backend>
@@ -341,45 +333,37 @@ void test_results(Backend&& bkend) {
 }
 
 BACKEND_TEST_CASE( "Test host function results", "[host_functions_results]" ) {
-   test_results(init_backend<static_host_function, nullptr_t, nullptr_t, TestType>{nullptr});
+   test_results(init_backend<static_host_function, nullptr_t, TestType>{nullptr});
    member_host_function mhf;
-   test_results(init_backend<member_host_function, member_host_function, member_host_function, TestType>{&mhf});
-   discard_host_function dhf;
-   test_results(init_backend<static_host_function, discard_host_function, nullptr_t, TestType>{&dhf});
-   transform_host_function thf;
-   test_results(init_backend<member_host_function, transform_host_function, member_host_function, TestType>{&thf});
+   test_results(init_backend<member_host_function, member_host_function, TestType>{&mhf});
 }
 
 BACKEND_TEST_CASE( "Test C-style host function system", "[C-style_host_functions_tests]") {
    wasm_allocator wa;
-   using backend_t = eosio::vm::backend<nullptr_t, TestType>;
-   using rhf_t     = eosio::vm::registered_host_functions<nullptr_t>;
-   rhf_t::add<nullptr_t, &c_style_host_function_0>("env", "c_style_host_function_0");
-   rhf_t::add<nullptr_t, &c_style_host_function_1>("env", "c_style_host_function_1");
-   rhf_t::add<nullptr_t, &c_style_host_function_2>("env", "c_style_host_function_2");
-   rhf_t::add<nullptr_t, &c_style_host_function_3>("env", "c_style_host_function_3");
-   rhf_t::add<nullptr_t, &c_style_host_function_4>("env", "c_style_host_function_4");
+   using rhf_t     = eosio::vm::registered_host_functions<standalone_function_t, execution_interface, cnv<standalone_function_t>>;
+   using backend_t = eosio::vm::backend<rhf_t, TestType>;
+   rhf_t::add<&c_style_host_function_0>("env", "c_style_host_function_0");
+   rhf_t::add<&c_style_host_function_1>("env", "c_style_host_function_1");
+   rhf_t::add<&c_style_host_function_2>("env", "c_style_host_function_2");
+   rhf_t::add<&c_style_host_function_3>("env", "c_style_host_function_3");
+   rhf_t::add<&c_style_host_function_4>("env", "c_style_host_function_4");
 
-   backend_t bkend(host_functions_test_0_wasm);
-   bkend.set_wasm_allocator(&wa);
-   bkend.initialize(nullptr);
+   backend_t bkend(host_functions_test_0_wasm, &wa);
 
-   rhf_t::resolve(bkend.get_module());
-
-   bkend.call(nullptr, "env", "apply", (uint64_t)0, (uint64_t)0, (uint64_t)0);
+   bkend.call("env", "apply", (uint64_t)0, (uint64_t)0, (uint64_t)0);
    CHECK(c_style_host_function_state == 1);
 
-   bkend.call(nullptr, "env", "apply", (uint64_t)1, (uint64_t)2, (uint64_t)0);
+   bkend.call("env", "apply", (uint64_t)1, (uint64_t)2, (uint64_t)0);
    CHECK(c_style_host_function_state == 2);
 
-   bkend.call(nullptr, "env", "apply", (uint64_t)2, (uint64_t)1, (uint64_t)2);
+   bkend.call("env", "apply", (uint64_t)2, (uint64_t)1, (uint64_t)2);
    CHECK(c_style_host_function_state == 3);
 
    float f = 2.4f;
-   bkend.call(nullptr, "env", "apply", (uint64_t)3, (uint64_t)2, (uint64_t)bit_cast<uint32_t>(f));
+   bkend.call("env", "apply", (uint64_t)3, (uint64_t)2, (uint64_t)bit_cast<uint32_t>(f));
    CHECK(c_style_host_function_state == 0x40199980);
 
-   bkend.call(nullptr, "env", "apply", (uint64_t)4, (uint64_t)5, (uint64_t)bit_cast<uint32_t>(f));
+   bkend.call("env", "apply", (uint64_t)4, (uint64_t)5, (uint64_t)bit_cast<uint32_t>(f));
    CHECK(c_style_host_function_state == 5);
 }
 
@@ -392,23 +376,21 @@ extern wasm_allocator wa;
 
 BACKEND_TEST_CASE( "Testing host functions", "[host_functions_test]" ) {
    my_host_functions host;
-   registered_function<my_host_functions, std::nullptr_t, &my_host_functions::test>("host", "test");
-   registered_function<my_host_functions, std::nullptr_t, &my_host_functions::test2>("host", "test2");
+   using rhf_t = registered_host_functions<standalone_function_t>;
+   rhf_t::add<&my_host_functions::test>("host", "test");
+   rhf_t::add<&my_host_functions::test2>("host", "test2");
 
-   using backend_t = backend<my_host_functions, TestType>;
+   using backend_t = backend<rhf_t, TestType>;
 
-   auto code = backend_t::read_wasm( host_wasm );
-   backend_t bkend( code );
-   bkend.set_wasm_allocator( &wa );
-   registered_host_functions<my_host_functions>::resolve(bkend.get_module());
+   auto code = read_wasm( host_wasm );
+   backend_t bkend( code, &wa );
 
-   bkend.initialize();
-   CHECK(bkend.call_with_return(&host, "env", "test", UINT32_C(5))->to_i32() == 49);
-   CHECK(bkend.call_with_return(&host, "env", "test.indirect", UINT32_C(5), UINT32_C(0))->to_i32() == 47);
-   CHECK(bkend.call_with_return(&host, "env", "test.indirect", UINT32_C(5), UINT32_C(1))->to_i32() == 210);
-   CHECK(bkend.call_with_return(&host, "env", "test.indirect", UINT32_C(5), UINT32_C(2))->to_i32() == 49);
-   CHECK_THROWS_AS(bkend.call(&host, "env", "test.indirect", UINT32_C(5), UINT32_C(3)), std::exception);
-   CHECK(bkend.call_with_return(&host, "env", "test.local-call", UINT32_C(5))->to_i32() == 147);
+   CHECK(bkend.call_with_return("env", "test", UINT32_C(5))->to_i32() == 49);
+   CHECK(bkend.call_with_return("env", "test.indirect", UINT32_C(5), UINT32_C(0))->to_i32() == 47);
+   CHECK(bkend.call_with_return("env", "test.indirect", UINT32_C(5), UINT32_C(1))->to_i32() == 210);
+   CHECK(bkend.call_with_return("env", "test.indirect", UINT32_C(5), UINT32_C(2))->to_i32() == 49);
+   CHECK_THROWS_AS(bkend.call("env", "test.indirect", UINT32_C(5), UINT32_C(3)), std::exception);
+   CHECK(bkend.call_with_return("env", "test.local-call", UINT32_C(5))->to_i32() == 147);
 }
 
 struct has_stateful_conversion {
@@ -418,84 +400,81 @@ struct has_stateful_conversion {
 struct stateful_conversion {
    operator has_stateful_conversion() const { return { value }; }
    uint32_t value;
-   stateful_conversion(const stateful_conversion&) = delete;
 };
-
-namespace eosio { namespace vm {
-
-   template<>
-   struct wasm_type_converter<has_stateful_conversion> {
-      ::stateful_conversion from_wasm(uint32_t val) { return { val }; }
-   };
-
-}}
 
 struct host_functions_stateful_converter {
    static int test(has_stateful_conversion x) { return x.value + 42; }
    static int test2(has_stateful_conversion x) { return x.value * 42; }
 };
 
+struct stateful_cnv : type_converter<standalone_function_t> {
+   using type_converter::type_converter;
+   using type_converter::from_wasm;
+   template<typename T>
+   auto from_wasm(uint32_t val) const
+      -> std::enable_if_t<std::is_same_v<T, has_stateful_conversion>,
+                          stateful_conversion> {
+      return { val };
+   }
+};
+
 BACKEND_TEST_CASE( "Testing stateful ", "[host_functions_stateful_converter]") {
    host_functions_stateful_converter host;
-   registered_function<host_functions_stateful_converter, std::nullptr_t, &host_functions_stateful_converter::test>("host", "test");
-   registered_function<host_functions_stateful_converter, std::nullptr_t, &host_functions_stateful_converter::test2>("host", "test2");
+   using rhf_t = registered_host_functions<standalone_function_t, execution_interface, stateful_cnv>;
+   rhf_t::add<&host_functions_stateful_converter::test>("host", "test");
+   rhf_t::add<&host_functions_stateful_converter::test2>("host", "test2");
 
-   using backend_t = backend<host_functions_stateful_converter, TestType>;
+   using backend_t = backend<rhf_t, TestType>;
 
-   auto code = backend_t::read_wasm( host_wasm );
-   backend_t bkend( code );
-   bkend.set_wasm_allocator( &wa );
-   registered_host_functions<host_functions_stateful_converter>::resolve(bkend.get_module());
+   auto code = read_wasm( host_wasm );
+   backend_t bkend( code, &wa );
 
-   bkend.initialize();
-   CHECK(bkend.call_with_return(&host, "env", "test", UINT32_C(5))->to_i32() == 49);
-   CHECK(bkend.call_with_return(&host, "env", "test.indirect", UINT32_C(5), UINT32_C(0))->to_i32() == 47);
-   CHECK(bkend.call_with_return(&host, "env", "test.indirect", UINT32_C(5), UINT32_C(1))->to_i32() == 210);
-   CHECK(bkend.call_with_return(&host, "env", "test.indirect", UINT32_C(5), UINT32_C(2))->to_i32() == 49);
-   CHECK_THROWS_AS(bkend.call(&host, "env", "test.indirect", UINT32_C(5), UINT32_C(3)), std::exception);
-   CHECK(bkend.call_with_return(&host, "env", "test.local-call", UINT32_C(5))->to_i32() == 147);
+   CHECK(bkend.call_with_return("env", "test", UINT32_C(5))->to_i32() == 49);
+   CHECK(bkend.call_with_return("env", "test.indirect", UINT32_C(5), UINT32_C(0))->to_i32() == 47);
+   CHECK(bkend.call_with_return("env", "test.indirect", UINT32_C(5), UINT32_C(1))->to_i32() == 210);
+   CHECK(bkend.call_with_return("env", "test.indirect", UINT32_C(5), UINT32_C(2))->to_i32() == 49);
+   CHECK_THROWS_AS(bkend.call("env", "test.indirect", UINT32_C(5), UINT32_C(3)), std::exception);
+   CHECK(bkend.call_with_return("env", "test.local-call", UINT32_C(5))->to_i32() == 147);
 }
 
 // Test overloaded frow_wasm and order of destruction of converters
 
 struct has_multi_converter {
-   uint32_t value;
+   uint32_t v1;
+   uint32_t v2;
 };
 static std::vector<int> multi_converter_destructor_order;
 struct multi_converter {
-   uint32_t value;
-   int num_trailing;
-   operator has_multi_converter() const { return { value }; }
-   ~multi_converter() { multi_converter_destructor_order.push_back(num_trailing); }
-   multi_converter(const multi_converter&) = delete;
+   uint32_t v1;
+   uint32_t v2;
+   operator has_multi_converter() const { return { v1, v2 }; }
+   ~multi_converter() { multi_converter_destructor_order.push_back(v1); }
+   multi_converter(multi_converter&&) = delete;
 };
 
-namespace eosio { namespace vm {
-
-   template<>
-   struct wasm_type_converter< ::has_multi_converter> {
-      ::multi_converter from_wasm(uint32_t val) { return { val, 0 }; }
-      ::multi_converter from_wasm(uint32_t val, has_multi_converter X0) {
-         return { val, 1 };
-      }
-      ::multi_converter from_wasm(uint32_t val, has_multi_converter X0, has_multi_converter X1) {
-         return { val, 2 };
-      }
-   };
-
-}}
-
 struct host_functions_multi_converter {
-   static unsigned test(has_multi_converter x, has_multi_converter y, has_multi_converter z, has_multi_converter w) {
-      return 1*x.value + 10*y.value + 100*z.value + 1000*w.value;
+   static unsigned test(has_multi_converter x, has_multi_converter y) {
+      return 1*x.v1 + 10*x.v2 + 100*y.v1 + 1000*y.v2;
+   }
+};
+
+struct multi_cnv : type_converter<standalone_function_t> {
+   using type_converter::type_converter;
+   using type_converter::from_wasm;
+   template<typename T>
+   auto from_wasm(uint32_t v0, uint32_t v1) const
+      -> std::enable_if_t<std::is_same_v<T, has_multi_converter>,
+                          multi_converter> {
+      return { v0, v1 };
    }
 };
 
 BACKEND_TEST_CASE( "Testing multi ", "[host_functions_multi_converter]") {
    host_functions_multi_converter host;
-   registered_function<host_functions_multi_converter, std::nullptr_t, &host_functions_multi_converter::test>("host", "test");
+   using rhf_t = registered_host_functions<standalone_function_t, execution_interface, multi_cnv>;
+   rhf_t::add<&host_functions_multi_converter::test>("host", "test");
 
-   using backend_t = backend<host_functions_multi_converter, TestType>;
+   using backend_t = backend<rhf_t, TestType>;
 
    /*
      (module
@@ -509,14 +488,11 @@ BACKEND_TEST_CASE( "Testing multi ", "[host_functions_multi_converter]") {
       0x6f, 0x73, 0x74, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00, 0x00, 0x07, 0x08,
       0x01, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00, 0x00
    };
-   backend_t bkend( code );
-   bkend.set_wasm_allocator( &wa );
-   registered_host_functions<host_functions_multi_converter>::resolve(bkend.get_module());
+   backend_t bkend( code, &wa );
 
-   bkend.initialize();
    multi_converter_destructor_order.clear();
-   CHECK(bkend.call_with_return(&host, "env", "test", UINT32_C(1), UINT32_C(2), UINT32_C(3), UINT32_C(4))->to_i32() == 4321);
-   CHECK(multi_converter_destructor_order == std::vector{2, 2, 1, 0});
+   CHECK(bkend.call_with_return("env", "test", UINT32_C(1), UINT32_C(2), UINT32_C(3), UINT32_C(4))->to_i32() == 4321);
+   CHECK(multi_converter_destructor_order == std::vector{1, 3});
 }
 
 struct test_exception {};
@@ -527,38 +503,34 @@ struct host_functions_throw {
 
 BACKEND_TEST_CASE( "Testing throwing host functions", "[host_functions_throw_test]" ) {
    host_functions_throw host;
-   registered_function<host_functions_throw, std::nullptr_t, &host_functions_throw::test>("host", "test");
-   registered_function<host_functions_throw, std::nullptr_t, &host_functions_throw::test>("host", "test2");
+   using rhf_t = registered_host_functions<standalone_function_t>;
+   rhf_t::add<&host_functions_throw::test>("host", "test");
+   rhf_t::add<&host_functions_throw::test>("host", "test2");
 
-   using backend_t = backend<host_functions_throw, TestType>;
+   using backend_t = backend<rhf_t, TestType>;
 
-   auto code = backend_t::read_wasm( host_wasm );
-   backend_t bkend( code );
-   bkend.set_wasm_allocator( &wa );
-   registered_host_functions<host_functions_throw>::resolve(bkend.get_module());
+   auto code = read_wasm( host_wasm );
+   backend_t bkend( code, &wa );;
 
-   bkend.initialize();
-   CHECK_THROWS_AS(bkend.call(&host, "env", "test", UINT32_C(2)), test_exception);
+   CHECK_THROWS_AS(bkend.call("env", "test", UINT32_C(2)), test_exception);
 }
 
 template<typename Impl>
 struct host_functions_exit {
-   typename Impl::template context<host_functions_exit> * context;
+   typename Impl::template context<registered_host_functions<host_functions_exit>> * context;
    int test(int) { context->exit(); return 0; }
 };
 
 BACKEND_TEST_CASE( "Testing exiting host functions", "[host_functions_exit_test]" ) {
-   registered_function<host_functions_exit<TestType>, host_functions_exit<TestType>, &host_functions_exit<TestType>::test>("host", "test");
-   registered_function<host_functions_exit<TestType>, host_functions_exit<TestType>, &host_functions_exit<TestType>::test>("host", "test2");
+   using rhf_t = registered_host_functions<host_functions_exit<TestType>>;
+   rhf_t::template add<&host_functions_exit<TestType>::test>("host", "test");
+   rhf_t::template add<&host_functions_exit<TestType>::test>("host", "test2");
 
-   using backend_t = backend<host_functions_exit<TestType>, TestType>;
+   using backend_t = backend<rhf_t, TestType>;
 
-   auto code = backend_t::read_wasm( host_wasm );
-   backend_t bkend( code );
-   bkend.set_wasm_allocator( &wa );
-   registered_host_functions<host_functions_exit<TestType>>::resolve(bkend.get_module());
+   auto code = read_wasm( host_wasm );
+   backend_t bkend( code, &wa );
    host_functions_exit<TestType> host{&bkend.get_context()};
 
-   bkend.initialize();
-   CHECK(!bkend.call_with_return(&host, "env", "test", UINT32_C(2)));
+   CHECK(!bkend.call_with_return(host, "env", "test", UINT32_C(2)));
 }
