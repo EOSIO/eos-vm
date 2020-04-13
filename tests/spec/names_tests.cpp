@@ -518,14 +518,3 @@ BACKEND_TEST_CASE( "Testing wasm <names_2_wasm>", "[names_2_wasm_tests]" ) {
    CHECK(bkend.call_with_return(nullptr, "env", "\352\231\256")->to_ui32() == UINT32_C(475));
 }
 
-/*
-BACKEND_TEST_CASE( "Testing wasm <names_3_wasm>", "[names_3_wasm_tests]" ) {
-   using backend_t = backend<std::nullptr_t, TestType>;
-   auto code = backend_t::read_wasm( std::string(wasm_directory) + "names.3.wasm");
-   backend_t bkend( code );
-   bkend.set_wasm_allocator( &wa );
-   bkend.initialize(nullptr);
-
-   CHECK(!bkend.call_with_return(nullptr, "env", "print32", UINT32_C(42), UINT32_C(123)));
-}
-*/
