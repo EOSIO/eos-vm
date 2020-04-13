@@ -25,7 +25,7 @@ namespace eosio { namespace vm {
          using const_reference = const T&;
          using iterator = T*;
          using reverse_iterator = std::reverse_iterator<iterator>;
-         static constexpr std::size_t extend = Extent;
+         static constexpr std::size_t extent = Extent;
 
          template<std::size_t E = Extent, typename Enable = std::enable_if_t<E == dynamic_extent || E == 0>>
          constexpr span() noexcept : first_elem(nullptr), last_elem(nullptr) {}
@@ -72,17 +72,17 @@ namespace eosio { namespace vm {
          inline constexpr std::size_t size_bytes() const noexcept { return size() * sizeof(T); }
          inline constexpr bool empty() const noexcept { return size() == 0; }
 
-         inline constexpr span first(std::size_t len) const {
+         inline constexpr span<T, dynamic_extent> first(std::size_t len) const {
             EOS_VM_ASSERT(len <= size(), span_exception, "length overflows span");
             return {first_elem, first_elem + len};
          }
 
-         inline constexpr span last(std::size_t len) const {
+         inline constexpr span<T, dynamic_extent> last(std::size_t len) const {
             EOS_VM_ASSERT(len <= size(), span_exception, "length underflows span");
             return {last_elem - len, last_elem};
          }
 
-         inline constexpr span subspan(std::size_t offset, std::size_t len = dynamic_extent) const {
+         inline constexpr span<T, dynamic_extent> subspan(std::size_t offset, std::size_t len = dynamic_extent) const {
             if(len == dynamic_extent) len = size() - offset;
             EOS_VM_ASSERT(first_elem + offset + len <= last_elem, span_exception, "length overflows span");
             return {first_elem + offset, len};
