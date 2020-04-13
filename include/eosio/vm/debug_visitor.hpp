@@ -5,14 +5,14 @@
 
 #include <iostream>
 
-#define DBG_VISIT(name, code, fmt)                                                                                          \
+#define DBG_VISIT(name, code)                                                                                          \
    void operator()(EOS_VM_OPCODE_T(name)& op) {                                                                        \
-      std::cout << "Found { " << op.wast() << "} at " << get_context().get_pc() << "\n";                                      \
+      std::cout << "Found " << #name << " at " << get_context().get_pc() << "\n";                                      \
       interpret_visitor<ExecutionCTX>::operator()(op);                                                                 \
       get_context().print_stack();                                                                                     \
    }
 
-#define DBG2_VISIT(name, code, fmt)                                                                                         \
+#define DBG2_VISIT(name, code)                                                                                         \
    void operator()(EOS_VM_OPCODE_T(name)& op) { std::cout << "Found " << #name << "\n"; }
 
 namespace eosio { namespace vm {

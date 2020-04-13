@@ -653,14 +653,14 @@ namespace eosio { namespace vm {
          }
       }
 
-#define CREATE_TABLE_ENTRY(NAME, CODE, FMT) &&ev_label_##NAME,
-#define CREATE_LABEL(NAME, CODE, FMT)                                                                                  \
+#define CREATE_TABLE_ENTRY(NAME, CODE) &&ev_label_##NAME,
+#define CREATE_LABEL(NAME, CODE)                                                                                  \
       ev_label_##NAME : visitor(ev_variant->template get<eosio::vm::EOS_VM_OPCODE_T(NAME)>());                    \
       ev_variant = _state.pc; \
       goto* dispatch_table[ev_variant->index()];
-#define CREATE_EXIT_LABEL(NAME, CODE, FMT) ev_label_##NAME : \
+#define CREATE_EXIT_LABEL(NAME, CODE) ev_label_##NAME : \
       return;
-#define CREATE_EMPTY_LABEL(NAME, CODE, FMT) ev_label_##NAME :  \
+#define CREATE_EMPTY_LABEL(NAME, CODE) ev_label_##NAME :  \
       throw wasm_interpreter_exception{"empty operand"};
 
       template <typename Visitor>
