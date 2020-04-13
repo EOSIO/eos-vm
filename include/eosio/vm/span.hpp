@@ -24,73 +24,76 @@ namespace eosio { namespace vm {
          using reference = T&;
          using const_reference = const T&;
          using iterator = T*;
-         template <typename It>
-         inline constexpr span(It first, std::size_t len) : first_elem(first), last_elem(first + len - 1) {}
-         template <typename It>
-         inline constexpr span(It first, It last) : first_elem(first), last_elem(last) {
+         using reverse_iterator = std::reverse_iterator<iterator>;
+         static constexpr std::size_t extend = Extent;
+
+         template<std::size_t E = Extent, typename Enable = std::enable_if_t<E == dynamic_extent || E == 0>>
+         constexpr span() noexcept : first_elem(nullptr), last_elem(nullptr) {}
+
+         // Non-conforming: Only allows pointers, not any contiguous iterator.
+         // Implementing a conforming version of this constructor requires C++20.
+         inline constexpr span(pointer first, std::size_t len) : first_elem(first), last_elem(first + len) {
+            EOS_VM_ASSERT(Extent == dynamic_extent || Extent == size(), span_exception, "Wrong size for span with static extent");
+         }
+         inline constexpr span(pointer first, pointer last) : first_elem(first), last_elem(last) {
             EOS_VM_ASSERT(last >= first, span_exception, "last iterator < first iterator");
+            EOS_VM_ASSERT(Extent == dynamic_extent || Extent == size(), span_exception, "Wrong size for span with static extent");
          }
 
-         template <std::size_t N>
-         inline constexpr span(T (&arr)[N]) : first_elem(&arr[0]), last_elem(&arr[N-1]) {}
+         template <std::size_t N, typename Enable = std::enable_if_t<(Extent == dynamic_extent || N == Extent)>>
+         inline constexpr span(T (&arr)[N]) noexcept : first_elem(&arr[0]), last_elem(&arr[0] + N) {}
 
-         template <std::size_t N>
-         inline constexpr span(std::array<T, N>& arr) : first_elem(arr.data()), last_elem(arr.data() + (N-1)) {}
+         template <typename U, std::size_t N,
+                   typename Enable = std::enable_if_t<(Extent == dynamic_extent || N == Extent) && std::is_convertible_v<U(*)[], T(*)[]>>>
+         inline constexpr span(std::array<U, N>& arr) noexcept : first_elem(arr.data()), last_elem(arr.data() + N) {}
 
-         template <std::size_t N>
-         inline constexpr span(const std::array<T, N>& arr) : first_elem(arr.data()), last_elem(arr.data() + (N-1)) {}
+         template <typename U, std::size_t N,
+                   typename Enable = std::enable_if_t<(Extent == dynamic_extent || N == Extent) && std::is_convertible_v<const U(*)[], T(*)[]>>>
+         inline constexpr span(const std::array<U, N>& arr) noexcept : first_elem(arr.data()), last_elem(arr.data() + N) {}
+
+         // Not implemented:
+         // template<typename R> span(R&&);
+         // template<typename U, typename E> span(const span<U, E>&);
+
          inline constexpr span(const span&) = default;
          inline constexpr span(span&&) = default;
 
-         inline constexpr iterator begin()  { return first_elem; }
-         inline constexpr iterator end()    { return last_elem + 1; }
-         inline constexpr iterator rbegin() { return last_elem; }
-         inline constexpr iterator rend()   { return first_elem - 1; }
+         inline constexpr iterator begin() const noexcept { return first_elem; }
+         inline constexpr iterator end()   const noexcept { return last_elem; }
+         inline constexpr reverse_iterator rbegin() const noexcept { return reverse_iterator{last_elem}; }
+         inline constexpr reverse_iterator rend()   const noexcept { return reverse_iterator{first_elem}; }
 
-         inline constexpr T& front()             { return *first_elem; }
-         inline constexpr const T& front() const { return *first_elem; }
-         inline constexpr T& back()              { return *last_elem; }
-         inline constexpr const T& back() const  { return *last_elem; }
-         inline constexpr T& operator[](std::size_t n) { return first_elem[n]; }
-         inline constexpr const T& operator[](std::size_t n) const { return first_elem[n]; }
-         inline constexpr T& at(std::size_t n) {
-            EOS_VM_ASSERT(first_elem + n <= last_elem, span_exception, "index overflows span");
-            return operator[](n);
-         }
-         inline constexpr const T& at(std::size_t n) const {
-            EOS_VM_ASSERT(first_elem + n <= last_elem, span_exception, "index overflows span");
-            return operator[](n);
-         }
+         inline constexpr T& front() const { return *first_elem; }
+         inline constexpr T& back() const  { return *(last_elem - 1); }
+         inline constexpr T& operator[](std::size_t n) const { return first_elem[n]; }
 
-         inline constexpr T* data() { return first_elem; }
-         inline constexpr const T* data() const { return first_elem; }
-         inline constexpr std::size_t size() const { return last_elem - first_elem + 1; }
-         inline constexpr std::size_t size_bytes() const { return size() * sizeof(T); }
-         inline constexpr bool empty() const { return size() == 0; }
+         inline constexpr T* data() const noexcept { return first_elem; }
+         inline constexpr std::size_t size() const noexcept { return last_elem - first_elem; }
+         inline constexpr std::size_t size_bytes() const noexcept { return size() * sizeof(T); }
+         inline constexpr bool empty() const noexcept { return size() == 0; }
 
          inline constexpr span first(std::size_t len) const {
-            EOS_VM_ASSERT(first_elem + len <= last_elem, span_exception, "length overflows span");
-            return {first_elem, first_elem + len - 1};
+            EOS_VM_ASSERT(len <= size(), span_exception, "length overflows span");
+            return {first_elem, first_elem + len};
          }
 
          inline constexpr span last(std::size_t len) const {
-            EOS_VM_ASSERT(last_elem - len >= first_elem, span_exception, "length underflows span");
-            return {last_elem - len + 1, last_elem};
+            EOS_VM_ASSERT(len <= size(), span_exception, "length underflows span");
+            return {last_elem - len, last_elem};
          }
 
-         inline constexpr span subspan(std::size_t offset, std::size_t len) const {
+         inline constexpr span subspan(std::size_t offset, std::size_t len = dynamic_extent) const {
+            if(len == dynamic_extent) len = size() - offset;
             EOS_VM_ASSERT(first_elem + offset + len <= last_elem, span_exception, "length overflows span");
             return {first_elem + offset, len};
-         }
-
-         bool operator==(const span& other) const {
-            return first_elem == other.first_elem && last_elem == other.last_elem;
          }
 
       private:
          iterator first_elem;
          iterator last_elem;
    };
+
+   // No deduction guides
 
    namespace detail {
       template <typename T>
