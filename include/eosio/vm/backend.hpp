@@ -111,10 +111,6 @@ namespace eosio { namespace vm {
 
       inline backend& initialize(host_t* host=nullptr) {
          if (memory_alloc) {
-            if (mod.memories.size())
-               memory_alloc->reset(mod.memories[0].limits.initial);
-            else
-               memory_alloc->reset();
             ctx.reset();
             ctx.execute_start(host, interpret_visitor(ctx));
          }
