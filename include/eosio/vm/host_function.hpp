@@ -66,24 +66,9 @@ namespace eosio { namespace vm {
    template <typename T>
    using dependent_type_t = decltype(detail::get_dependent_type(std::declval<T>()));
 
-#define EOS_VM_GET_MACRO(_1, _2, _3, NAME, ...) NAME
-
-#define EOS_VM_FROM_WASM_ERROR(...) \
-   static_assert(false, "EOS_VM_FROM_WASM supplied with the wrong number of arguments");
-
-#define EOS_VM_FROM_WASM_T_IMPL(T, TYPE, PARAMS)                     \
-   template <typename T ## _T, typename T=dependent_type_t<T ## _T>> \
-   auto from_wasm PARAMS const -> std::enable_if_t<std::is_same_v<T ## _T, TYPE>, TYPE>
-
-#define EOS_VM_FROM_WASM_IMPL(TYPE, PARAMS) \
+#define EOS_VM_FROM_WASM(TYPE, PARAMS) \
    template <typename T>                    \
    auto from_wasm PARAMS const -> std::enable_if_t<std::is_same_v<T, TYPE>, TYPE>
-
-#define EOS_VM_FROM_WASM(...) EOS_VM_GET_MACRO(__VA_ARGS__, EOS_VM_FROM_WASM_T_IMPL, \
-                                                            EOS_VM_FROM_WASM_IMPL,   \
-                                                            EOS_VM_FROM_WASM_ERROR)(__VA_ARGS__)
-
-#define EOS_VM_TYPE(...) decltype(std::declval<__VA_ARGS__>())
 
    template <typename T>
    struct reference {
