@@ -92,7 +92,7 @@ add_executable(unit_tests main.cpp
                           guarded_ptr_tests.cpp
                           varint_tests.cpp
                           variant_tests.cpp
-                          #host_functions_tests.cpp
+                          host_functions_tests.cpp
                           preconditions_tests.cpp
                           allow_code_after_function_end_tests.cpp
                           allow_invalid_empty_local_set_tests.cpp
