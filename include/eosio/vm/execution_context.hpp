@@ -230,7 +230,7 @@ namespace eosio { namespace vm {
             }
          }
          _rhf(_host, get_interface(), _mod.import_functions[index]);
-         native_value result{uint32_t{0}};
+         native_value result{uint64_t{0}};
          // guarantee that the junk bits are zero, to avoid problems.
          auto set_result = [&result](auto val) { std::memcpy(&result, &val, sizeof(val)); };
          if(ft.return_count) {
