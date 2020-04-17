@@ -88,7 +88,7 @@ namespace eosio { namespace vm {
       }
 
       constexpr span<T>& ref() { return _span; }
-      constexpr span<T>& operator->() { return _span; }
+      constexpr span<T>* operator->() { return &_span; }
 
       static constexpr bool is_legacy() { return false; }
 
