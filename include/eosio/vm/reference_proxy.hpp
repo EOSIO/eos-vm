@@ -28,18 +28,25 @@ namespace eosio { namespace vm {
             if (copy)
                memcpy( original_ptr, std::addressof(*copy), sizeof(internal_type) );
       }
-      constexpr operator internal_type*() const {
+      constexpr operator internal_type*() {
          if (copy)
             return std::addressof(*copy);
          else
-            return original_ptr;
+            return static_cast<internal_type*>(original_ptr);
+      }
+      constexpr operator const internal_type*() const {
+         if (copy)
+            return std::addressof(*copy);
+         else
+            return static_cast<const internal_type*>(original_ptr);
       }
 
-      constexpr operator internal_type&() const {
-         if (copy)
-            return *copy;
-         else
-            return *static_cast<internal_type*>(original_ptr);
+      constexpr operator internal_type&() {
+         return *static_cast<internal_type*>(*this);
+      }
+
+      constexpr operator const internal_type&() const {
+         return *static_cast<const internal_type*>(*this);
       }
 
       constexpr internal_type* get() { return (internal_type*)*this; }
@@ -52,7 +59,7 @@ namespace eosio { namespace vm {
       using dependent_type = T;
 
       void* original_ptr;
-      mutable std::optional<std::remove_cv_t<internal_type>> copy;
+      std::optional<std::remove_cv_t<internal_type>> copy;
    };
 
    template <typename T, std::size_t LegacyAlign>
