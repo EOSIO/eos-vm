@@ -342,7 +342,7 @@ namespace eosio { namespace vm {
 
    template <auto F, typename Preconditions, typename Host, typename Args, typename Type_Converter, std::size_t... Is>
    decltype(auto) invoke_with_host_impl(Type_Converter& tc, Host* host, Args&& args, std::index_sequence<Is...>) {
-      detail::preconditions_runner<0, Preconditions>(tc, std::forward<Args>(args));
+      detail::preconditions_runner<0, Preconditions>(tc, args);
       return invoke_impl<F, Preconditions>(tc, host, std::get<Is>(static_cast<Args&&>(args))...);
    }
 
