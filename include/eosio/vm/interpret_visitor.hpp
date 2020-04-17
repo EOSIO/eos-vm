@@ -52,9 +52,9 @@ namespace eosio { namespace vm {
 
       [[gnu::always_inline]] inline void operator()(const end_t& op) { context.inc_pc(); }
       [[gnu::always_inline]] inline void operator()(const return_t& op) { context.apply_pop_call(op.data, op.pc); }
-      [[gnu::always_inline]] inline void operator()(block_t& op) { context.inc_pc(); }
-      [[gnu::always_inline]] inline void operator()(loop_t& op) { context.inc_pc(); }
-      [[gnu::always_inline]] inline void operator()(if_t& op) {
+      [[gnu::always_inline]] inline void operator()(const block_t& op) { context.inc_pc(); }
+      [[gnu::always_inline]] inline void operator()(const loop_t& op) { context.inc_pc(); }
+      [[gnu::always_inline]] inline void operator()(const if_t& op) {
          context.inc_pc();
          const auto& oper = context.pop_operand();
          if (!oper.to_ui32()) {
