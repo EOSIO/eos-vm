@@ -72,7 +72,7 @@ namespace eosio { namespace vm {
 
    template <typename T>
    struct reference {
-      constexpr reference(void* ptr) : value(reinterpret_cast<T*>(ptr)) {}
+      constexpr reference(T& t) : value(std::addressof(t)) {}
 
       operator T&() { return *value; }
       //operator const T&() { return *value; }
@@ -254,8 +254,9 @@ namespace eosio { namespace vm {
             using source_t = std::tuple_element_t<At, Args>;
             constexpr std::size_t skip_amt = skip_amount<source_t, Type_Converter>();
             using converted_t = decltype(create_value<Args, source_t, Skip_Amt>(tc, std::make_index_sequence<skip_amt>{}));
+            using wrapped_t = std::conditional_t<std::is_reference_v<converted_t>, reference<std::remove_reference_t<converted_t>>, converted_t>;
             auto tail = get_values<Args, At+1, Skip_Amt + skip_amt>(tc);
-            return std::tuple_cat(std::tuple<converted_t>(create_value<Args, source_t, Skip_Amt>(tc, std::make_index_sequence<skip_amt>{})),
+            return std::tuple_cat(std::tuple<wrapped_t>(create_value<Args, source_t, Skip_Amt>(tc, std::make_index_sequence<skip_amt>{})),
                                   std::move(tail));
          }
       }
@@ -277,14 +278,14 @@ namespace eosio { namespace vm {
       }
 
       template <bool Once, std::size_t Cnt, typename T, typename F, typename Arg, typename... Args>
-      inline constexpr void invoke_on_impl(F&& fn, Arg&& arg, Args&&... args) {
+      inline constexpr void invoke_on_impl(F&& fn, const Arg& arg, const Args&... args) {
          if constexpr (Once) {
             if constexpr (Cnt == 0)
-               std::invoke(fn, std::forward<Arg>(arg), std::forward<Args>(args)...);
+               std::invoke(fn, arg, args...);
          } else {
             if constexpr (std::is_same_v<T, Arg> || std::is_same_v<T, invoke_on_all_t>)
-               std::invoke(fn, std::forward<Arg>(arg), std::forward<Args>(args)...);
-            invoke_on_impl<Once, Cnt+1, T>(std::forward<F>(fn), std::forward<Args>(args)...);
+               std::invoke(fn, arg, args...);
+            invoke_on_impl<Once, Cnt+1, T>(std::forward<F>(fn), args...);
          }
       }
 
@@ -294,43 +295,40 @@ namespace eosio { namespace vm {
       decltype(auto) convert_type(reference<T> t) { return static_cast<T&>(t); }
 
       template <typename Precondition, typename Type_Converter, typename Args, std::size_t... Is>
-      inline static auto precondition_runner(Type_Converter& ctx, Args&& args, std::index_sequence<Is...>) {
-         return Precondition::condition(ctx, std::get<Is>(std::forward<Args>(args))...);
+      inline static void precondition_runner(Type_Converter& ctx, const Args& args, std::index_sequence<Is...>) {
+         Precondition::condition(ctx, std::get<Is>(args)...);
       }
 
       template <std::size_t I, typename Preconditions, typename Type_Converter, typename Args>
-      inline static auto preconditions_runner(Type_Converter& ctx, Args&& args) {
+      inline static void preconditions_runner(Type_Converter& ctx, const Args& args) {
          constexpr std::size_t args_size = std::tuple_size_v<Args>;
          constexpr std::size_t preconds_size = std::tuple_size_v<Preconditions>;
-         if constexpr (I < preconds_size)
-            return preconditions_runner<I+1, Preconditions>(ctx,
-                   precondition_runner<std::tuple_element_t<I, Preconditions>>(ctx,
-                      std::forward<Args>(args), std::make_index_sequence<args_size>{}));
-         else
-            return std::move(args);
+         if constexpr (I < preconds_size) {
+            precondition_runner<std::tuple_element_t<I, Preconditions>>(ctx, args, std::make_index_sequence<args_size>{});
+            preconditions_runner<I+1, Preconditions>(ctx, args);
+         }
       }
    } //ns detail
 
    template <bool Once, typename T, typename F, typename... Args>
-   void invoke_on(F&& func, Args&&... args) {
-      detail::invoke_on_impl<Once, 0, T>(static_cast<F&&>(func), std::forward<Args>(args)...);
+   void invoke_on(F&& func, const Args&... args) {
+      detail::invoke_on_impl<Once, 0, T>(static_cast<F&&>(func), args...);
    }
 
 #define EOS_VM_INVOKE_ON(TYPE, CONDITION) \
-   eosio::vm::invoke_on<false, TYPE>(CONDITION, std::forward<Args>(args)...);
+   eosio::vm::invoke_on<false, TYPE>(CONDITION, args...);
 
 #define EOS_VM_INVOKE_ON_ALL(CONDITION) \
-   eosio::vm::invoke_on<false, eosio::vm::invoke_on_all_t>(CONDITION, std::forward<Args>(args)...);
+   eosio::vm::invoke_on<false, eosio::vm::invoke_on_all_t>(CONDITION, args...);
 
 #define EOS_VM_INVOKE_ONCE(CONDITION) \
-   eosio::vm::invoke_on<true, eosio::vm::invoke_on_all_t>(CONDITION, std::forward<Args>(args)...);
+   eosio::vm::invoke_on<true, eosio::vm::invoke_on_all_t>(CONDITION, args...);
 
 #define EOS_VM_PRECONDITION(NAME, ...)                                       \
    struct NAME {                                                             \
       template <typename Type_Converter, typename... Args>                   \
-      inline static decltype(auto) condition(Type_Converter& ctx, Args&&... args) { \
+      inline static decltype(auto) condition(Type_Converter& ctx, const Args&... args) { \
         __VA_ARGS__;                                                         \
-        return std::tuple<Args...>(static_cast<Args&&>(args)...);            \
       }                                                                      \
    };
 
@@ -344,8 +342,8 @@ namespace eosio { namespace vm {
 
    template <auto F, typename Preconditions, typename Host, typename Args, typename Type_Converter, std::size_t... Is>
    decltype(auto) invoke_with_host_impl(Type_Converter& tc, Host* host, Args&& args, std::index_sequence<Is...>) {
-      auto&& forwarded_args = detail::preconditions_runner<0, Preconditions>(tc, std::forward<Args>(args));
-      return invoke_impl<F, Preconditions>(tc, host, std::get<Is>(static_cast<Args&&>(forwarded_args))...);
+      detail::preconditions_runner<0, Preconditions>(tc, std::forward<Args>(args));
+      return invoke_impl<F, Preconditions>(tc, host, std::get<Is>(static_cast<Args&&>(args))...);
    }
 
    template <auto F, typename Preconditions, typename Args, typename Type_Converter, typename Host, std::size_t... Is>
