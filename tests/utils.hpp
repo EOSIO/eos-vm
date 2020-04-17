@@ -10,8 +10,6 @@
 #include <eosio/vm/stack_elem.hpp>
 #include <eosio/vm/utils.hpp>
 
-#include "test_runner.hpp"
-
 struct type_converter32 {
    union {
       uint32_t ui;
