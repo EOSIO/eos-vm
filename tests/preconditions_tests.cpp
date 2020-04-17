@@ -217,12 +217,9 @@ BACKEND_TEST_CASE("Testing invoke_on", "[preconditions_tests]") {
    CHECK(check == 77);
 
    // reset check
-   bkend("env", "call_test_f");
-   CHECK(check == 77);
-
-   // reset check
    check = 0;
    CHECK_MSG("str != hello", bkend("env", "call_test_g"));
+   CHECK(check == 0);
 
    bkend("env", "call_test_h");
    CHECK(check2 == 1);
