@@ -9,6 +9,7 @@ namespace eosio { namespace vm {
    template <typename T, std::size_t LegacyAlign=0>
    struct reference_proxy {
       static_assert(LegacyAlign % alignof(T) == 0, "Specified alignment must be at least alignment of T");
+      static_assert(std::is_trivially_copy_constructible_v<T>, "reference_proxy requires a trivially copyable type");
       using internal_type = std::conditional_t<std::is_pointer_v<T>, std::remove_pointer_t<T>, std::remove_reference_t<T>>;
       inline constexpr reference_proxy(internal_type& val) : reference_proxy(std::addressof(val)) {}
       inline constexpr reference_proxy(void* ptr) : original_ptr(ptr) {
@@ -57,6 +58,7 @@ namespace eosio { namespace vm {
    template <typename T, std::size_t LegacyAlign>
    struct reference_proxy<span<T>, LegacyAlign> {
       static_assert(LegacyAlign % alignof(T) == 0, "Specified alignment must be at least alignment of T");
+      static_assert(std::is_trivially_copy_constructible_v<T>, "reference_proxy requires a trivially copyable type");
       inline constexpr bool is_aligned(void* ptr) { return reinterpret_cast<std::uintptr_t>(original_ptr) % LegacyAlign == 0; }
       inline constexpr reference_proxy(void* ptr, uint32_t size)
          : original_ptr(ptr),
