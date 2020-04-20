@@ -61,10 +61,6 @@ namespace eosio { namespace vm {
       }
 
       inline backend& initialize(Host* host=nullptr) {
-         if(_mod.memories.size())
-            _walloc->reset(_mod.memories[0].limits.initial);
-         else
-            _walloc->reset();
          _ctx.reset();
          _ctx.execute_start(host, interpret_visitor(_ctx));
          return *this;

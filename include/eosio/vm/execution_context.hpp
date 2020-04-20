@@ -64,9 +64,11 @@ namespace eosio { namespace vm {
          EOS_VM_ASSERT(_mod.error == nullptr, wasm_interpreter_exception, _mod.error);
 
          _linear_memory = _wasm_alloc->get_base_ptr<char>();
-         if (_mod.memories.size()) {
-            grow_linear_memory(_mod.memories[0].limits.initial - _wasm_alloc->get_current_page());
-         }
+         if(_mod.memories.size()) {
+            if(_mod.memories[0].limits.initial <= max_pages)
+               _wasm_alloc->reset(_mod.memories[0].limits.initial);
+         } else
+            _wasm_alloc->reset();
 
          for (uint32_t i = 0; i < _mod.data.size(); i++) {
             const auto& data_seg = _mod.data[i];
