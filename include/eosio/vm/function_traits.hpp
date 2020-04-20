@@ -137,9 +137,9 @@ namespace eosio { namespace vm {
       template <std::size_t N, typename F>
       constexpr auto parameters_from_impl(F&& fn) {
          if constexpr (EOS_VM_HAS_MEMBER(fn, operator()))
-            return parameters_from_impl<N, 0>(&F::operator());
+            return parameters_from_impl<N>(&F::operator());
          else
-            return parameters_from_impl<N, 0>(fn);
+            return parameters_from_impl<N>(fn);
       }
 
       template <std::size_t N, typename F>
