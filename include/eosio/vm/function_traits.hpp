@@ -117,24 +117,24 @@ namespace eosio { namespace vm {
           using type = std::tuple<Arg, Args...>;
       };
 
-      template <std::size_t N, std::size_t I, typename... Args>
-      using pack_from_t = typename pack_from<sizeof...(Args), N, I, Args...>::type;
+      template <std::size_t N, typename... Args>
+      using pack_from_t = typename pack_from<sizeof...(Args), N, 0, Args...>::type;
 
-      template <std::size_t N, std::size_t I, typename R, typename... Args>
-      constexpr auto parameters_from_impl(R(Args...)) ->  pack_from_t<N, 0, Args...>;
-      template <std::size_t N, std::size_t I, typename R, typename Cls, typename... Args>
-      constexpr auto parameters_from_impl(R(Cls::*)(Args...)) ->  pack_from_t<N, 0, Args...>;
-      template <std::size_t N, std::size_t I, typename R, typename Cls, typename... Args>
-      constexpr auto parameters_from_impl(R(Cls::*)(Args...)const) ->  pack_from_t<N, 0, Args...>;
-      template <std::size_t N, std::size_t I, typename R, typename Cls, typename... Args>
-      constexpr auto parameters_from_impl(R(Cls::*)(Args...)&) ->  pack_from_t<N, 0, Args...>;
-      template <std::size_t N, std::size_t I, typename R, typename Cls, typename... Args>
-      constexpr auto parameters_from_impl(R(Cls::*)(Args...)&&) ->  pack_from_t<N, 0, Args...>;
-      template <std::size_t N, std::size_t I, typename R, typename Cls, typename... Args>
-      constexpr auto parameters_from_impl(R(Cls::*)(Args...)const &) ->  pack_from_t<N, 0, Args...>;
-      template <std::size_t N, std::size_t I, typename R, typename Cls, typename... Args>
-      constexpr auto parameters_from_impl(R(Cls::*)(Args...)const &&) ->  pack_from_t<N, 0, Args...>;
-      template <std::size_t N, std::size_t I, typename F>
+      template <std::size_t N, typename R, typename... Args>
+      constexpr auto parameters_from_impl(R(Args...)) ->  pack_from_t<N, Args...>;
+      template <std::size_t N, typename R, typename Cls, typename... Args>
+      constexpr auto parameters_from_impl(R(Cls::*)(Args...)) ->  pack_from_t<N, Args...>;
+      template <std::size_t N, typename R, typename Cls, typename... Args>
+      constexpr auto parameters_from_impl(R(Cls::*)(Args...)const) ->  pack_from_t<N, Args...>;
+      template <std::size_t N, typename R, typename Cls, typename... Args>
+      constexpr auto parameters_from_impl(R(Cls::*)(Args...)&) ->  pack_from_t<N, Args...>;
+      template <std::size_t N, typename R, typename Cls, typename... Args>
+      constexpr auto parameters_from_impl(R(Cls::*)(Args...)&&) ->  pack_from_t<N, Args...>;
+      template <std::size_t N, typename R, typename Cls, typename... Args>
+      constexpr auto parameters_from_impl(R(Cls::*)(Args...)const &) ->  pack_from_t<N, Args...>;
+      template <std::size_t N, typename R, typename Cls, typename... Args>
+      constexpr auto parameters_from_impl(R(Cls::*)(Args...)const &&) ->  pack_from_t<N, Args...>;
+      template <std::size_t N, typename F>
       constexpr auto parameters_from_impl(F&& fn) {
          if constexpr (EOS_VM_HAS_MEMBER(fn, operator()))
             return parameters_from_impl<N, 0>(&F::operator());
@@ -143,7 +143,7 @@ namespace eosio { namespace vm {
       }
 
       template <std::size_t N, typename F>
-      using parameters_from_impl_t = decltype(parameters_from_impl<N, 0>(std::declval<F>()));
+      using parameters_from_impl_t = decltype(parameters_from_impl<N>(std::declval<F>()));
    } // ns eosio::vm::detail
 
    template <typename R, typename... Args>
