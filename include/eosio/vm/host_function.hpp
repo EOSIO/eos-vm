@@ -3,7 +3,7 @@
 #include <eosio/vm/allocator.hpp>
 #include <eosio/vm/execution_interface.hpp>
 #include <eosio/vm/function_traits.hpp>
-#include <eosio/vm/reference_proxy.hpp>
+#include <eosio/vm/argument_proxy.hpp>
 #include <eosio/vm/span.hpp>
 #include <eosio/vm/utils.hpp>
 #include <eosio/vm/wasm_stack.hpp>
@@ -111,28 +111,28 @@ namespace eosio { namespace vm {
 
       template <typename T>
       auto from_wasm(void* ptr, wasm_size_t len) const
-         -> std::enable_if_t< is_reference_proxy_type_v<T> &&
-                              is_reference_proxy_legacy_v<T> &&
+         -> std::enable_if_t< is_argument_proxy_type_v<T> &&
+                              is_argument_proxy_legacy_v<T> &&
                               is_span_type_v<dependent_type_t<T>>, T> {
-         this->template validate_pointer<reference_proxy_dependent_type_t<T>>(ptr, len);
+         this->template validate_pointer<argument_proxy_dependent_type_t<T>>(ptr, len);
          return {ptr, len};
       }
 
       template <typename T>
       auto from_wasm(void* ptr) const
-         -> std::enable_if_t< is_reference_proxy_type_v<T> &&
-                              is_reference_proxy_legacy_v<T> &&
+         -> std::enable_if_t< is_argument_proxy_type_v<T> &&
+                              is_argument_proxy_legacy_v<T> &&
                               !is_span_type_v<dependent_type_t<T>>, T> {
-         this->template validate_pointer<reference_proxy_dependent_type_t<T>>(ptr, 1);
+         this->template validate_pointer<argument_proxy_dependent_type_t<T>>(ptr, 1);
          return {ptr};
       }
 
       template <typename T>
       auto from_wasm(void* ptr) const
-         -> std::enable_if_t< is_reference_proxy_type_v<T> &&
-                              !is_reference_proxy_legacy_v<T> &&
+         -> std::enable_if_t< is_argument_proxy_type_v<T> &&
+                              !is_argument_proxy_legacy_v<T> &&
                               !is_span_type_v<dependent_type_t<T>>, T> {
-         this->template validate_pointer<reference_proxy_dependent_type_t<T>*>(ptr, 1);
+         this->template validate_pointer<argument_proxy_dependent_type_t<T>*>(ptr, 1);
          return {ptr};
       }
 

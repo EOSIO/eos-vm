@@ -57,6 +57,8 @@ namespace eosio { namespace vm {
 
          inline constexpr span(const span&) = default;
          inline constexpr span(span&&) = default;
+         inline constexpr span& operator=(const span&) = default;
+         inline constexpr span& operator=(span&&) = default;
 
          inline constexpr iterator begin() const noexcept { return first_elem; }
          inline constexpr iterator end()   const noexcept { return last_elem; }
