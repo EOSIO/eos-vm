@@ -20,13 +20,11 @@ BACKEND_TEST_CASE("Tests that the arguments of top level calls are validated",
                                  0x0a, 0x07, 0x02, 0x02, 0x00, 0x0b, 0x02, 0x00, 0x0b
    };
 
-   using backend_t = backend<nullptr_t, TestType>;
-   backend_t bkend(code);
-   bkend.set_wasm_allocator(&wa);
-   bkend.initialize();
+   using backend_t = backend<std::nullptr_t, TestType>;
+   backend_t bkend(code, &wa);
 
-   CHECK_THROWS_AS(bkend.call(nullptr, "env", "f0", 0), std::exception); // too many arguments
-   CHECK_THROWS_AS(bkend.call(nullptr, "env", "f1"), std::exception); // too few arguments
-   CHECK_THROWS_AS(bkend.call(nullptr, "env", "f1", UINT64_C(0)), std::exception); // wrong type of argument
-   CHECK_THROWS_AS(bkend.call(nullptr, "env", "f1", UINT32_C(0), UINT32_C(0)), std::exception); // too many arguments
+   CHECK_THROWS_AS(bkend.call("env", "f0", 0), std::exception); // too many arguments
+   CHECK_THROWS_AS(bkend.call("env", "f1"), std::exception); // too few arguments
+   CHECK_THROWS_AS(bkend.call("env", "f1", UINT64_C(0)), std::exception); // wrong type of argument
+   CHECK_THROWS_AS(bkend.call("env", "f1", UINT32_C(0), UINT32_C(0)), std::exception); // too many arguments
 }

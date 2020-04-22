@@ -10,8 +10,6 @@
 using namespace eosio;
 using namespace eosio::vm;
 
-extern wasm_allocator wa;
-
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
 BACKEND_TEST_CASE("Test instantiating multiple instances of eos-vm",
@@ -58,9 +56,9 @@ BACKEND_TEST_CASE("Test instantiating multiple instances of eos-vm",
      0x6c, 0x61, 0x6e, 0x67, 0x05, 0x39, 0x2e, 0x30, 0x2e, 0x30
    };
 
-   using backend_t = backend<nullptr_t, TestType>;
+   using backend_t = backend<registered_host_functions<standalone_function_t>, TestType>;
    std::list<backend_t> v;
    for (int i=0; i < 8193; i++)
-      v.emplace_back(test_wasm);
+      v.emplace_back(test_wasm, get_wasm_allocator());
 }
 #pragma GCC pop_options

@@ -74,34 +74,34 @@ struct dynamic_options {
 
 BACKEND_TEST_CASE("Test max_memory_offset default", "[max_memory_offset_test]") {
    using backend_t = backend<std::nullptr_t, TestType>;
-   backend_t backend_load_max(max_load_offset_wasm);
-   backend_t backend_store_max(max_store_offset_wasm);
-   backend_t backend_load_2(load_offset_2_wasm);
-   backend_t backend_store_2(load_offset_2_wasm);
+   backend_t backend_load_max(max_load_offset_wasm, &wa);
+   backend_t backend_store_max(max_store_offset_wasm, &wa);
+   backend_t backend_load_2(load_offset_2_wasm, &wa);
+   backend_t backend_store_2(load_offset_2_wasm, &wa);
 }
 
 BACKEND_TEST_CASE("Test max_memory_offset unlimited", "[max_memory_offset_test]") {
    using backend_t = backend<std::nullptr_t, TestType, empty_options>;
-   backend_t backend_load_max(max_load_offset_wasm);
-   backend_t backend_store_max(max_store_offset_wasm);
-   backend_t backend_load_2(load_offset_2_wasm);
-   backend_t backend_store_2(load_offset_2_wasm);
+   backend_t backend_load_max(max_load_offset_wasm, &wa);
+   backend_t backend_store_max(max_store_offset_wasm, &wa);
+   backend_t backend_load_2(load_offset_2_wasm, &wa);
+   backend_t backend_store_2(load_offset_2_wasm, &wa);
 }
 
 BACKEND_TEST_CASE("Test max_memory_offset static fail", "[max_memory_offset_test]") {
    using backend_t = backend<std::nullptr_t, TestType, static_options_1>;
-   CHECK_THROWS_AS(backend_t(max_load_offset_wasm), wasm_parse_exception);
-   CHECK_THROWS_AS(backend_t(max_store_offset_wasm), wasm_parse_exception);
-   CHECK_THROWS_AS(backend_t(load_offset_2_wasm), wasm_parse_exception);
-   CHECK_THROWS_AS(backend_t(store_offset_2_wasm), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(max_load_offset_wasm, &wa), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(max_store_offset_wasm, &wa), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(load_offset_2_wasm, &wa), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(store_offset_2_wasm, &wa), wasm_parse_exception);
 }
 
 BACKEND_TEST_CASE("Test max_memory_offset static pass", "[max_memory_offset_test]") {
    using backend_t = backend<std::nullptr_t, TestType, static_options_2>;
-   CHECK_THROWS_AS(backend_t(max_load_offset_wasm), wasm_parse_exception);
-   CHECK_THROWS_AS(backend_t(max_store_offset_wasm), wasm_parse_exception);
-   backend_t backend_load_2(load_offset_2_wasm);
-   backend_t backend_store_2(store_offset_2_wasm);
+   CHECK_THROWS_AS(backend_t(max_load_offset_wasm, &wa), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(max_store_offset_wasm, &wa), wasm_parse_exception);
+   backend_t backend_load_2(load_offset_2_wasm, &wa);
+   backend_t backend_store_2(store_offset_2_wasm, &wa);
 }
 
 BACKEND_TEST_CASE("Test max_memory_offset dynamic fail", "[max_memory_offset_test]") {

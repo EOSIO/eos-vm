@@ -35,22 +35,22 @@ struct dynamic_options {
 
 BACKEND_TEST_CASE("Test allow_invalid_empty_local_set default", "[allow_invalid_empty_local_set_test]") {
    using backend_t = backend<std::nullptr_t, TestType>;
-   CHECK_THROWS_AS(backend_t(bad_local_wasm), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(bad_local_wasm, &wa), wasm_parse_exception);
 }
 
 BACKEND_TEST_CASE("Test allow_invalid_empty_local_set empty", "[allow_invalid_empty_local_set_test]") {
    using backend_t = backend<std::nullptr_t, TestType, empty_options>;
-   CHECK_THROWS_AS(backend_t(bad_local_wasm), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(bad_local_wasm, &wa), wasm_parse_exception);
 }
 
 BACKEND_TEST_CASE("Test allow_invalid_empty_local_set static fail", "[allow_invalid_empty_local_set_test]") {
    using backend_t = backend<std::nullptr_t, TestType, static_options_false>;
-   CHECK_THROWS_AS(backend_t(bad_local_wasm), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(bad_local_wasm, &wa), wasm_parse_exception);
 }
 
 BACKEND_TEST_CASE("Test allow_invalid_empty_local_set static pass", "[allow_invalid_empty_local_set_test]") {
    using backend_t = backend<std::nullptr_t, TestType, static_options_true>;
-   backend_t backend(bad_local_wasm);
+   backend_t backend(bad_local_wasm, &wa);
 }
 
 BACKEND_TEST_CASE("Test allow_invalid_empty_local_set dynamic fail", "[allow_invalid_empty_local_set_test]") {

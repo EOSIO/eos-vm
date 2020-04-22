@@ -101,24 +101,24 @@ struct dynamic_options {
 
 BACKEND_TEST_CASE("Test allow_code_after_function_end default", "[allow_code_after_function_end_test]") {
    using backend_t = backend<std::nullptr_t, TestType>;
-   CHECK_THROWS_AS(backend_t(code_after_end_wasm), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(code_after_end_wasm, &wa), wasm_parse_exception);
 }
 
 BACKEND_TEST_CASE("Test allow_code_after_function_end unlimited", "[allow_code_after_function_end_test]") {
    using backend_t = backend<std::nullptr_t, TestType, empty_options>;
-   CHECK_THROWS_AS(backend_t(code_after_end_wasm), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(code_after_end_wasm, &wa), wasm_parse_exception);
 }
 
 BACKEND_TEST_CASE("Test allow_code_after_function_end static fail", "[allow_code_after_function_end_test]") {
    using backend_t = backend<std::nullptr_t, TestType, static_options_false>;
-   CHECK_THROWS_AS(backend_t(code_after_end_wasm), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(code_after_end_wasm, &wa), wasm_parse_exception);
 }
 
 BACKEND_TEST_CASE("Test allow_code_after_function_end static pass", "[allow_code_after_function_end_test]") {
    using backend_t = backend<std::nullptr_t, TestType, static_options_true>;
-   backend_t backend(code_after_end_wasm);
+   backend_t backend(code_after_end_wasm, &wa);
    for(auto wasm : fail_wasms) {
-      CHECK_THROWS_AS(backend_t(wasm), wasm_parse_exception);
+      CHECK_THROWS_AS(backend_t(wasm, &wa), wasm_parse_exception);
    }
 }
 

@@ -118,7 +118,7 @@ namespace eosio { namespace vm {
       static constexpr bool is_defined = true;
    };
    template<typename Options>
-   constexpr auto get_max_func_local_bytes_no_stack_c(int) -> decltype(Options::max_func_local_bytes_flags == (max_func_local_bytes_flags_t)0)
+   constexpr auto get_max_func_local_bytes_no_stack_c(int) -> std::enable_if_t<std::is_pointer_v<decltype(&Options::max_func_local_bytes_flags)>, bool>
    { return (Options::max_func_local_bytes_flags & max_func_local_bytes_flags_t::stack) == (max_func_local_bytes_flags_t)0; }
    template<typename Options>
    constexpr auto get_max_func_local_bytes_no_stack_c(long) -> bool { return false; }
@@ -952,7 +952,7 @@ namespace eosio { namespace vm {
                LOAD_OP(i64_load32_u, 2, i64)
 
 #undef LOAD_OP
-                     
+
 #define STORE_OP(op_name, max_align, type)                           \
                case opcodes::op_name: {                              \
                   check_in_bounds();                                 \
@@ -1013,7 +1013,7 @@ namespace eosio { namespace vm {
                case opcodes::dst ## _ ## opname ## _ ## src: check_in_bounds(); code_writer.emit_ ## dst ## _ ## opname ## _ ## src(); op_stack.pop(types::src); op_stack.push(types::dst); break;
 
 #define R i32
-#define A i32  
+#define A i32
                UNOP(i32_eqz)
                BINOP(i32_eq)
                BINOP(i32_ne)
@@ -1026,7 +1026,7 @@ namespace eosio { namespace vm {
                BINOP(i32_ge_s)
                BINOP(i32_ge_u)
 #undef A
-#define A i64                 
+#define A i64
                UNOP(i64_eqz)
                BINOP(i64_eq)
                BINOP(i64_ne)

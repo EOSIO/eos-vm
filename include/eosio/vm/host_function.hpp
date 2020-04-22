@@ -1,8 +1,12 @@
 #pragma once
 
 #include <eosio/vm/allocator.hpp>
-#include <eosio/vm/wasm_stack.hpp>
+#include <eosio/vm/execution_interface.hpp>
+#include <eosio/vm/function_traits.hpp>
+#include <eosio/vm/argument_proxy.hpp>
+#include <eosio/vm/span.hpp>
 #include <eosio/vm/utils.hpp>
+#include <eosio/vm/wasm_stack.hpp>
 
 #include <cstddef>
 #include <cstdint>
@@ -17,522 +21,341 @@
 #include <utility>
 #include <vector>
 
-// forward declaration of array_ptr
-namespace eosio { namespace chain {
-   template <typename T>
-   struct array_ptr;
-}}
-
 namespace eosio { namespace vm {
+   // types for host functions to use
+   typedef std::nullptr_t standalone_function_t;
+   struct no_match_t {};
+   struct invoke_on_all_t {};
 
-   template <typename Derived, typename Base>
-   struct construct_derived {
-      static auto value(Base& base) { return Derived(base); }
-      typedef Base type;
-   };
+   template <typename Host_Type=standalone_function_t, typename Execution_Interface=execution_interface>
+   struct running_context {
+      using running_context_t = running_context<Execution_Interface>;
+      inline explicit running_context(Host_Type* host, const Execution_Interface& ei) : host(host), interface(ei) {}
+      inline explicit running_context(Host_Type* host, Execution_Interface&& ei) : host(host), interface(ei) {}
 
-   template <typename Derived>
-   struct construct_derived<Derived, nullptr_t> {
-      static nullptr_t value(nullptr_t) { return nullptr; }
-   };
-   
-   // Workaround for compiler bug handling C++g17 auto template parameters.
-   // The parameter is not treated as being type-dependent in all contexts,
-   // causing early evaluation of the containing expression.
-   // Tested at Apple LLVM version 10.0.1 (clang-1001.0.46.4)
-   template<class T, class U>
-   inline constexpr U&& make_dependent(U&& u) { return static_cast<U&&>(u); }
-#define AUTO_PARAM_WORKAROUND(X) make_dependent<decltype(X)>(X)
+      inline void* access(wasm_ptr_t addr=0) const { return (char*)interface.get_memory() + addr; }
 
-   template <typename R, typename... Args>
-   auto get_args_full(R(Args...)) -> std::tuple<Args...>;
+      inline Execution_Interface& get_interface() { return interface; }
+      inline const Execution_Interface& get_interface() const { return interface; }
 
-   template <typename R, typename Cls, typename... Args>
-   auto get_args_full(R (Cls::*)(Args...)) -> std::tuple<Args...>;
+      inline decltype(auto) get_host() { return *host; }
 
-   template <typename R, typename Cls, typename... Args>
-   auto get_args_full(R (Cls::*)(Args...) const) -> std::tuple<Args...>;
-
-   template <typename R, typename... Args>
-   auto get_return_t(R(Args...)) -> R;
-
-   template <typename R, typename Cls, typename... Args>
-   auto get_return_t(R (Cls::*)(Args...)) -> R;
-
-   template <typename R, typename Cls, typename... Args>
-   auto get_return_t(R (Cls::*)(Args...) const) -> R;
-
-   namespace detail {
-      // try the pointer to force segfault early
       template <typename T>
-      void validate_ptr( const void* ptr, uint32_t len ) {
-         EOS_VM_ASSERT( len <= std::numeric_limits<std::uint32_t>::max() / (uint32_t)sizeof(T), wasm_interpreter_exception, "length will overflow" );
-         uint32_t bytes = len * sizeof(T);
-         // check the pointer
-         volatile auto check = *(reinterpret_cast<const char*>(ptr) + bytes-1);
-         ignore_unused_variable_warning(check);
+      inline void validate_pointer(const void* ptr, wasm_size_t len) const {
+         EOS_VM_ASSERT( len <= std::numeric_limits<wasm_size_t>::max() / (wasm_size_t)sizeof(T), wasm_interpreter_exception, "length will overflow" );
+         volatile auto check_addr = *(reinterpret_cast<const char*>(ptr) + (len * sizeof(T)) - 1);
+         ignore_unused_variable_warning(check_addr);
       }
 
-      inline void validate_c_str(const void* ptr) {
-         volatile auto check = std::strlen(reinterpret_cast<const char*>(ptr));
-         ignore_unused_variable_warning(check);
+      inline void validate_null_terminated_pointer(const void* ptr) const {
+         volatile auto check_addr = std::strlen(static_cast<const char*>(ptr));
+         ignore_unused_variable_warning(check_addr);
       }
-   }
-
-   template <typename T, std::size_t Align>
-   struct aligned_ptr_wrapper {
-      static_assert(Align % alignof(T) == 0, "Must align to at least the alignment of T");
-      aligned_ptr_wrapper(void* ptr) : ptr(ptr) {
-        if (reinterpret_cast<std::uintptr_t>(ptr) % Align != 0) {
-            copy = T{};
-            memcpy( &(*copy), ptr, sizeof(T) );
-         }
-      }
-      ~aligned_ptr_wrapper() {
-         if constexpr (!std::is_const_v<T>)
-            if (copy)
-               memcpy( ptr, &(*copy), sizeof(T) );
-      }
-      constexpr operator T*() const {
-         if (copy)
-            return &(*copy);
-         else
-            return static_cast<T*>(ptr);
-      }
-
-      void* ptr;
-      mutable std::optional<std::remove_cv_t<T>> copy;
-
-      aligned_ptr_wrapper(const aligned_ptr_wrapper&) = delete;
+      Host_Type* host;
+      Execution_Interface interface;
    };
 
-   template <typename T, std::size_t Align>
-   struct aligned_array_wrapper {
-      static_assert(Align % alignof(T) == 0, "Must align to at least the alignment of T");
-      aligned_array_wrapper(void* ptr, uint32_t size) : ptr(ptr), size(size) {
-         if (reinterpret_cast<std::uintptr_t>(ptr) % Align != 0) {
-            copy.reset(new std::remove_cv_t<T>[size]);
-            memcpy( copy.get(), ptr, sizeof(T) * size );
-         }
-      }
-      ~aligned_array_wrapper() {
-         if constexpr (!std::is_const_v<T>)
-            if (copy)
-               memcpy( ptr, copy.get(), sizeof(T) * size);
-      }
-      constexpr operator T*() const {
-         if (copy)
-            return copy.get();
-         else
-            return static_cast<T*>(ptr);
-      }
-      constexpr operator eosio::chain::array_ptr<T>() const {
-        return eosio::chain::array_ptr<T>{static_cast<T*>(*this)};
-      }
+   // Used to prevent base class overloads of from_wasm from being hidden.
+   template<typename T>
+   struct tag {};
 
-      void* ptr;
-      std::unique_ptr<std::remove_cv_t<T>[]> copy = nullptr;
-      std::size_t size;
+#define EOS_VM_FROM_WASM_ADD_TAG(...) (__VA_ARGS__, ::eosio::vm::tag<T> = {})
 
-      aligned_array_wrapper(const aligned_array_wrapper&) = delete;
-   };
+#define EOS_VM_FROM_WASM(TYPE, PARAMS) \
+   template <typename T>                    \
+   auto from_wasm EOS_VM_FROM_WASM_ADD_TAG PARAMS const -> std::enable_if_t<std::is_same_v<T, TYPE>, TYPE>
 
-   template <typename T, std::size_t Align>
-   struct aligned_ref_wrapper {
-      constexpr aligned_ref_wrapper(void* ptr) : _impl(ptr) {}
-      constexpr operator T&() const {
-         return *static_cast<T*>(_impl);
-      }
+   template <typename Host, typename Execution_Interface=execution_interface>
+   struct type_converter : public running_context<Host, Execution_Interface> {
+      using base_type = running_context<Host, Execution_Interface>;
+      using base_type::running_context;
+      using base_type::get_host;
 
-      aligned_ptr_wrapper<T, Align> _impl;
-   };
+      // TODO clean this up and figure out a more elegant way to get this for the macro
+      using elem_type = operand_stack_elem;
 
-   template<typename T, std::size_t Align = alignof(T)>
-   struct aligned_ptr {
-      aligned_ptr(const aligned_ptr_wrapper<T, Align>& wrapper) : _ptr(wrapper) {}
-      operator T*() const { return _ptr; }
-      T* _ptr;
-   };
-
-   template<typename T, std::size_t Align = alignof(T)>
-   struct aligned_ref {
-      aligned_ref(const aligned_ptr_wrapper<T, Align>& wrapper) : _ptr(wrapper) {}
-      operator T&() const { return *_ptr; }
-      T* _ptr;
-   };
-
-   // This class can be specialized to define a conversion to/from wasm.
-   template <typename T>
-   struct wasm_type_converter {};
-
-   struct linear_memory_access {
-      void* get_ptr(uint32_t val) const {
-         return _alloc->template get_base_ptr<char>() + val;
-      }
+      EOS_VM_FROM_WASM(bool, (uint32_t value)) { return value ? 1 : 0; }
+      uint32_t to_wasm(bool&& value) { return value ? 1 : 0; }
       template<typename T>
-      void validate_ptr(const void* ptr, uint32_t len) {
-         eosio::vm::detail::validate_ptr<T>(ptr, len);
+      no_match_t to_wasm(T&&);
+
+      template <typename T>
+      auto from_wasm(void* ptr, wasm_size_t len, tag<T> = {}) const
+         -> std::enable_if_t<is_span_type_v<T>, T> {
+         this->template validate_pointer<typename T::value_type>(ptr, len);
+         return {static_cast<typename T::pointer>(ptr), len};
       }
-      void validate_c_str(const void* ptr) {
-         eosio::vm::detail::validate_c_str(ptr);
+
+      template <typename T>
+      auto from_wasm(void* ptr, wasm_size_t len, tag<T> = {}) const
+         -> std::enable_if_t< is_argument_proxy_type_v<T> &&
+                              is_span_type_v<typename T::proxy_type>, T> {
+         this->template validate_pointer<typename T::pointee_type>(ptr, len);
+         return {ptr, len};
       }
-      wasm_allocator* _alloc;
+
+      template <typename T>
+      auto from_wasm(void* ptr, tag<T> = {}) const
+         -> std::enable_if_t< is_argument_proxy_type_v<T> &&
+                              std::is_pointer_v<typename T::proxy_type>, T> {
+         this->template validate_pointer<typename T::pointee_type>(ptr, 1);
+         return {ptr};
+      }
+
+      template<typename T>
+      inline decltype(auto) as_value(const elem_type& val) const {
+         if constexpr (std::is_integral_v<T> && sizeof(T) == 4)
+            return static_cast<T>(val.template get<i32_const_t>().data.ui);
+         else if constexpr (std::is_integral_v<T> && sizeof(T) == 8)
+            return static_cast<T>(val.template get<i64_const_t>().data.ui);
+         else if constexpr (std::is_floating_point_v<T> && sizeof(T) == 4)
+            return static_cast<T>(val.template get<f32_const_t>().data.f);
+         else if constexpr (std::is_floating_point_v<T> && sizeof(T) == 8)
+            return static_cast<T>(val.template get<f64_const_t>().data.f);
+         else if constexpr (std::is_void_v<std::decay_t<std::remove_pointer_t<T>>>)
+            return base_type::access(val.template get<i32_const_t>().data.ui);
+         else
+            return no_match_t{};
+      }
+
+      template <typename T>
+      inline constexpr auto as_result(T&& val) const {
+         if constexpr (std::is_integral_v<T> && sizeof(T) == 4)
+            return i32_const_t{ static_cast<uint32_t>(val) };
+         else if constexpr (std::is_integral_v<T> && sizeof(T) == 8)
+            return i64_const_t{ static_cast<uint64_t>(val) };
+         else if constexpr (std::is_floating_point_v<T> && sizeof(T) == 4)
+            return f32_const_t{ static_cast<float>(val) };
+         else if constexpr (std::is_floating_point_v<T> && sizeof(T) == 8)
+            return f64_const_t{ static_cast<double>(val) };
+         else if constexpr (std::is_void_v<std::decay_t<std::remove_pointer_t<T>>>)
+            return i32_const_t{ static_cast<uint32_t>(reinterpret_cast<uintptr_t>(val) -
+                                                      reinterpret_cast<uintptr_t>(this->access())) };
+         else
+            return no_match_t{};
+      }
    };
 
    namespace detail {
-      template<typename T, typename U, typename... Args>
-      auto from_wasm_type_impl(T (*)(U, Args...)) -> U;
       template<typename T>
-      using from_wasm_type_impl_t = decltype(detail::from_wasm_type_impl(&wasm_type_converter<T>::from_wasm));
-
-      template<typename T, typename U, typename... Args>
-      auto to_wasm_type_impl(T (*)(U, Args...)) -> T;
+      constexpr bool is_tag_v = false;
       template<typename T>
-      using to_wasm_type_impl_t = decltype(detail::to_wasm_type_impl(&wasm_type_converter<T>::to_wasm));
+      constexpr bool is_tag_v<tag<T>> = true;
 
-      // Extract the wasm type from wasm_type_converter and verify
-      // that if both from_wasm and to_wasm are defined, they use
-      // the same type.
-      template<typename T, typename HasFromWasm = void, typename HasToWasm = void>
-      struct get_wasm_type;
-      template<typename T, typename HasToWasm>
-      struct get_wasm_type<T, std::void_t<from_wasm_type_impl_t<T>>, HasToWasm> {
-         using type = from_wasm_type_impl_t<T>;
-      };
-      template<typename T, typename HasFromWasm>
-      struct get_wasm_type<T, HasFromWasm, std::void_t<from_wasm_type_impl_t<T>>> {
-         using type = to_wasm_type_impl_t<T>;
-      };
-      template<typename T>
-      struct get_wasm_type<T, std::void_t<from_wasm_type_impl_t<T>>, std::void_t<to_wasm_type_impl_t<T>>> {
-         static_assert(std::is_same_v<from_wasm_type_impl_t<T>, to_wasm_type_impl_t<T>>,
-                       "wasm_type_converter must use the same type for both from_wasm and to_wasm.");
-         using type = from_wasm_type_impl_t<T>;
-      };
-
-      // Allow from_wasm to return a wrapper that holds extra data.
-      // StorageType must be implicitly convertible to T
-      template<typename T, typename StorageType>
-      struct cons_item {
-         template<typename F>
-         explicit cons_item(F&& f) : _value(f()) {}
-         StorageType _value;
-         T get() const { return _value; }
-      };
-
-      template<typename Car, typename Cdr>
-      struct cons {
-         // Make sure that we get mandatory RVO, so that we can guarantee
-         // that user provided destructors run exactly once in the right sequence.
-         template<typename F, typename FTail>
-         cons(F&& f, FTail&& ftail) : cdr(ftail()), car(f(cdr)) {}
-         static constexpr std::size_t size = Cdr::size + 1;
-         // Reverse order to get the order of construction and destruction right
-         // We want to construct in reverse order and destroy in forwards order.
-         Cdr cdr;
-         Car car;
-         // We need mandatory RVO.  deleting the copy constructor should
-         // cause an error if we messed that up.
-         cons(const cons&) = delete;
-         cons& operator=(const cons&) = delete;
-      };
-
-      template<>
-      struct cons<void, void> { static constexpr std::size_t size = 0; };
-      using nil_t = cons<void, void>;
-
-      template<std::size_t I, typename Car, typename Cdr>
-      decltype(auto) cons_get(const cons<Car, Cdr>& l) {
-         if constexpr (I == 0) {
-            return l.car.get();
-         } else {
-            return detail::cons_get<I-1>(l.cdr);
-         }
-      }
-
-      // get the type of the Ith element of the cons list.
-      template<std::size_t I, typename Cons>
-      using cons_item_t = decltype(detail::cons_get<I>(std::declval<Cons>()));
-
-      template<typename S, typename T, typename WAlloc, typename Cons>
-      constexpr decltype(auto) get_value(WAlloc* alloc, T&& val, Cons& tail);
-
-      template<typename WAlloc>
-      void maybe_add_linear_memory_access(linear_memory_access* arg, WAlloc* walloc) {
-         arg->_alloc = walloc;
-      }
-      inline void maybe_add_linear_memory_access(void*, void*) {}
-
-      template<typename Converter, typename WAlloc>
-      Converter&& init_wasm_type_converter(Converter&& c, WAlloc* walloc) {
-         ::eosio::vm::detail::maybe_add_linear_memory_access(&c, walloc);
-         return static_cast<Converter&&>(c);
-      }
-
-      // Calls from_wasm with the correct arguments
-      template<typename A, typename SourceType, typename WAlloc, typename Tail, typename T, std::size_t... Is>
-      decltype(auto) get_value_impl(std::index_sequence<Is...>, WAlloc* alloc, T&& val, const Tail& tail) {
-         return detail::init_wasm_type_converter(wasm_type_converter<A>{}, alloc)
-            .from_wasm(get_value<SourceType>(alloc, static_cast<T&&>(val), tail), cons_get<Is>(tail)...);
-      }
-
-      // Matches a specific overload of a function and deduces the first argument
-      template<typename... Rest>
-      struct match_from_wasm {
-         template<typename R, typename U>
-         static U apply(R(U, Rest...));
-         template<typename R, typename C, typename U>
-         static U apply(R (C::*)(U, Rest...));
-         template<typename R, typename C, typename U>
-         static U apply(R (C::*)(U, Rest...) const);
-      };
-
-      // Encodes how to convert a value from wasm to native.  LookaheadCount is the number
-      // of extra arguments to pass to from_wasm.  SourceType is type to convert from.
-      template<std::size_t LookaheadCount, typename SourceType>
-      struct value_getter {
-         template<typename A, typename WAlloc, typename T, typename Tail>
-         decltype(auto) apply(WAlloc* alloc, T&& val, const Tail& tail) {
-            return get_value_impl<A, SourceType>(std::make_index_sequence<LookaheadCount>{}, alloc, static_cast<T&&>(val), tail);
-         }
-         SourceType source(); // Not defined.  Only used with decltype
-      };
-
-      // Detect whether there is a match of from_wasm with these arguments.
-      // returns a value_getter or void if it didn't match.
-      template<typename T, typename Cons, std::size_t... Is>
-      auto try_value_getter(std::index_sequence<Is...>)
-         -> value_getter<sizeof...(Is), decltype(match_from_wasm<cons_item_t<Is, Cons>...>::apply(&wasm_type_converter<T>::from_wasm))>;
-      // Fallback
-      template<typename T, typename Cons>
-      auto try_value_getter(...) -> void;
-
-      template<std::size_t N, typename T, typename Cons>
-      using try_value_getter_t = decltype(try_value_getter<T, Cons>(std::make_index_sequence<N>{}));
-
-      // Error type to hopefully make a somewhat understandable error message when
-      // the user did not provide a correct overload of from_wasm.
-      template<typename T, typename... Tail>
-      struct no_viable_overload_of_from_wasm {};
-
-      // Searches for a match of from_wasm following the principal of maximum munch.
-      template<std::size_t N, typename T, typename Tail>
-      constexpr auto make_value_getter_impl() {
-         if constexpr(std::is_same_v<try_value_getter_t<N, T, Tail>, void>) {
-            if constexpr (N == 0) {
-               return no_viable_overload_of_from_wasm<T>{};
-            } else {
-               return make_value_getter_impl<N-1, T, Tail>();
-            }
-         } else {
-            return try_value_getter_t<N, T, Tail>{};
-         }
-      }
-
-      template<int N>
-      struct fold_cons_impl;
-      template<typename... T>
-      using fold_cons = typename fold_cons_impl<sizeof...(T)>::template fn<T...>;
-      template<>
-      struct fold_cons_impl<0> {
-         template<typename... T>
-         using fn = nil_t;
-      };
-      template<int N>
-      struct fold_cons_impl {
-         template<typename T0, typename... T>
-         using fn = cons<cons_item<T0, T0>, fold_cons<T...>>;
-      };
-
-      template<typename T, typename Tail>
-      constexpr auto make_value_getter() {
-         return make_value_getter_impl<Tail::size, T, Tail>();
-      }
-
-      // args should be a tuple
-      // Constructs a cons of the translated arguments given a list of
-      // argument types, a wasm stack, and a wasm allocator.
-      template<typename Args>
-      struct pack_args;
-
-      template<typename T, typename F>
-      auto make_cons_item(F&& f) {
-         return [=](auto& arg) { return cons_item<T, decltype(f(arg))>{[&]() -> decltype(auto) { return f(arg); }}; };
-      }
-
-      template<typename T0, typename... T>
-      struct pack_args<std::tuple<T0, T...>> {
-         using next = pack_args<std::tuple<T...>>;
-         template<typename WAlloc, typename Os>
-         static auto apply(WAlloc* alloc, Os& os) {
-            using next_result = decltype(next::apply(alloc, os));
-            auto item_maker = make_cons_item<T0>([&](auto& tail) -> decltype(auto) { return get_value<T0>(alloc, os.get_back(sizeof...(T)), tail); });
-            using result_type = cons<decltype(item_maker(std::declval<next_result&>())), next_result>;
-            return result_type(item_maker,
-              [&](){ return next::apply(alloc, os); } );
-         }
-      };
-
-      template<>
-      struct pack_args<std::tuple<>> {
-         template<typename WAlloc, typename Os>
-         static auto apply(WAlloc* alloc, Os& os) { return nil_t{}; }
-      };
+      template<typename Tuple, std::size_t... N>
+      std::tuple<std::tuple_element_t<N, Tuple>...> tuple_select(std::index_sequence<N...>);
 
       template<typename T>
-      std::decay_t<T> as_value(T&& arg) { return static_cast<T&&>(arg); }
+      using strip_tag = std::conditional_t<is_tag_v<std::tuple_element_t<std::tuple_size_v<T> - 1, T>>,
+                                           decltype(tuple_select<T>(std::make_index_sequence<std::tuple_size_v<T> - 1>())),
+                                           T>;
 
-      template<typename S, typename T, typename WAlloc, typename Cons>
-      constexpr decltype(auto) get_value(WAlloc* alloc, T&& val, Cons& tail) {
-         if constexpr (std::is_integral_v<S> && sizeof(S) == 4)
-            return as_value(val.template get<i32_const_t>().data.ui);
-         else if constexpr (std::is_integral_v<S> && sizeof(S) == 8)
-            return as_value(val.template get<i64_const_t>().data.ui);
-         else if constexpr (std::is_floating_point_v<S> && sizeof(S) == 4)
-            return as_value(val.template get<f32_const_t>().data.f);
-         else if constexpr (std::is_floating_point_v<S> && sizeof(S) == 8)
-            return as_value(val.template get<f64_const_t>().data.f);
-         else if constexpr (std::is_void_v<std::decay_t<std::remove_pointer_t<S>>>)
-            return reinterpret_cast<S>(alloc->template get_base_ptr<char>() + val.template get<i32_const_t>().data.ui);
-         else {
-            return detail::make_value_getter<S, Cons>().template apply<S>(alloc, static_cast<T&&>(val), tail);
-         }
+      template <class TC, typename T>
+      using from_wasm_type_deducer_t = strip_tag<flatten_parameters_t<&TC::template from_wasm<T>>>;
+      template <class TC, typename T>
+      using to_wasm_type_deducer_t = decltype(std::declval<TC>().to_wasm(std::declval<T>()));
+
+      template <std::size_t N, typename Type_Converter>
+      inline constexpr const auto& pop_value(Type_Converter& tc) { return tc.get_interface().operand_from_back(N); }
+
+      template <typename S, typename Type_Converter>
+      constexpr bool has_as_value() {
+         return !std::is_same_v<no_match_t, std::decay_t<decltype(
+               std::declval<Type_Converter>().template as_value<S>(pop_value<0>(std::declval<Type_Converter&>())))>>;
       }
 
-      template<typename S, typename... Rest>
-      constexpr auto get_arg_type() {
-         if constexpr (std::is_integral_v<S> && sizeof(S) == 4)
-            return types::i32;
-         else if constexpr (std::is_integral_v<S> && sizeof(S) == 8)
-            return types::i64;
-         else if constexpr (std::is_floating_point_v<S> && sizeof(S) == 4)
-            return types::f32;
-         else if constexpr (std::is_floating_point_v<S> && sizeof(S) == 8)
-            return types::f64;
-         else if constexpr (std::is_void_v<std::decay_t<std::remove_pointer_t<S>>>)
-            return types::i32;
-         else {
-            return get_arg_type<decltype(detail::make_value_getter<S, fold_cons<Rest...>>().source()), Rest...>();
-         }
+      template <typename S, typename Type_Converter>
+      constexpr bool has_as_result() {
+         return !std::is_same_v<no_match_t, std::decay_t<decltype(
+               std::declval<Type_Converter>().template as_result<S>(std::declval<S&&>()))>>;
       }
 
-      template <typename T, typename WAlloc>
-      constexpr auto resolve_result(T&& res, WAlloc* alloc) {
-         if constexpr (std::is_integral_v<T> && sizeof(T) == 4)
-            return i32_const_t{ static_cast<uint32_t>(res) };
-         else if constexpr (std::is_integral_v<T> && sizeof(T) == 8)
-            return i64_const_t{ static_cast<uint64_t>(res) };
-         else if constexpr (std::is_floating_point_v<T> && sizeof(T) == 4)
-            return f32_const_t{ static_cast<float>(res) };
-         else if constexpr (std::is_floating_point_v<T> && sizeof(T) == 8)
-            return f64_const_t{ static_cast<double>(res) };
-         else if constexpr (std::is_void_v<std::decay_t<std::remove_pointer_t<T>>>)
-            return i32_const_t{ static_cast<uint32_t>(reinterpret_cast<uintptr_t>(res) -
-                                                      reinterpret_cast<uintptr_t>(alloc->template get_base_ptr<char>())) };
+      template <typename T, class Type_Converter>
+      inline constexpr std::size_t value_operand_size() {
+         if constexpr (has_as_value<T, Type_Converter>())
+            return 1;
          else
-            return detail::resolve_result(detail::init_wasm_type_converter(wasm_type_converter<T>{}, alloc)
-                                          .to_wasm(static_cast<T&&>(res)), alloc);
+            return std::tuple_size_v<from_wasm_type_deducer_t<Type_Converter, T>>;
+      }
+
+      template <typename T, class Type_Converter>
+      static inline constexpr std::size_t value_operand_size_v = value_operand_size<T, Type_Converter>();
+
+      template <typename Args, std::size_t I, class Type_Converter>
+      inline constexpr std::size_t total_operands() {
+         if constexpr (I >= std::tuple_size_v<Args>)
+            return 0;
+         else {
+            constexpr std::size_t sz = value_operand_size_v<std::tuple_element_t<I, Args>, Type_Converter>;
+            return sz + total_operands<Args, I+1, Type_Converter>();
+         }
+      }
+
+      template <typename Args, class Type_Converter>
+      static inline constexpr std::size_t total_operands_v = total_operands<Args, 0, Type_Converter>();
+
+      template <typename S, typename Type_Converter>
+      constexpr inline static bool has_from_wasm_v = EOS_VM_HAS_TEMPLATE_MEMBER_TY(Type_Converter, from_wasm<S>);
+
+      template <typename S, typename Type_Converter>
+      constexpr inline static bool has_to_wasm_v =
+         !std::is_same_v<no_match_t, to_wasm_type_deducer_t<Type_Converter, S>>;
+
+      template <typename Args, typename S, std::size_t At, class Type_Converter, std::size_t... Is>
+      inline constexpr decltype(auto) create_value(Type_Converter& tc, std::index_sequence<Is...>) {
+         constexpr std::size_t offset = total_operands_v<Args, Type_Converter> - 1;
+         if constexpr (has_from_wasm_v<S, Type_Converter>) {
+            using arg_types = from_wasm_type_deducer_t<Type_Converter, S>;
+            return tc.template from_wasm<S>(tc.template as_value<std::tuple_element_t<Is, arg_types>>(pop_value<offset - (At + Is)>(tc))...);
+         } else {
+            static_assert(has_as_value<S, Type_Converter>(), "no type conversion found for type, define a from_wasm for this type");
+            return tc.template as_value<S>(pop_value<offset - At>(tc));
+         }
+      }
+
+      template <typename S, typename Type_Converter>
+      inline constexpr std::size_t skip_amount() {
+         if constexpr (has_as_value<S, Type_Converter>()) {
+            return 1;
+         } else {
+            return std::tuple_size_v<from_wasm_type_deducer_t<Type_Converter, S>>;
+         }
+      }
+
+      template <typename Args, std::size_t At, std::size_t Skip_Amt, class Type_Converter>
+      inline constexpr auto get_values(Type_Converter& tc) {
+         if constexpr (At >= std::tuple_size_v<Args>)
+            return std::tuple<>{};
+         else {
+            using source_t = std::tuple_element_t<At, Args>;
+            constexpr std::size_t skip_amt = skip_amount<source_t, Type_Converter>();
+            using converted_t = decltype(create_value<Args, source_t, Skip_Amt>(tc, std::make_index_sequence<skip_amt>{}));
+            auto tail = get_values<Args, At+1, Skip_Amt + skip_amt>(tc);
+            return std::tuple_cat(std::tuple<converted_t>(create_value<Args, source_t, Skip_Amt>(tc, std::make_index_sequence<skip_amt>{})),
+                                  std::move(tail));
+         }
+      }
+
+      template <typename Type_Converter, typename T>
+      constexpr auto resolve_result(Type_Converter& tc, T&& val) {
+         if constexpr (has_to_wasm_v<T, Type_Converter>) {
+            return tc.as_result(tc.to_wasm(static_cast<T&&>(val)));
+         } else {
+            return tc.as_result(static_cast<T&&>(val));
+         }
+      }
+
+      template <bool Once, std::size_t Cnt, typename T, typename F>
+      inline constexpr void invoke_on_impl(F&& fn) {
+         if constexpr (Once && Cnt == 0) {
+            std::invoke(fn);
+         }
+      }
+
+      template <bool Once, std::size_t Cnt, typename T, typename F, typename Arg, typename... Args>
+      inline constexpr void invoke_on_impl(F&& fn, const Arg& arg, const Args&... args) {
+         if constexpr (Once) {
+            if constexpr (Cnt == 0)
+               std::invoke(fn, arg, args...);
+         } else {
+            if constexpr (std::is_same_v<T, Arg> || std::is_same_v<T, invoke_on_all_t>)
+               std::invoke(fn, arg, args...);
+            invoke_on_impl<Once, Cnt+1, T>(std::forward<F>(fn), args...);
+         }
+      }
+
+      template <typename Precondition, typename Type_Converter, typename Args, std::size_t... Is>
+      inline static void precondition_runner(Type_Converter& ctx, const Args& args, std::index_sequence<Is...>) {
+         Precondition::condition(ctx, std::get<Is>(args)...);
+      }
+
+      template <std::size_t I, typename Preconditions, typename Type_Converter, typename Args>
+      inline static void preconditions_runner(Type_Converter& ctx, const Args& args) {
+         constexpr std::size_t args_size = std::tuple_size_v<Args>;
+         constexpr std::size_t preconds_size = std::tuple_size_v<Preconditions>;
+         if constexpr (I < preconds_size) {
+            precondition_runner<std::tuple_element_t<I, Preconditions>>(ctx, args, std::make_index_sequence<args_size>{});
+            preconditions_runner<I+1, Preconditions>(ctx, args);
+         }
       }
    } //ns detail
 
-   template <>
-   struct wasm_type_converter<bool> {
-      static bool from_wasm(uint32_t val) { return val != 0; }
-      static uint32_t to_wasm(bool val) { return val? 1 : 0; }
+   template <bool Once, typename T, typename F, typename... Args>
+   void invoke_on(F&& func, const Args&... args) {
+      detail::invoke_on_impl<Once, 0, T>(static_cast<F&&>(func), args...);
+   }
+
+#define EOS_VM_INVOKE_ON(TYPE, CONDITION) \
+   eosio::vm::invoke_on<false, TYPE>(CONDITION, args...);
+
+#define EOS_VM_INVOKE_ON_ALL(CONDITION) \
+   eosio::vm::invoke_on<false, eosio::vm::invoke_on_all_t>(CONDITION, args...);
+
+#define EOS_VM_INVOKE_ONCE(CONDITION) \
+   eosio::vm::invoke_on<true, eosio::vm::invoke_on_all_t>(CONDITION, args...);
+
+#define EOS_VM_PRECONDITION(NAME, ...)                                       \
+   struct NAME {                                                             \
+      template <typename Type_Converter, typename... Args>                   \
+      inline static decltype(auto) condition(Type_Converter& ctx, const Args&... args) { \
+        __VA_ARGS__;                                                         \
+      }                                                                      \
    };
 
-   template<typename T, std::size_t Align>
-   struct wasm_type_converter<aligned_ptr<T, Align>> {
-      aligned_ptr_wrapper<T, Align> from_wasm(void* ptr) { return {ptr}; }
-   };
-
-   template<typename T, std::size_t Align>
-   struct wasm_type_converter<aligned_ref<T, Align>> {
-      aligned_ptr_wrapper<T, Align> from_wasm(void* ptr) { return {ptr}; }
-   };
-
-   template <typename T>
-   inline constexpr auto to_wasm_type() -> uint8_t {
-      if constexpr (std::is_same_v<T, void>)
-         return types::ret_void;
-      else if constexpr (std::is_same_v<T, bool>)
-         return types::i32;
-      else if constexpr (std::is_integral_v<T> && sizeof(T) == 4)
-         return types::i32;
-      else if constexpr (std::is_integral_v<T> && sizeof(T) == 8)
-         return types::i64;
-      else if constexpr (std::is_floating_point_v<T> && sizeof(T) == 4)
-         return types::f32;
-      else if constexpr (std::is_floating_point_v<T> && sizeof(T) == 8)
-         return types::f64;
-      else if constexpr (std::is_pointer_v<T> || std::is_reference_v<T>)
-         return types::i32;
+   template <auto F, typename Preconditions, typename Type_Converter, typename Host, typename... Args>
+   decltype(auto) invoke_impl(Type_Converter& tc, Host* host, Args&&... args) {
+      if constexpr (std::is_same_v<Host, standalone_function_t>)
+         return std::invoke(F, static_cast<Args&&>(args)...);
       else
-         return vm::to_wasm_type<typename detail::get_wasm_type<T>::type>();
+         return std::invoke(F, host, static_cast<Args&&>(args)...);
    }
 
-   template <uint8_t Type>
-   struct _to_wasm_t;
-
-   template <>
-   struct _to_wasm_t<types::i32> {
-      typedef i32_const_t type;
-   };
-
-   template <>
-   struct _to_wasm_t<types::i64> {
-      typedef i64_const_t type;
-   };
-
-   template <>
-   struct _to_wasm_t<types::f32> {
-      typedef f32_const_t type;
-   };
-
-   template <>
-   struct _to_wasm_t<types::f64> {
-      typedef f64_const_t type;
-   };
-
-   template <typename T>
-   using to_wasm_t = typename _to_wasm_t<to_wasm_type<T>()>::type;
-
-   template<auto F, typename Derived, typename Host, typename... T>
-   decltype(auto) invoke_with_host(Host* host, T&&... args) {
-      if constexpr (std::is_same_v<Derived, nullptr_t>)
-         return std::invoke(F, static_cast<T&&>(args)...);
-      else
-         return std::invoke(F, construct_derived<Derived, Host>::value(*host), static_cast<T&&>(args)...);
+   template <auto F, typename Preconditions, typename Host, typename Args, typename Type_Converter, std::size_t... Is>
+   decltype(auto) invoke_with_host_impl(Type_Converter& tc, Host* host, Args&& args, std::index_sequence<Is...>) {
+      detail::preconditions_runner<0, Preconditions>(tc, args);
+      return invoke_impl<F, Preconditions>(tc, host, std::get<Is>(static_cast<Args&&>(args))...);
    }
 
-   template<auto F, typename Derived, typename Host, typename Cons, std::size_t... Is>
-   decltype(auto) invoke_with_cons(Host* host, Cons&& args, std::index_sequence<Is...>) {
-      return invoke_with_host<F, Derived>(host, detail::cons_get<Is>(args)...);
+   template <auto F, typename Preconditions, typename Args, typename Type_Converter, typename Host, std::size_t... Is>
+   decltype(auto) invoke_with_host(Type_Converter& tc, Host* host, std::index_sequence<Is...>) {
+      constexpr std::size_t args_size = std::tuple_size_v<decltype(detail::get_values<Args, 0, 0>(tc))>;
+      return invoke_with_host_impl<F, Preconditions>(tc, host, detail::get_values<Args, 0, 0>(tc), std::make_index_sequence<args_size>{});
    }
 
-   template<typename T, typename Os, typename WAlloc>
-   void maybe_push_result(T&& res, Os& os, WAlloc* walloc, std::size_t trim_amt) {
+   template<typename Type_Converter, typename T>
+   void maybe_push_result(Type_Converter& tc, T&& res, std::size_t trim_amt) {
       if constexpr (!std::is_same_v<std::decay_t<T>, maybe_void_t>) {
-         os.trim(trim_amt);
-         os.push(detail::resolve_result(static_cast<T&&>(res), walloc));
+         tc.get_interface().trim_operands(trim_amt);
+         tc.get_interface().push_operand(detail::resolve_result(tc, static_cast<T&&>(res)));
       } else {
-         os.trim(trim_amt);
+         tc.get_interface().trim_operands(trim_amt);
       }
    }
 
-   template <typename Walloc, typename Cls, typename Cls2, auto F, typename R, typename Args, size_t... Is>
+   template <typename Cls, auto F, typename Preconditions, typename R, typename Args, typename Type_Converter, size_t... Is>
    auto create_function(std::index_sequence<Is...>) {
-      return std::function<void(Cls*, Walloc*, operand_stack&)>{ [](Cls* self, Walloc* walloc, operand_stack& os) {
-         maybe_push_result(
-            (invoke_with_cons<F, Cls2>(self, detail::pack_args<Args>::apply(walloc, os), std::index_sequence<Is...>{}), maybe_void),
-            os,
-            walloc,
-            sizeof...(Is));
-      } };
+      return std::function<void(Cls*, Type_Converter& )>{ [](Cls* self, Type_Converter& tc) {
+            maybe_push_result(tc, (invoke_with_host<F, Preconditions, Args>(tc, self, std::index_sequence<Is...>{}), maybe_void),
+                              detail::total_operands_v<Args, Type_Converter>);
+         }
+      };
    }
 
-   template <typename T>
-   constexpr auto to_wasm_type_v = to_wasm_type<T>();
+   template<typename T>
+   auto to_wasm_type();
+   template<>
+   constexpr auto to_wasm_type<i32_const_t>() { return types::i32; }
+   template<>
+   constexpr auto to_wasm_type<i64_const_t>() { return types::i64; }
+   template<>
+   constexpr auto to_wasm_type<f32_const_t>() { return types::f32; }
+   template<>
+   constexpr auto to_wasm_type<f64_const_t>() { return types::f64; }
+
+   template <typename TC, typename T>
+   constexpr auto to_wasm_type_v = to_wasm_type<decltype(detail::resolve_result(std::declval<TC&>(), std::declval<T>()))>();
+   template <typename TC>
+   constexpr auto to_wasm_type_v<TC, void> = types::ret_void;
 
    struct host_function {
       std::vector<value_type> params;
@@ -549,43 +372,35 @@ namespace eosio { namespace vm {
       return rhs == lhs;
    }
 
-   template<typename A0, typename... A>
-   void get_args(value_type* out) {
-      *out++ = detail::get_arg_type<A0, A...>();
-      if constexpr (sizeof...(A) != 0) {
-         get_args<A...>(out);
+   template<typename TC, typename Args, std::size_t... Is>
+   void get_args(value_type*& out, std::index_sequence<Is...>) {
+      ((*out++ = to_wasm_type_v<TC, std::tuple_element_t<Is, Args>>), ...);
+   }
+
+   template<typename Type_Converter, typename T>
+   void get_args(value_type*& out) {
+      if constexpr (detail::has_from_wasm_v<T, Type_Converter>) {
+         using args_tuple = detail::from_wasm_type_deducer_t<Type_Converter, T>;
+         get_args<Type_Converter, args_tuple>(out, std::make_index_sequence<std::tuple_size_v<args_tuple>>());
+      } else {
+         *out++ = to_wasm_type_v<Type_Converter, T>;
       }
    }
 
-   template <typename Ret, typename... Args>
-   host_function function_types_provider() {
+   template <typename Type_Converter, typename Ret, typename Args, std::size_t... Is>
+   host_function function_types_provider(std::index_sequence<Is...>) {
       host_function hf;
-      hf.params.resize(sizeof...(Args));
-      if constexpr (sizeof...(Args) != 0) {
-         get_args<Args...>(hf.params.data());
-      }
-      if constexpr (to_wasm_type_v<Ret> != types::ret_void) {
-         hf.ret = { to_wasm_type_v<Ret> };
+      hf.params.resize(detail::total_operands_v<Args, Type_Converter>);
+      value_type* iter = hf.params.data();
+      (get_args<Type_Converter, std::tuple_element_t<Is, Args>>(iter), ...);
+      if constexpr (to_wasm_type_v<Type_Converter, Ret> != types::ret_void) {
+         hf.ret = { to_wasm_type_v<Type_Converter, Ret> };
       }
       return hf;
    }
 
-   template <typename Ret, typename... Args>
-   host_function function_types_provider(Ret (*func)(Args...)) {
-      return function_types_provider<Ret, Args...>();
-   }
-
-   template <typename Ret, typename Cls, typename... Args>
-   host_function function_types_provider(Ret (Cls::*func)(Args...)) {
-      return function_types_provider<Ret, Args...>();
-   }
-
-   template <typename Ret, typename Cls, typename... Args>
-   host_function function_types_provider(Ret (Cls::*func)(Args...) const) {
-      return function_types_provider<Ret, Args...>();
-   }
-
    using host_func_pair = std::pair<std::string, std::string>;
+
    struct host_func_pair_hash {
       template <class T, class U>
       std::size_t operator()(const std::pair<T, U>& p) const {
@@ -593,37 +408,47 @@ namespace eosio { namespace vm {
       }
    };
 
-   template <typename Cls>
+   template <typename Cls, typename Execution_Interface=execution_interface, typename Type_Converter=type_converter<Cls, Execution_Interface>>
    struct registered_host_functions {
-      template <typename WAlloc>
+      using host_type_t           = Cls;
+      using execution_interface_t = Execution_Interface;
+      using type_converter_t      = Type_Converter;
+
       struct mappings {
-         std::unordered_map<std::pair<std::string, std::string>, uint32_t, host_func_pair_hash> named_mapping;
-         std::vector<host_function>                                                             host_functions;
-         std::vector<std::function<void(Cls*, WAlloc*, operand_stack&)>>                        functions;
-         size_t                                                                                 current_index = 0;
+         std::unordered_map<host_func_pair, uint32_t, host_func_pair_hash> named_mapping;
+         std::vector<std::function<void(Cls*, Type_Converter&)>>           functions;
+         std::vector<host_function>                                        host_functions;
+         size_t                                                            current_index = 0;
+
+         template <auto F, typename R, typename Args, typename Preconditions>
+         void add_mapping(const std::string& mod, const std::string& name) {
+            named_mapping[{mod, name}] = current_index++;
+            functions.push_back(
+                  create_function<Cls, F, Preconditions, R, Args, Type_Converter>(
+                     std::make_index_sequence<std::tuple_size_v<Args>>()));
+            host_functions.push_back(
+                  function_types_provider<Type_Converter, R, Args>(
+                     std::make_index_sequence<std::tuple_size_v<Args>>()));
+         }
+
+         static mappings& get() {
+            static mappings instance;
+            return instance;
+         }
       };
 
-      template <typename WAlloc>
-      static mappings<WAlloc>& get_mappings() {
-         static mappings<WAlloc> _mappings;
-         return _mappings;
-      }
-
-      template <typename Cls2, auto Func, typename WAlloc>
+      template <auto Func, typename... Preconditions>
       static void add(const std::string& mod, const std::string& name) {
-         using deduced_full_ts                         = decltype(get_args_full(AUTO_PARAM_WORKAROUND(Func)));
-         using res_t                                   = decltype(get_return_t(AUTO_PARAM_WORKAROUND(Func)));
-         static constexpr auto is                      = std::make_index_sequence<std::tuple_size_v<deduced_full_ts>>();
-         auto&                 current_mappings        = get_mappings<WAlloc>();
-         current_mappings.named_mapping[{ mod, name }] = current_mappings.current_index++;
-         current_mappings.functions.push_back(create_function<WAlloc, Cls, Cls2, Func, res_t, deduced_full_ts>(is));
-         current_mappings.host_functions.push_back(function_types_provider(AUTO_PARAM_WORKAROUND(Func)));
+         using args          = flatten_parameters_t<AUTO_PARAM_WORKAROUND(Func)>;
+         using res           = return_type_t<AUTO_PARAM_WORKAROUND(Func)>;
+         using preconditions = std::tuple<Preconditions...>;
+         mappings::get().template add_mapping<Func, res, args, preconditions>(mod, name);
       }
 
       template <typename Module>
       static void resolve(Module& mod) {
          auto& imports          = mod.import_functions;
-         auto& current_mappings = get_mappings<wasm_allocator>();
+         auto& current_mappings = mappings::get();
          for (int i = 0; i < mod.imports.size(); i++) {
             std::string mod_name =
                   std::string((char*)mod.imports[i].module_str.raw(), mod.imports[i].module_str.size());
@@ -637,20 +462,10 @@ namespace eosio { namespace vm {
          }
       }
 
-      template <typename Execution_Context>
-      void operator()(Cls* host, Execution_Context& ctx, uint32_t index) {
-         const auto& _func = get_mappings<wasm_allocator>().functions[index];
-         std::invoke(_func, host, ctx.get_wasm_allocator(), ctx.get_operand_stack());
+      void operator()(Cls* host, Execution_Interface ei, uint32_t index) {
+         const auto& _func = mappings::get().functions[index];
+         auto tc = Type_Converter{host, std::move(ei)};
+         std::invoke(_func, host, tc);
       }
    };
-
-   template <typename Cls, typename Cls2, auto F>
-   struct registered_function {
-      registered_function(std::string mod, std::string name) {
-         registered_host_functions<Cls>::template add<Cls2, F, wasm_allocator>(mod, name);
-      }
-   };
-
-#undef AUTO_PARAM_WORKAROUND
-
 }} // namespace eosio::vm

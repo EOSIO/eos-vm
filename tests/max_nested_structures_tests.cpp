@@ -35,22 +35,22 @@ struct dynamic_options {
 
 BACKEND_TEST_CASE("Test max_nested_structures default", "[max_nested_structures_test]") {
    using backend_t = backend<std::nullptr_t, TestType>;
-   backend_t backend(depth_2_wasm);
+   backend_t backend(depth_2_wasm, &wa);
 }
 
 BACKEND_TEST_CASE("Test max_nested_structures unlimited", "[max_nested_structures_test]") {
    using backend_t = backend<std::nullptr_t, TestType, empty_options>;
-   backend_t backend(depth_2_wasm);
+   backend_t backend(depth_2_wasm, &wa);
 }
 
 BACKEND_TEST_CASE("Test max_nested_structures static fail", "[max_nested_structures_test]") {
    using backend_t = backend<std::nullptr_t, TestType, static_options_1>;
-   CHECK_THROWS_AS(backend_t(depth_2_wasm), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(depth_2_wasm, &wa), wasm_parse_exception);
 }
 
 BACKEND_TEST_CASE("Test max_nested_structures static pass", "[max_nested_structures_test]") {
    using backend_t = backend<std::nullptr_t, TestType, static_options_2>;
-   backend_t backend(depth_2_wasm);
+   backend_t backend(depth_2_wasm, &wa);
 }
 
 BACKEND_TEST_CASE("Test max_nested_structures dynamic fail", "[max_nested_structures_test]") {

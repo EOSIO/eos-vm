@@ -57,30 +57,30 @@ struct dynamic_options {
 
 BACKEND_TEST_CASE("Test allow_zero_blocktype default", "[allow_zero_blocktype_test]") {
    using backend_t = backend<std::nullptr_t, TestType>;
-   CHECK_THROWS_AS(backend_t(block_wasm), wasm_parse_exception);
-   CHECK_THROWS_AS(backend_t(loop_wasm), wasm_parse_exception);
-   CHECK_THROWS_AS(backend_t(if_wasm), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(block_wasm, &wa), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(loop_wasm, &wa), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(if_wasm, &wa), wasm_parse_exception);
 }
 
 BACKEND_TEST_CASE("Test allow_zero_blocktype empty", "[allow_zero_blocktype_test]") {
    using backend_t = backend<std::nullptr_t, TestType, empty_options>;
-   CHECK_THROWS_AS(backend_t(block_wasm), wasm_parse_exception);
-   CHECK_THROWS_AS(backend_t(loop_wasm), wasm_parse_exception);
-   CHECK_THROWS_AS(backend_t(if_wasm), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(block_wasm, &wa), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(loop_wasm, &wa), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(if_wasm, &wa), wasm_parse_exception);
 }
 
 BACKEND_TEST_CASE("Test allow_zero_blocktype static fail", "[allow_zero_blocktype_test]") {
    using backend_t = backend<std::nullptr_t, TestType, static_options_false>;
-   CHECK_THROWS_AS(backend_t(block_wasm), wasm_parse_exception);
-   CHECK_THROWS_AS(backend_t(loop_wasm), wasm_parse_exception);
-   CHECK_THROWS_AS(backend_t(if_wasm), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(block_wasm, &wa), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(loop_wasm, &wa), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(if_wasm, &wa), wasm_parse_exception);
 }
 
 BACKEND_TEST_CASE("Test allow_zero_blocktype static pass", "[allow_zero_blocktype_test]") {
    using backend_t = backend<std::nullptr_t, TestType, static_options_true>;
-   backend_t backend_block(block_wasm);
-   backend_t backend_loop(loop_wasm);
-   backend_t backend_if(if_wasm);
+   backend_t backend_block(block_wasm, &wa);
+   backend_t backend_loop(loop_wasm, &wa);
+   backend_t backend_if(if_wasm, &wa);
 }
 
 BACKEND_TEST_CASE("Test allow_zero_blocktype dynamic fail", "[allow_zero_blocktype_test]") {

@@ -35,22 +35,22 @@ struct dynamic_options {
 
 BACKEND_TEST_CASE("Test max_code_bytes default", "[max_code_bytes_test]") {
    using backend_t = backend<std::nullptr_t, TestType>;
-   backend_t backend(func_wasm);
+   backend_t backend(func_wasm, &wa);
 }
 
 BACKEND_TEST_CASE("Test max_code_bytes unlimited", "[max_code_bytes_test]") {
    using backend_t = backend<std::nullptr_t, TestType, empty_options>;
-   backend_t backend(func_wasm);
+   backend_t backend(func_wasm, &wa);
 }
 
 BACKEND_TEST_CASE("Test max_code_bytes static fail", "[max_code_bytes_test]") {
    using backend_t = backend<std::nullptr_t, TestType, static_options_3>;
-   CHECK_THROWS_AS(backend_t(func_wasm), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(func_wasm, &wa), wasm_parse_exception);
 }
 
 BACKEND_TEST_CASE("Test max_code_bytes static pass", "[max_code_bytes_test]") {
    using backend_t = backend<std::nullptr_t, TestType, static_options_4>;
-   backend_t backend(func_wasm);
+   backend_t backend(func_wasm, &wa);
 }
 
 BACKEND_TEST_CASE("Test max_code_bytes dynamic fail", "[max_code_bytes_test]") {

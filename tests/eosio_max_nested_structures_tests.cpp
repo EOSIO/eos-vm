@@ -55,26 +55,26 @@ struct dynamic_options {
 
 BACKEND_TEST_CASE("Test eosio_max_nested_structures default", "[eosio_max_nested_structures_test]") {
    using backend_t = backend<std::nullptr_t, TestType>;
-   backend_t backend(nested_4_wasm);
-   backend_t backend2(nested_4_wasm_2);
+   backend_t backend(nested_4_wasm, &wa);
+   backend_t backend2(nested_4_wasm_2, &wa);
 }
 
 BACKEND_TEST_CASE("Test eosio_max_nested_structures unlimited", "[eosio_max_nested_structures_test]") {
    using backend_t = backend<std::nullptr_t, TestType, empty_options>;
-   backend_t backend(nested_4_wasm);
-   backend_t backend2(nested_4_wasm_2);
+   backend_t backend(nested_4_wasm, &wa);
+   backend_t backend2(nested_4_wasm_2, &wa);
 }
 
 BACKEND_TEST_CASE("Test eosio_max_nested_structures static fail", "[eosio_max_nested_structures_test]") {
    using backend_t = backend<std::nullptr_t, TestType, static_options_3>;
-   CHECK_THROWS_AS(backend_t(nested_4_wasm), wasm_parse_exception);
-   CHECK_THROWS_AS(backend_t(nested_4_wasm_2), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(nested_4_wasm, &wa), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(nested_4_wasm_2, &wa), wasm_parse_exception);
 }
 
 BACKEND_TEST_CASE("Test eosio_max_nested_structures static pass", "[eosio_max_nested_structures_test]") {
    using backend_t = backend<std::nullptr_t, TestType, static_options_4>;
-   backend_t backend(nested_4_wasm);
-   backend_t backend2(nested_4_wasm_2);
+   backend_t backend(nested_4_wasm, &wa);
+   backend_t backend2(nested_4_wasm_2, &wa);
 }
 
 BACKEND_TEST_CASE("Test eosio_max_nested_structures dynamic fail", "[eosio_max_nested_structures_test]") {

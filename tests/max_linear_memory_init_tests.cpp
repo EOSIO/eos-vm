@@ -94,32 +94,33 @@ struct static_options {
 
 BACKEND_TEST_CASE("Test max_linear_memory_init default", "[max_linear_memory_init_test]") {
    using backend_t = backend<std::nullptr_t, TestType>;
-   backend_t backendfull12(full_12_data_wasm);
-   backend_t backendempty12(empty_12_data_wasm);
-   backend_t backendempty13(empty_13_data_wasm);
-   backend_t backendone11(one_11_data_wasm);
-   backend_t backendone12(one_12_data_wasm);
-   backend_t backendwrap(wrap_data_wasm);
+   backend_t backendfull12(full_12_data_wasm, &wa);
+   backend_t backendempty12(empty_12_data_wasm, &wa);
+   backend_t backendempty13(empty_13_data_wasm, &wa);
+   backend_t backendone11(one_11_data_wasm, &wa);
+   backend_t backendone12(one_12_data_wasm, &wa);
+   // This is well formed but should fail linking
+   CHECK_THROWS_AS(backend_t(wrap_data_wasm, &wa), wasm_memory_exception);
 }
 
 BACKEND_TEST_CASE("Test max_linear_memory_init static", "[max_linear_memory_init_test]") {
    using backend_t = backend<std::nullptr_t, TestType, static_options>;
-   backend_t backendfull12(full_12_data_wasm);
-   backend_t backendempty12(empty_12_data_wasm);
-   CHECK_THROWS_AS(backend_t(empty_13_data_wasm), wasm_parse_exception);
-   backend_t backendone11(one_11_data_wasm);
-   CHECK_THROWS_AS(backend_t(one_12_data_wasm), wasm_parse_exception);
-   CHECK_THROWS_AS(backend_t(wrap_data_wasm), wasm_parse_exception);
+   backend_t backendfull12(full_12_data_wasm, &wa);
+   backend_t backendempty12(empty_12_data_wasm, &wa);
+   CHECK_THROWS_AS(backend_t(empty_13_data_wasm, &wa), wasm_parse_exception);
+   backend_t backendone11(one_11_data_wasm, &wa);
+   CHECK_THROWS_AS(backend_t(one_12_data_wasm, &wa), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(wrap_data_wasm, &wa), wasm_parse_exception);
 }
 
 BACKEND_TEST_CASE("Test max_linear_memory_init unlimited", "[max_linear_memory_init_test]") {
    using backend_t = backend<std::nullptr_t, TestType, empty_options>;
-   backend_t backendfull12(full_12_data_wasm);
-   backend_t backendempty12(empty_12_data_wasm);
-   backend_t backendempty13(empty_13_data_wasm);
-   backend_t backendone11(one_11_data_wasm);
-   backend_t backendone12(one_12_data_wasm);
-   backend_t backendwrap(wrap_data_wasm);
+   backend_t backendfull12(full_12_data_wasm, &wa);
+   backend_t backendempty12(empty_12_data_wasm, &wa);
+   backend_t backendempty13(empty_13_data_wasm, &wa);
+   backend_t backendone11(one_11_data_wasm, &wa);
+   backend_t backendone12(one_12_data_wasm, &wa);
+   CHECK_THROWS_AS(backend_t(wrap_data_wasm, &wa), wasm_memory_exception);
 }
 
 BACKEND_TEST_CASE("Test max_linear_memory_init dynamic", "[max_linear_memory_init_test]") {

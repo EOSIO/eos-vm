@@ -146,6 +146,8 @@ namespace eosio { namespace vm {
 
    using wasm_code     = std::vector<uint8_t>;
    using wasm_code_ptr = guarded_ptr<uint8_t>;
+   typedef std::uint32_t  wasm_ptr_t;
+   typedef std::uint32_t  wasm_size_t;
 
    struct module {
       growable_allocator              allocator = { constants::initial_module_size };
@@ -193,7 +195,7 @@ namespace eosio { namespace vm {
       inline auto& get_opcode(uint32_t pc) const {
          return ((opcode*)&code[0].code[0])[pc];
       }
-      
+
       inline uint32_t get_function_locals_size(uint32_t index) const {
          EOS_VM_ASSERT(index >= get_imported_functions_size(), wasm_interpreter_exception, "imported functions do not have locals");
          return code[index - get_imported_functions_size()].locals.size();
