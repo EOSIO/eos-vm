@@ -66,9 +66,15 @@ namespace eosio { namespace vm {
    template <typename T>
    using dependent_type_t = decltype(detail::get_dependent_type(std::declval<T>()));
 
+   // Used to prevent base class overloads of from_wasm from being hidden.
+   template<typename T>
+   struct tag {};
+
+#define EOS_VM_FROM_WASM_ADD_TAG(...) (__VA_ARGS__, ::eosio::vm::tag<T> = {})
+
 #define EOS_VM_FROM_WASM(TYPE, PARAMS) \
    template <typename T>                    \
-   auto from_wasm PARAMS const -> std::enable_if_t<std::is_same_v<T, TYPE>, TYPE>
+   auto from_wasm EOS_VM_FROM_WASM_ADD_TAG PARAMS const -> std::enable_if_t<std::is_same_v<T, TYPE>, TYPE>
 
    template <typename T>
    struct reference {
@@ -103,14 +109,14 @@ namespace eosio { namespace vm {
       no_match_t to_wasm(T&&);
 
       template <typename T>
-      auto from_wasm(void* ptr, wasm_size_t len) const
+      auto from_wasm(void* ptr, wasm_size_t len, tag<T> = {}) const
          -> std::enable_if_t<is_span_type_v<T>, T> {
          this->template validate_pointer<typename T::value_type>(ptr, len);
          return {static_cast<typename T::pointer>(ptr), len};
       }
 
       template <typename T>
-      auto from_wasm(void* ptr, wasm_size_t len) const
+      auto from_wasm(void* ptr, wasm_size_t len, tag<T> = {}) const
          -> std::enable_if_t< is_argument_proxy_type_v<T> &&
                               is_argument_proxy_legacy_v<T> &&
                               is_span_type_v<dependent_type_t<T>>, T> {
@@ -119,7 +125,7 @@ namespace eosio { namespace vm {
       }
 
       template <typename T>
-      auto from_wasm(void* ptr) const
+      auto from_wasm(void* ptr, tag<T> = {}) const
          -> std::enable_if_t< is_argument_proxy_type_v<T> &&
                               !is_span_type_v<dependent_type_t<T>>, T> {
          this->template validate_pointer<argument_proxy_dependent_type_t<T>>(ptr, 1);
@@ -161,8 +167,21 @@ namespace eosio { namespace vm {
    };
 
    namespace detail {
+      template<typename T>
+      constexpr bool is_tag_v = false;
+      template<typename T>
+      constexpr bool is_tag_v<tag<T>> = true;
+
+      template<typename Tuple, std::size_t... N>
+      std::tuple<std::tuple_element_t<N, Tuple>...> tuple_select(std::index_sequence<N...>);
+
+      template<typename T>
+      using strip_tag = std::conditional_t<is_tag_v<std::tuple_element_t<std::tuple_size_v<T> - 1, T>>,
+                                           decltype(tuple_select<T>(std::make_index_sequence<std::tuple_size_v<T> - 1>())),
+                                           T>;
+
       template <class TC, typename T>
-      using from_wasm_type_deducer_t = flatten_parameters_t<&TC::template from_wasm<T>>;
+      using from_wasm_type_deducer_t = strip_tag<flatten_parameters_t<&TC::template from_wasm<T>>>;
       template <class TC, typename T>
       using to_wasm_type_deducer_t = decltype(std::declval<TC>().to_wasm(std::declval<T>()));
 
