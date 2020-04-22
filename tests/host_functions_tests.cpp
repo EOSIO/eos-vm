@@ -92,6 +92,7 @@ template<typename Host>
 struct cnv : type_converter<Host> {
    using type_converter<Host>::type_converter;
    using type_converter<Host>::from_wasm;
+   using type_converter<Host>::to_wasm;
    template<typename T>
    auto from_wasm(void* ptr) const -> std::enable_if_t<std::is_pointer_v<T>, T> {
       return static_cast<T>(ptr);
@@ -99,6 +100,14 @@ struct cnv : type_converter<Host> {
    template<typename T>
    auto from_wasm(void* ptr) const -> std::enable_if_t<std::is_lvalue_reference_v<T>, T> {
       return *static_cast<std::remove_reference_t<T>*>(ptr);
+   }
+   template<typename T>
+   auto to_wasm(T*&& ptr) -> const volatile void* {
+      return ptr;
+   }
+   template<typename T>
+   auto to_wasm(T& ref) -> const volatile void* {
+      return &ref;
    }
 };
 
