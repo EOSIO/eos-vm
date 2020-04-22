@@ -152,11 +152,8 @@ namespace eosio { namespace vm {
             return f32_const_t{ static_cast<float>(val) };
          else if constexpr (std::is_floating_point_v<T> && sizeof(T) == 8)
             return f64_const_t{ static_cast<double>(val) };
-         else if constexpr (std::is_pointer_v<T>)
+         else if constexpr (std::is_void_v<std::decay_t<std::remove_pointer_t<T>>>)
             return i32_const_t{ static_cast<uint32_t>(reinterpret_cast<uintptr_t>(val) -
-                                                      reinterpret_cast<uintptr_t>(this->access())) };
-         else if constexpr (std::is_lvalue_reference_v<T>)
-            return i32_const_t{ static_cast<uint32_t>(reinterpret_cast<uintptr_t>(std::addressof(val)) -
                                                       reinterpret_cast<uintptr_t>(this->access())) };
          else
             return no_match_t{};
