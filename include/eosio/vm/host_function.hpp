@@ -55,17 +55,6 @@ namespace eosio { namespace vm {
       Execution_Interface interface;
    };
 
-
-   namespace detail {
-      template <template<typename> class T, typename U>
-      auto get_dependent_type(T<U>) -> U;
-      template <typename T>
-      auto get_dependent_type(T) -> T;
-   } // eosio::vm::detail
-
-   template <typename T>
-   using dependent_type_t = decltype(detail::get_dependent_type(std::declval<T>()));
-
    // Used to prevent base class overloads of from_wasm from being hidden.
    template<typename T>
    struct tag {};
@@ -118,17 +107,16 @@ namespace eosio { namespace vm {
       template <typename T>
       auto from_wasm(void* ptr, wasm_size_t len, tag<T> = {}) const
          -> std::enable_if_t< is_argument_proxy_type_v<T> &&
-                              is_argument_proxy_legacy_v<T> &&
-                              is_span_type_v<dependent_type_t<T>>, T> {
-         this->template validate_pointer<argument_proxy_dependent_type_t<T>>(ptr, len);
+                              is_span_type_v<typename T::proxy_type>, T> {
+         this->template validate_pointer<typename T::pointee_type>(ptr, len);
          return {ptr, len};
       }
 
       template <typename T>
       auto from_wasm(void* ptr, tag<T> = {}) const
          -> std::enable_if_t< is_argument_proxy_type_v<T> &&
-                              !is_span_type_v<dependent_type_t<T>>, T> {
-         this->template validate_pointer<argument_proxy_dependent_type_t<T>>(ptr, 1);
+                              !is_span_type_v<typename T::proxy_type>, T> {
+         this->template validate_pointer<typename T::pointee_type>(ptr, 1);
          return {ptr};
       }
 

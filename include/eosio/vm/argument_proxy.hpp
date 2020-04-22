@@ -101,26 +101,4 @@ namespace eosio { namespace vm {
    template <typename T>
    constexpr inline static bool is_argument_proxy_type_v = std::is_same_v<decltype(detail::is_argument_proxy_type(std::declval<T>())), std::true_type>;
 
-   namespace detail {
-      template <typename T>
-      constexpr auto get_dependent_type() -> std::enable_if_t<is_argument_proxy_type_v<T>, typename T::pointee_type>;
-      template <typename T>
-      constexpr auto get_dependent_type() -> std::enable_if_t<!is_argument_proxy_type_v<T>, T>;
-      // Help OSX clang
-      template <typename U, std::size_t A>
-      auto get_dependent_type(argument_proxy<U, A>) -> U;
-      template <typename U>
-      auto get_dependent_type(argument_proxy<U, 0>) -> U;
-      template <typename T, std::size_t LA>
-      constexpr inline std::integral_constant<bool, LA != 0> is_legacy(argument_proxy<T, LA>);
-      template <typename T>
-      constexpr inline std::false_type is_legacy(T);
-   } // ns eosio::vm::detail
-
-   template <typename T>
-   using argument_proxy_dependent_type_t = decltype(detail::get_dependent_type<T>());
-
-   template <typename T>
-   constexpr inline bool is_argument_proxy_legacy_v = std::is_same_v<decltype(detail::is_legacy(std::declval<T>())), std::true_type>;
-
 }} // ns eosio::vm
