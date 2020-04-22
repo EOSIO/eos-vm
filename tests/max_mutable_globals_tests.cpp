@@ -589,20 +589,20 @@ struct small_options {
 
 BACKEND_TEST_CASE("Test max_mutable_global_bytes default", "[max_mutable_global_bytes_test]") {
    using backend_t = backend<std::nullptr_t, TestType>;
-   backend_t backend1024(_1024_bytes_mixed_wasm);
-   backend_t backend1028(_1028_bytes_mixed_wasm);
+   backend_t backend1024(_1024_bytes_mixed_wasm, &wa);
+   backend_t backend1028(_1028_bytes_mixed_wasm, &wa);
 }
 
 BACKEND_TEST_CASE("Test max_mutable_global_bytes static", "[max_mutable_global_bytes_test]") {
    using backend_t = backend<std::nullptr_t, TestType, static_options>;
-   backend_t backend(_1024_bytes_mixed_wasm);
-   CHECK_THROWS_AS(backend_t(_1028_bytes_mixed_wasm), wasm_parse_exception);
+   backend_t backend(_1024_bytes_mixed_wasm, &wa);
+   CHECK_THROWS_AS(backend_t(_1028_bytes_mixed_wasm, &wa), wasm_parse_exception);
 }
 
 BACKEND_TEST_CASE("Test max_mutable_global_bytes unlimited", "[max_mutable_global_bytes_test]") {
    using backend_t = backend<std::nullptr_t, TestType, empty_options>;
-   backend_t backend1024(_1024_bytes_mixed_wasm);
-   backend_t backend1028(_1028_bytes_mixed_wasm);
+   backend_t backend1024(_1024_bytes_mixed_wasm, &wa);
+   backend_t backend1028(_1028_bytes_mixed_wasm, &wa);
 }
 
 BACKEND_TEST_CASE("Test max_mutable_global_bytes dynamic", "[max_mutable_global_bytes_test]") {
@@ -614,6 +614,6 @@ BACKEND_TEST_CASE("Test max_mutable_global_bytes dynamic", "[max_mutable_global_
 
 BACKEND_TEST_CASE("Test max_mutable_global_bytes small", "[max_mutable_global_bytes_test]") {
    using backend_t = backend<std::nullptr_t, TestType, small_options>;
-   CHECK_THROWS_AS(backend_t(_1024_bytes_mixed_wasm), wasm_parse_exception);
-   CHECK_THROWS_AS(backend_t(_1028_bytes_mixed_wasm), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(_1024_bytes_mixed_wasm, &wa), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(_1028_bytes_mixed_wasm, &wa), wasm_parse_exception);
 }

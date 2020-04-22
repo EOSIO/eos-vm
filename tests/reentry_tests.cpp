@@ -4,40 +4,72 @@
 
 using namespace eosio::vm;
 
-#include "reentry.wasm.hpp"
 #include "utils.hpp"
 
-BACKEND_TEST_CASE("test reentry", "[reentry]") {
+/*
+(module
+  (type (;0;) (func (param i32) (result i32)))
+  (import "env" "test_func_0" (func (;0;) (type 0)))
+  (import "env" "test_func_1" (func (;1;) (type 0)))
+  (func (;2;) (type 0) (param i32) (result i32)
+    get_local 0
+    i32.const 42
+    i32.add)
+  (func (;3;) (type 0) (param i32) (result i32)
+    get_local 0
+    call 0)
+  (func (;4;) (type 0) (param i32) (result i32)
+    get_local 0
+    i32.const 50
+    i32.add)
+  (func (;5;) (type 0) (param i32) (result i32)
+    get_local 0
+    call 1)
+  (memory (;0;) 1)
+  (export "foo" (func 2))
+  (export "testbar" (func 3))
+  (export "bar" (func 4))
+  (export "testbaz" (func 5)))
+*/
+static wasm_code reentry_wasm = {
+  0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+  0x01, 0x7f, 0x01, 0x7f, 0x02, 0x25, 0x02, 0x03, 0x65, 0x6e, 0x76, 0x0b,
+  0x74, 0x65, 0x73, 0x74, 0x5f, 0x66, 0x75, 0x6e, 0x63, 0x5f, 0x30, 0x00,
+  0x00, 0x03, 0x65, 0x6e, 0x76, 0x0b, 0x74, 0x65, 0x73, 0x74, 0x5f, 0x66,
+  0x75, 0x6e, 0x63, 0x5f, 0x31, 0x00, 0x00, 0x03, 0x05, 0x04, 0x00, 0x00,
+  0x00, 0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07, 0x21, 0x04, 0x03, 0x66,
+  0x6f, 0x6f, 0x00, 0x02, 0x07, 0x74, 0x65, 0x73, 0x74, 0x62, 0x61, 0x72,
+  0x00, 0x03, 0x03, 0x62, 0x61, 0x72, 0x00, 0x04, 0x07, 0x74, 0x65, 0x73,
+  0x74, 0x62, 0x61, 0x7a, 0x00, 0x05, 0x0a, 0x1f, 0x04, 0x07, 0x00, 0x20,
+  0x00, 0x41, 0x2a, 0x6a, 0x0b, 0x06, 0x00, 0x20, 0x00, 0x10, 0x00, 0x0b,
+  0x07, 0x00, 0x20, 0x00, 0x41, 0x32, 0x6a, 0x0b, 0x06, 0x00, 0x20, 0x00,
+  0x10, 0x01, 0x0b
+};
 
+BACKEND_TEST_CASE("test reentry", "[reentry]") {
+   struct test_runner;
+   using rhf_t = eosio::vm::registered_host_functions<test_runner>;
+   using backend_t = eosio::vm::backend<rhf_t, TestType>;
    struct test_runner {
-      eosio::vm::backend<test_runner, TestType>& bkend;
+      backend_t* bkend;
       uint32_t test_func_0(uint32_t val) {
-         return bkend.call_with_return(this, "env", "bar", val)->to_ui32() + 50;
+         return bkend->call_with_return(*this, "env", "bar", val)->to_ui32() + 50;
       }
       uint32_t test_func_1(uint32_t val) {
-         return bkend.call_with_return(this, "env", "testbar", val)->to_ui32() + 50;
+         return bkend->call_with_return(*this, "env", "testbar", val)->to_ui32() + 50;
       }
-      void eosio_assert(uint32_t, uint32_t) {}
-      void* memset(void*, int, int) { return 0; }
    };
 
-   using rhf_t     = eosio::vm::registered_host_functions<test_runner>;
-   using backend_t = eosio::vm::backend<test_runner, TestType>;
    wasm_allocator wa;
-   backend_t bkend(reentry_wasm);
-   bkend.set_wasm_allocator(&wa);
-   bkend.initialize();
-   test_runner tr = {bkend};
-   
-   rhf_t::template add<test_runner, &test_runner::test_func_0, wasm_allocator>("env", "testfunc0");
-   rhf_t::template add<test_runner, &test_runner::test_func_1, wasm_allocator>("env", "testfunc1");
-   rhf_t::template add<test_runner, &test_runner::eosio_assert, wasm_allocator>("env", "eosio_assert");
-   rhf_t::template add<test_runner, &test_runner::memset, wasm_allocator>("env", "memset");
-   rhf_t::resolve(bkend.get_module());
+   rhf_t::template add<&test_runner::test_func_0>("env", "test_func_0");
+   rhf_t::template add<&test_runner::test_func_1>("env", "test_func_1");
 
-   // level 0
-   CHECK(bkend.call_with_return(&tr, "env", "foo", (uint32_t)10)->to_ui32() == 52);
-   // level 1
-   CHECK(bkend.call_with_return(&tr, "env", "testbar", (uint32_t)10)->to_ui32() == 160);
-   CHECK(bkend.call_with_return(&tr, "env", "testbaz", (uint32_t)10)->to_ui32() == 513);
+   test_runner tr;
+   backend_t bkend(reentry_wasm, tr, &wa);
+
+   tr.bkend = &bkend;
+
+   CHECK(bkend.call_with_return(tr, "env", "foo", (uint32_t)10)->to_ui32() == 52);
+   CHECK(bkend.call_with_return(tr, "env", "testbar", (uint32_t)10)->to_ui32() == 110);
+   CHECK(bkend.call_with_return(tr, "env", "testbaz", (uint32_t)10)->to_ui32() == 160);
 }

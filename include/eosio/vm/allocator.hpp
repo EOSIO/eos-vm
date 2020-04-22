@@ -184,7 +184,7 @@ namespace eosio { namespace vm {
          segment s{base, size};
          EOS_VM_ASSERT(base != MAP_FAILED, wasm_bad_alloc, "failed to allocate jit segment");
          _segments.emplace_back(std::move(s));
-         bool success = true;
+         bool success = false;
          auto guard_1 = scope_guard{[&] { if(!success) { _segments.pop_back(); } }};
          auto pos2 = free_blocks_by_size.insert({size, base}).first;
          auto guard_2 = scope_guard{[&] { if(!success) { free_blocks_by_size.erase(pos2); }}};
@@ -409,6 +409,10 @@ namespace eosio { namespace vm {
          raw += syspagesize;
          page = 0;
       }
+      // Initializes the memory controlled by the allocator.
+      //
+      // \post get_current_page() == new_pages
+      // \post all allocated pages are zero-filled.
       void reset(uint32_t new_pages) {
          if (page != -1) {
             memset(raw, '\0', page_size * page); // zero the memory
@@ -416,14 +420,15 @@ namespace eosio { namespace vm {
             std::size_t syspagesize = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
             int err = mprotect(raw - syspagesize, syspagesize, PROT_READ);
             EOS_VM_ASSERT(err == 0, wasm_bad_alloc, "mprotect failed");
+            page = 0;
          }
-         // no need to mprotect if the size hasn't changed
-         if (new_pages != page && page > 0) {
-            int err = mprotect(raw, page_size * page, PROT_NONE); // protect the entire region of memory
-            EOS_VM_ASSERT(err == 0, wasm_bad_alloc, "mprotect failed");
+         if(new_pages > page) {
+            alloc<char>(new_pages - page);
+         } else if(new_pages < page) {
+            free<char>(page - new_pages);
          }
-         page = 0;
       }
+
       // Signal no memory defined
       void reset() {
          if (page != -1) {
@@ -434,6 +439,7 @@ namespace eosio { namespace vm {
          }
          page = -1;
       }
+
       template <typename T>
       inline T* get_base_ptr() const {
          return reinterpret_cast<T*>(raw);

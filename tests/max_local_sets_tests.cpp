@@ -35,22 +35,22 @@ struct dynamic_options {
 
 BACKEND_TEST_CASE("Test max_local_sets default", "[max_local_sets_test]") {
    using backend_t = backend<std::nullptr_t, TestType>;
-   backend_t backend(two_sets_wasm);
+   backend_t backend(two_sets_wasm, &wa);
 }
 
 BACKEND_TEST_CASE("Test max_local_sets unlimited", "[max_local_sets_test]") {
    using backend_t = backend<std::nullptr_t, TestType, empty_options>;
-   backend_t backend(two_sets_wasm);
+   backend_t backend(two_sets_wasm, &wa);
 }
 
 BACKEND_TEST_CASE("Test max_local_sets static fail", "[max_local_sets_test]") {
    using backend_t = backend<std::nullptr_t, TestType, static_options_1>;
-   CHECK_THROWS_AS(backend_t(two_sets_wasm), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(two_sets_wasm, &wa), wasm_parse_exception);
 }
 
 BACKEND_TEST_CASE("Test max_local_sets static pass", "[max_local_sets_test]") {
    using backend_t = backend<std::nullptr_t, TestType, static_options_2>;
-   backend_t backend(two_sets_wasm);
+   backend_t backend(two_sets_wasm, &wa);
 }
 
 BACKEND_TEST_CASE("Test max_local_sets dynamic fail", "[max_local_sets_test]") {

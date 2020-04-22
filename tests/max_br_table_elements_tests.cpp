@@ -35,22 +35,22 @@ struct dynamic_options {
 
 BACKEND_TEST_CASE("Test max_br_table_elements default", "[max_br_table_elements_test]") {
    using backend_t = backend<std::nullptr_t, TestType>;
-   backend_t backend(two_elements_wasm);
+   backend_t backend(two_elements_wasm, &wa);
 }
 
 BACKEND_TEST_CASE("Test max_br_table_elements unlimited", "[max_br_table_elements_test]") {
    using backend_t = backend<std::nullptr_t, TestType, empty_options>;
-   backend_t backend(two_elements_wasm);
+   backend_t backend(two_elements_wasm, &wa);
 }
 
 BACKEND_TEST_CASE("Test max_br_table_elements static fail", "[max_br_table_elements_test]") {
    using backend_t = backend<std::nullptr_t, TestType, static_options_1>;
-   CHECK_THROWS_AS(backend_t(two_elements_wasm), wasm_parse_exception);
+   CHECK_THROWS_AS(backend_t(two_elements_wasm, &wa), wasm_parse_exception);
 }
 
 BACKEND_TEST_CASE("Test max_br_table_elements static pass", "[max_br_table_elements_test]") {
    using backend_t = backend<std::nullptr_t, TestType, static_options_2>;
-   backend_t backend(two_elements_wasm);
+   backend_t backend(two_elements_wasm, &wa);
 }
 
 BACKEND_TEST_CASE("Test max_br_table_elements dynamic fail", "[max_br_table_elements_test]") {

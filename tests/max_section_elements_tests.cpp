@@ -121,15 +121,15 @@ struct name ## _static_options_2 {                                        \
 
 #define SECTION_TEST_CASE_IMPL(name, wasm)                                                                                   \
 BACKEND_TEST_CASE("Test max_" #name "_section_elements", "[max_section_elements_test]") {                                    \
-   backend<std::nullptr_t, TestType> backend_default(wasm);                                                                  \
-   backend<std::nullptr_t, TestType, empty_options> backend_empty(wasm);                                                     \
-   CHECK_THROWS_AS((backend<std::nullptr_t, TestType, static_options_1>(wasm)), wasm_parse_exception);                       \
-   backend<std::nullptr_t, TestType, static_options_2> backend_static_fallback(wasm);                                        \
+   backend<std::nullptr_t, TestType> backend_default(wasm, &wa);                                                             \
+   backend<std::nullptr_t, TestType, empty_options> backend_empty(wasm, &wa);                                                \
+   CHECK_THROWS_AS((backend<std::nullptr_t, TestType, static_options_1>(wasm, &wa)), wasm_parse_exception);                  \
+   backend<std::nullptr_t, TestType, static_options_2> backend_static_fallback(wasm, &wa);                                   \
    CHECK_THROWS_AS((backend<std::nullptr_t, TestType, dynamic_options>(wasm, nullptr, {1})), wasm_parse_exception);          \
    backend<std::nullptr_t, TestType, dynamic_options> backend_dynamic_fallback(wasm, nullptr, {2});                          \
                                                                                                                              \
-   CHECK_THROWS_AS((backend<std::nullptr_t, TestType, name ## _static_options_1>(wasm)), wasm_parse_exception);              \
-   backend<std::nullptr_t, TestType, name ## _static_options_2> backend_static(wasm);                                        \
+   CHECK_THROWS_AS((backend<std::nullptr_t, TestType, name ## _static_options_1>(wasm, &wa)), wasm_parse_exception);         \
+   backend<std::nullptr_t, TestType, name ## _static_options_2> backend_static(wasm, &wa);                                   \
    CHECK_THROWS_AS((backend<std::nullptr_t, TestType, name ## _dynamic_options>(wasm, nullptr, {1})), wasm_parse_exception); \
    backend<std::nullptr_t, TestType, name ## _dynamic_options> backend_dynamic(wasm, nullptr, {2});                          \
 }

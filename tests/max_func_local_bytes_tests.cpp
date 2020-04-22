@@ -118,45 +118,45 @@ struct dynamic_options_empty_flags {
 
 BACKEND_TEST_CASE("Test max_func_local_bytes default", "[max_func_local_bytes_test]") {
    using backend_t = backend<std::nullptr_t, TestType>;
-   backend_t backend_unused(unused_type_wasm);
-   backend_t backend_param(param_16_wasm);
-   backend_t backend_local(local_16_wasm);
-   backend_t backend_stack(stack_16_wasm);
-   backend_t backend_mixed(mixed_16_wasm);
+   backend_t backend_unused(unused_type_wasm, &wa);
+   backend_t backend_param(param_16_wasm, &wa);
+   backend_t backend_local(local_16_wasm, &wa);
+   backend_t backend_stack(stack_16_wasm, &wa);
+   backend_t backend_mixed(mixed_16_wasm, &wa);
 }
 
 BACKEND_TEST_CASE("Test max_func_local_bytes unlimited", "[max_func_local_bytes_test]") {
    {
       using backend_t = backend<std::nullptr_t, TestType, empty_options>;
-      backend_t backend_unused(unused_type_wasm);
-      backend_t backend_param(param_16_wasm);
-      backend_t backend_local(local_16_wasm);
-      backend_t backend_stack(stack_16_wasm);
-      backend_t backend_mixed(mixed_16_wasm);
+      backend_t backend_unused(unused_type_wasm, &wa);
+      backend_t backend_param(param_16_wasm, &wa);
+      backend_t backend_local(local_16_wasm, &wa);
+      backend_t backend_stack(stack_16_wasm, &wa);
+      backend_t backend_mixed(mixed_16_wasm, &wa);
    }
    {
       using backend_t = backend<std::nullptr_t, TestType, empty_options_static_flags<lp>>;
-      backend_t backend_unused(unused_type_wasm);
-      backend_t backend_param(param_16_wasm);
-      backend_t backend_local(local_16_wasm);
-      backend_t backend_stack(stack_16_wasm);
-      backend_t backend_mixed(mixed_16_wasm);
+      backend_t backend_unused(unused_type_wasm, &wa);
+      backend_t backend_param(param_16_wasm, &wa);
+      backend_t backend_local(local_16_wasm, &wa);
+      backend_t backend_stack(stack_16_wasm, &wa);
+      backend_t backend_mixed(mixed_16_wasm, &wa);
    }
    {
       using backend_t = backend<std::nullptr_t, TestType, empty_options_static_flags<ps>>;
-      backend_t backend_unused(unused_type_wasm);
-      backend_t backend_param(param_16_wasm);
-      backend_t backend_local(local_16_wasm);
-      backend_t backend_stack(stack_16_wasm);
-      backend_t backend_mixed(mixed_16_wasm);
+      backend_t backend_unused(unused_type_wasm, &wa);
+      backend_t backend_param(param_16_wasm, &wa);
+      backend_t backend_local(local_16_wasm, &wa);
+      backend_t backend_stack(stack_16_wasm, &wa);
+      backend_t backend_mixed(mixed_16_wasm, &wa);
    }
    {
       using backend_t = backend<std::nullptr_t, TestType, empty_options_static_flags<ls>>;
-      backend_t backend_unused(unused_type_wasm);
-      backend_t backend_param(param_16_wasm);
-      backend_t backend_local(local_16_wasm);
-      backend_t backend_stack(stack_16_wasm);
-      backend_t backend_mixed(mixed_16_wasm);
+      backend_t backend_unused(unused_type_wasm, &wa);
+      backend_t backend_param(param_16_wasm, &wa);
+      backend_t backend_local(local_16_wasm, &wa);
+      backend_t backend_stack(stack_16_wasm, &wa);
+      backend_t backend_mixed(mixed_16_wasm, &wa);
    }
    {
       using backend_t = backend<std::nullptr_t, TestType, empty_options_dynamic_flags>;
@@ -171,58 +171,58 @@ BACKEND_TEST_CASE("Test max_func_local_bytes unlimited", "[max_func_local_bytes_
 BACKEND_TEST_CASE("Test max_func_local_bytes static fail", "[max_func_local_bytes_test]") {
    {
       using backend_t = backend<std::nullptr_t, TestType, static_options<8, lp>>;
-      backend_t backend_unused(unused_type_wasm);
-      CHECK_THROWS_AS(backend_t(param_16_wasm), wasm_parse_exception);
-      CHECK_THROWS_AS(backend_t(local_16_wasm), wasm_parse_exception);
-      backend_t backend_stack(stack_16_wasm);
-      CHECK_THROWS_AS(backend_t(mixed_16_wasm), wasm_parse_exception);
+      backend_t backend_unused(unused_type_wasm, &wa);
+      CHECK_THROWS_AS(backend_t(param_16_wasm, &wa), wasm_parse_exception);
+      CHECK_THROWS_AS(backend_t(local_16_wasm, &wa), wasm_parse_exception);
+      backend_t backend_stack(stack_16_wasm, &wa);
+      CHECK_THROWS_AS(backend_t(mixed_16_wasm, &wa), wasm_parse_exception);
    }
    {
       using backend_t = backend<std::nullptr_t, TestType, static_options<8, ls>>;
-      backend_t backend_param(param_16_wasm);
-      CHECK_THROWS_AS(backend_t(local_16_wasm), wasm_parse_exception);
-      CHECK_THROWS_AS(backend_t(stack_16_wasm), wasm_parse_exception);
+      backend_t backend_param(param_16_wasm, &wa);
+      CHECK_THROWS_AS(backend_t(local_16_wasm, &wa), wasm_parse_exception);
+      CHECK_THROWS_AS(backend_t(stack_16_wasm, &wa), wasm_parse_exception);
    }
    {
       using backend_t = backend<std::nullptr_t, TestType, static_options<8, ps>>;
-      CHECK_THROWS_AS(backend_t(param_16_wasm), wasm_parse_exception);
-      backend_t backend_local(local_16_wasm);
-      CHECK_THROWS_AS(backend_t(stack_16_wasm), wasm_parse_exception);
+      CHECK_THROWS_AS(backend_t(param_16_wasm, &wa), wasm_parse_exception);
+      backend_t backend_local(local_16_wasm, &wa);
+      CHECK_THROWS_AS(backend_t(stack_16_wasm, &wa), wasm_parse_exception);
    }
    {
       using backend_t = backend<std::nullptr_t, TestType, static_options_empty_flags<8>>;
-      backend_t backend_param(param_16_wasm);
-      CHECK_THROWS_AS(backend_t(local_16_wasm), wasm_parse_exception);
-      CHECK_THROWS_AS(backend_t(stack_16_wasm), wasm_parse_exception);
+      backend_t backend_param(param_16_wasm, &wa);
+      CHECK_THROWS_AS(backend_t(local_16_wasm, &wa), wasm_parse_exception);
+      CHECK_THROWS_AS(backend_t(stack_16_wasm, &wa), wasm_parse_exception);
    }
 }
 
 BACKEND_TEST_CASE("Test max_func_local_bytes static pass", "[max_func_local_bytes_test]") {
    {
       using backend_t = backend<std::nullptr_t, TestType, static_options<16, lp>>;
-      backend_t backend_unused(unused_type_wasm);
-      backend_t backend_param(param_16_wasm);
-      backend_t backend_local(local_16_wasm);
-      backend_t backend_stack(stack_16_wasm);
-      backend_t backend_mixed(mixed_16_wasm);
+      backend_t backend_unused(unused_type_wasm, &wa);
+      backend_t backend_param(param_16_wasm, &wa);
+      backend_t backend_local(local_16_wasm, &wa);
+      backend_t backend_stack(stack_16_wasm, &wa);
+      backend_t backend_mixed(mixed_16_wasm, &wa);
    }
    {
       using backend_t = backend<std::nullptr_t, TestType, static_options<16, ps>>;
-      backend_t backend_param(param_16_wasm);
-      backend_t backend_local(local_16_wasm);
-      backend_t backend_stack(stack_16_wasm);
+      backend_t backend_param(param_16_wasm, &wa);
+      backend_t backend_local(local_16_wasm, &wa);
+      backend_t backend_stack(stack_16_wasm, &wa);
    }
    {
       using backend_t = backend<std::nullptr_t, TestType, static_options<16, ls>>;
-      backend_t backend_param(param_16_wasm);
-      backend_t backend_local(local_16_wasm);
-      backend_t backend_stack(stack_16_wasm);
+      backend_t backend_param(param_16_wasm, &wa);
+      backend_t backend_local(local_16_wasm, &wa);
+      backend_t backend_stack(stack_16_wasm, &wa);
    }
    {
       using backend_t = backend<std::nullptr_t, TestType, static_options_empty_flags<16>>;
-      backend_t backend_param(param_16_wasm);
-      backend_t backend_local(local_16_wasm);
-      backend_t backend_stack(stack_16_wasm);
+      backend_t backend_param(param_16_wasm, &wa);
+      backend_t backend_local(local_16_wasm, &wa);
+      backend_t backend_stack(stack_16_wasm, &wa);
    }
 }
 

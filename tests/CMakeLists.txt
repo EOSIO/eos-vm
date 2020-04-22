@@ -50,6 +50,8 @@ macro( add_spec_test name )
    endif()
 endmacro()
 
+if (ENABLE_SPEC_TESTS)
+
 foreach(testcase address align binary binary-leb128 block br br_if br_table break-drop call_indirect
                  call const conversions custom data elem
                  endianness f32 f32_bitwise f32_cmp f64 f64_bitwise f64_cmp
@@ -59,7 +61,7 @@ foreach(testcase address align binary binary-leb128 block br br_if br_table brea
                  memory_redundancy memory_grow memory_size memory_trap names nop return
                  select stack start store switch traps type typecheck
                  unreachable unreached-invalid unwind
-                 utf8-custom-section-id utf8-import-field utf8-import-module utf8-invalid-encoding
+                 utf8-custom-section-id utf8-import-field utf8-import-module
                  )
    add_spec_test(${testcase})
 endforeach()
@@ -78,6 +80,12 @@ target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
 target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include )
 target_include_directories( eos_vm_spec_tests PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/spec )
 
+target_compile_definitions(eos_vm_spec_tests PUBLIC -DCATCH_CONFIG_NO_POSIX_SIGNALS)
+
+catch_discover_tests( eos_vm_spec_tests )
+
+endif(ENABLE_SPEC_TESTS)
+
 add_executable(unit_tests main.cpp
                           allocator_tests.cpp
                           eosio_max_nested_structures_tests.cpp
@@ -85,6 +93,7 @@ add_executable(unit_tests main.cpp
                           varint_tests.cpp
                           variant_tests.cpp
                           host_functions_tests.cpp
+                          preconditions_tests.cpp
                           allow_code_after_function_end_tests.cpp
                           allow_invalid_empty_local_set_tests.cpp
                           allow_u32_limits_flags_tests.cpp
@@ -104,6 +113,7 @@ add_executable(unit_tests main.cpp
                           null_tests.cpp
                           reentry_tests.cpp
                           signals_tests.cpp
+                          span_tests.cpp
                           stack_restriction_tests.cpp
                           watchdog_tests.cpp
                           implementation_limits_tests.cpp
@@ -116,10 +126,8 @@ target_link_libraries(unit_tests eos-vm Catch2::Catch2)
 # ##############
 # disable catch2 from installing it's own signal handlers
 # ##############
-target_compile_definitions(eos_vm_spec_tests PUBLIC -DCATCH_CONFIG_NO_POSIX_SIGNALS)
 target_compile_definitions(unit_tests PUBLIC -DCATCH_CONFIG_NO_POSIX_SIGNALS)
 
 add_executable( spec_test_generator ${CMAKE_CURRENT_SOURCE_DIR}/spec_test_generator/spec_test_generator.cpp )
 
-catch_discover_tests( eos_vm_spec_tests )
 catch_discover_tests( unit_tests )

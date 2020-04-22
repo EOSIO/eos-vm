@@ -11,9 +11,9 @@ namespace eosio { namespace vm {
       [[gnu::always_inline]] inline void operator()(const exit_t& ) {}
       [[gnu::always_inline]] inline void operator()(const end_t& ) {}
       [[gnu::always_inline]] inline void operator()(const return_t& ) {}
-      [[gnu::always_inline]] inline void operator()(block_t& ) {}
-      [[gnu::always_inline]] inline void operator()(loop_t& ) {}
-      [[gnu::always_inline]] inline void operator()(if_t& ) {}
+      [[gnu::always_inline]] inline void operator()(const block_t& ) {}
+      [[gnu::always_inline]] inline void operator()(const loop_t& ) {}
+      [[gnu::always_inline]] inline void operator()(const if_t& ) {}
       [[gnu::always_inline]] inline void operator()(const else_t& ) {}
       [[gnu::always_inline]] inline void operator()(const br_t& ) {}
       [[gnu::always_inline]] inline void operator()(const br_if_t& ) {}

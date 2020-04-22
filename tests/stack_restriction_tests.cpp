@@ -39,9 +39,7 @@ BACKEND_TEST_CASE("Test that we can load and run a wasm that uses 8191 stack ele
    };
 
    using backend_t = backend<nullptr_t>;
-   backend_t bkend(_8k_stack_size_1_under_wasm);
-   bkend.set_wasm_allocator(&wa);
-   bkend.initialize();
+   backend_t bkend(_8k_stack_size_1_under_wasm, &wa);
    bkend.execute_all(null_watchdog());
 }
 
@@ -72,8 +70,6 @@ BACKEND_TEST_CASE("Test that we can load and run a wasm that uses 8192 stack ele
                                                  0x09, 0x01, 0xfe, 0x02, 0x7e, 0x41, 0x00, 0x10, 0x00, 0x0b };
 
    using backend_t = backend<nullptr_t>;
-   backend_t bkend(_8k_stack_size_wasm);
-   bkend.set_wasm_allocator(&wa);
-   bkend.initialize();
+   backend_t bkend(_8k_stack_size_wasm, &wa);
    bkend.execute_all(null_watchdog());
 }
