@@ -51,7 +51,8 @@ namespace eosio { namespace vm {
       constexpr const T* operator->() const { return get(); }
 
       static constexpr bool is_legacy() { return LegacyAlign != 0; }
-      using dependent_type = T;
+      using pointee_type = T;
+      using proxy_type = T*;
       constexpr const void* get_original_pointer() const { return original_ptr; }
 
     private:
@@ -63,7 +64,8 @@ namespace eosio { namespace vm {
    struct argument_proxy<span<T>, LegacyAlign> : span<T> {
       static_assert(LegacyAlign % alignof(T) == 0, "Specified alignment must be at least alignment of T");
       static_assert(std::is_trivially_copyable_v<T>, "argument_proxy requires a trivially copyable type");
-      using dependent_type = T;
+      using pointee_type = T;
+      using proxy_type = span<T>;
       inline constexpr argument_proxy(void* ptr, uint32_t size)
          : original_ptr(ptr),
            copy( is_aligned(ptr) ? nullptr : new std::remove_cv_t<T>[size] ) {
@@ -101,7 +103,7 @@ namespace eosio { namespace vm {
 
    namespace detail {
       template <typename T>
-      constexpr auto get_dependent_type() -> std::enable_if_t<is_argument_proxy_type_v<T>, typename T::dependent_type>;
+      constexpr auto get_dependent_type() -> std::enable_if_t<is_argument_proxy_type_v<T>, typename T::pointee_type>;
       template <typename T>
       constexpr auto get_dependent_type() -> std::enable_if_t<!is_argument_proxy_type_v<T>, T>;
       // Help OSX clang
