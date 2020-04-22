@@ -52,7 +52,9 @@ namespace eosio { namespace vm {
 
       static constexpr bool is_legacy() { return LegacyAlign != 0; }
       using dependent_type = T;
+      constexpr const void* get_original_pointer() const { return original_ptr; }
 
+    private:
       void* original_ptr;
       std::optional<std::remove_cv_t<T>> copy;
    };
@@ -61,7 +63,7 @@ namespace eosio { namespace vm {
    struct argument_proxy<span<T>, LegacyAlign> : span<T> {
       static_assert(LegacyAlign % alignof(T) == 0, "Specified alignment must be at least alignment of T");
       static_assert(std::is_trivially_copyable_v<T>, "argument_proxy requires a trivially copyable type");
-      inline constexpr bool is_aligned(void* ptr) { return reinterpret_cast<std::uintptr_t>(original_ptr) % LegacyAlign == 0; }
+      using dependent_type = T;
       inline constexpr argument_proxy(void* ptr, uint32_t size)
          : original_ptr(ptr),
            copy( is_aligned(ptr) ? nullptr : new std::remove_cv_t<T>[size] ) {
@@ -77,10 +79,12 @@ namespace eosio { namespace vm {
                memcpy( original_ptr, copy.get(), this->size_bytes() );
       }
       static constexpr bool is_legacy() { return LegacyAlign != 0; }
+      constexpr const void* get_original_pointer() const { return original_ptr; }
 
+   private:
+      inline static constexpr bool is_aligned(void* ptr) { return reinterpret_cast<std::uintptr_t>(ptr) % LegacyAlign == 0; }
       void* original_ptr;
       std::unique_ptr<std::remove_cv_t<T>[]> copy = nullptr;
-      using dependent_type = T;
    };
 
    namespace detail {
