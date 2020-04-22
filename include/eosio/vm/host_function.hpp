@@ -121,18 +121,8 @@ namespace eosio { namespace vm {
       template <typename T>
       auto from_wasm(void* ptr) const
          -> std::enable_if_t< is_argument_proxy_type_v<T> &&
-                              is_argument_proxy_legacy_v<T> &&
                               !is_span_type_v<dependent_type_t<T>>, T> {
          this->template validate_pointer<argument_proxy_dependent_type_t<T>>(ptr, 1);
-         return {ptr};
-      }
-
-      template <typename T>
-      auto from_wasm(void* ptr) const
-         -> std::enable_if_t< is_argument_proxy_type_v<T> &&
-                              !is_argument_proxy_legacy_v<T> &&
-                              !is_span_type_v<dependent_type_t<T>>, T> {
-         this->template validate_pointer<argument_proxy_dependent_type_t<T>*>(ptr, 1);
          return {ptr};
       }
 
