@@ -6,11 +6,11 @@ if [[ "$BUILDKITE" == 'true' ]]; then
     buildkite-agent artifact download build.tar.gz . --step "$1"
     tar -xzf build.tar.gz
 fi
-COMMAND="./scripts/test.sh"
+COMMANDS="./scripts/test.sh"
 if [[ $(uname) == 'Darwin' ]]; then
     set +e
-    echo "$ $COMMAND"
-    $COMMAND
+    echo "$ $COMMANDS"
+    $COMMANDS
     EXIT_STATUS=$?
 else # Linux
     MOUNTED_DIR='/workdir'
