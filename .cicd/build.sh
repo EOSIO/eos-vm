@@ -11,8 +11,8 @@ if [[ $(uname) == 'Darwin' ]]; then
 else # Linux
     MOUNTED_DIR='/workdir'
     ARGS=${ARGS:-"--rm -v $(pwd):$MOUNTED_DIR"}
-    . .cicd/helpers/docker-hash.sh
-    COMMANDS="cd $MOUNTED_DIR/build && cmake -DCMAKE_TOOLCHAIN_FILE=$MOUNTED_DIR/.cicd/helpers/clang.make -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=Release .. && make -j$JOBS"
+    . .cicd/docker-hash.sh
+    COMMANDS="cd $MOUNTED_DIR/build && cmake -DCMAKE_TOOLCHAIN_FILE=$MOUNTED_DIR/.cicd/clang.make -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=Release .. && make -j$JOBS"
     # base-image
     [[ "$BUILDKITE" == 'true' ]] && .cicd/generate-base-images.sh
     # Load BUILDKITE Environment Variables for use in docker run
