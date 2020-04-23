@@ -1,6 +1,6 @@
 #!/bin/bash
 set -eo pipefail
-. .cicd/helpers/general.sh
+export JOBS=${JOBS:-"$(getconf _NPROCESSORS_ONLN)"}
 mkdir build
 if [[ $(uname) == 'Darwin' ]]; then
     cd build

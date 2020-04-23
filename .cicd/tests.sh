@@ -1,6 +1,6 @@
 #!/bin/bash
 set -eo pipefail
-. .cicd/helpers/general.sh
+export JOBS=${JOBS:-"$(getconf _NPROCESSORS_ONLN)"}
 # download artifacts
 if [[ "$BUILDKITE" == 'true' ]]; then
     buildkite-agent artifact download build.tar.gz . --step "$1"
