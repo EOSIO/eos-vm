@@ -8,7 +8,7 @@ if [[ $(uname) == 'Darwin' ]]; then
 
     cd $BUILD_DIR
     [[ $TRAVIS == true ]] && ccache -s
-    cmake -DCMAKE_BUILD_TYPE=Release ..
+    cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON ..
     make -j$JOBS
 
 else # Linux
