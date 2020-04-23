@@ -1,9 +1,9 @@
 #!/bin/bash
 set -eo pipefail
 . .cicd/helpers/general.sh
-mkdir -p $BUILD_DIR
+mkdir build
 if [[ $(uname) == 'Darwin' ]]; then
-    cd $BUILD_DIR
+    cd build
     echo '$ cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON ..'
     cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON ..
     echo "$ make -j $JOBS"
