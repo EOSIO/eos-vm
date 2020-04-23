@@ -1,32 +1,22 @@
 #!/bin/bash
 set -eo pipefail
 . ./.cicd/helpers/general.sh
-
 mkdir -p $BUILD_DIR
-
 TEST_COMMAND="ctest -j$JOBS --output-on-failure -T Test"
-
 if [[ $(uname) == 'Darwin' ]]; then
-
     cd $BUILD_DIR
     set +e
     $TEST_COMMAND
     EXIT_STATUS=$?
-
 else # Linux
-
     MOUNTED_DIR='/workdir'
     ARGS=${ARGS:-"--rm -v $(pwd):$MOUNTED_DIR"}
-
     . $HELPERS_DIR/docker-hash.sh
-
     COMMANDS="cd $MOUNTED_DIR/build && $TEST_COMMAND"
-
     # Docker Commands
     if [[ $BUILDKITE == true ]]; then
         $CICD_DIR/generate-base-images.sh
     fi
-
     # Load BUILDKITE Environment Variables for use in docker run
     if [[ -f $BUILDKITE_ENV_FILE ]]; then
         evars=""
@@ -34,7 +24,6 @@ else # Linux
             evars="$evars --env ${var%%=*}"
         done < "$BUILDKITE_ENV_FILE"
     fi
-    
     # Docker Run with all of the commands we've prepped
     set +e
     eval docker run $ARGS $evars $FULL_TAG bash -c \"$COMMANDS\"
