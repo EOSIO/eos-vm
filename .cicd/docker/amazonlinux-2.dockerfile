@@ -1,7 +1,15 @@
 FROM amazonlinux:2.0.20190508
 # install dependencies
 RUN yum update -yq && \
-    yum install -yq git sudo tar bzip2 make gcc gcc-c++ doxygen && \
+    yum install -yq \
+        bzip2 \
+        doxygen \
+        gcc \
+        gcc-c++ \
+        git \
+        make \
+        sudo \
+        tar && \
     yum clean all && \
     rm -rf /var/cache/yum
 # build cmake
