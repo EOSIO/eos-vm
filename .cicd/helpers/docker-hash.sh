@@ -15,7 +15,6 @@ function determine-hash() {
     export HASHED_IMAGE_TAG="${IMAGE_TAG}-${DETERMINED_HASH}"
 }
 
-
 if [[ ! -z $IMAGE_TAG ]]; then
     determine-hash "$CICD_DIR/docker/${IMAGE_TAG}.dockerfile"
     export FULL_TAG="eosio/ci:eos-vm-$HASHED_IMAGE_TAG"
