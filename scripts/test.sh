@@ -1,10 +1,9 @@
 #!/bin/bash
 set -eo pipefail
 echo "+++ $([[ "$BUILDKITE" == 'true' ]] && echo ':evergreen_tree: ')Configuring Environment"
-GIT_ROOT="$(dirname $BASH_SOURCE[0])/.."
+cd "$(dirname $BASH_SOURCE[0])/../build"
 [[ -z "$JOBS" ]] && export JOBS="$(nproc)"
 [[ -z "$TEST" ]] && export TEST="$1"
-cd $GIT_ROOT/build
 # tests
 if [[ -z "$TEST" ]]; then # run all tests
     # count tests
