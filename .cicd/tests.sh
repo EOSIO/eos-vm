@@ -5,7 +5,8 @@ mkdir -p $BUILD_DIR
 TEST_COMMAND="ctest -j$JOBS --output-on-failure -T Test"
 if [[ $(uname) == 'Darwin' ]]; then
     cd $BUILD_DIR
-    [[ $TRAVIS == true ]] && ccache -s
+    [[ $TRAVIS == true ]] && echo '$ ccache -s' && ccache -s
+    echo "$ $TEST_COMMAND"
     $TEST_COMMAND
 else # Linux
     MOUNTED_DIR='/workdir'
@@ -27,5 +28,6 @@ else # Linux
         done < "$BUILDKITE_ENV_FILE"
     fi
     # Docker Run with all of the commands we've prepped
+    echo "$ docker run $ARGS $evars $FULL_TAG bash -c \"$COMMANDS\""
     eval docker run $ARGS $evars $FULL_TAG bash -c \"$COMMANDS\"
 fi
