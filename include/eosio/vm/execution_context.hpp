@@ -84,12 +84,12 @@ namespace eosio { namespace vm {
          if (pages < 0) {
             if (sz + pages < 0)
                return -1;
-            _memory_alloc->free<char>(-pages);
+            _memory_alloc->template free<char>(-pages);
          } else {
             if (!_mod.memories.size() || _max_pages - sz < pages ||
                 (_mod.memories[0].limits.flags && (static_cast<int32_t>(_mod.memories[0].limits.maximum) - sz < pages)))
                return -1;
-            _memory_alloc->alloc<char>(pages);
+            _memory_alloc->template alloc<char>(pages);
          }
          return sz;
       }
@@ -119,7 +119,7 @@ namespace eosio { namespace vm {
       inline void reset() {
          EOS_VM_ASSERT(_mod.error == nullptr, wasm_interpreter_exception, _mod.error);
 
-         _linear_memory = _memory_alloc->get_base_ptr<char>();
+         _linear_memory = _memory_alloc->template get_base_ptr<char>();
          if(_mod.memories.size()) {
             EOS_VM_ASSERT(_mod.memories[0].limits.initial <= _max_pages, wasm_bad_alloc, "Cannot allocate initial linear memory.");
             _memory_alloc->reset(_mod.memories[0].limits.initial);
