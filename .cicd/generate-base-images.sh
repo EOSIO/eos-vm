@@ -1,6 +1,5 @@
 #!/bin/bash
 set -eo pipefail
-. .cicd/helpers/general.sh
 . .cicd/helpers/docker-hash.sh
 # look for Docker image
 echo "+++ :mag_right: Looking for $FULL_TAG"
