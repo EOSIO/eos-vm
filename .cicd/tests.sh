@@ -1,7 +1,11 @@
 #!/bin/bash
 set -eo pipefail
 . ./.cicd/helpers/general.sh
-mkdir -p $BUILD_DIR
+# download artifacts
+if [[ "$BUILDKITE" == 'true' ]]; then
+    buildkite-agent artifact download build.tar.gz . --step "$1"
+    tar -xzf build.tar.gz
+fi
 COMMAND="./scripts/test.sh"
 if [[ $(uname) == 'Darwin' ]]; then
     set +e
