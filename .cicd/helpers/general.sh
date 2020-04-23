@@ -1,1 +1,0 @@
-export JOBS=${JOBS:-"$(getconf _NPROCESSORS_ONLN)"}
