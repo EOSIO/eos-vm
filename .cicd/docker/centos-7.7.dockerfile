@@ -3,7 +3,13 @@ FROM centos:7.7.1908
 RUN yum update -yq && \
     yum install -yq --enablerepo=extras centos-release-scl && \
     yum install -yq --enablerepo=extras devtoolset-7 && \
-    yum install -yq --enablerepo=extras git sudo tar bzip2 make doxygen && \
+    yum install -yq --enablerepo=extras \
+        bzip2 \
+        doxygen \
+        git \
+        make \
+        sudo \
+        tar && \
     yum clean all && \
     rm -rf /var/cache/yum
 # build cmake
