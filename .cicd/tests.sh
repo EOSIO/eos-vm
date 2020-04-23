@@ -8,20 +8,14 @@ if [[ "$BUILDKITE" == 'true' ]]; then
 fi
 COMMANDS="./scripts/test.sh"
 if [[ $(uname) == 'Darwin' ]]; then
-    [[ $TRAVIS == true ]] && echo '$ ccache -s' && ccache -s
     echo "$ $COMMANDS"
     $COMMANDS
 else # Linux
     MOUNTED_DIR='/workdir'
     ARGS=${ARGS:-"--rm -v $(pwd):$MOUNTED_DIR -w $MOUNTED_DIR"}
     . $HELPERS_DIR/docker-hash.sh
-    # Docker Commands
-    if [[ $BUILDKITE == true ]]; then
-        $CICD_DIR/generate-base-images.sh
-    elif [[ $TRAVIS == true ]]; then
-        ARGS="$ARGS -v /usr/lib/ccache -v $HOME/.ccache:/opt/.ccache -e JOBS -e TRAVIS -e CCACHE_DIR=/opt/.ccache"
-        COMMANDS="ccache -s && $COMMANDS"
-    fi
+    # base-image
+    [[ "$BUILDKITE" == 'true' ]] && $CICD_DIR/generate-base-images.sh
     # Load BUILDKITE Environment Variables for use in docker run
     if [[ -f $BUILDKITE_ENV_FILE ]]; then
         evars=""
