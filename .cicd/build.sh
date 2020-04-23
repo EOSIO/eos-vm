@@ -32,3 +32,8 @@ else # Linux
     echo "$ docker run $ARGS $evars $FULL_TAG bash -c \"$COMMANDS\""
     eval docker run $ARGS $evars $FULL_TAG bash -c \"$COMMANDS\"
 fi
+# upload artifacts
+if [[ "$BUILDKITE" == 'true' ]]; then
+    tar -pczf build.tar.gz build
+    buildkite-agent artifact upload build.tar.gz
+fi
