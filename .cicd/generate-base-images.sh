@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eo pipefail
 . .cicd/docker-hash.sh
-# look for Docker image
+# look for docker image
 echo "+++ :mag_right: Looking for $FULL_TAG"
 ORG_REPO=$(echo $FULL_TAG | cut -d: -f1)
 TAG=$(echo $FULL_TAG | cut -d: -f2)
