@@ -1,7 +1,9 @@
 FROM amazonlinux:2.0.20190508
 # install dependencies
 RUN yum update -y && \
-    yum install -y git sudo tar bzip2 make gcc gcc-c++ doxygen
+    yum install -y git sudo tar bzip2 make gcc gcc-c++ doxygen && \
+    yum clean all && \
+    rm -rf /var/cache/yum
 # build cmake
 RUN curl -LO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
     tar -xzf cmake-3.13.2.tar.gz && \
