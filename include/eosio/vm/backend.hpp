@@ -52,7 +52,7 @@ namespace eosio { namespace vm {
       using parser_t   = typename Impl::template parser<HostFunctions, Allocator, Options>;
       void construct(host_t* host=nullptr) {
          mod.finalize();
-         ctx.set_wasm_allocator(memory_alloc);
+         ctx.set_allocator(memory_alloc);
          if constexpr (!std::is_same_v<HostFunctions, std::nullptr_t>)
             HostFunctions::resolve(mod);
          // FIXME: should not hard code knowledge of null_backend here
@@ -229,7 +229,7 @@ namespace eosio { namespace vm {
       [[deprecated]]
       inline void set_wasm_allocator(wasm_allocator* alloc) {
          memory_alloc = alloc;
-         ctx.set_wasm_allocator(memory_alloc);
+         ctx.set_allocator(memory_alloc);
       }
 
       inline void set_allocator(Allocator* alloc) {
