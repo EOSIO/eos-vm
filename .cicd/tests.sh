@@ -6,11 +6,11 @@ if [[ "$BUILDKITE" == 'true' ]]; then
     buildkite-agent artifact download build.tar.gz . --step "$1"
     tar -xzf build.tar.gz
 fi
-COMMAND="./scripts/test.sh"
+COMMANDS="./scripts/test.sh"
 if [[ $(uname) == 'Darwin' ]]; then
     [[ $TRAVIS == true ]] && echo '$ ccache -s' && ccache -s
-    echo "$ $COMMAND"
-    $COMMAND
+    echo "$ $COMMANDS"
+    $COMMANDS
 else # Linux
     MOUNTED_DIR='/workdir'
     ARGS=${ARGS:-"--rm -v $(pwd):$MOUNTED_DIR -w $MOUNTED_DIR"}
