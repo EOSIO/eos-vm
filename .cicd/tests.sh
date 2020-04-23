@@ -15,7 +15,7 @@ else # Linux
     ARGS=${ARGS:-"--rm -v $(pwd):$MOUNTED_DIR -w $MOUNTED_DIR"}
     . .cicd/helpers/docker-hash.sh
     # base-image
-    [[ "$BUILDKITE" == 'true' ]] && $CICD_DIR/generate-base-images.sh
+    [[ "$BUILDKITE" == 'true' ]] && .cicd/generate-base-images.sh
     # Load BUILDKITE Environment Variables for use in docker run
     if [[ -f $BUILDKITE_ENV_FILE ]]; then
         evars=""

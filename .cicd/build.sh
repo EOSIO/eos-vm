@@ -14,7 +14,7 @@ else # Linux
     . .cicd/helpers/docker-hash.sh
     COMMANDS="cd $MOUNTED_DIR/build && cmake -DCMAKE_TOOLCHAIN_FILE=$MOUNTED_DIR/.cicd/helpers/clang.make -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=Release .. && make -j$JOBS"
     # base-image
-    [[ "$BUILDKITE" == 'true' ]] && $CICD_DIR/generate-base-images.sh
+    [[ "$BUILDKITE" == 'true' ]] && .cicd/generate-base-images.sh
     # Load BUILDKITE Environment Variables for use in docker run
     if [[ -f $BUILDKITE_ENV_FILE ]]; then
         evars=""
