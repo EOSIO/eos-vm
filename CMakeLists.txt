@@ -55,10 +55,14 @@ include(EosVMBuildUtils)
 # ##################################################################################################
 add_library(eos-vm INTERFACE)
 target_include_directories(eos-vm
+<<<<<<< Updated upstream
                            INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include
                                      ${CMAKE_CURRENT_SOURCE_DIR}/external/softfloat/source/include)
 # ignore the C++17 register warning until clean up
 target_compile_options( eos-vm INTERFACE "-Wno-register" )
+=======
+                           INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+>>>>>>> Stashed changes
 
 # ##################################################################################################
 # Enable debugging stats for eos-vm.
@@ -78,6 +82,17 @@ if(ENABLE_SOFTFLOAT)
    target_link_libraries(eos-vm INTERFACE softfloat)
 endif()
 
+<<<<<<< Updated upstream
+=======
+if(NOT USE_EXISTING_BOOST)
+   if(NOT TARGET outcome_h1)
+      add_subdirectory(external/outcome)
+   endif()
+   target_compile_definitions(eos-vm INTERFACE -DEOS_VM_USE_EXTERNAL_OUTCOME)
+   target_link_libraries(eos-vm INTERFACE outcome_h1)
+endif()
+
+>>>>>>> Stashed changes
 if(ENABLE_MEMORY_OPS_ALIGNMENT)
    target_compile_definitions(eos-vm INTERFACE -DEOS_VM_ALIGN_MEMORY_OPS)
 endif()

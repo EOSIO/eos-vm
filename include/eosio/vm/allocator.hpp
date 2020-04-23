@@ -370,7 +370,8 @@ namespace eosio { namespace vm {
       inline T* get_base_ptr() const { return raw; }
    };
 
-   class wasm_allocator {
+   template <std::size_t MaxMemory>
+   class linear_allocator {
     private:
       char*   raw       = nullptr;
       int32_t page      = 0;
@@ -398,11 +399,11 @@ namespace eosio { namespace vm {
       }
       void free() {
          std::size_t syspagesize = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
-         munmap(raw - syspagesize, max_memory + 2*syspagesize);
+         munmap(raw - syspagesize, MaxMemory + 2*syspagesize);
       }
       wasm_allocator() {
          std::size_t syspagesize = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
-         raw  = (char*)mmap(NULL, max_memory + 2*syspagesize, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+         raw  = (char*)mmap(NULL, MaxMemory + 2*syspagesize, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
          EOS_VM_ASSERT( raw != MAP_FAILED, wasm_bad_alloc, "mmap failed to alloca pages" );
          int err = mprotect(raw, syspagesize, PROT_READ);
          EOS_VM_ASSERT(err == 0, wasm_bad_alloc, "mprotect failed");
@@ -447,6 +448,8 @@ namespace eosio { namespace vm {
       template <typename T>
       inline T* create_pointer(uint32_t offset) { return reinterpret_cast<T*>(raw + offset); }
       inline int32_t get_current_page() const { return page; }
-      bool is_in_region(char* p) { return p >= raw && p < raw + max_memory; }
+      bool is_in_region(char* p) { return p >= raw && p < raw + MaxMemory; }
    };
+
+   using wasm_allocator = linear_allocator<max_memory>;
 }} // namespace eosio::vm

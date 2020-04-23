@@ -72,7 +72,7 @@ namespace eosio { namespace vm {
       using host_invoker_t = typename host_invoker<HF>::type;
    }
 
-   template<typename Derived, typename Host>
+   template<typename Derived, typename Host, typename Allocator=wasm_allocator>
    class execution_context_base {
       using host_type  = detail::host_type_t<Host>;
     public:
@@ -80,21 +80,21 @@ namespace eosio { namespace vm {
       execution_context_base(module& m) : _mod(m) {}
 
       inline int32_t grow_linear_memory(int32_t pages) {
-         const int32_t sz = _wasm_alloc->get_current_page();
+         const int32_t sz = _memory_alloc->get_current_page();
          if (pages < 0) {
             if (sz + pages < 0)
                return -1;
-            _wasm_alloc->free<char>(-pages);
+            _memory_alloc->free<char>(-pages);
          } else {
             if (!_mod.memories.size() || _max_pages - sz < pages ||
                 (_mod.memories[0].limits.flags && (static_cast<int32_t>(_mod.memories[0].limits.maximum) - sz < pages)))
                return -1;
-            _wasm_alloc->alloc<char>(pages);
+            _memory_alloc->alloc<char>(pages);
          }
          return sz;
       }
 
-      inline int32_t current_linear_memory() const { return _wasm_alloc->get_current_page(); }
+      inline int32_t current_linear_memory() const { return _memory_alloc->get_current_page(); }
       inline void    exit(std::error_code err = std::error_code()) {
          // FIXME: system_error?
          _error_code = err;
@@ -102,8 +102,12 @@ namespace eosio { namespace vm {
       }
 
       inline module&     get_module() { return _mod; }
-      inline void        set_wasm_allocator(wasm_allocator* alloc) { _wasm_alloc = alloc; }
-      inline auto        get_wasm_allocator() { return _wasm_alloc; }
+      [[deprecated]]
+      inline void        set_wasm_allocator(wasm_allocator* alloc) { _memory_alloc = alloc; }
+      inline void        set_allocator( Allocator* alloc ) { _memory_alloc = alloc; }
+      [[deprecated]]
+      inline auto        get_wasm_allocator() { return _memory_alloc; }
+      inline auto        get_allocator() { return _memory_alloc; }
       inline char*       linear_memory() { return _linear_memory; }
       inline auto&       get_operand_stack() { return _os; }
       inline const auto& get_operand_stack() const { return _os; }
@@ -115,12 +119,12 @@ namespace eosio { namespace vm {
       inline void reset() {
          EOS_VM_ASSERT(_mod.error == nullptr, wasm_interpreter_exception, _mod.error);
 
-         _linear_memory = _wasm_alloc->get_base_ptr<char>();
+         _linear_memory = _memory_alloc->get_base_ptr<char>();
          if(_mod.memories.size()) {
             EOS_VM_ASSERT(_mod.memories[0].limits.initial <= _max_pages, wasm_bad_alloc, "Cannot allocate initial linear memory.");
-            _wasm_alloc->reset(_mod.memories[0].limits.initial);
+            _memory_alloc->reset(_mod.memories[0].limits.initial);
          } else
-            _wasm_alloc->reset();
+            _memory_alloc->reset();
 
          for (uint32_t i = 0; i < _mod.data.size(); i++) {
             const auto& data_seg = _mod.data[i];
@@ -176,7 +180,7 @@ namespace eosio { namespace vm {
 
       char*                           _linear_memory    = nullptr;
       module&                         _mod;
-      wasm_allocator*                 _wasm_alloc;
+      Allocator*                      _memory_alloc;
       uint32_t                        _max_pages = max_pages;
       detail::host_invoker_t<Host>    _rhf;
       std::error_code                 _error_code;
@@ -185,16 +189,16 @@ namespace eosio { namespace vm {
 
    struct jit_visitor { template<typename T> jit_visitor(T&&) {} };
 
-   template<typename Host>
-   class null_execution_context : public execution_context_base<null_execution_context<Host>, Host> {
-      using base_type = execution_context_base<null_execution_context<Host>, Host>;
+   template<typename Host, typename Allocator=wasm_allocator>
+   class null_execution_context : public execution_context_base<null_execution_context<Host, Allocator>, Host, Allocator> {
+      using base_type = execution_context_base<null_execution_context<Host, Allocator>, Host, Allocator>;
    public:
       null_execution_context(module& m, std::uint32_t max_call_depth) : base_type(m) {}
    };
 
-   template<typename Host>
-   class jit_execution_context : public execution_context_base<jit_execution_context<Host>, Host> {
-      using base_type = execution_context_base<jit_execution_context<Host>, Host>;
+   template<typename Host, typename Allocator=wasm_allocator>
+   class jit_execution_context : public execution_context_base<jit_execution_context<Host, Allocator>, Host, Allocator> {
+      using base_type = execution_context_base<jit_execution_context<Host, Allocator>, Host, Allocator>;
       using host_type  = detail::host_type_t<Host>;
    public:
       using base_type::execute;
@@ -374,9 +378,9 @@ namespace eosio { namespace vm {
       uint32_t _remaining_call_depth;
    };
 
-   template <typename Host>
-   class execution_context : public execution_context_base<execution_context<Host>, Host> {
-      using base_type = execution_context_base<execution_context<Host>, Host>;
+   template <typename Host, typename Allocator=wasm_allocator>
+   class execution_context : public execution_context_base<execution_context<Host, Allocator>, Host, Allocator> {
+      using base_type = execution_context_base<execution_context<Host, Allocator>, Host, Allocator>;
       using host_type  = detail::host_type_t<Host>;
     public:
       using base_type::_mod;
