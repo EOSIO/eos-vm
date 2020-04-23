@@ -1,6 +1,6 @@
 #!/bin/bash
 set -eo pipefail
-. ./.cicd/helpers/general.sh
+. .cicd/helpers/general.sh
 mkdir -p $BUILD_DIR
 if [[ $(uname) == 'Darwin' ]]; then
     cd $BUILD_DIR
@@ -11,7 +11,7 @@ if [[ $(uname) == 'Darwin' ]]; then
 else # Linux
     MOUNTED_DIR='/workdir'
     ARGS=${ARGS:-"--rm -v $(pwd):$MOUNTED_DIR"}
-    . $HELPERS_DIR/docker-hash.sh
+    . .cicd/helpers/docker-hash.sh
     COMMANDS="cd $MOUNTED_DIR/build && cmake -DCMAKE_TOOLCHAIN_FILE=$MOUNTED_DIR/.cicd/helpers/clang.make -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=Release .. && make -j$JOBS"
     # Docker Commands
     if [[ $BUILDKITE == true ]]; then
