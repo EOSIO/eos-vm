@@ -2,17 +2,16 @@
 set -eo pipefail
 . ./.cicd/helpers/general.sh
 mkdir -p $BUILD_DIR
-TEST_COMMAND="ctest -j$JOBS --output-on-failure -T Test"
+COMMAND="./scripts/test.sh"
 if [[ $(uname) == 'Darwin' ]]; then
     cd $BUILD_DIR
     [[ $TRAVIS == true ]] && echo '$ ccache -s' && ccache -s
-    echo "$ $TEST_COMMAND"
-    $TEST_COMMAND
+    echo "$ $COMMAND"
+    $COMMAND
 else # Linux
     MOUNTED_DIR='/workdir'
-    ARGS=${ARGS:-"--rm -v $(pwd):$MOUNTED_DIR"}
+    ARGS=${ARGS:-"--rm -v $(pwd):$MOUNTED_DIR -w $MOUNTED_DIR"}
     . $HELPERS_DIR/docker-hash.sh
-    COMMANDS="cd $MOUNTED_DIR/build && $TEST_COMMAND"
     # Docker Commands
     if [[ $BUILDKITE == true ]]; then
         $CICD_DIR/generate-base-images.sh
