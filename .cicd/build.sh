@@ -4,8 +4,10 @@ set -eo pipefail
 mkdir -p $BUILD_DIR
 if [[ $(uname) == 'Darwin' ]]; then
     cd $BUILD_DIR
+    echo '$ cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON ..'
     cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON ..
-    make -j$JOBS
+    echo "$ make -j $JOBS"
+    make -j $JOBS
 else # Linux
     MOUNTED_DIR='/workdir'
     ARGS=${ARGS:-"--rm -v $(pwd):$MOUNTED_DIR"}
@@ -23,5 +25,6 @@ else # Linux
         done < "$BUILDKITE_ENV_FILE"
     fi
     # Docker Run with all of the commands we've prepped
+    echo "$ docker run $ARGS $evars $FULL_TAG bash -c \"$COMMANDS\""
     eval docker run $ARGS $evars $FULL_TAG bash -c \"$COMMANDS\"
 fi

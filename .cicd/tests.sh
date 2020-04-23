@@ -6,6 +6,7 @@ TEST_COMMAND="ctest -j$JOBS --output-on-failure -T Test"
 if [[ $(uname) == 'Darwin' ]]; then
     cd $BUILD_DIR
     set +e
+    echo "$ $TEST_COMMAND"
     $TEST_COMMAND
     EXIT_STATUS=$?
 else # Linux
@@ -26,6 +27,7 @@ else # Linux
     fi
     # Docker Run with all of the commands we've prepped
     set +e
+    echo "$ docker run $ARGS $evars $FULL_TAG bash -c \"$COMMANDS\""
     eval docker run $ARGS $evars $FULL_TAG bash -c \"$COMMANDS\"
     EXIT_STATUS=$?
 fi
