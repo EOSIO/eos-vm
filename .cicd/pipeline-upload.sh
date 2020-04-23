@@ -3,7 +3,7 @@ set -e
 echo '+++ :evergreen_tree: Configuring Environment'
 if [[ -z "$TIMEOUT" ]]; then # use defaults
     [[ -z "$BUILD_TIMEOUT" ]] && export BUILD_TIMEOUT='45'
-    [[ -z "$TEST_TIMEOUT" ]] && export TEST_TIMEOUT='3'
+    [[ -z "$TEST_TIMEOUT" ]] && export TEST_TIMEOUT='5'
 else # user override
     [[ -z "$BUILD_TIMEOUT" ]] && export BUILD_TIMEOUT="$TIMEOUT"
     [[ -z "$TEST_TIMEOUT" ]] && export TEST_TIMEOUT="$TIMEOUT"
