@@ -4,7 +4,6 @@ set -eo pipefail
 mkdir -p $BUILD_DIR
 COMMAND="./scripts/test.sh"
 if [[ $(uname) == 'Darwin' ]]; then
-    cd $BUILD_DIR
     set +e
     echo "$ $COMMAND"
     $COMMAND
