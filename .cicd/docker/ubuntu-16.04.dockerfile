@@ -1,7 +1,7 @@
 FROM ubuntu:16.04
 # install dependencies
-RUN apt-get update && \
-    apt-get install -y build-essential git automake python2.7 python2.7-dev python3 python3-dev curl && \
+RUN apt-get update -q && \
+    apt-get install -yq build-essential git automake python2.7 python2.7-dev python3 python3-dev curl && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 # build cmake
