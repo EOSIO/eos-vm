@@ -8,6 +8,7 @@ if [[ "$(uname)" == 'Darwin' ]]; then
     cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON ..
     echo "$ make -j $JOBS"
     make -j $JOBS
+    cd ..
 else # linux
     . .cicd/docker-hash.sh
     # base-image
