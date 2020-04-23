@@ -3,7 +3,9 @@ FROM centos:7.7.1908
 RUN yum update -y && \
     yum install -y --enablerepo=extras centos-release-scl && \
     yum install -y --enablerepo=extras devtoolset-7 && \
-    yum install -y --enablerepo=extras git sudo tar bzip2 make doxygen
+    yum install -y --enablerepo=extras git sudo tar bzip2 make doxygen && \
+    yum clean all && \
+    rm -rf /var/cache/yum
 # build cmake
 RUN source /opt/rh/devtoolset-7/enable && \
     curl -LO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
