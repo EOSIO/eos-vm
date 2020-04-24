@@ -20,6 +20,7 @@ else # mac host or linux guest > build
     eval $CMAKE_COMMAND
     echo "$ $MAKE_COMMAND"
     eval $MAKE_COMMAND
+    cd ..
 fi
 # upload artifacts on host
 if [[ "$BUILDKITE" == 'true' && "$DOCKER" != 'true' ]]; then
