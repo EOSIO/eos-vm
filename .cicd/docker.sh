@@ -24,6 +24,6 @@ if [[ -f $BUILDKITE_ENV_FILE ]]; then
 fi
 # docker run
 echo '--- :docker: Running Container'
-DOCKER_COMMAND="docker run --rm -v \"$(pwd):/eos-vm\" $EVARS $CONTAINER bash -c '$@'"
+DOCKER_COMMAND="docker run --rm -v \"$(pwd):/eos-vm\" -w /eos-vm $EVARS $CONTAINER bash -c '$@'"
 echo "$ $DOCKER_COMMAND"
 eval $DOCKER_COMMAND
