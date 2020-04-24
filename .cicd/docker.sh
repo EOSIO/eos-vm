@@ -14,6 +14,7 @@ if [[ ! $(docker pull $CONTAINER) ]]; then
     docker build -t $CONTAINER -f $DOCKERFILE .
     echo "$ docker push $CONTAINER"
     docker push $CONTAINER
+    cd ../..
 fi
 # pass BUILDKITE intrinsics into docker container
 if [[ -f $BUILDKITE_ENV_FILE ]]; then
