@@ -17,9 +17,9 @@ else # mac host or linux guest > build
     # build
     echo '+++ :hammer_and_wrench: Building'
     echo "$ $CMAKE_COMMAND"
-    $CMAKE_COMMAND
+    eval $CMAKE_COMMAND
     echo "$ $MAKE_COMMAND"
-    $MAKE_COMMAND
+    eval $MAKE_COMMAND
 fi
 # upload artifacts on host
 if [[ "$BUILDKITE" == 'true' && "$DOCKER" != 'true' ]]; then
