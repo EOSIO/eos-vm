@@ -13,7 +13,7 @@ RUN yum update -yq && \
     yum clean all && \
     rm -rf /var/cache/yum
 # build cmake
-RUN curl -LO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
+RUN curl -fLO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
     tar -xzf cmake-3.13.2.tar.gz && \
     cd cmake-3.13.2 && \
     ./bootstrap --prefix=/usr/local && \
