@@ -13,6 +13,7 @@ if [[ "$(uname)" == 'Linux' && "$DOCKER" != 'true' ]]; then # linux host > run t
 else # mac host or linux guest > test
     echo '--- :evergreen_tree: Configuring Environment'
     [[ -z "$JOBS" ]] && export JOBS="$(getconf _NPROCESSORS_ONLN)"
+    [[ -d build ]] && cd build
     echo '+++ :microscope: Testing'
     echo 'Enumerating tests...'
     TEST_COUNT="$(ctest -N | grep -i 'Total Tests: ' | cut -d ':' -f 2 | awk '{print $1}')"
