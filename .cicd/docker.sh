@@ -1,6 +1,6 @@
 #!/bin/bash
 set -eo pipefail
-echo '--- :arrow_down: Pulling Base-Image'
+echo '--- :cloud: Pulling Base-Image'
 export DOCKERFILE="$IMAGE_TAG.dockerfile"
 export HASH="$(sha1sum ".cicd/docker/$DOCKERFILE" | awk '{print $1}')"
 export CONTAINER="docker.io/eosio/ci:eos-vm-$IMAGE_TAG-$HASH"
