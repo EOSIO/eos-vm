@@ -26,4 +26,4 @@ fi
 echo '--- :docker: Running Container'
 DOCKER_COMMAND="docker run --rm -v \"$(pwd):/eos-vm\" $EVARS $CONTAINER bash -c '$@'"
 echo "$ $DOCKER_COMMAND"
-$DOCKER_COMMAND
+eval $DOCKER_COMMAND
