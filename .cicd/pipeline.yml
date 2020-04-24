@@ -43,7 +43,7 @@ steps:
       - "git clone $BUILDKITE_REPO eos-vm && cd eos-vm && git checkout $BUILDKITE_COMMIT && git submodule update --init --recursive"
       - "cd eos-vm && ./.cicd/build.sh"
     plugins:
-      - chef/anka#v0.5.1:
+      - EOSIO/anka#v0.6.0:
           no-volume: true
           inherit-environment-vars: true
           vm-name: 10.14.6_6C_14G_40G
@@ -101,7 +101,7 @@ steps:
       - "git clone $BUILDKITE_REPO eos-vm && cd eos-vm && git checkout $BUILDKITE_COMMIT && git submodule update --init --recursive"
       - "cd eos-vm && ./.cicd/test.sh ':darwin: macOS 10.14 - Build'"
     plugins:
-      - chef/anka#v0.5.1:
+      - EOSIO/anka#v0.6.0:
           no-volume: true
           inherit-environment-vars: true
           vm-name: 10.14.6_6C_14G_40G
