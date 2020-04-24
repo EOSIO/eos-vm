@@ -14,7 +14,7 @@ RUN yum update -yq && \
     rm -rf /var/cache/yum
 # build cmake
 RUN source /opt/rh/devtoolset-7/enable && \
-    curl -LO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
+    curl -fLO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
     tar -xzf cmake-3.13.2.tar.gz && \
     cd cmake-3.13.2 && \
     ./bootstrap --prefix=/usr/local && \
