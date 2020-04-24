@@ -36,5 +36,8 @@
 *.swo
 *~
 
+# Build Artifacts
+build.tar.gz
 build/
 compile_commands.json
+Testing/
