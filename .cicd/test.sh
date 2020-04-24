@@ -7,7 +7,7 @@ if [[ "$BUILDKITE" == 'true' && "$DOCKER" != 'true' ]]; then
     tar -xzf build.tar.gz
 fi
 # test
-if [[ "$(uname)" == 'Linux' && "$DOCKER" != 'true' ]]; then # linux host > run this script in docker
+if [[ ! -z "$IMAGE_TAG" && "$DOCKER" != 'true' ]]; then # linux host > run this script in docker
     .cicd/docker.sh '.cicd/test.sh' $@
     EXIT_STATUS="$?"
 else # mac host or linux guest > test
