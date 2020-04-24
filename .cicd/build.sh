@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eo pipefail
 # build
-if [[ "$(uname)" == 'Linux' && "$DOCKER" != 'true' ]]; then # linux host > run this script in docker
+if [[ ! -z "$IMAGE_TAG" && "$DOCKER" != 'true' ]]; then # linux host > run this script in docker
     .cicd/docker.sh '.cicd/build.sh' $@
 else # mac host or linux guest > build
     echo '--- :evergreen_tree: Configuring Environment'
