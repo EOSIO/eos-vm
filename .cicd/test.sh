@@ -9,6 +9,7 @@ fi
 # test
 if [[ "$(uname)" == 'Linux' && "$DOCKER" != 'true' ]]; then # linux host > run this script in docker
     .cicd/docker.sh '.cicd/test.sh' $@
+    EXIT_STATUS="$?"
 else # mac host or linux guest > test
     echo '--- :evergreen_tree: Configuring Environment'
     [[ -z "$JOBS" ]] && export JOBS="$(getconf _NPROCESSORS_ONLN)"
@@ -27,5 +28,15 @@ else # mac host or linux guest > test
         echo 'Exiting...'
         EXIT_STATUS='1'
     fi
+fi
+# upload artifacts on host
+if [[ "$BUILDKITE" == 'true' && "$DOCKER" != 'true' ]]; then
+    echo '--- :arrow_up: Uploading Artifacts'
+    [[ -d build ]] && cd build
+    echo 'Exporting xUnit XML'
+    mv -f ./Testing/$(ls ./Testing/ | grep '2' | tail -n 1)/Test.xml test-results.xml
+    echo 'Uploading artifacts'
+    buildkite-agent artifact upload test-results.xml
+    echo 'Done uploading artifacts.'
 fi
 exit $EXIT_STATUS
