@@ -7,9 +7,7 @@ export CONTAINER="docker.io/eosio/ci:eos-vm-$IMAGE_TAG-$HASH"
 echo "SHA-1 hash of \".cicd/docker/$DOCKERFILE\" is $HASH."
 # base-image
 echo "$ docker pull $CONTAINER"
-docker pull $CONTAINER
-export DOCKER_PULL_EXIT_STATUS="$?"
-if [[ "$DOCKER_PULL_EXIT_STATUS" != '0' ]]; then
+if [[ ! $(docker pull $CONTAINER) ]]; then
     echo '--- :mantelpiece_clock: Building Base-Image'
     cd .cicd/docker
     echo "$ docker build -t $CONTAINER -f $DOCKERFILE ."
