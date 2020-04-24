@@ -1,31 +1,26 @@
 #!/bin/bash
 set -eo pipefail
-export JOBS=${JOBS:-"$(getconf _NPROCESSORS_ONLN)"}
-mkdir build
-if [[ "$(uname)" == 'Darwin' ]]; then
+# build
+if [[ "$(uname)" == 'Linux' && "$DOCKER" != 'true' ]]; then # linux host > run this script in docker
+    .cicd/docker.sh '.cicd/build.sh' $@
+else # mac host or linux guest > build
+    [[ -z "$JOBS" ]] && export JOBS="$(nproc)"
+    [[ ! -d build ]] && mkdir build
     cd build
-    echo '$ cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON ..'
-    cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON ..
-    echo "$ make -j $JOBS"
-    make -j $JOBS
-    cd ..
-else # linux
-    . .cicd/docker-hash.sh
-    # base-image
-    [[ "$BUILDKITE" == 'true' ]] && .cicd/generate-base-images.sh
-    # load BUILDKITE intrinsics into docker container
-    if [[ -f $BUILDKITE_ENV_FILE ]]; then
-        EVARS=''
-        while read -r var; do
-            EVARS="$EVARS -e ${var%%=*}"
-        done < "$BUILDKITE_ENV_FILE"
-    fi
-    # docker run
-    echo "$ docker run --rm -v \"$(pwd):/eos-vm\" $EVARS $FULL_TAG bash -c \"cd build && cmake -DCMAKE_TOOLCHAIN_FILE=/eos-vm/.cicd/clang.make -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=Release .. && make -j $JOBS\""
-    eval docker run --rm -v "$(pwd):/eos-vm" $EVARS $FULL_TAG bash -c \"cd build && cmake -DCMAKE_TOOLCHAIN_FILE=/eos-vm/.cicd/clang.make -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=Release .. && make -j $JOBS\"
+    # cmake
+    CMAKE_COMMAND='cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON'
+    [[ "$(uname)" == 'Linux' ]] && CMAKE_COMMAND="$CMAKE_COMMAND -DCMAKE_TOOLCHAIN_FILE=$GIT_ROOT/.cicd/clang.make"
+    CMAKE_COMMAND="$CMAKE_COMMAND .."
+    # make
+    MAKE_COMMAND="make -j $JOBS"
+    # build
+    echo "$ $CMAKE_COMMAND"
+    $CMAKE_COMMAND
+    echo "$ $MAKE_COMMAND"
+    $MAKE_COMMAND
 fi
-# upload artifacts
-if [[ "$BUILDKITE" == 'true' ]]; then
+# upload artifacts on host
+if [[ "$BUILDKITE" == 'true' && "$DOCKER" != 'true' ]]; then
     tar -pczf build.tar.gz build
     buildkite-agent artifact upload build.tar.gz
 fi
