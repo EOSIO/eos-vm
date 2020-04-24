@@ -1,18 +1,26 @@
 FROM centos:7.7.1908
 # install dependencies
-RUN yum update -y && \
-    yum install -y --enablerepo=extras centos-release-scl && \
-    yum install -y --enablerepo=extras devtoolset-7 && \
-    yum install -y --enablerepo=extras git sudo tar bzip2 make doxygen
+RUN yum update -yq && \
+    yum install -yq --enablerepo=extras centos-release-scl && \
+    yum install -yq --enablerepo=extras devtoolset-7 && \
+    yum install -yq --enablerepo=extras \
+        bzip2 \
+        doxygen \
+        git \
+        make \
+        sudo \
+        tar && \
+    yum clean all && \
+    rm -rf /var/cache/yum
 # build cmake
 RUN source /opt/rh/devtoolset-7/enable && \
-    curl -LO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
+    curl -fLO https://cmake.org/files/v3.13/cmake-3.13.2.tar.gz && \
     tar -xzf cmake-3.13.2.tar.gz && \
     cd cmake-3.13.2 && \
     ./bootstrap --prefix=/usr/local && \
     make -j $(nproc) && \
     make install && \
-    rm -f /cmake-3.13.2.tar.gz && rm -rf /cmake-3.13.2
+    rm -rf /cmake-3.13.2.tar.gz /cmake-3.13.2
 # build clang
 RUN source /opt/rh/devtoolset-7/enable && \
     git clone --single-branch --branch release_80 https://git.llvm.org/git/llvm.git clang8 && cd clang8 && git checkout 18e41dc && \
