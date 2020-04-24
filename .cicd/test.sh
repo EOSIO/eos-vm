@@ -14,6 +14,7 @@ else # mac host or linux guest > test
     echo '--- :evergreen_tree: Configuring Environment'
     [[ -z "$JOBS" ]] && export JOBS="$(getconf _NPROCESSORS_ONLN)"
     echo '+++ :microscope: Testing'
+    echo 'Enumerating tests...'
     TEST_COUNT="$(ctest -N | grep -i 'Total Tests: ' | cut -d ':' -f 2 | awk '{print $1}')"
     if (( $TEST_COUNT > 0 )); then
         echo "$TEST_COUNT tests found."
