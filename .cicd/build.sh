@@ -24,7 +24,7 @@ else # mac host or linux guest > build
 fi
 # upload artifacts on host
 if [[ "$BUILDKITE" == 'true' && "$DOCKER" != 'true' ]]; then
-    '--- :arrow_up: Uploading Artifacts'
+    echo '--- :arrow_up: Uploading Artifacts'
     tar -pczf build.tar.gz build
     buildkite-agent artifact upload build.tar.gz
 fi
