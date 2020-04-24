@@ -89,7 +89,7 @@ steps:
     skip: $SKIP_AMAZON_LINUX_2$SKIP_LINUX
 
   - label: ":centos: CentOS 7.7 - Test"
-    command: "./.cicd/tests.sh ':centos: CentOS 7.7 - Build'"
+    command: "./.cicd/test.sh ':centos: CentOS 7.7 - Build'"
     env:
       IMAGE_TAG: "centos-7.7"
     agents: 
