@@ -10,7 +10,7 @@ else # mac host or linux guest > build
     cd build
     # cmake
     CMAKE_COMMAND='cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=ON'
-    [[ "$(uname)" == 'Linux' ]] && CMAKE_COMMAND="$CMAKE_COMMAND -DCMAKE_TOOLCHAIN_FILE=$GIT_ROOT/.cicd/clang.make"
+    [[ "$(uname)" == 'Linux' ]] && CMAKE_COMMAND="$CMAKE_COMMAND -DCMAKE_TOOLCHAIN_FILE=/eos-vm/.cicd/clang.make"
     CMAKE_COMMAND="$CMAKE_COMMAND .."
     # make
     MAKE_COMMAND="make -j $JOBS"
