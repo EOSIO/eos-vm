@@ -2,6 +2,7 @@
 set -eo pipefail
 # download artifacts on host
 if [[ "$BUILDKITE" == 'true' && "$DOCKER" != 'true' ]]; then
+    echo '--- :arrow_down: Downloading Artifacts'
     buildkite-agent artifact download build.tar.gz . --step "$1"
     tar -xzf build.tar.gz
 fi
@@ -9,7 +10,9 @@ fi
 if [[ "$(uname)" == 'Linux' && "$DOCKER" != 'true' ]]; then # linux host > run this script in docker
     .cicd/docker.sh '.cicd/test.sh' $@
 else # mac host or linux guest > test
+    echo '--- :evergreen_tree: Configuring Environment'
     [[ -z "$JOBS" ]] && export JOBS="$(nproc)"
+    echo '+++ :microscope: Testing'
     TEST_COUNT="$(ctest -N | grep -i 'Total Tests: ' | cut -d ':' -f 2 | awk '{print $1}')"
     if (( $TEST_COUNT > 0 )); then
         echo "$TEST_COUNT tests found."
@@ -20,7 +23,8 @@ else # mac host or linux guest > test
         EXIT_STATUS=$?
         echo 'Done running tests.'
     else
-        echo "+++ $([[ "$BUILDKITE" == 'true' ]] && echo ':no_entry: ')ERROR: No tests registered with ctest! Exiting..."
+        echo '+++ :no_entry: ERROR: No tests registered with ctest!'
+        echo 'Exiting...'
         EXIT_STATUS='1'
     fi
 fi
