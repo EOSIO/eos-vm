@@ -1,5 +1,6 @@
 #!/bin/bash
 set -eo pipefail
+
 # build
 if [[ ! -z "$IMAGE_TAG" && "$DOCKER" != 'true' ]]; then # linux host > run this script in docker
     .cicd/docker.sh '.cicd/build.sh' $@
