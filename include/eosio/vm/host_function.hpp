@@ -32,8 +32,8 @@ namespace eosio { namespace vm {
    };
 
    template <typename Derived>
-   struct construct_derived<Derived, nullptr_t> {
-      static nullptr_t value(nullptr_t) { return nullptr; }
+   struct construct_derived<Derived, std::nullptr_t> {
+      static std::nullptr_t value(std::nullptr_t) { return nullptr; }
    };
    
    // Workaround for compiler bug handling C++g17 auto template parameters.
@@ -466,7 +466,7 @@ namespace eosio { namespace vm {
 
    template<auto F, typename Derived, typename Host, typename... T>
    decltype(auto) invoke_with_host(Host* host, T&&... args) {
-      if constexpr (std::is_same_v<Derived, nullptr_t>)
+      if constexpr (std::is_same_v<Derived, std::nullptr_t>)
          return std::invoke(F, static_cast<T&&>(args)...);
       else
          return std::invoke(F, construct_derived<Derived, Host>::value(*host), static_cast<T&&>(args)...);
