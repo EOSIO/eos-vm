@@ -52,13 +52,13 @@ int main(int argc, char** argv) {
    using rhf_t     = eosio::vm::registered_host_functions<example_host_methods>;
 
    // register print_num
-   rhf_t::add<nullptr_t, &print_num, wasm_allocator>("env", "print_num");
+   rhf_t::add<std::nullptr_t, &print_num, wasm_allocator>("env", "print_num");
    // register eosio_assert
-   rhf_t::add<nullptr_t, &eosio_assert, wasm_allocator>("env", "eosio_assert");
+   rhf_t::add<std::nullptr_t, &eosio_assert, wasm_allocator>("env", "eosio_assert");
    // register print_name
    rhf_t::add<example_host_methods, &example_host_methods::print_name, wasm_allocator>("env", "print_name");
    // finally register memset
-   rhf_t::add<nullptr_t, &example_host_methods::memset, wasm_allocator>("env", "memset");
+   rhf_t::add<std::nullptr_t, &example_host_methods::memset, wasm_allocator>("env", "memset");
 
    watchdog wd{std::chrono::seconds(3)};
    try {

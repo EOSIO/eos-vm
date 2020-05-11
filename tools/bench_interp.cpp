@@ -10,7 +10,7 @@ using namespace eosio::vm;
 
 int main(int argc, char** argv) {
    wasm_allocator wa;
-   using backend_t = eosio::vm::backend<nullptr_t>;
+   using backend_t = eosio::vm::backend<std::nullptr_t>;
 
    if (argc < 2) {
       std::cerr << "Error, no wasm file provided\n";
