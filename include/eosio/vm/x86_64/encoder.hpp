@@ -13,20 +13,26 @@ namespace eosio { namespace vm { namespace x86_64 {
 #endif
 
 // H -> handler
-#ifdef H0
-#error "H0 should not be defined"
+#ifdef EOS_VM_H0
+#error "EOS_VM_H0 should not be defined"
 #endif
-#define H0() [&]()
+#define EOS_VM_H0() [&]()
 
-#ifdef H1
-#error "H1 should not be defined"
+#ifdef EOS_VM_H1
+#error "EOS_VM_H1 should not be defined"
 #endif
-#define H1(Ty) [&](Ty operand)
+#define EOS_VM_H1(Ty) [&](Ty operand)
 
-#ifdef H2
-#error "H2 should not be defined"
+#ifdef EOS_VM_H2
+#error "EOS_VM_H2 should not be defined"
 #endif
-#define H2(Ty1, Ty2) [&](Ty1 operand1, Ty2 operand2)
+#define EOS_VM_H2(Ty1, Ty2) [&](Ty1 operand1, Ty2 operand2)
+
+#define EOS_VM_GET_MACRO(_0, _1, _2, NAME, ...) NAME
+
+#ifdef H
+#error "H should not be defined"
+#define H(...) EOS_VM_GET_MACRO(__VA_ARGS__, EOS_VM_H2, EOS_VM_H1, EOS_VM_H0)(__VA_ARGS__)
 
 // M -> mnenomic
 // addressing modes and handlers
@@ -174,81 +180,77 @@ namespace eosio { namespace vm { namespace x86_64 {
          }
 
          INSTRUCTION(and,
-               H2(mem_reg8,  uint8_t)  { emit_and_impl<0x80>(std::move(operand1), std::move(operand2)); }, // r/m8, imm8
-               H2(mem_reg16, uint16_t) { emit_and_impl<0x81>(std::move(operand1), std::move(operand2)); }, // r/m16, imm16
-               H2(mem_reg32, uint32_t) { emit_and_impl<0x81>(std::move(operand1), std::move(operand2)); }, // r/m32, imm32
-               H2(mem_reg64, uint32_t) { emit_and_impl<0x81>(std::move(operand1), std::move(operand2)); }, // r/m64, imm32
-               H2(mem_reg16, uint8_t)  { emit_and_impl<0x83>(std::move(operand1), std::move(operand2)); }, // r/m16, imm8
-               H2(mem_reg32, uint8_t)  { emit_and_impl<0x83>(std::move(operand1), std::move(operand2)); }, // r/m32, imm8
-               H2(mem_reg64, uint8_t)  { emit_and_impl<0x83>(std::move(operand1), std::move(operand2)); }  // r/m64, imm8
+            H(mem_reg8,  uint8_t)  { emit_and_impl<0x80>(std::move(operand1), std::move(operand2)); }, // r/m8, imm8
+            H(mem_reg16, uint16_t) { emit_and_impl<0x81>(std::move(operand1), std::move(operand2)); }, // r/m16, imm16
+            H(mem_reg32, uint32_t) { emit_and_impl<0x81>(std::move(operand1), std::move(operand2)); }, // r/m32, imm32
+            H(mem_reg64, uint32_t) { emit_and_impl<0x81>(std::move(operand1), std::move(operand2)); }, // r/m64, imm32
+            H(mem_reg16, uint8_t)  { emit_and_impl<0x83>(std::move(operand1), std::move(operand2)); }, // r/m16, imm8
+            H(mem_reg32, uint8_t)  { emit_and_impl<0x83>(std::move(operand1), std::move(operand2)); }, // r/m32, imm8
+            H(mem_reg64, uint8_t)  { emit_and_impl<0x83>(std::move(operand1), std::move(operand2)); }  // r/m64, imm8
          );
 
          INSTRUCTION(cmp,
-               H2(mem_reg8,  uint8_t)  { emit_cmp_impl<0x80>(std::move(operand1), std::move(operand2)); }, // r/m8, imm8
-               H2(mem_reg16, uint16_t) { emit_cmp_impl<0x81>(std::move(operand1), std::move(operand2)); }, // r/m16, imm16
-               H2(mem_reg32, uint32_t) { emit_cmp_impl<0x81>(std::move(operand1), std::move(operand2)); }, // r/m32, imm32
-               H2(mem_reg64, uint32_t) { emit_cmp_impl<0x81>(std::move(operand1), std::move(operand2)); }, // r/m64, imm32
-               H2(mem_reg16, uint8_t)  { emit_cmp_impl<0x83>(std::move(operand1), std::move(operand2)); }, // r/m16, imm8
-               H2(mem_reg32, uint8_t)  { emit_cmp_impl<0x83>(std::move(operand1), std::move(operand2)); }, // r/m32, imm8
-               H2(mem_reg64, uint8_t)  { emit_cmp_impl<0x83>(std::move(operand1), std::move(operand2)); }, // r/m64, imm8
+            H(mem_reg8,  uint8_t)  { emit_cmp_impl<0x80>(std::move(operand1), std::move(operand2)); }, // r/m8, imm8
+            H(mem_reg16, uint16_t) { emit_cmp_impl<0x81>(std::move(operand1), std::move(operand2)); }, // r/m16, imm16
+            H(mem_reg32, uint32_t) { emit_cmp_impl<0x81>(std::move(operand1), std::move(operand2)); }, // r/m32, imm32
+            H(mem_reg64, uint32_t) { emit_cmp_impl<0x81>(std::move(operand1), std::move(operand2)); }, // r/m64, imm32
+            H(mem_reg16, uint8_t)  { emit_cmp_impl<0x83>(std::move(operand1), std::move(operand2)); }, // r/m16, imm8
+            H(mem_reg32, uint8_t)  { emit_cmp_impl<0x83>(std::move(operand1), std::move(operand2)); }, // r/m32, imm8
+            H(mem_reg64, uint8_t)  { emit_cmp_impl<0x83>(std::move(operand1), std::move(operand2)); }, // r/m64, imm8
          );
 
          INSTRUCTION(mov,
-               H2(mem_reg8,  reg8)  { emit_mov1_impl<0x88>(std::move(operand1), std::move(operand2)); }, // r/m8, r8
-               H2(mem_reg16, reg16) { emit_mov1_impl<0x89>(std::move(operand1), std::move(operand2)); }, // r/m16, r16
-               H2(mem_reg32, reg32) { emit_mov1_impl<0x89>(std::move(operand1), std::move(operand2)); }, // r/m32, r32
-               H2(mem_reg64, reg64) { emit_mov1_impl<0x89>(std::move(operand1), std::move(operand2)); }, // r/m64, r64
-               H2(reg8,  mem8)      { emit_mov1_impl<0x8A>(std::move(operand2), std::move(operand1)); }, // r8, r/m8
-               H2(reg16, mem16)     { emit_mov1_impl<0x8B>(std::move(operand2), std::move(operand1)); }, // r16, r/m16
-               H2(reg32, mem32)     { emit_mov1_impl<0x8B>(std::move(operand2), std::move(operand1)); }, // r32, r/m32
-               H2(reg64, mem64)     { emit_mov1_impl<0x8B>(std::move(operand2), std::move(operand1)); }, // r64, r/m64
-               H2(reg8,  uint8_t)   { emit_mov2_impl<0xB0>(std::move(operand1), std::move(operand2)); }, // r8, imm8
-               H2(reg16, uint16_t)  { emit_mov2_impl<0xB8>(std::move(operand1), std::move(operand2)); }, // r16, imm16
-               H2(reg32, uint32_t)  { emit_mov2_impl<0xB8>(std::move(operand1), std::move(operand2)); }, // r32, imm32
-               H2(reg64, uint64_t)  { emit_mov2_impl<0xB8>(std::move(operand1), std::move(operand2)); }, // r64, imm64
-               H2(mem8,  uint8_t)   { emit_mov1_impl<0xC6>(std::move(operand1), std::move(operand2)); }, // m8, imm8
-               H2(mem16, uint16_t)  { emit_mov1_impl<0xC7>(std::move(operand1), std::move(operand2)); }, // m16, imm16
-               H2(mem32, uint32_t)  { emit_mov1_impl<0xC7>(std::move(operand1), std::move(operand2)); }, // m32, imm32
-               H2(mem64, uint64_t)  { emit_mov1_impl<0xC7>(std::move(operand1), std::move(operand2)); }  // m64, imm64
+            H(mem_reg8,  reg8)  { emit_mov1_impl<0x88>(std::move(operand1), std::move(operand2)); }, // r/m8, r8
+            H(mem_reg16, reg16) { emit_mov1_impl<0x89>(std::move(operand1), std::move(operand2)); }, // r/m16, r16
+            H(mem_reg32, reg32) { emit_mov1_impl<0x89>(std::move(operand1), std::move(operand2)); }, // r/m32, r32
+            H(mem_reg64, reg64) { emit_mov1_impl<0x89>(std::move(operand1), std::move(operand2)); }, // r/m64, r64
+            H(reg8,  mem8)      { emit_mov1_impl<0x8A>(std::move(operand2), std::move(operand1)); }, // r8, r/m8
+            H(reg16, mem16)     { emit_mov1_impl<0x8B>(std::move(operand2), std::move(operand1)); }, // r16, r/m16
+            H(reg32, mem32)     { emit_mov1_impl<0x8B>(std::move(operand2), std::move(operand1)); }, // r32, r/m32
+            H(reg64, mem64)     { emit_mov1_impl<0x8B>(std::move(operand2), std::move(operand1)); }, // r64, r/m64
+            H(reg8,  uint8_t)   { emit_mov2_impl<0xB0>(std::move(operand1), std::move(operand2)); }, // r8, imm8
+            H(reg16, uint16_t)  { emit_mov2_impl<0xB8>(std::move(operand1), std::move(operand2)); }, // r16, imm16
+            H(reg32, uint32_t)  { emit_mov2_impl<0xB8>(std::move(operand1), std::move(operand2)); }, // r32, imm32
+            H(reg64, uint64_t)  { emit_mov2_impl<0xB8>(std::move(operand1), std::move(operand2)); }, // r64, imm64
+            H(mem8,  uint8_t)   { emit_mov1_impl<0xC6>(std::move(operand1), std::move(operand2)); }, // m8, imm8
+            H(mem16, uint16_t)  { emit_mov1_impl<0xC7>(std::move(operand1), std::move(operand2)); }, // m16, imm16
+            H(mem32, uint32_t)  { emit_mov1_impl<0xC7>(std::move(operand1), std::move(operand2)); }, // m32, imm32
+            H(mem64, uint64_t)  { emit_mov1_impl<0xC7>(std::move(operand1), std::move(operand2)); }  // m64, imm64
 
          );
 
          INSTRUCTION(je,
-               H1(uint8_t)  { emit_jcc_impl(std::move(operand), uint8_t{0x74}); },  // je rel8
-               H1(uint32_t) { emit_jcc_impl(std::move(operand), uint32_t{0xF84}); }, // je rel16
+            H(uint8_t)  { emit_jcc_impl(std::move(operand), uint8_t{0x74}); },  // je rel8
+            H(uint32_t) { emit_jcc_impl(std::move(operand), uint32_t{0xF84}); }, // je rel16
          );
 
          INSTRUCTION(call,
-               H1(mem_reg64) { // call indirect
-                  emit_opcode(0xFF);
-                  emit_modrm(operand, 2);
-               }
+            H(mem_reg64) { // call indirect
+               emit_opcode(0xFF);
+               emit_modrm(operand, 2);
+            }
          );
 
          INSTRUCTION(push,
-               H1(mem16) { emit_push1_impl<0xFF>(std::move(operand)); }, // push m16
-               H1(mem32) { emit_push1_impl<0xFF>(std::move(operand)); }, // push m32
-               H1(mem64) { emit_push1_impl<0xFF>(std::move(operand)); }, // push m64
-               H1(reg16) { emit_push1_impl<0x50>(std::move(operand)); }, // push r16
-               H1(reg32) { emit_push1_impl<0x50>(std::move(operand)); }, // push r32
-               H1(reg64) { emit_push1_impl<0x50>(std::move(operand)); }, // push r64
+            H(mem16) { emit_push1_impl<0xFF>(std::move(operand)); }, // push m16
+            H(mem32) { emit_push1_impl<0xFF>(std::move(operand)); }, // push m32
+            H(mem64) { emit_push1_impl<0xFF>(std::move(operand)); }, // push m64
+            H(reg16) { emit_push1_impl<0x50>(std::move(operand)); }, // push r16
+            H(reg32) { emit_push1_impl<0x50>(std::move(operand)); }, // push r32
+            H(reg64) { emit_push1_impl<0x50>(std::move(operand)); }, // push r64
 
          );
 
          INSTRUCTION(ret,
-               H0() { // near return
-                  emit_opcode(0xC3);
-               },
-               H1(uint16_t) { // return pop imm16 bytes
-                  emit_opcode(0xC2);
-                  emit(operand);
-               }
+            H() { emit_opcode(0xC3); }, // near return
+            H(uint16_t) { // return pop imm16 bytes
+               emit_opcode(0xC2);
+               emit(operand);
+            }
          );
 
          INSTRUCTION(int3,
-               H0() { // break point
-                  emit_opcode(0xCC);
-               }
+            H() { emit_opcode(0xCC) } // break point
          );
 
       private:
@@ -260,8 +262,10 @@ namespace eosio { namespace vm { namespace x86_64 {
    };
 
 #undef INSTRUCTION
-#undef H0
-#undef H1
-#undef H2
+#undef EOS_VM_H0
+#undef EOS_VM_H1
+#undef EOS_VM_H2
+#undef EOS_VM_GET_MACRO
+#undef H
 
 }}} // namespace eosio::vm::x86_64
