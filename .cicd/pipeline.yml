@@ -43,10 +43,10 @@ steps:
       - "git clone $BUILDKITE_REPO eos-vm && cd eos-vm && git checkout $BUILDKITE_COMMIT && git submodule update --init --recursive"
       - "cd eos-vm && ./.cicd/build.sh"
     plugins:
-      - EOSIO/anka#v0.6.0:
+      - EOSIO/anka#v0.6.1:
           no-volume: true
           inherit-environment-vars: true
-          vm-name: 10.14.6_6C_14G_40G
+          vm-name: 10.14.6_6C_14G_80G
           vm-registry-tag: "clean::cicd::git-ssh::nas::brew::buildkite-agent"
           modify-cpu: 12
           modify-ram: 24
@@ -63,10 +63,10 @@ steps:
       - "git clone $BUILDKITE_REPO eos-vm && cd eos-vm && git checkout $BUILDKITE_COMMIT && git submodule update --init --recursive"
       - "cd eos-vm && ./.cicd/build.sh"
     plugins:
-      - EOSIO/anka#v0.6.0:
+      - EOSIO/anka#v0.6.1:
           no-volume: true
           inherit-environment-vars: true
-          vm-name: 10.15.4_6C_14G_40G
+          vm-name: 10.15.5_6C_14G_80G
           vm-registry-tag: "clean::cicd::git-ssh::nas::brew::buildkite-agent"
           modify-cpu: 12
           modify-ram: 24
@@ -121,10 +121,10 @@ steps:
       - "git clone $BUILDKITE_REPO eos-vm && cd eos-vm && git checkout $BUILDKITE_COMMIT && git submodule update --init --recursive"
       - "cd eos-vm && ./.cicd/test.sh ':darwin: macOS 10.14 - Build'"
     plugins:
-      - EOSIO/anka#v0.6.0:
+      - EOSIO/anka#v0.6.1:
           no-volume: true
           inherit-environment-vars: true
-          vm-name: 10.14.6_6C_14G_40G
+          vm-name: 10.14.6_6C_14G_80G
           vm-registry-tag: "clean::cicd::git-ssh::nas::brew::buildkite-agent"
           always-pull: true
           debug: true
@@ -139,10 +139,10 @@ steps:
       - "git clone $BUILDKITE_REPO eos-vm && cd eos-vm && git checkout $BUILDKITE_COMMIT && git submodule update --init --recursive"
       - "cd eos-vm && ./.cicd/test.sh ':darwin: macOS 10.15 - Build'"
     plugins:
-      - EOSIO/anka#v0.6.0:
+      - EOSIO/anka#v0.6.1:
           no-volume: true
           inherit-environment-vars: true
-          vm-name: 10.15.4_6C_14G_40G
+          vm-name: 10.15.5_6C_14G_80G
           vm-registry-tag: "clean::cicd::git-ssh::nas::brew::buildkite-agent"
           always-pull: true
           debug: true
