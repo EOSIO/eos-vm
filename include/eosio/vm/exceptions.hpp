@@ -19,11 +19,11 @@ namespace eosio { namespace vm {
 
 #define DECLARE_EXCEPTION(name, _code, _what)                   \
    struct name : public eosio::vm::exception {                  \
-      name(const char* msg) : msg(msg) {}                       \
+      name(std::string msg) : msg(msg) {}                       \
       virtual const char* what()const throw() { return _what; } \
-      virtual const char* detail()const throw() { return msg; } \
+      virtual const char* detail()const throw() { return msg.c_str(); } \
       uint32_t code()const { return _code; }                    \
-      const char* msg;                                          \
+      std::string msg;                                          \
    };
 
 namespace eosio { namespace vm {
