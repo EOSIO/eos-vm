@@ -40,17 +40,16 @@ namespace eosio { namespace vm {
 
       inline decltype(auto) get_host() { return *host; }
 
-      template <typename T>
-      inline void validate_pointer(const void* ptr, wasm_size_t len) const {
-         EOS_VM_ASSERT( len <= std::numeric_limits<wasm_size_t>::max() / (wasm_size_t)sizeof(T), wasm_interpreter_exception, "length will overflow" );
-         volatile auto check_addr = *(reinterpret_cast<const char*>(ptr) + (len * sizeof(T)) - 1);
-         ignore_unused_variable_warning(check_addr);
+      template <typename T, typename U>
+      inline auto validate_pointer(U ptr, wasm_size_t len) const {
+         return get_interface().template validate_pointer<T>(ptr, len);
       }
 
-      inline void validate_null_terminated_pointer(const void* ptr) const {
-         volatile auto check_addr = std::strlen(static_cast<const char*>(ptr));
-         ignore_unused_variable_warning(check_addr);
+      template<typename T>
+      inline auto validate_null_terminated_pointer(T ptr) const {
+         return get_interface().validate_null_terminated_pointer(ptr);
       }
+
       Host_Type* host;
       Execution_Interface interface;
    };
@@ -80,26 +79,26 @@ namespace eosio { namespace vm {
       no_match_t to_wasm(T&&);
 
       template <typename T>
-      auto from_wasm(void* ptr, wasm_size_t len, tag<T> = {}) const
+      auto from_wasm(wasm_ptr_t ptr, wasm_size_t len, tag<T> = {}) const
          -> std::enable_if_t<is_span_type_v<T>, T> {
-         this->template validate_pointer<typename T::value_type>(ptr, len);
-         return {static_cast<typename T::pointer>(ptr), len};
+         auto p = this->template validate_pointer<typename T::value_type>(ptr, len);
+         return {static_cast<typename T::pointer>(p), len};
       }
 
       template <typename T>
-      auto from_wasm(void* ptr, wasm_size_t len, tag<T> = {}) const
+      auto from_wasm(wasm_ptr_t ptr, wasm_size_t len, tag<T> = {}) const
          -> std::enable_if_t< is_argument_proxy_type_v<T> &&
                               is_span_type_v<typename T::proxy_type>, T> {
-         this->template validate_pointer<typename T::pointee_type>(ptr, len);
-         return {ptr, len};
+         auto p = this->template validate_pointer<typename T::pointee_type>(ptr, len);
+         return {p, len};
       }
 
       template <typename T>
-      auto from_wasm(void* ptr, tag<T> = {}) const
+      auto from_wasm(wasm_ptr_t ptr, tag<T> = {}) const
          -> std::enable_if_t< is_argument_proxy_type_v<T> &&
                               std::is_pointer_v<typename T::proxy_type>, T> {
-         this->template validate_pointer<typename T::pointee_type>(ptr, 1);
-         return {ptr};
+         auto p = this->template validate_pointer<typename T::pointee_type>(ptr, 1);
+         return {p};
       }
 
       template<typename T>
