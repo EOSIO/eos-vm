@@ -238,7 +238,9 @@ namespace eosio { namespace vm {
 
       template <typename Type_Converter, typename T>
       constexpr auto resolve_result(Type_Converter& tc, T&& val) {
-         if constexpr (has_to_wasm_v<T, Type_Converter>) {
+         if constexpr (std::is_same_v<std::decay_t<T>, maybe_void_t>) {
+            return maybe_void;
+         } else if constexpr (has_to_wasm_v<T, Type_Converter>) {
             return tc.as_result(tc.to_wasm(static_cast<T&&>(val)));
          } else {
             return tc.as_result(static_cast<T&&>(val));
@@ -302,41 +304,38 @@ namespace eosio { namespace vm {
       }                                                                      \
    };
 
-   template <auto F, typename Preconditions, typename Type_Converter, typename Host, typename... Args>
-   decltype(auto) invoke_impl(Type_Converter& tc, Host* host, Args&&... args) {
-      if constexpr (std::is_same_v<Host, standalone_function_t>)
-         return std::invoke(F, static_cast<Args&&>(args)...);
-      else
-         return std::invoke(F, host, static_cast<Args&&>(args)...);
+   template <auto F, typename Host, typename... Args>
+   auto apply_with_host_impl(Host* host, std::tuple<Args...>&& args) {
+      return std::apply(
+                   [host](Args&... arg) {
+                      if constexpr (std::is_same_v<Host, standalone_function_t>)
+                         return std::invoke(F, static_cast<Args&&>(arg)...);
+                      else
+                         return std::invoke(F, host, static_cast<Args&&>(arg)...);
+                   },
+                   args),
+             maybe_void;
    }
 
-   template <auto F, typename Preconditions, typename Host, typename Args, typename Type_Converter, std::size_t... Is>
-   decltype(auto) invoke_with_host_impl(Type_Converter& tc, Host* host, Args&& args, std::index_sequence<Is...>) {
+   template <auto F, typename Preconditions, typename Host, typename Args, typename Type_Converter>
+   auto invoke_with_host_impl(Type_Converter& tc, Host* host, Args&& args) {
       detail::preconditions_runner<0, Preconditions>(tc, args);
-      return invoke_impl<F, Preconditions>(tc, host, std::get<Is>(static_cast<Args&&>(args))...);
+      return detail::resolve_result(tc, apply_with_host_impl<F>(host, std::forward<Args>(args)));
    }
 
-   template <auto F, typename Preconditions, typename Args, typename Type_Converter, typename Host, std::size_t... Is>
-   decltype(auto) invoke_with_host(Type_Converter& tc, Host* host, std::index_sequence<Is...>) {
-      constexpr std::size_t args_size = std::tuple_size_v<decltype(detail::get_values<Args, 0, 0>(tc))>;
-      return invoke_with_host_impl<F, Preconditions>(tc, host, detail::get_values<Args, 0, 0>(tc), std::make_index_sequence<args_size>{});
-   }
-
-   template<typename Type_Converter, typename T>
-   void maybe_push_result(Type_Converter& tc, T&& res, std::size_t trim_amt) {
-      if constexpr (!std::is_same_v<std::decay_t<T>, maybe_void_t>) {
-         tc.get_interface().trim_operands(trim_amt);
-         tc.get_interface().push_operand(detail::resolve_result(tc, static_cast<T&&>(res)));
-      } else {
-         tc.get_interface().trim_operands(trim_amt);
-      }
+   template <auto F, typename Preconditions, typename Args, typename Type_Converter, typename Host>
+   auto invoke_with_host(Type_Converter& tc, Host* host) {
+      return invoke_with_host_impl<F, Preconditions>(tc, host, detail::get_values<Args, 0, 0>(tc));
    }
 
    template <typename Cls, auto F, typename Preconditions, typename R, typename Args, typename Type_Converter, size_t... Is>
    auto create_function(std::index_sequence<Is...>) {
       return std::function<void(Cls*, Type_Converter& )>{ [](Cls* self, Type_Converter& tc) {
-            maybe_push_result(tc, (invoke_with_host<F, Preconditions, Args>(tc, self, std::index_sequence<Is...>{}), maybe_void),
-                              detail::total_operands_v<Args, Type_Converter>);
+            tc.get_interface().trim_operands(detail::total_operands_v<Args, Type_Converter>);
+            auto result = invoke_with_host<F, Preconditions, Args>(tc, self);
+            if constexpr (!std::is_same_v<decltype(result), maybe_void_t>) {
+               tc.get_interface().push_operand(std::move(result));
+            } 
          }
       };
    }
