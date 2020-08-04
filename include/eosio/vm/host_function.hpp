@@ -266,19 +266,16 @@ namespace eosio { namespace vm {
          }
       }
 
-      template <typename Precondition, typename Type_Converter, typename Args, std::size_t... Is>
-      inline static void precondition_runner(Type_Converter& ctx, const Args& args, std::index_sequence<Is...>) {
-         Precondition::condition(ctx, std::get<Is>(args)...);
-      }
-
-      template <std::size_t I, typename Preconditions, typename Type_Converter, typename Args>
+      template <typename Preconditions, typename Type_Converter, typename Args>
       inline static void preconditions_runner(Type_Converter& ctx, const Args& args) {
-         constexpr std::size_t args_size = std::tuple_size_v<Args>;
-         constexpr std::size_t preconds_size = std::tuple_size_v<Preconditions>;
-         if constexpr (I < preconds_size) {
-            precondition_runner<std::tuple_element_t<I, Preconditions>>(ctx, args, std::make_index_sequence<args_size>{});
-            preconditions_runner<I+1, Preconditions>(ctx, args);
-         }
+         std::apply(
+               [&ctx, &args](auto... precondition) {
+                  (std::apply(
+                         [&ctx](const auto&... arg) { decltype(precondition)::condition(ctx, arg...); },
+                         args),
+                   ...);
+               },
+               Preconditions{});
       }
    } //ns detail
 
@@ -307,20 +304,21 @@ namespace eosio { namespace vm {
    template <auto F, typename Host, typename... Args>
    auto apply_with_host_impl(Host* host, std::tuple<Args...>&& args) {
       return std::apply(
-                   [host](Args&... arg) {
+                   [host](Args&&... arg) {
                       if constexpr (std::is_same_v<Host, standalone_function_t>)
-                         return std::invoke(F, static_cast<Args&&>(arg)...);
+                         return std::invoke(F, std::move(arg)...);
                       else
-                         return std::invoke(F, host, static_cast<Args&&>(arg)...);
+                         return std::invoke(F, host, std::move(arg)...);
                    },
-                   args),
+                   std::move(args)),
              maybe_void;
    }
 
+
    template <auto F, typename Preconditions, typename Host, typename Args, typename Type_Converter>
    auto invoke_with_host_impl(Type_Converter& tc, Host* host, Args&& args) {
-      detail::preconditions_runner<0, Preconditions>(tc, args);
-      return detail::resolve_result(tc, apply_with_host_impl<F>(host, std::forward<Args>(args)));
+      detail::preconditions_runner<Preconditions>(tc, args);
+      return detail::resolve_result(tc,apply_with_host_impl<F>(host, std::forward<Args>(args)));
    }
 
    template <auto F, typename Preconditions, typename Args, typename Type_Converter, typename Host>
@@ -328,11 +326,11 @@ namespace eosio { namespace vm {
       return invoke_with_host_impl<F, Preconditions>(tc, host, detail::get_values<Args, 0, 0>(tc));
    }
 
-   template <typename Cls, auto F, typename Preconditions, typename R, typename Args, typename Type_Converter, size_t... Is>
-   auto create_function(std::index_sequence<Is...>) {
+   template <typename Cls, auto F, typename Preconditions, typename R, typename Args, typename Type_Converter>
+   auto create_function() {
       return std::function<void(Cls*, Type_Converter& )>{ [](Cls* self, Type_Converter& tc) {
-            tc.get_interface().trim_operands(detail::total_operands_v<Args, Type_Converter>);
             auto result = invoke_with_host<F, Preconditions, Args>(tc, self);
+            tc.get_interface().trim_operands(detail::total_operands_v<Args, Type_Converter>);
             if constexpr (!std::is_same_v<decltype(result), maybe_void_t>) {
                tc.get_interface().push_operand(std::move(result));
             } 
@@ -423,8 +421,7 @@ namespace eosio { namespace vm {
          void add_mapping(const std::string& mod, const std::string& name) {
             named_mapping[{mod, name}] = current_index++;
             functions.push_back(
-                  create_function<Cls, F, Preconditions, R, Args, Type_Converter>(
-                     std::make_index_sequence<std::tuple_size_v<Args>>()));
+                  create_function<Cls, F, Preconditions, R, Args, Type_Converter>());
             host_functions.push_back(
                   function_types_provider<Type_Converter, R, Args>(
                      std::make_index_sequence<std::tuple_size_v<Args>>()));
