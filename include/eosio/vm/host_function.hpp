@@ -21,6 +21,10 @@
 #include <utility>
 #include <vector>
 
+namespace eosio { namespace chain {
+   class apply_context;
+}} // namespace eosio::chain
+
 namespace eosio { namespace vm {
    // types for host functions to use
    typedef std::nullptr_t standalone_function_t;
@@ -266,8 +270,8 @@ namespace eosio { namespace vm {
          }
       }
 
-      template <typename Preconditions, typename Type_Converter, typename Args>
-      inline static void preconditions_runner(Type_Converter& ctx, const Args& args) {
+      template <typename Preconditions, typename Args>
+      inline static void preconditions_runner(chain::apply_context& ctx, const Args& args) {
          std::apply(
                [&ctx, &args](auto... precondition) {
                   (std::apply(
@@ -295,8 +299,8 @@ namespace eosio { namespace vm {
 
 #define EOS_VM_PRECONDITION(NAME, ...)                                       \
    struct NAME {                                                             \
-      template <typename Type_Converter, typename... Args>                   \
-      inline static decltype(auto) condition(Type_Converter& ctx, const Args&... args) { \
+      template <typename Context, typename... Args>                   \
+      inline static decltype(auto) condition(Context& ctx, const Args&... args) { \
         __VA_ARGS__;                                                         \
       }                                                                      \
    };
@@ -317,8 +321,10 @@ namespace eosio { namespace vm {
 
    template <auto F, typename Preconditions, typename Host, typename Args, typename Type_Converter>
    auto invoke_with_host_impl(Type_Converter& tc, Host* host, Args&& args) {
-      detail::preconditions_runner<Preconditions>(tc, args);
-      return detail::resolve_result(tc,apply_with_host_impl<F>(host, std::forward<Args>(args)));
+      if constexpr (std::tuple_size_v<Preconditions> > 0) {
+         detail::preconditions_runner<Preconditions>(tc.get_host().get_context(), args);
+      }
+      return detail::resolve_result(tc, apply_with_host_impl<F>(host, std::forward<Args>(args)));
    }
 
    template <auto F, typename Preconditions, typename Args, typename Type_Converter, typename Host>
