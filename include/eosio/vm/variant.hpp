@@ -216,6 +216,11 @@ namespace eosio { namespace vm {
          return detail::variant_storage_get<detail::get_alternatives_index_v<Alt, Alternatives...>>(std::move(_storage));
       }
 
+      template <typename Alt>
+      static inline constexpr const auto which_alternative() {
+        return detail::get_alternatives_index_v<Alt, Alternatives...>;
+      }
+
       template <size_t Index>
       inline constexpr auto&& get() && {
          return detail::variant_storage_get<Index>(std::move(_storage));

@@ -38,6 +38,7 @@ namespace eosio { namespace vm {
    DECLARE_EXCEPTION( stack_memory_exception,            4000008, "stack memory exception" )
    DECLARE_EXCEPTION( wasm_invalid_element,              4000009, "wasm invalid_element" )
    DECLARE_EXCEPTION( wasm_link_exception,               4000010, "wasm linked function failure" )
+   DECLARE_EXCEPTION( wasm_serializer_exception,         4000011, "wasm serializer exception" )
    DECLARE_EXCEPTION( guarded_ptr_exception,             4010000, "pointer out of bounds" )
    DECLARE_EXCEPTION( timeout_exception,                 4010001, "timeout" )
    DECLARE_EXCEPTION( wasm_exit_exception,               4010002, "exit" )

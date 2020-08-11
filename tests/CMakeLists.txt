@@ -112,6 +112,7 @@ add_executable(unit_tests main.cpp
                           max_table_elements_tests.cpp
                           null_tests.cpp
                           reentry_tests.cpp
+                          serializer_tests.cpp
                           signals_tests.cpp
                           span_tests.cpp
                           stack_restriction_tests.cpp

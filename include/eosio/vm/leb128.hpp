@@ -73,6 +73,8 @@ namespace eosio { namespace vm {
 
          size_t size()const { return bytes_used; }
 
+         std::array<uint8_t, bytes_needed<N>()> get_storage()const { return storage; }
+
          template <size_t M=N, typename = typename std::enable_if_t<M == 1, int>>
          inline constexpr bool to() { return storage[0]; }
 
@@ -151,6 +153,8 @@ namespace eosio { namespace vm {
          }
 
          size_t size()const { return bytes_used; }
+
+         std::array<uint8_t, bytes_needed<N>()> get_storage()const { return storage; }
 
          template <size_t M=N, typename = typename std::enable_if_t<M == 1, int>>
          inline constexpr bool to() { return storage[0]; }
