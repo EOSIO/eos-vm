@@ -42,6 +42,7 @@ namespace eosio { namespace vm {
    DECLARE_EXCEPTION( timeout_exception,                 4010001, "timeout" )
    DECLARE_EXCEPTION( wasm_exit_exception,               4010002, "exit" )
    DECLARE_EXCEPTION( span_exception,                    4020000, "span exception" )
+   DECLARE_EXCEPTION( profile_exception,                 4030000, "profile exception" )
 }} // eosio::vm
 
 #undef DECLARE_EXCEPTION

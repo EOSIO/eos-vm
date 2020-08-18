@@ -2094,6 +2094,13 @@ namespace eosio { namespace vm {
          body.jit_code_offset = _code_start - (unsigned char*)_code_segment_base;
       }
 
+      // returns the current write address
+      const void* get_addr() const {
+         return code;
+      }
+
+      const void* get_base_addr() const { return _code_segment_base; }
+
     private:
 
       auto fixed_size_instr(std::size_t expected_bytes) {

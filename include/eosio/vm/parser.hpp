@@ -9,6 +9,7 @@
 #include <eosio/vm/types.hpp>
 #include <eosio/vm/utils.hpp>
 #include <eosio/vm/vector.hpp>
+#include <eosio/vm/debug_info.hpp>
 
 #include <algorithm>
 #include <cassert>
@@ -195,7 +196,7 @@ namespace eosio { namespace vm {
 
    }
 
-   template <typename Writer, typename Options = default_options>
+   template <typename Writer, typename Options = default_options, typename DebugInfo = null_debug_info>
    class binary_parser {
     public:
       explicit binary_parser(growable_allocator& alloc, const Options& options = Options{}) : _allocator(alloc), _options(options) {}
@@ -286,18 +287,18 @@ namespace eosio { namespace vm {
          return result;
       }
 
-      inline module& parse_module(wasm_code& code, module& mod) {
+      inline module& parse_module(wasm_code& code, module& mod, DebugInfo& debug) {
          wasm_code_ptr cp(code.data(), code.size());
-         parse_module(cp, code.size(), mod);
+         parse_module(cp, code.size(), mod, debug);
          return mod;
       }
 
-      inline module& parse_module2(wasm_code_ptr& code_ptr, size_t sz, module& mod) {
+      inline module& parse_module2(wasm_code_ptr& code_ptr, size_t sz, module& mod, DebugInfo& debug) {
          parse_module(code_ptr, sz, mod);
          return mod;
       }
 
-      void parse_module(wasm_code_ptr& code_ptr, size_t sz, module& mod) {
+      void parse_module(wasm_code_ptr& code_ptr, size_t sz, module& mod, DebugInfo& debug) {
          _mod = &mod;
          EOS_VM_ASSERT(parse_magic(code_ptr) == constants::magic, wasm_parse_exception, "magic number did not match");
          EOS_VM_ASSERT(parse_version(code_ptr) == constants::version, wasm_parse_exception,
@@ -341,6 +342,9 @@ namespace eosio { namespace vm {
             }
          }
          EOS_VM_ASSERT(_mod->code.size() == _mod->functions.size(), wasm_parse_exception, "code section must have the same size as the function section" );
+
+         debug.set(std::move(imap));
+         debug.relocate(_allocator.get_code_start());
       }
 
       inline uint32_t parse_magic(wasm_code_ptr& code) {
@@ -677,6 +681,8 @@ namespace eosio { namespace vm {
 
       void parse_function_body_code(wasm_code_ptr& code, size_t bounds, const detail::max_func_local_bytes_stack_checker<Options>& local_bytes_checker,
                                     Writer& code_writer, const func_type& ft, const local_types_t& local_types) {
+         imap.on_function_start(code_writer.get_addr(), code.raw());
+
          // Initialize the control stack with the current function as the sole element
          operand_stack_type_tracker op_stack{local_bytes_checker, _options};
          std::vector<pc_element_t> pc_stack{{
@@ -741,6 +747,8 @@ namespace eosio { namespace vm {
          while (code.offset() < bounds) {
             EOS_VM_ASSERT(pc_stack.size() <= detail::get_max_nested_structures(_options), wasm_parse_exception,
                           "nested structures validation failure");
+
+            imap.on_instr_start(code_writer.get_addr(), code.raw());
 
             switch (*code++) {
                case opcodes::unreachable: check_in_bounds(); code_writer.emit_unreachable(); op_stack.start_unreachable(); break;
@@ -1251,10 +1259,12 @@ namespace eosio { namespace vm {
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                                 code,
                                 vec<typename std::enable_if_t<id == section_id::code_section, function_body>>& elems) {
+         const void* code_start = code.raw();
          parse_section_impl(code, elems, detail::get_max_function_section_elements(_options),
                             [&](wasm_code_ptr& code, function_body& fb, std::size_t idx) { parse_function_body(code, fb, idx); });
          EOS_VM_ASSERT( elems.size() == _mod->functions.size(), wasm_parse_exception, "code section must have the same size as the function section" );
          Writer code_writer(_allocator, code.bounds() - code.offset(), *_mod);
+         imap.on_code_start(code_writer.get_base_addr(), code_start);
          for (size_t i = 0; i < _function_bodies.size(); i++) {
             function_body& fb = _mod->code[i];
             func_type& ft = _mod->types.at(_mod->functions.at(i));
@@ -1264,6 +1274,7 @@ namespace eosio { namespace vm {
             code_writer.emit_epilogue(ft, fb.locals, i);
             code_writer.finalize(fb);
          }
+         imap.on_code_end(code_writer.get_addr(), code.raw());
       }
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                                code,
@@ -1314,5 +1325,6 @@ namespace eosio { namespace vm {
       std::vector<std::pair<wasm_code_ptr, detail::max_func_local_bytes_stack_checker<Options>>>  _function_bodies;
       detail::max_mutable_globals_checker<Options> _globals_checker;
       detail::eosio_max_nested_structures_checker<Options> _nested_checker;
+      typename DebugInfo::builder imap;
    };
 }} // namespace eosio::vm

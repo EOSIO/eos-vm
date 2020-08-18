@@ -299,7 +299,12 @@ namespace eosio { namespace vm {
          body.code = fb.raw();
          body.size = op_index + 1;
          _base_offset += body.size;
+         op_index++;
       }
+
+      const void* get_addr() const { return fb.raw() + op_index; }
+      const void* get_base_addr() const { return _code_segment_base; }
+
     private:
 
       growable_allocator& _allocator;

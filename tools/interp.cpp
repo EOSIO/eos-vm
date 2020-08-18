@@ -1,6 +1,7 @@
 #include <eosio/vm/backend.hpp>
 #include <eosio/vm/error_codes.hpp>
 #include <eosio/vm/watchdog.hpp>
+#include <eosio/vm/profile.hpp>
 
 #include <iostream>
 
@@ -26,7 +27,9 @@ int main(int argc, char** argv) {
       auto code = read_wasm( argv[1] );
 
       // Instaniate a new backend using the wasm provided.
-      backend bkend( code, &wa );
+      backend<std::nullptr_t, jit, default_options, profile_instr_map> bkend( code, &wa );
+      profile_data prof("profile.out", bkend);
+      scoped_profile profile_runner(prof);
 
       // Execute any exported functions provided by the wasm.
       bkend.execute_all(wd);

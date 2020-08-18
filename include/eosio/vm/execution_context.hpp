@@ -24,6 +24,13 @@
 #include <system_error>
 #include <utility>
 
+#ifdef __APPLE__
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 700
+#endif
+#endif
+#include <ucontext.h>
+
 namespace eosio { namespace vm {
 
    struct null_host_functions {
@@ -283,6 +290,13 @@ namespace eosio { namespace vm {
                }
                auto fn = reinterpret_cast<native_value (*)(void*, void*)>(_mod.code[func_index - _mod.get_imported_functions_size()].jit_code_offset + _mod.allocator._code_base);
 
+               std::atomic_signal_fence(std::memory_order_release);
+               void* old_frame = _top_frame.load(std::memory_order_relaxed);
+               _top_frame.store(__builtin_frame_address(0), std::memory_order_relaxed);
+               auto restore = scope_guard{[this, old_frame]{
+                  _top_frame.store(old_frame, std::memory_order_relaxed);
+                  std::atomic_signal_fence(std::memory_order_release); // As close to the correct fence as possible.
+               }};
                vm::invoke_with_signal_handler([&]() {
                   result = execute<sizeof...(Args)>(args_raw, fn, this, base_type::linear_memory(), stack);
                }, &handle_signal);
@@ -302,6 +316,37 @@ namespace eosio { namespace vm {
          }
          __builtin_unreachable();
       }
+
+      int backtrace(void** out, int count, void* uc) const {
+         void* end = _top_frame.load(std::memory_order_relaxed);
+         std::atomic_signal_fence(std::memory_order_acquire);
+         if(end == nullptr) return 0;
+         void* rbp;
+         int i = 0;
+         if(count != 0) {
+            if(uc) {
+#ifdef __APPLE__
+               out[i++] = reinterpret_cast<void*>(static_cast<ucontext_t*>(uc)->uc_mcontext->__ss.__rip);
+               rbp = reinterpret_cast<void*>(static_cast<ucontext_t*>(uc)->uc_mcontext->__ss.__rbp);
+#else
+               out[i++] = reinterpret_cast<void*>(static_cast<ucontext_t*>(uc)->uc_mcontext.gregs[REG_RIP]);
+               rbp = reinterpret_cast<void*>(static_cast<ucontext_t*>(uc)->uc_mcontext.gregs[REG_RBP]);
+#endif
+            } else {
+               rbp = __builtin_frame_address(0);
+            }
+         }
+         //printf("top: %p, start %p\n", end, rbp);
+         while(i < count) {
+            void* rip = static_cast<void**>(rbp)[1];
+            if(rbp == end) break;
+            out[i++] = rip;
+            rbp = *static_cast<void**>(rbp);
+            //printf("%p, %p\n", rip, rbp);
+         }
+         return i;
+      }
+
    protected:
 
       template<typename T>
@@ -372,6 +417,7 @@ namespace eosio { namespace vm {
 
       host_type * _host = nullptr;
       uint32_t _remaining_call_depth;
+      std::atomic<void*> _top_frame;
    };
 
    template <typename Host>
@@ -628,6 +674,19 @@ namespace eosio { namespace vm {
          } else {
             eat_operands(get_operand_stack().size() - pop_info);
          }
+      }
+
+      // This isn't async-signal-safe.  Cross fingers and hope for the best.
+      // It's only used for profiling.
+      int backtrace(void** data, int limit) const {
+         int out = 0;
+         if(limit != 0) {
+            data[out++] = _state.pc;
+         }
+         for(int i = 0; out < limit && i < _as.size(); ++i) {
+            data[out++] = _as.get_back(i).pc;
+         }
+         return out;
       }
 
     private:
