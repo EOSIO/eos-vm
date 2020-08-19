@@ -191,6 +191,8 @@ namespace eosio { namespace vm {
 
    PARSER_OPTION(allow_zero_blocktype, false, bool)
 
+   PARSER_OPTION(parse_custom_section_name, false, bool);
+
 #undef MAX_ELEMENTS
 #undef PARSER_OPTION
 
@@ -359,9 +361,59 @@ namespace eosio { namespace vm {
       }
 
       inline void parse_custom(wasm_code_ptr& code) {
-         parse_utf8_string(code, 0xFFFFFFFFu); // ignored, but needs to be validated
-         // skip to the end of the section
-         code += code.bounds() - code.offset();
+         auto section_name = parse_utf8_string(code, 0xFFFFFFFFu); // ignored, but needs to be validated
+         if(detail::get_parse_custom_section_name(_options) &&
+            section_name.size() == 4 && std::memcmp(section_name.raw(), "name", 4) == 0) {
+            parse_name_section(code);
+         } else {
+            // skip to the end of the section
+            code += code.bounds() - code.offset();
+         }
+      }
+
+      inline void parse_name_map(wasm_code_ptr& code, guarded_vector<name_assoc>& map) {
+        for(uint32_t i = 0; i < map.size(); ++i) {
+            map[i].idx = parse_varuint32(code);
+            map[i].name = parse_utf8_string(code, 0xFFFFFFFFu);
+         }
+      }
+
+      inline void parse_name_section(wasm_code_ptr& code) {
+         _mod->names = _allocator.alloc<name_section>(1);
+         new (_mod->names) name_section;
+         if(code.bounds() == code.offset()) return;
+         if(*code == 0) {
+            ++code;
+            auto subsection_guard = code.scoped_consume_items(parse_varuint32(code));
+            _mod->names->module_name = _allocator.alloc<guarded_vector<uint8_t>>(1);
+            new (_mod->names->module_name) guarded_vector<uint8_t>(parse_utf8_string(code, 0xFFFFFFFFu));
+         }
+         if(code.bounds() == code.offset()) return;
+         if(*code == 1) {
+            ++code;
+            auto subsection_guard = code.scoped_consume_items(parse_varuint32(code));
+            uint32_t size = parse_varuint32(code);
+            _mod->names->function_names = _allocator.alloc<guarded_vector<name_assoc>>(1);
+            new (_mod->names->function_names) guarded_vector<name_assoc>(_allocator, size);
+            parse_name_map(code, *_mod->names->function_names);
+         }
+         if(code.bounds() == code.offset()) return;
+         if(*code == 2) {
+            ++code;
+            auto subsection_guard = code.scoped_consume_items(parse_varuint32(code));
+            uint32_t size = parse_varuint32(code);
+            _mod->names->local_names = _allocator.alloc<guarded_vector<indirect_name_assoc>>(1);
+            new (_mod->names->local_names) guarded_vector<indirect_name_assoc>(_allocator, size);
+            for(uint32_t i = 0; i < size; ++i) {
+               auto& [idx,namemap] = (*_mod->names->local_names)[i];
+               idx = parse_varuint32(code);
+               uint32_t local_size = parse_varuint32(code);
+               namemap = guarded_vector<name_assoc>(_allocator, local_size);
+               parse_name_map(code, namemap);
+            }
+         }
+         if(code.bounds() == code.offset()) return;
+         EOS_VM_ASSERT(false, wasm_parse_exception, "Invalid subsection Id");
       }
 
       void parse_import_entry(wasm_code_ptr& code, import_entry& entry) {

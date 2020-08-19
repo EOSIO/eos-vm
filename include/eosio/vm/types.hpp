@@ -149,6 +149,20 @@ namespace eosio { namespace vm {
    typedef std::uint32_t  wasm_ptr_t;
    typedef std::uint32_t  wasm_size_t;
 
+   struct name_assoc {
+      std::uint32_t idx;
+      guarded_vector<uint8_t> name;
+   };
+   struct indirect_name_assoc {
+      std::uint32_t idx;
+      guarded_vector<name_assoc> namemap;
+   };
+   struct name_section {
+      guarded_vector<uint8_t>* module_name = nullptr;
+      guarded_vector<name_assoc>* function_names = nullptr;
+      guarded_vector<indirect_name_assoc>* local_names = nullptr;
+   };
+
    struct module {
       growable_allocator              allocator = { constants::initial_module_size };
       uint32_t                        start     = std::numeric_limits<uint32_t>::max();
@@ -162,6 +176,9 @@ namespace eosio { namespace vm {
       guarded_vector<elem_segment>    elements  = { allocator, 0 };
       guarded_vector<function_body>   code      = { allocator, 0 };
       guarded_vector<data_segment>    data      = { allocator, 0 };
+
+      // Custom sections:
+      name_section* names = nullptr;
 
       // not part of the spec for WASM
       guarded_vector<uint32_t> import_functions = { allocator, 0 };

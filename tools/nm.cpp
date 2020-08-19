@@ -23,14 +23,25 @@ enum class nm_sort_order {
    alphabetic, numeric, none
 };
 
-eosio::vm::export_entry* find_export_name(eosio::vm::module& mod, uint32_t idx) {
+eosio::vm::guarded_vector<uint8_t>* find_export_name(eosio::vm::module& mod, uint32_t idx) {
+   if(mod.names && mod.names->function_names) {
+      for(uint32_t i = 0; i < mod.names->function_names->size(); ++i) {
+         if((*mod.names->function_names)[i].idx == idx) {
+            return &(*mod.names->function_names)[i].name;
+         }
+      }
+   }
    for(uint32_t i = 0; i < mod.exports.size(); ++i) {
       if(mod.exports[i].index == idx && mod.exports[i].kind == eosio::vm::Function) {
-         return &mod.exports[i];
+         return &mod.exports[i].field_str;
       }
    }
    return nullptr;
 }
+
+struct nm_options {
+   static constexpr bool parse_custom_section_name = true;
+};
 
 int main(int argc, const char** argv) {
    bool print_file_name = false;
@@ -63,12 +74,12 @@ int main(int argc, const char** argv) {
       auto code = read_wasm(filename);
       nm_debug_info info;
       module mod;
-      binary_parser<null_writer, default_options, nm_debug_info> parser(mod.allocator);
+      binary_parser<null_writer, nm_options, nm_debug_info> parser(mod.allocator);
       parser.parse_module(code, mod, info);
       for(std::size_t i = 0; i < info.function_offsets.size(); ++i) {
          std::cout << std::hex << std::setw(8) << std::setfill('0') << info.function_offsets[i] << " T ";
-         if(export_entry* name = find_export_name(mod, i + mod.get_imported_functions_size())) {
-            std::cout << std::string_view(reinterpret_cast<const char*>(name->field_str.raw()), name->field_str.size());
+         if(guarded_vector<uint8_t>* name = find_export_name(mod, i + mod.get_imported_functions_size())) {
+            std::cout << std::string_view(reinterpret_cast<const char*>(name->raw()), name->size());
          } else {
             std::cout << "fn" << i + mod.get_imported_functions_size();
          }
