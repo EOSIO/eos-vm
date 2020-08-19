@@ -1,11 +1,8 @@
 #pragma once
 
-#include <eosio/vm/allocator.hpp>
 #include <eosio/vm/execution_interface.hpp>
-#include <eosio/vm/function_traits.hpp>
 #include <eosio/vm/argument_proxy.hpp>
 #include <eosio/vm/span.hpp>
-#include <eosio/vm/utils.hpp>
 #include <eosio/vm/wasm_stack.hpp>
 
 #include <cstddef>
@@ -21,10 +18,26 @@
 #include <utility>
 #include <vector>
 
+#include <boost/hana/ext/std/tuple.hpp>
+#include <boost/hana/ext/std/array.hpp>
+#include <boost/hana/integral_constant.hpp>
+#include <boost/hana/tuple.hpp>
+#include <boost/hana/transform.hpp>
+#include <boost/hana/size.hpp>
+#include <boost/hana/zip_with.hpp>
+#include <boost/hana/for_each.hpp>
+#include <boost/hana/scan_left.hpp>
+#include <boost/hana/drop_back.hpp>
+#include <boost/hana/drop_front.hpp>
+#include <boost/hana/take_front.hpp>
+#include <boost/hana/map.hpp>
+#include <boost/hana/fuse.hpp>
+#include <boost/hana/plus.hpp>
+#include <boost/hana/traits.hpp>
+
 namespace eosio { namespace vm {
    // types for host functions to use
    typedef std::nullptr_t standalone_function_t;
-   struct no_match_t {};
    struct invoke_on_all_t {};
 
    template <typename Host_Type=standalone_function_t, typename Execution_Interface=execution_interface>
@@ -70,14 +83,14 @@ namespace eosio { namespace vm {
       using base_type = running_context<Host, Execution_Interface>;
       using base_type::running_context;
       using base_type::get_host;
-
-      // TODO clean this up and figure out a more elegant way to get this for the macro
       using elem_type = operand_stack_elem;
 
+      // TODO clean this up and figure out a more elegant way to get this for the macro
       EOS_VM_FROM_WASM(bool, (uint32_t value)) { return value ? 1 : 0; }
       uint32_t to_wasm(bool&& value) { return value ? 1 : 0; }
+
       template<typename T>
-      no_match_t to_wasm(T&&);
+      void to_wasm(T&&) = delete;
 
       template <typename T>
       auto from_wasm(void* ptr, wasm_size_t len, tag<T> = {}) const
@@ -115,7 +128,7 @@ namespace eosio { namespace vm {
          else if constexpr (std::is_void_v<std::decay_t<std::remove_pointer_t<T>>>)
             return base_type::access(val.template get<i32_const_t>().data.ui);
          else
-            return no_match_t{};
+            static_assert(! std::is_same_v<T,T>, "no type conversion found for type, define a from_wasm for this type");
       }
 
       template <typename T>
@@ -130,121 +143,99 @@ namespace eosio { namespace vm {
             return f64_const_t{ static_cast<double>(val) };
          else if constexpr (std::is_void_v<std::decay_t<std::remove_pointer_t<T>>>)
             return i32_const_t{ static_cast<uint32_t>(reinterpret_cast<uintptr_t>(val) -
-                                                      reinterpret_cast<uintptr_t>(this->access())) };
+                                                   reinterpret_cast<uintptr_t>(this->access())) };
          else
-            return no_match_t{};
+            static_assert(! std::is_same_v<T,T>, "no type conversion found for type, define a to_wasm for this type");
       }
    };
 
    namespace detail {
-      template<typename T>
-      constexpr bool is_tag_v = false;
-      template<typename T>
-      constexpr bool is_tag_v<tag<T>> = true;
+      template <typename T>
+      struct is_tag : std::integral_constant<bool, false> {};
 
-      template<typename Tuple, std::size_t... N>
-      std::tuple<std::tuple_element_t<N, Tuple>...> tuple_select(std::index_sequence<N...>);
+      template <typename T>
+      struct is_tag<tag<T>> : std::integral_constant<bool, true> {};
 
-      template<typename T>
-      using strip_tag = std::conditional_t<is_tag_v<std::tuple_element_t<std::tuple_size_v<T> - 1, T>>,
-                                           decltype(tuple_select<T>(std::make_index_sequence<std::tuple_size_v<T> - 1>())),
-                                           T>;
+      template <typename T>
+      struct callable_traits;
 
-      template <class TC, typename T>
-      using from_wasm_type_deducer_t = strip_tag<flatten_parameters_t<&TC::template from_wasm<T>>>;
-      template <class TC, typename T>
-      using to_wasm_type_deducer_t = decltype(std::declval<TC>().to_wasm(std::declval<T>()));
+      namespace hana = boost::hana;
 
-      template <std::size_t N, typename Type_Converter>
-      inline constexpr const auto& pop_value(Type_Converter& tc) { return tc.get_interface().operand_from_back(N); }
+      template <typename Cls, typename Ret, typename... Args>
+      struct callable_traits<Ret (Cls::*)(Args...)> {
+         constexpr static auto args = hana::to<hana::basic_tuple_tag>(hana::tuple_t<std::decay_t<Args>...>);
+         constexpr static auto ret  = hana::type_c<Ret>;
+      };
 
-      template <typename S, typename Type_Converter>
-      constexpr bool has_as_value() {
-         return !std::is_same_v<no_match_t, std::decay_t<decltype(
-               std::declval<Type_Converter>().template as_value<S>(pop_value<0>(std::declval<Type_Converter&>())))>>;
-      }
+      template <typename Cls, typename Ret, typename... Args>
+      struct callable_traits<Ret (Cls::*)(Args...) const> {
+         constexpr static auto args = hana::to<hana::basic_tuple_tag>(hana::tuple_t<std::decay_t<Args>...>);
+         constexpr static auto ret  = hana::type_c<Ret>;
+      };
 
-      template <typename S, typename Type_Converter>
-      constexpr bool has_as_result() {
-         return !std::is_same_v<no_match_t, std::decay_t<decltype(
-               std::declval<Type_Converter>().template as_result<S>(std::declval<S&&>()))>>;
-      }
+      template <typename Ret, typename... Args>
+      struct callable_traits<Ret(Args...)> {
+         constexpr static auto args = hana::to<hana::basic_tuple_tag>(hana::tuple_t<std::decay_t<Args>...>);
+         constexpr static auto ret  = hana::type_c<Ret>;
+      };
 
-      template <typename T, class Type_Converter>
-      inline constexpr std::size_t value_operand_size() {
-         if constexpr (has_as_value<T, Type_Converter>())
-            return 1;
-         else
-            return std::tuple_size_v<from_wasm_type_deducer_t<Type_Converter, T>>;
-      }
+      constexpr auto get_arg_types = [](auto fun) { return callable_traits<decltype(fun)>::args; };
 
-      template <typename T, class Type_Converter>
-      static inline constexpr std::size_t value_operand_size_v = value_operand_size<T, Type_Converter>();
-
-      template <typename Args, std::size_t I, class Type_Converter>
-      inline constexpr std::size_t total_operands() {
-         if constexpr (I >= std::tuple_size_v<Args>)
-            return 0;
-         else {
-            constexpr std::size_t sz = value_operand_size_v<std::tuple_element_t<I, Args>, Type_Converter>;
-            return sz + total_operands<Args, I+1, Type_Converter>();
+      inline auto group_wasm_args = [](auto args, auto sizes) {
+         if constexpr (hana::size(args).value > 0) {
+            constexpr auto indices = hana::scan_left(hana::drop_back(sizes), hana::size_c<0>, hana::plus);
+            return hana::zip_with([&args](auto index, auto sz) { 
+                     return hana::take_front(hana::drop_front(args, index), sz); 
+                  }, indices, sizes);
          }
-      }
+         else return args;
+      };
 
-      template <typename Args, class Type_Converter>
-      static inline constexpr std::size_t total_operands_v = total_operands<Args, 0, Type_Converter>();
+      template <typename TC>
+      class type_converter_ext {
+         TC* converter;
+      public:
+         type_converter_ext(TC& tc) : converter(&tc) {}
 
-      template <typename S, typename Type_Converter>
-      constexpr inline static bool has_from_wasm_v = EOS_VM_HAS_TEMPLATE_MEMBER_TY(Type_Converter, from_wasm<S>);
+         constexpr static auto has_from_wasm = boost::hana::is_valid([](auto x)->decltype((void)&TC::template from_wasm< typename decltype(x)::type > ){});
+         constexpr static auto has_to_wasm = boost::hana::is_valid([](auto x)->decltype((void)std::declval<TC&>().to_wasm(std::declval<typename decltype(x)::type>())){});
 
-      template <typename S, typename Type_Converter>
-      constexpr inline static bool has_to_wasm_v =
-         !std::is_same_v<no_match_t, to_wasm_type_deducer_t<Type_Converter, S>>;
-
-      template <typename Args, typename S, std::size_t At, class Type_Converter, std::size_t... Is>
-      inline constexpr decltype(auto) create_value(Type_Converter& tc, std::index_sequence<Is...>) {
-         constexpr std::size_t offset = total_operands_v<Args, Type_Converter> - 1;
-         if constexpr (has_from_wasm_v<S, Type_Converter>) {
-            using arg_types = from_wasm_type_deducer_t<Type_Converter, S>;
-            return tc.template from_wasm<S>(tc.template as_value<std::tuple_element_t<Is, arg_types>>(pop_value<offset - (At + Is)>(tc))...);
-         } else {
-            static_assert(has_as_value<S, Type_Converter>(), "no type conversion found for type, define a from_wasm for this type");
-            return tc.template as_value<S>(pop_value<offset - At>(tc));
+         inline auto as_value() {
+            return [this](auto type, const auto& elem) {
+                  return converter->template as_value<typename decltype(type)::type>(elem);
+            };
          }
-      }
 
-      template <typename S, typename Type_Converter>
-      inline constexpr std::size_t skip_amount() {
-         if constexpr (has_as_value<S, Type_Converter>()) {
-            return 1;
-         } else {
-            return std::tuple_size_v<from_wasm_type_deducer_t<Type_Converter, S>>;
+         inline auto maybe_from_wasm() {
+            return [this](auto type, auto wasm_arg_group) {
+               using T = typename decltype(type)::type;
+               if constexpr (has_from_wasm(type)) 
+                  return boost::hana::unpack(wasm_arg_group, [this](auto ...xs) { return converter->template from_wasm<T>(xs...); } );
+               else 
+                  return boost::hana::front(wasm_arg_group);
+            };
          }
-      }
 
-      template <typename Args, std::size_t At, std::size_t Skip_Amt, class Type_Converter>
-      inline constexpr auto get_values(Type_Converter& tc) {
-         if constexpr (At >= std::tuple_size_v<Args>)
-            return std::tuple<>{};
-         else {
-            using source_t = std::tuple_element_t<At, Args>;
-            constexpr std::size_t skip_amt = skip_amount<source_t, Type_Converter>();
-            using converted_t = decltype(create_value<Args, source_t, Skip_Amt>(tc, std::make_index_sequence<skip_amt>{}));
-            auto tail = get_values<Args, At+1, Skip_Amt + skip_amt>(tc);
-            return std::tuple_cat(std::tuple<converted_t>(create_value<Args, source_t, Skip_Amt>(tc, std::make_index_sequence<skip_amt>{})),
-                                  std::move(tail));
+         inline auto resolve_result() {
+            return [this](auto&& val) {
+               if constexpr (has_to_wasm(boost::hana::type_c<std::decay_t<decltype(val)>>)) 
+                  return converter->as_result(converter->to_wasm(std::move(val)));
+               else
+                  return converter->as_result(std::move(val));
+            };
          }
-      }
 
-      template <typename Type_Converter, typename T>
-      constexpr auto resolve_result(Type_Converter& tc, T&& val) {
-         if constexpr (std::is_same_v<std::decay_t<T>, maybe_void_t>) {
-            return maybe_void;
-         } else if constexpr (has_to_wasm_v<T, Type_Converter>) {
-            return tc.as_result(tc.to_wasm(static_cast<T&&>(val)));
-         } else {
-            return tc.as_result(static_cast<T&&>(val));
+         template <typename Preconditions, typename Args>
+         inline void check_preconditions(Preconditions preconditions, Args&& args) {
+            boost::hana::for_each(preconditions, [this, &args](auto pre) {
+               boost::hana::unpack(args, [this](const auto& ...arg) { decltype(pre)::condition(*converter, arg...); });
+            }); 
          }
+      };
+
+      template <typename TC, typename T>
+      inline auto resolve_result(TC& tc, T&& t) {
+         return type_converter_ext<TC>(tc).resolve_result()(t);
       }
 
       template <bool Once, std::size_t Cnt, typename T, typename F>
@@ -266,17 +257,6 @@ namespace eosio { namespace vm {
          }
       }
 
-      template <typename Preconditions, typename Type_Converter, typename Args>
-      inline static void preconditions_runner(Type_Converter& tc, const Args& args) {
-         std::apply(
-               [&tc, &args](auto... precondition) {
-                  (std::apply(
-                         [&tc](const auto&... arg) { decltype(precondition)::condition(tc, arg...); },
-                         args),
-                   ...);
-               },
-               Preconditions{});
-      }
    } //ns detail
 
    template <bool Once, typename T, typename F, typename... Args>
@@ -301,50 +281,166 @@ namespace eosio { namespace vm {
       }                                                                      \
    };
 
+   template <typename F, typename Type_Converter, typename... Precondition>
+   struct host_function_traits {
+      using base_traits        = detail::callable_traits<F>;
+      using converter          = Type_Converter;
+      using type_convert_ext_t = detail::type_converter_ext<Type_Converter>;
 
-   template <typename F, typename Host, typename... Args>
-   auto apply_with_host(F f, Host* host, std::tuple<Args...>&& args) {
-      return std::apply(
-                   [f, host](Args&... arg) {
-                      if constexpr (std::is_same_v<Host, standalone_function_t>)
-                         return std::invoke(f, std::move(arg)...);
-                      else
-                         return std::invoke(f, host, std::move(arg)...);
-                   },
-                   args), maybe_void;
+      constexpr static auto converter_type      = boost::hana::type_c<Type_Converter>;
+      ///
+      /// <code>
+      ///  int32_t get_context_free_data(uint32_t index, legacy_span<char> buffer);
+      ///  using traits = host_function_traits<get_context_free_data, type_converter<standalone_function_t>>
+      ///
+      ///  static_assert( traits::from_wasm_arg_types(hana::type_c<legacy_span<char>>) ==
+      ///                  hana::make_basic_tuple(hana::type_t<void*, wasm_size_t>), "" );
+      /// </code>
+      constexpr static auto from_wasm_arg_types = [](auto t) {
+         using T = typename decltype(t)::type;
+         return boost::hana::remove_if(detail::get_arg_types(&Type_Converter::template from_wasm<T>),
+                                       boost::hana::trait<detail::is_tag>);
+      };
+
+      //
+      /// <code>
+      ///  int32_t get_context_free_data(uint32_t index, legacy_span<char> buffer);
+      ///  using traits = host_function_traits<get_context_free_data, type_converter<standalone_function_t>>
+      ///
+      ///  static_assert( traits::interface_arg_types ==
+      ///                  hana::make_basic_tuple(hana::type_t<uint32_t, legacy_span<char>>), "" );
+      /// </code>
+      constexpr static auto interface_arg_types     = base_traits::args;
+
+      //
+      /// <code>
+      ///  int32_t get_context_free_data(uint32_t index, legacy_span<char> buffer);
+      ///  using traits = host_function_traits<get_context_free_data, type_converter<standalone_function_t>>
+      ///
+      ///  static_assert( traits::deconstructed_arg_types ==
+      ///                  hana::make_basic_tuple( 
+      ///                      hana::make_basic_tuple(hana::type_c<uint32_t>), 
+      ///                      hana::make_basic_tuple(hana::type_t<void*, wasm_size_t>>)), "" );
+      /// </code>
+      constexpr static auto deconstructed_arg_types = []() {
+         return boost::hana::transform(interface_arg_types, [](auto x) {
+            if constexpr (type_convert_ext_t::has_from_wasm(x))
+               return from_wasm_arg_types(x);
+            else
+               return boost::hana::make_basic_tuple(x);
+         });
+      }();
+
+      //
+      /// <code>
+      ///  int32_t get_context_free_data(uint32_t index, legacy_span<char> buffer);
+      ///  using traits = host_function_traits<get_context_free_data, type_converter<standalone_function_t>>
+      ///
+      ///  static_assert( traits::wasm_arg_types ==
+      ///                 hana::make_basic_tuple(hana::type_t<uint32_t, void*, wasm_size_t>>), "" );
+      /// </code>
+      constexpr static auto wasm_arg_types = []() {
+         namespace hana = boost::hana;
+         auto x         = hana::flatten(deconstructed_arg_types);
+         return hana::transform(x, [](auto type) {
+            using T = decltype(std::declval<type_convert_ext_t&>().as_value()(
+                  type, std::declval<typename Type_Converter::elem_type>()));
+            if constexpr (std::is_integral_v<T>)
+               return hana::type_c<std::make_unsigned_t<T>>;
+            else
+               return hana::type_c<T>;
+         });
+      }();
+
+      ///
+      /// <code>
+      ///  int32_t get_context_free_data(uint32_t index, legacy_span<char> buffer);
+      ///  using traits = host_function_traits<get_context_free_data, type_converter<standalone_function_t>>
+      ///  using namespace hana::literals;
+      ///  static_assert( traits::operand_group_sizes == hana::make_basic_tuple(1_c, 2_c), "" );
+      /// <code>
+      constexpr static auto operand_group_sizes = boost::hana::transform(deconstructed_arg_types, boost::hana::size);
+      //
+      /// <code>
+      ///  int32_t get_context_free_data(uint32_t index, legacy_span<char> buffer);
+      ///  using traits = host_function_traits<get_context_free_data, type_converter<standalone_function_t>>
+      ///  using namespace hana::literals;
+      ///  static_assert( traits::num_operands == 3, "" );
+      /// <code>
+      constexpr static auto num_operands  = boost::hana::value(boost::hana::size(wasm_arg_types));
+
+      /// <code>
+      ///  int32_t get_context_free_data(uint32_t index, legacy_span<char> buffer);
+      ///  using traits = host_function_traits<get_context_free_data, type_converter<standalone_function_t>>
+      ///  static_assert( traits::ret_type == hana::type_c<int32_t>, "" );
+      /// <code>
+      constexpr static auto ret_type      = base_traits::ret;
+      constexpr static auto preconditions = boost::hana::basic_tuple<Precondition...>();
+   };
+
+   template <typename F>
+   inline F bind_host(F f, eosio::vm::standalone_function_t* host) {
+      return f;
    }
 
-   template <typename Preconditions, typename F, typename Host, typename Args, typename Type_Converter>
-   auto checked_apply_with_host(F f, Type_Converter& tc, Host* host, Args&& args) {
-      detail::preconditions_runner<Preconditions>(tc, args);
-      return detail::resolve_result(tc, apply_with_host(f, host, std::forward<Args>(args)));
+   template <typename F, typename T>
+   inline auto bind_host(F f, T* host) {
+      return [f, host](auto&&... arg) { return (host->*f)(std::forward<decltype(arg)>(arg)...); };
    }
 
-   template <typename Cls, auto F, typename Preconditions, typename R, typename Args, typename Type_Converter>
-   auto fn(Cls* self, Type_Converter& tc) {
-      auto args = detail::get_values<Args, 0, 0>(tc);
-      tc.get_interface().trim_operands(detail::total_operands_v<Args, Type_Converter>);
-      auto result = checked_apply_with_host<Preconditions>(F, tc, self,std::move(args)); 
-      if constexpr (!std::is_same_v<decltype(result), maybe_void_t>) {
-         tc.get_interface().push_operand(std::move(result));
-      } 
-   }
-
-   template<typename T>
-   auto to_wasm_type();
-   template<>
-   constexpr auto to_wasm_type<i32_const_t>() { return types::i32; }
-   template<>
-   constexpr auto to_wasm_type<i64_const_t>() { return types::i64; }
-   template<>
-   constexpr auto to_wasm_type<f32_const_t>() { return types::f32; }
-   template<>
-   constexpr auto to_wasm_type<f64_const_t>() { return types::f64; }
-
-   template <typename TC, typename T>
-   constexpr auto to_wasm_type_v = to_wasm_type<decltype(detail::resolve_result(std::declval<TC&>(), std::declval<T>()))>();
    template <typename TC>
-   constexpr auto to_wasm_type_v<TC, void> = types::ret_void;
+   detail::type_converter_ext<TC> make_tc_ext(TC& tc) {
+      return detail::type_converter_ext<TC>(tc);
+   }
+
+   /// make a lambda which executes f and returns hana::nothing if the return type of f is void;
+   /// otherwise it returns hana::just(f(...)).
+   constexpr auto make_monadic = [](auto&& f) {
+      return [&f](auto&&... xs) {
+         if constexpr (std::is_same_v<void, decltype(f(std::forward<decltype(xs)>(xs)...))>)
+            return f(std::forward<decltype(xs)>(xs)...), boost::hana::nothing;
+         else
+            return boost::hana::just(f(std::forward<decltype(xs)>(xs)...));
+      };
+   };
+
+   inline auto apply_with_wasm_args = [](auto f, auto traits, auto tc_ext, const auto& wasm_args) {
+      namespace hana      = boost::hana;
+      auto arg_groups     = detail::group_wasm_args(wasm_args, traits.operand_group_sizes);
+
+      // convert each arg  group with from_wasm() if possible
+      auto interface_args = hana::zip_with(tc_ext.maybe_from_wasm(), traits.interface_arg_types, arg_groups);
+      tc_ext.check_preconditions(traits.preconditions, interface_args);
+
+      // actual invoke f with the interface_args 
+      auto r = hana::fuse(make_monadic(f))(std::move(interface_args));
+      return hana::transform(r, tc_ext.resolve_result());
+   };
+
+   template <std::size_t N, typename TC>
+   inline auto pop_operands(TC& tc) {
+      auto exec_interface = tc.get_interface();
+      auto r = boost::hana::to_tuple(reinterpret_cast<const std::array<typename TC::elem_type, N>&>(exec_interface.operand_from_back(N - 1)));
+      exec_interface.trim_operands(N);
+      return r;
+   }
+
+   template <typename TC>
+   inline auto push_operand(TC& tc) {
+      return [&tc](auto result) { 
+            tc.get_interface().push_operand(result);
+            return boost::hana::just(0);
+      };
+   };
+
+   template <typename Cls, auto F, typename Traits>
+   void fn(Cls* self, typename Traits::converter& tc) {
+      namespace hana = boost::hana;
+      auto tc_ext    = make_tc_ext(tc);
+      auto operands  = pop_operands<Traits::num_operands>(tc);
+      auto wasm_args = hana::zip_with(tc_ext.as_value(), Traits::wasm_arg_types, operands);
+      apply_with_wasm_args(bind_host(F, self), Traits{}, tc_ext, wasm_args) | push_operand(tc);
+   }
 
    struct host_function {
       std::vector<value_type> params;
@@ -361,32 +457,36 @@ namespace eosio { namespace vm {
       return rhs == lhs;
    }
 
-   template<typename TC, typename Args, std::size_t... Is>
-   void get_args(value_type*& out, std::index_sequence<Is...>) {
-      ((*out++ = to_wasm_type_v<TC, std::tuple_element_t<Is, Args>>), ...);
-   }
+   template <typename T>
+   struct to_wasm_type_code;
 
-   template<typename Type_Converter, typename T>
-   void get_args(value_type*& out) {
-      if constexpr (detail::has_from_wasm_v<T, Type_Converter>) {
-         using args_tuple = detail::from_wasm_type_deducer_t<Type_Converter, T>;
-         get_args<Type_Converter, args_tuple>(out, std::make_index_sequence<std::tuple_size_v<args_tuple>>());
-      } else {
-         *out++ = to_wasm_type_v<Type_Converter, T>;
-      }
-   }
+   template <>
+   struct to_wasm_type_code<i32_const_t> :  std::integral_constant<value_type, types::i32>{};
+   template <>
+   struct to_wasm_type_code<i64_const_t> :  std::integral_constant<value_type, types::i64>{};
+   template <>
+   struct to_wasm_type_code<f32_const_t> :  std::integral_constant<value_type, types::f32>{};
+   template <>
+   struct to_wasm_type_code<f64_const_t> :  std::integral_constant<value_type, types::f64>{};
+   template <>
+   struct to_wasm_type_code<void> :  std::integral_constant<value_type, types::ret_void>{};
 
-   template <typename Type_Converter, typename Ret, typename Args, std::size_t... Is>
-   host_function function_types_provider(std::index_sequence<Is...>) {
-      host_function hf;
-      hf.params.resize(detail::total_operands_v<Args, Type_Converter>);
-      value_type* iter = hf.params.data();
-      (get_args<Type_Converter, std::tuple_element_t<Is, Args>>(iter), ...);
-      if constexpr (to_wasm_type_v<Type_Converter, Ret> != types::ret_void) {
-         hf.ret = { to_wasm_type_v<Type_Converter, Ret> };
-      }
-      return hf;
-   }
+   template <typename TC, typename T>
+   struct to_wasm_type : to_wasm_type_code<decltype( detail::resolve_result(std::declval<TC&>(), std::declval<T>()) )>{};
+ 
+   template <typename TC, typename T>
+   inline constexpr auto to_wasm_type_v = to_wasm_type<TC, T>::value;
+
+   inline auto wasm_arg_codes = [](auto tc_type, auto arg_types) -> std::vector<value_type> {
+       return boost::hana::unpack(arg_types, [tc_type](auto... type) { return std::vector<value_type>{ boost::hana::trait<to_wasm_type>(tc_type, type)... }; }); 
+   };
+
+   inline auto wasm_ret_codes = [](auto tc_type, auto ret_type) -> std::vector<value_type> {
+      if constexpr ( boost::hana::traits::is_void(ret_type) ) 
+         return {};
+      else
+         return std::vector<value_type>{ boost::hana::trait<to_wasm_type>(tc_type, ret_type) };
+   };
 
    using host_func_pair = std::pair<std::string, std::string>;
 
@@ -404,19 +504,18 @@ namespace eosio { namespace vm {
       using type_converter_t      = Type_Converter;
 
       struct mappings {
+         typedef void (*function_t)(Cls*, Type_Converter&);
          std::unordered_map<host_func_pair, uint32_t, host_func_pair_hash> named_mapping;
-         std::vector<std::function<void(Cls*, Type_Converter&)>>           functions;
+         std::vector<function_t>                          functions;
          std::vector<host_function>                                        host_functions;
          size_t                                                            current_index = 0;
 
-         template <auto F, typename R, typename Args, typename Preconditions>
+         template <auto F, typename Traits>
          void add_mapping(const std::string& mod, const std::string& name) {
-            named_mapping[{mod, name}] = current_index++;
-            functions.push_back(
-                  &fn<Cls, F, Preconditions, R, Args, Type_Converter>);
-            host_functions.push_back(
-                  function_types_provider<Type_Converter, R, Args>(
-                     std::make_index_sequence<std::tuple_size_v<Args>>()));
+            named_mapping[{ mod, name }] = current_index++;
+            functions.push_back(&fn<Cls, F, Traits>);
+            host_functions.push_back(host_function{wasm_arg_codes(Traits::converter_type, Traits::wasm_arg_types), 
+                                                   wasm_ret_codes(Traits::converter_type, Traits::ret_type)});
          }
 
          static mappings& get() {
@@ -427,10 +526,8 @@ namespace eosio { namespace vm {
 
       template <auto Func, typename... Preconditions>
       static void add(const std::string& mod, const std::string& name) {
-         using args          = flatten_parameters_t<AUTO_PARAM_WORKAROUND(Func)>;
-         using res           = return_type_t<AUTO_PARAM_WORKAROUND(Func)>;
-         using preconditions = std::tuple<Preconditions...>;
-         mappings::get().template add_mapping<Func, res, args, preconditions>(mod, name);
+         using traits = host_function_traits<decltype(Func), Type_Converter, Preconditions...>;
+         mappings::get().template add_mapping<Func, traits>(mod, name);
       }
 
       template <typename Module>
@@ -446,7 +543,8 @@ namespace eosio { namespace vm {
             imports[i] = current_mappings.named_mapping[{ mod_name, fn_name }];
             const import_entry& entry = mod.imports[i];
             EOS_VM_ASSERT(entry.kind == Function, wasm_link_exception, "importing non-function");
-            EOS_VM_ASSERT(current_mappings.host_functions[imports[i]] == mod.types[entry.type.func_t], wasm_link_exception, "wrong type for imported function");
+            EOS_VM_ASSERT(current_mappings.host_functions[imports[i]] == mod.types[entry.type.func_t],
+                          wasm_link_exception, "wrong type for imported function");
          }
       }
 

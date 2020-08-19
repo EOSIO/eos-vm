@@ -89,6 +89,18 @@ namespace eosio { namespace vm {
       std::unique_ptr<std::remove_cv_t<T>[]> copy = nullptr;
    };
 
+   template <typename T>
+   struct argument_proxy<span<T>, 1> : span<T> {
+      static_assert(std::is_trivially_copyable_v<T>, "argument_proxy requires a trivially copyable type");
+      using pointee_type = T;
+      using proxy_type   = span<T>;
+      inline constexpr argument_proxy(void* ptr, uint32_t size) : span<T>(static_cast<T*>(ptr), size) {}
+      inline constexpr argument_proxy(const argument_proxy&) = delete;
+      inline constexpr argument_proxy(argument_proxy&&)      = default;
+      static constexpr bool is_legacy() { return true; }
+      constexpr const void* get_original_pointer() const { return this->data(); }
+   };
+
    namespace detail {
       template <typename T>
       constexpr inline std::true_type is_argument_proxy_type(argument_proxy<T>);
