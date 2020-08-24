@@ -296,7 +296,7 @@ namespace eosio { namespace vm {
       }
 
       inline module& parse_module2(wasm_code_ptr& code_ptr, size_t sz, module& mod, DebugInfo& debug) {
-         parse_module(code_ptr, sz, mod);
+         parse_module(code_ptr, sz, mod, debug);
          return mod;
       }
 

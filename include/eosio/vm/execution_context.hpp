@@ -678,7 +678,7 @@ namespace eosio { namespace vm {
 
       // This isn't async-signal-safe.  Cross fingers and hope for the best.
       // It's only used for profiling.
-      int backtrace(void** data, int limit) const {
+      int backtrace(void** data, int limit, void* uc) const {
          int out = 0;
          if(limit != 0) {
             data[out++] = _state.pc;

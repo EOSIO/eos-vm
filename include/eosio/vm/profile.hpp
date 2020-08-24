@@ -6,6 +6,7 @@
 #include <vector>
 #include <algorithm>
 #include <atomic>
+#include <thread>
 #include <signal.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -75,6 +76,7 @@ struct profile_data {
             i += res;
          }
       }
+      outpos = 0;
    }
 
    void write(const char* data, std::size_t size) {
@@ -346,7 +348,7 @@ struct profile_manager {
    profile_manager() {
       register_profile_signal_handler();
       timer_thread = std::thread([this]{
-         auto lock = std::unique_lock(timer_mutex);
+         auto lock = std::unique_lock(mutex);
          while(!timer_cond.wait_for(lock, std::chrono::milliseconds(10), [&]{ return done; })) {
             for(pthread_t notify : threads_to_notify) {
                pthread_kill(notify, SIGPROF);
@@ -367,7 +369,7 @@ struct profile_manager {
    }
    ~profile_manager() {
       {
-         auto lock = std::unique_lock(timer_mutex);
+         auto lock = std::unique_lock(mutex);
          done = true;
       }
       timer_cond.notify_one();
@@ -382,7 +384,6 @@ struct profile_manager {
 
    std::thread timer_thread;
    bool done = false;
-   std::mutex timer_mutex;
    std::condition_variable timer_cond;
 };
 

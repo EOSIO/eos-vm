@@ -1,6 +1,7 @@
 #include <eosio/vm/backend.hpp>
 #include <iostream>
 #include <iomanip>
+#include <cctype>
 
 struct nm_debug_info {
    using builder = nm_debug_info;
@@ -79,9 +80,9 @@ int main(int argc, const char** argv) {
       for(std::size_t i = 0; i < info.function_offsets.size(); ++i) {
          std::cout << std::hex << std::setw(8) << std::setfill('0') << info.function_offsets[i] << " T ";
          if(guarded_vector<uint8_t>* name = find_export_name(mod, i + mod.get_imported_functions_size())) {
-            std::cout << std::string_view(reinterpret_cast<const char*>(name->raw()), name->size());
+           std::cout << std::string_view(reinterpret_cast<const char*>(name->raw()), name->size());
          } else {
-            std::cout << "fn" << i + mod.get_imported_functions_size();
+            std::cout << "fn" << std::dec << i + mod.get_imported_functions_size();
          }
          std::cout << std::endl;
       }
