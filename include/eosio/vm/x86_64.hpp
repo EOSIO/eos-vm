@@ -246,7 +246,7 @@ namespace eosio { namespace vm {
                   stack.push_back({mid,max,mid_label});
                   stack.push_back({min,mid,nullptr});
                } else {
-                  assert(min == _i);
+                  assert(min == static_cast<uint32_t>(_i));
                   _i++;
                   if (depth_change == 0u || depth_change == 0x80000001u) {
                      if(label) {
