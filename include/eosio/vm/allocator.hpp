@@ -379,8 +379,8 @@ namespace eosio { namespace vm {
       template <typename T>
       void alloc(size_t size = 1 /*in pages*/) {
          if (size == 0) return;
-         EOS_VM_ASSERT(page != -1, wasm_bad_alloc, "require memory to allocate");
-         EOS_VM_ASSERT(size <= max_pages - page, wasm_bad_alloc, "exceeded max number of pages");
+         EOS_VM_ASSERT(page >= 0, wasm_bad_alloc, "require memory to allocate");
+         EOS_VM_ASSERT(size + page <= max_pages, wasm_bad_alloc, "exceeded max number of pages");
          int err = mprotect(raw + (page_size * page), (page_size * size), PROT_READ | PROT_WRITE);
          EOS_VM_ASSERT(err == 0, wasm_bad_alloc, "mprotect failed");
          T* ptr    = (T*)(raw + (page_size * page));
@@ -390,8 +390,8 @@ namespace eosio { namespace vm {
       template <typename T>
       void free(std::size_t size) {
          if (size == 0) return;
-         EOS_VM_ASSERT(page != -1, wasm_bad_alloc, "require memory to deallocate");
-         EOS_VM_ASSERT(size <= page, wasm_bad_alloc, "freed too many pages");
+         EOS_VM_ASSERT(page >= 0, wasm_bad_alloc, "require memory to deallocate");
+         EOS_VM_ASSERT(size <= static_cast<uint32_t>(page), wasm_bad_alloc, "freed too many pages");
          page -= size;
          int err = mprotect(raw + (page_size * page), (page_size * size), PROT_NONE);
          EOS_VM_ASSERT(err == 0, wasm_bad_alloc, "mprotect failed");
@@ -414,7 +414,7 @@ namespace eosio { namespace vm {
       // \post get_current_page() == new_pages
       // \post all allocated pages are zero-filled.
       void reset(uint32_t new_pages) {
-         if (page != -1) {
+         if (page >= 0) {
             memset(raw, '\0', page_size * page); // zero the memory
          } else {
             std::size_t syspagesize = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
@@ -422,16 +422,16 @@ namespace eosio { namespace vm {
             EOS_VM_ASSERT(err == 0, wasm_bad_alloc, "mprotect failed");
             page = 0;
          }
-         if(new_pages > page) {
+         if(new_pages > static_cast<uint32_t>(page)) {
             alloc<char>(new_pages - page);
-         } else if(new_pages < page) {
+         } else if(new_pages < static_cast<uint32_t>(page)) {
             free<char>(page - new_pages);
          }
       }
 
       // Signal no memory defined
       void reset() {
-         if (page != -1) {
+         if (page >= 0) {
             std::size_t syspagesize = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
             memset(raw, '\0', page_size * page); // zero the memory
             int err = mprotect(raw - syspagesize, page_size * page + syspagesize, PROT_NONE);
