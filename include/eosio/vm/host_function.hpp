@@ -449,7 +449,7 @@ namespace eosio { namespace vm {
       static void resolve(Module& mod) {
          auto& imports          = mod.import_functions;
          auto& current_mappings = mappings::get();
-         for (int i = 0; i < mod.imports.size(); i++) {
+         for (std::size_t i = 0; i < mod.imports.size(); i++) {
             std::string mod_name =
                   std::string((char*)mod.imports[i].module_str.raw(), mod.imports[i].module_str.size());
             std::string fn_name = std::string((char*)mod.imports[i].field_str.raw(), mod.imports[i].field_str.size());
