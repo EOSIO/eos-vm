@@ -380,7 +380,7 @@ namespace eosio { namespace vm {
       void alloc(size_t size = 1 /*in pages*/) {
          if (size == 0) return;
          EOS_VM_ASSERT(page >= 0, wasm_bad_alloc, "require memory to allocate");
-         EOS_VM_ASSERT(size + page <= max_pages, wasm_bad_alloc, "exceeded max number of pages");
+         EOS_VM_ASSERT(size <= static_cast<uin32_t>(max_pages - page), wasm_bad_alloc, "exceeded max number of pages");
          int err = mprotect(raw + (page_size * page), (page_size * size), PROT_READ | PROT_WRITE);
          EOS_VM_ASSERT(err == 0, wasm_bad_alloc, "mprotect failed");
          T* ptr    = (T*)(raw + (page_size * page));
