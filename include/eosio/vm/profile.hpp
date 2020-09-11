@@ -387,13 +387,20 @@ struct profile_manager {
    std::condition_variable timer_cond;
 };
 
-struct scoped_profile {
-   explicit scoped_profile(profile_data& data) {
-      profile_manager::instance().start(&data);
+class scoped_profile {
+ public:
+   explicit scoped_profile(profile_data* data) : data(data) {
+      if(data) {
+         profile_manager::instance().start(data);
+      }
    }
    ~scoped_profile() {
-      profile_manager::instance().stop();
+      if(data) {
+         profile_manager::instance().stop();
+      }
    }
+ private:
+   profile_data* data;
 };
 
 #endif

@@ -1311,7 +1311,7 @@ namespace eosio { namespace vm {
       template <uint8_t id>
       inline void parse_section(wasm_code_ptr&                                                                 code,
                                 vec<typename std::enable_if_t<id == section_id::code_section, function_body>>& elems) {
-         const void* code_start = code.raw();
+         const void* code_start = code.raw() - code.offset();
          parse_section_impl(code, elems, detail::get_max_function_section_elements(_options),
                             [&](wasm_code_ptr& code, function_body& fb, std::size_t idx) { parse_function_body(code, fb, idx); });
          EOS_VM_ASSERT( elems.size() == _mod->functions.size(), wasm_parse_exception, "code section must have the same size as the function section" );
