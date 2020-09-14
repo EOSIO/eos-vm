@@ -417,7 +417,7 @@ namespace eosio { namespace vm {
 
       host_type * _host = nullptr;
       uint32_t _remaining_call_depth;
-      std::atomic<void*> _top_frame;
+      std::atomic<void*> _top_frame = nullptr;
    };
 
    template <typename Host>

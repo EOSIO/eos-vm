@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <atomic>
 #include <thread>
+#include <condition_variable>
 #include <signal.h>
 #include <unistd.h>
 #include <fcntl.h>
