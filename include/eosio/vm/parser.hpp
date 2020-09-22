@@ -733,7 +733,6 @@ namespace eosio { namespace vm {
 
       void parse_function_body_code(wasm_code_ptr& code, size_t bounds, const detail::max_func_local_bytes_stack_checker<Options>& local_bytes_checker,
                                     Writer& code_writer, const func_type& ft, const local_types_t& local_types) {
-         imap.on_function_start(code_writer.get_addr(), code.raw());
 
          // Initialize the control stack with the current function as the sole element
          operand_stack_type_tracker op_stack{local_bytes_checker, _options};
@@ -1321,6 +1320,7 @@ namespace eosio { namespace vm {
             function_body& fb = _mod->code[i];
             func_type& ft = _mod->types.at(_mod->functions.at(i));
             local_types_t local_types(ft, fb.locals);
+            imap.on_function_start(code_writer.get_addr(), _function_bodies[i].first.raw());
             code_writer.emit_prologue(ft, fb.locals, i);
             parse_function_body_code(_function_bodies[i].first, fb.size, _function_bodies[i].second, code_writer, ft, local_types);
             code_writer.emit_epilogue(ft, fb.locals, i);

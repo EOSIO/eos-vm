@@ -326,12 +326,31 @@ namespace eosio { namespace vm {
          if(count != 0) {
             if(uc) {
 #ifdef __APPLE__
-               out[i++] = reinterpret_cast<void*>(static_cast<ucontext_t*>(uc)->uc_mcontext->__ss.__rip);
+               auto rip = reinterpret_cast<unsigned char*>(static_cast<ucontext_t*>(uc)->uc_mcontext->__ss.__rip);
                rbp = reinterpret_cast<void*>(static_cast<ucontext_t*>(uc)->uc_mcontext->__ss.__rbp);
+               auto rsp = reinterpret_cast<void*>(static_cast<ucontext_t*>(uc)->uc_mcontext->__ss.__rsp);
 #else
-               out[i++] = reinterpret_cast<void*>(static_cast<ucontext_t*>(uc)->uc_mcontext.gregs[REG_RIP]);
+               auto rip = reinterpret_cast<unsigned char*>(static_cast<ucontext_t*>(uc)->uc_mcontext.gregs[REG_RIP]);
                rbp = reinterpret_cast<void*>(static_cast<ucontext_t*>(uc)->uc_mcontext.gregs[REG_RBP]);
+               auto rsp = reinterpret_cast<void*>(static_cast<ucontext_t*>(uc)->uc_mcontext.gregs[REG_RSP]);
 #endif
+               out[i++] = rip;
+               // If we were interrupted in the function prologue or epilogue,
+               // avoid dropping the parent frame.
+               auto code_base = reinterpret_cast<const unsigned char*>(_mod.allocator.get_code_start());
+               auto code_end = code_base + _mod.allocator._code_size;
+               if(rip >= code_base && rip < code_end && count > 1) {
+                  // function prologue
+                  if(*reinterpret_cast<const unsigned char*>(rip) == 0x55) {
+                     out[i++] = *static_cast<void**>(rsp);
+                  } else if(rip[0] == 0x48 && rip[1] == 0x89 && rip[2] == 0xe5) {
+                     out[i++] = static_cast<void**>(rsp)[1];
+                  }
+                  // function epilogue
+                  else if(rip[0] == 0xc3) {
+                     out[i++] = *static_cast<void**>(rsp);
+                  }
+               }
             } else {
                rbp = __builtin_frame_address(0);
             }
