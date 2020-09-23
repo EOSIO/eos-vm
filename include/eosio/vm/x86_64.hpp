@@ -624,6 +624,7 @@ namespace eosio { namespace vm {
 
       void emit_current_memory() {
          auto icount = fixed_size_instr(17);
+         emit_setup_backtrace();
          // pushq %rdi
          emit_bytes(0x57);
          // pushq %rsi
@@ -637,6 +638,7 @@ namespace eosio { namespace vm {
          emit_bytes(0x5e);
          // pop %rdi
          emit_bytes(0x5f);
+         emit_restore_backtrace();
          // push %rax
          emit_bytes(0x50);
       }
@@ -644,6 +646,7 @@ namespace eosio { namespace vm {
          auto icount = fixed_size_instr(21);
          // popq %rax
          emit_bytes(0x58);
+         emit_setup_backtrace();
          // pushq %rdi
          emit_bytes(0x57);
          // pushq %rsi
@@ -659,6 +662,7 @@ namespace eosio { namespace vm {
          emit_bytes(0x5e);
          // pop %rdi
          emit_bytes(0x5f);
+         emit_restore_backtrace();
          // push %rax
          emit_bytes(0x50);
       }
@@ -2273,16 +2277,17 @@ namespace eosio { namespace vm {
 
       template<typename T, typename U>
       void emit_softfloat_unop(T(*softfloatfun)(U)) {
+         auto extra = emit_setup_backtrace();
          // pushq %rdi
          emit_bytes(0x57);
          // pushq %rsi
          emit_bytes(0x56);
          if constexpr(sizeof(U) == 4) {
             // movq 16(%rsp), %edi
-            emit_bytes(0x8b, 0x7c, 0x24, 0x10);
+            emit_bytes(0x8b, 0x7c, 0x24, 0x10 + extra);
          } else {
             // movq 16(%rsp), %rdi
-            emit_bytes(0x48, 0x8b, 0x7c, 0x24, 0x10);
+            emit_bytes(0x48, 0x8b, 0x7c, 0x24, 0x10 + extra);
          }
          emit_align_stack();
          // movabsq $softfloatfun, %rax
@@ -2295,6 +2300,7 @@ namespace eosio { namespace vm {
          emit_bytes(0x5e);
          // popq %rdi
          emit_bytes(0x5f);
+         emit_restore_backtrace();
          if constexpr(sizeof(T) == 4) {
             static_assert(sizeof(U) == 4, "Can only push 4-byte item if the upper 4 bytes are already 0");
             // movq %eax, (%rsp)
@@ -2306,14 +2312,15 @@ namespace eosio { namespace vm {
       }
 
       void emit_f32_binop_softfloat(float32_t (*softfloatfun)(float32_t, float32_t)) {
+         auto extra = emit_setup_backtrace();
          // pushq %rdi
          emit_bytes(0x57);
          // pushq %rsi
          emit_bytes(0x56);
          // movq 16(%rsp), %esi
-         emit_bytes(0x8b, 0x74, 0x24, 0x10);
+         emit_bytes(0x8b, 0x74, 0x24, 0x10 + extra);
          // movq 24(%rsp), %edi
-         emit_bytes(0x8b, 0x7c, 0x24, 0x18);
+         emit_bytes(0x8b, 0x7c, 0x24, 0x18 + extra);
          emit_align_stack();
          // movabsq $softfloatfun, %rax
          emit_bytes(0x48, 0xb8);
@@ -2325,21 +2332,23 @@ namespace eosio { namespace vm {
          emit_bytes(0x5e);
          // popq %rdi
          emit_bytes(0x5f);
+         emit_restore_backtrace_basic();
          // addq $8, %rsp
-         emit_bytes(0x48, 0x83, 0xc4, 0x08);
+         emit_bytes(0x48, 0x83, 0xc4, 0x08 + extra);
          // movq %eax, (%rsp)
          emit_bytes(0x89, 0x04, 0x24);
       }
 
       void emit_f64_binop_softfloat(float64_t (*softfloatfun)(float64_t, float64_t)) {
+         auto extra = emit_setup_backtrace();
          // pushq %rdi
          emit_bytes(0x57);
          // pushq %rsi
          emit_bytes(0x56);
          // movq 16(%rsp), %rsi
-         emit_bytes(0x48, 0x8b, 0x74, 0x24, 0x10);
+         emit_bytes(0x48, 0x8b, 0x74, 0x24, 0x10 + extra);
          // movq 24(%rsp), %rdi
-         emit_bytes(0x48, 0x8b, 0x7c, 0x24, 0x18);
+         emit_bytes(0x48, 0x8b, 0x7c, 0x24, 0x18 + extra);
          emit_align_stack();
          // movabsq $softfloatfun, %rax
          emit_bytes(0x48, 0xb8);
@@ -2351,28 +2360,30 @@ namespace eosio { namespace vm {
          emit_bytes(0x5e);
          // popq %rdi
          emit_bytes(0x5f);
+         emit_restore_backtrace_basic();
          // addq $8, %rsp
-         emit_bytes(0x48, 0x83, 0xc4, 0x08);
+         emit_bytes(0x48, 0x83, 0xc4, 0x08 + extra);
          // movq %rax, (%rsp)
          emit_bytes(0x48, 0x89, 0x04, 0x24);
       }
 
       void emit_f32_relop(uint8_t opcode, uint64_t (*softfloatfun)(float32_t, float32_t), bool switch_params, bool flip_result) {
          if constexpr (use_softfloat) {
+            auto extra = emit_setup_backtrace();
             // pushq %rdi
             emit_bytes(0x57);
             // pushq %rsi
             emit_bytes(0x56);
             if(switch_params) {
                // movq 24(%rsp), %esi
-               emit_bytes(0x8b, 0x74, 0x24, 0x18);
+               emit_bytes(0x8b, 0x74, 0x24, 0x18 + extra);
                // movq 16(%rsp), %edi
-               emit_bytes(0x8b, 0x7c, 0x24, 0x10);
+               emit_bytes(0x8b, 0x7c, 0x24, 0x10 + extra);
             } else {
                // movq 16(%rsp), %esi
-               emit_bytes(0x8b, 0x74, 0x24, 0x10);
+               emit_bytes(0x8b, 0x74, 0x24, 0x10 + extra);
                // movq 24(%rsp), %edi
-               emit_bytes(0x8b, 0x7c, 0x24, 0x18);
+               emit_bytes(0x8b, 0x7c, 0x24, 0x18 + extra);
             }
             emit_align_stack();
             // movabsq $softfloatfun, %rax
@@ -2385,12 +2396,13 @@ namespace eosio { namespace vm {
             emit_bytes(0x5e);
             // popq %rdi
             emit_bytes(0x5f);
+            emit_restore_backtrace_basic();
             if (flip_result) {
                // xor $0x1, %al
                emit_bytes(0x34, 0x01);
             }
             // addq $8, %rsp
-            emit_bytes(0x48, 0x83, 0xc4, 0x08);
+            emit_bytes(0x48, 0x83, 0xc4, 0x08 + extra);
             // movq %rax, (%rsp)
             emit_bytes(0x48, 0x89, 0x04, 0x24);
          } else {
@@ -2424,20 +2436,21 @@ namespace eosio { namespace vm {
 
       void emit_f64_relop(uint8_t opcode, uint64_t (*softfloatfun)(float64_t, float64_t), bool switch_params, bool flip_result) {
          if constexpr (use_softfloat) {
+            auto extra = emit_setup_backtrace();
             // pushq %rdi
             emit_bytes(0x57);
             // pushq %rsi
             emit_bytes(0x56);
             if(switch_params) {
                // movq 24(%rsp), %rsi
-               emit_bytes(0x48, 0x8b, 0x74, 0x24, 0x18);
+               emit_bytes(0x48, 0x8b, 0x74, 0x24, 0x18 + extra);
                // movq 16(%rsp), %rdi
-               emit_bytes(0x48, 0x8b, 0x7c, 0x24, 0x10);
+               emit_bytes(0x48, 0x8b, 0x7c, 0x24, 0x10 + extra);
             } else {
                // movq 16(%rsp), %rsi
-               emit_bytes(0x48, 0x8b, 0x74, 0x24, 0x10);
+               emit_bytes(0x48, 0x8b, 0x74, 0x24, 0x10 + extra);
                // movq 24(%rsp), %rdi
-               emit_bytes(0x48, 0x8b, 0x7c, 0x24, 0x18);
+               emit_bytes(0x48, 0x8b, 0x7c, 0x24, 0x18 + extra);
             }
             emit_align_stack();
             // movabsq $softfloatfun, %rax
@@ -2450,12 +2463,13 @@ namespace eosio { namespace vm {
             emit_bytes(0x5e);
             // popq %rdi
             emit_bytes(0x5f);
+            emit_restore_backtrace_basic();
             if (flip_result) {
                // xor $0x1, %al
                emit_bytes(0x34, 0x01);
             }
             // addq $8, %rsp
-            emit_bytes(0x48, 0x83, 0xc4, 0x08);
+            emit_bytes(0x48, 0x83, 0xc4, 0x08 + extra);
             // movq %rax, (%rsp)
             emit_bytes(0x48, 0x89, 0x04, 0x24);
          } else {
@@ -2586,6 +2600,14 @@ namespace eosio { namespace vm {
       }
 
       void emit_host_call(uint32_t funcnum) {
+         uint32_t extra = 0;
+         if constexpr (Context::async_backtrace()) {
+            // pushq %rbp
+            emit_bytes(0x55);
+            // movq %rsp, (%rdi)
+            emit_bytes(0x48, 0x89, 0x27);
+            extra = 8;
+         }
          // mov $funcnum, %edx
          emit_bytes(0xba);
          emit_operand32(funcnum);
@@ -2594,7 +2616,7 @@ namespace eosio { namespace vm {
          // pushq %rsi
          emit_bytes(0x56);
          // lea 24(%rsp), %rsi
-         emit_bytes(0x48, 0x8d, 0x74, 0x24, 0x18);
+         emit_bytes(0x48, 0x8d, 0x74, 0x24, 0x18 + extra);
          emit_align_stack();
          // movabsq $call_host_function, %rax
          emit_bytes(0x48, 0xb8);
@@ -2606,8 +2628,46 @@ namespace eosio { namespace vm {
          emit_bytes(0x5e);
          // popq %rdi
          emit_bytes(0x5f);
+         if constexpr (Context::async_backtrace()) {
+            // popq %rbp
+            emit_bytes(0x5d);
+         }
          // retq
          emit_bytes(0xc3);
+      }
+
+      // Needs to run before saving %rdi.  Returns the number of bytes pushed onto the stack.
+      uint32_t emit_setup_backtrace() {
+         if constexpr (Context::async_backtrace()) {
+            // callq next
+            emit_bytes(0xe8);
+            emit_operand32(0);
+            // next:
+            // pushq %rbp
+            emit_bytes(0x55);
+            // movq %rsp, (%rdi)
+            emit_bytes(0x48, 0x89, 0x27);
+            return 16;
+         } else {
+            return 0;
+         }
+      }
+      // Does not adjust the stack pointer.  Use this if the
+      // stack pointer adjustment is combined with another instruction.
+      void emit_restore_backtrace_basic() {
+         if constexpr (Context::async_backtrace()) {
+            // xorl %edx, %edx
+            emit_bytes(0x31, 0xd2);
+            // movq %rdx, (%rdi)
+            emit_bytes(0x48, 0x89, 0x17);
+         }
+      }
+      void emit_restore_backtrace() {
+         if constexpr (Context::async_backtrace()) {
+            emit_restore_backtrace_basic();
+            // addq $16, %rsp
+            emit_bytes(0x48, 0x83, 0xc4, 0x10);
+         }
       }
 
       bool is_host_function(uint32_t funcnum) { return funcnum < _mod.get_imported_functions_size(); }

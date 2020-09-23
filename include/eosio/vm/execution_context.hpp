@@ -199,8 +199,13 @@ namespace eosio { namespace vm {
       null_execution_context(module& m, std::uint32_t max_call_depth) : base_type(m) {}
    };
 
+   struct frame_info_holder {
+      void* _bottom_frame = nullptr;
+      void* _top_frame = nullptr;
+   };
+
    template<typename Host>
-   class jit_execution_context : public execution_context_base<jit_execution_context<Host>, Host> {
+   class jit_execution_context : public frame_info_holder, public execution_context_base<jit_execution_context<Host>, Host> {
       using base_type = execution_context_base<jit_execution_context<Host>, Host>;
       using host_type  = detail::host_type_t<Host>;
    public:
@@ -290,16 +295,15 @@ namespace eosio { namespace vm {
                }
                auto fn = reinterpret_cast<native_value (*)(void*, void*)>(_mod.code[func_index - _mod.get_imported_functions_size()].jit_code_offset + _mod.allocator._code_base);
 
-               std::atomic_signal_fence(std::memory_order_release);
-               void* old_frame = _top_frame.load(std::memory_order_relaxed);
-               _top_frame.store(__builtin_frame_address(0), std::memory_order_relaxed);
-               auto restore = scope_guard{[this, old_frame]{
-                  _top_frame.store(old_frame, std::memory_order_relaxed);
-                  std::atomic_signal_fence(std::memory_order_release); // As close to the correct fence as possible.
-               }};
+               sigset_t block_mask;
+               sigemptyset(&block_mask);
+               sigaddset(&block_mask, SIGPROF);
+               pthread_sigmask(SIG_BLOCK, &block_mask, nullptr);
+               auto restore = scope_guard{[this, &block_mask] { pthread_sigmask(SIG_UNBLOCK, &block_mask, nullptr); } };
+
                vm::invoke_with_signal_handler([&]() {
                   result = execute<sizeof...(Args)>(args_raw, fn, this, base_type::linear_memory(), stack);
-               }, &handle_signal);
+               }, [this](int sig){ _top_frame = nullptr; handle_signal(sig); });
             }
          } catch(wasm_exit_exception&) {
             return {};
@@ -318,12 +322,13 @@ namespace eosio { namespace vm {
       }
 
       int backtrace(void** out, int count, void* uc) const {
-         void* end = _top_frame.load(std::memory_order_relaxed);
-         std::atomic_signal_fence(std::memory_order_acquire);
+         void* end = _top_frame;
          if(end == nullptr) return 0;
          void* rbp;
          int i = 0;
-         if(count != 0) {
+         if(_bottom_frame) {
+            rbp = _bottom_frame;
+         } else if(count != 0) {
             if(uc) {
 #ifdef __APPLE__
                auto rip = reinterpret_cast<unsigned char*>(static_cast<ucontext_t*>(uc)->uc_mcontext->__ss.__rip);
@@ -355,16 +360,16 @@ namespace eosio { namespace vm {
                rbp = __builtin_frame_address(0);
             }
          }
-         //printf("top: %p, start %p\n", end, rbp);
          while(i < count) {
             void* rip = static_cast<void**>(rbp)[1];
             if(rbp == end) break;
             out[i++] = rip;
             rbp = *static_cast<void**>(rbp);
-            //printf("%p, %p\n", rip, rbp);
          }
          return i;
       }
+
+      static constexpr bool async_backtrace() { return true; }
 
    protected:
 
@@ -414,7 +419,10 @@ namespace eosio { namespace vm {
             "dec %%rax; "
             "jnz 1b; "
             "2: "
+            "movq %%rbp, 8(%[context]); "
             "callq *%[fun]; "
+            "xor %[fun], %[fun]; "
+            "mov %[fun], 8(%[context]); "
             "add %[StackOffset], %%rsp; "
             "ldmxcsr 16(%%rsp); "
             "mov (%%rsp), %%rsp; "
@@ -436,7 +444,6 @@ namespace eosio { namespace vm {
 
       host_type * _host = nullptr;
       uint32_t _remaining_call_depth;
-      std::atomic<void*> _top_frame = nullptr;
    };
 
    template <typename Host>
