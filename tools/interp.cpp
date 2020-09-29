@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
       auto code = read_wasm( filename );
 
       // Instaniate a new backend using the wasm provided.
-      backend<std::nullptr_t, jit, default_options, profile_instr_map> bkend( code, &wa );
+      backend<std::nullptr_t, jit_profile, default_options, profile_instr_map> bkend( code, &wa );
       auto prof = profile? std::make_unique<profile_data>("profile.out", bkend) : nullptr;
       scoped_profile profile_runner(prof.get());
 

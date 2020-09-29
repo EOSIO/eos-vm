@@ -199,14 +199,17 @@ namespace eosio { namespace vm {
       null_execution_context(module& m, std::uint32_t max_call_depth) : base_type(m) {}
    };
 
-   struct frame_info_holder {
+   template<bool EnableBacktrace>
+   struct frame_info_holder {};
+   template<>
+   struct frame_info_holder<true> {
       void* _bottom_frame = nullptr;
       void* _top_frame = nullptr;
    };
 
-   template<typename Host>
-   class jit_execution_context : public frame_info_holder, public execution_context_base<jit_execution_context<Host>, Host> {
-      using base_type = execution_context_base<jit_execution_context<Host>, Host>;
+   template<typename Host, bool EnableBacktrace = false>
+   class jit_execution_context : public frame_info_holder<EnableBacktrace>, public execution_context_base<jit_execution_context<Host, EnableBacktrace>, Host> {
+      using base_type = execution_context_base<jit_execution_context<Host, EnableBacktrace>, Host>;
       using host_type  = detail::host_type_t<Host>;
    public:
       using base_type::execute;
@@ -295,15 +298,21 @@ namespace eosio { namespace vm {
                }
                auto fn = reinterpret_cast<native_value (*)(void*, void*)>(_mod.code[func_index - _mod.get_imported_functions_size()].jit_code_offset + _mod.allocator._code_base);
 
-               sigset_t block_mask;
-               sigemptyset(&block_mask);
-               sigaddset(&block_mask, SIGPROF);
-               pthread_sigmask(SIG_BLOCK, &block_mask, nullptr);
-               auto restore = scope_guard{[this, &block_mask] { pthread_sigmask(SIG_UNBLOCK, &block_mask, nullptr); } };
+               if constexpr(EnableBacktrace) {
+                  sigset_t block_mask;
+                  sigemptyset(&block_mask);
+                  sigaddset(&block_mask, SIGPROF);
+                  pthread_sigmask(SIG_BLOCK, &block_mask, nullptr);
+                  auto restore = scope_guard{[this, &block_mask] { pthread_sigmask(SIG_UNBLOCK, &block_mask, nullptr); } };
 
-               vm::invoke_with_signal_handler([&]() {
-                  result = execute<sizeof...(Args)>(args_raw, fn, this, base_type::linear_memory(), stack);
-               }, [this](int sig){ _top_frame = nullptr; handle_signal(sig); });
+                  vm::invoke_with_signal_handler([&]() {
+                     result = execute<sizeof...(Args)>(args_raw, fn, this, base_type::linear_memory(), stack);
+                  }, [this](int sig){ this->_top_frame = nullptr; handle_signal(sig); });
+               } else {
+                  vm::invoke_with_signal_handler([&]() {
+                     result = execute<sizeof...(Args)>(args_raw, fn, this, base_type::linear_memory(), stack);
+                  }, handle_signal);
+               }
             }
          } catch(wasm_exit_exception&) {
             return {};
@@ -322,12 +331,13 @@ namespace eosio { namespace vm {
       }
 
       int backtrace(void** out, int count, void* uc) const {
-         void* end = _top_frame;
+         static_assert(EnableBacktrace);
+         void* end = this->_top_frame;
          if(end == nullptr) return 0;
          void* rbp;
          int i = 0;
-         if(_bottom_frame) {
-            rbp = _bottom_frame;
+         if(this->_bottom_frame) {
+            rbp = this->_bottom_frame;
          } else if(count != 0) {
             if(uc) {
 #ifdef __APPLE__
@@ -369,7 +379,7 @@ namespace eosio { namespace vm {
          return i;
       }
 
-      static constexpr bool async_backtrace() { return true; }
+      static constexpr bool async_backtrace() { return EnableBacktrace; }
 
    protected:
 
@@ -394,51 +404,59 @@ namespace eosio { namespace vm {
          // currently ignoring register c++17 warning
          register void* stack_top asm ("r12") = stack;
          // 0x1f80 is the default MXCSR value
-         asm volatile(
-            "test %[stack_top], %[stack_top]; "
-            "jnz 3f; "
-            "mov %%rsp, %[stack_top]; "
-            "sub $0x98, %%rsp; " // red-zone + 24 bytes
-            "mov %[stack_top], (%%rsp); "
-            "jmp 4f; "
-            "3: "
-            "mov %%rsp, (%[stack_top]); "
-            "mov %[stack_top], %%rsp; "
-            "4: "
-            "stmxcsr 16(%%rsp); "
-            "mov $0x1f80, %%rax; "
-            "mov %%rax, 8(%%rsp); "
-            "ldmxcsr 8(%%rsp); "
-            "mov %[Count], %%rax; "
-            "test %%rax, %%rax; "
-            "jz 2f; "
-            "1: "
-            "movq (%[data]), %%r8; "
-            "lea 8(%[data]), %[data]; "
-            "pushq %%r8; "
-            "dec %%rax; "
-            "jnz 1b; "
-            "2: "
-            "movq %%rbp, 8(%[context]); "
-            "callq *%[fun]; "
-            "xor %[fun], %[fun]; "
-            "mov %[fun], 8(%[context]); "
-            "add %[StackOffset], %%rsp; "
-            "ldmxcsr 16(%%rsp); "
-            "mov (%%rsp), %%rsp; "
-            // Force explicit register allocation, because otherwise it's too hard to get the clobbers right.
-            : [result] "=&a" (result), // output, reused as a scratch register
-              [data] "+d" (data), [fun] "+c" (fun), [stack_top] "+r" (stack_top) // input only, but may be clobbered
-            : [context] "D" (context), [linear_memory] "S" (linear_memory),
-              [StackOffset] "n" (Count*8), [Count] "n" (Count), "b" (stack_check) // input
-            : "memory", "cc", // clobber
-              // call clobbered registers, that are not otherwise used
-              /*"rax", "rcx", "rdx", "rsi", "rdi",*/ "r8", "r9", "r10", "r11",
-              "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7",
-              "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15",
-              "mm0","mm1", "mm2", "mm3", "mm4", "mm5", "mm6", "mm6",
-              "st", "st(1)", "st(2)", "st(3)", "st(4)", "st(5)", "st(6)", "st(7)"
+#define ASM_CODE(before, after)                                         \
+         asm volatile(                                                  \
+            "test %[stack_top], %[stack_top]; "                          \
+            "jnz 3f; "                                                   \
+            "mov %%rsp, %[stack_top]; "                                  \
+            "sub $0x98, %%rsp; " /* red-zone + 24 bytes*/                \
+            "mov %[stack_top], (%%rsp); "                                \
+            "jmp 4f; "                                                   \
+            "3: "                                                        \
+            "mov %%rsp, (%[stack_top]); "                                \
+            "mov %[stack_top], %%rsp; "                                  \
+            "4: "                                                        \
+            "stmxcsr 16(%%rsp); "                                        \
+            "mov $0x1f80, %%rax; "                                       \
+            "mov %%rax, 8(%%rsp); "                                      \
+            "ldmxcsr 8(%%rsp); "                                         \
+            "mov %[Count], %%rax; "                                      \
+            "test %%rax, %%rax; "                                        \
+            "jz 2f; "                                                    \
+            "1: "                                                        \
+            "movq (%[data]), %%r8; "                                     \
+            "lea 8(%[data]), %[data]; "                                  \
+            "pushq %%r8; "                                               \
+            "dec %%rax; "                                                \
+            "jnz 1b; "                                                   \
+            "2: "                                                        \
+            before                                                       \
+            "callq *%[fun]; "                                            \
+            after                                                        \
+            "add %[StackOffset], %%rsp; "                                \
+            "ldmxcsr 16(%%rsp); "                                        \
+            "mov (%%rsp), %%rsp; "                                       \
+            /* Force explicit register allocation, because otherwise it's too hard to get the clobbers right. */ \
+            : [result] "=&a" (result), /* output, reused as a scratch register */ \
+              [data] "+d" (data), [fun] "+c" (fun), [stack_top] "+r" (stack_top) /* input only, but may be clobbered */ \
+            : [context] "D" (context), [linear_memory] "S" (linear_memory), \
+              [StackOffset] "n" (Count*8), [Count] "n" (Count), "b" (stack_check) /* input */ \
+            : "memory", "cc", /* clobber */                              \
+              /* call clobbered registers, that are not otherwise used */  \
+              /*"rax", "rcx", "rdx", "rsi", "rdi",*/ "r8", "r9", "r10", "r11", \
+              "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7", \
+              "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15", \
+              "mm0","mm1", "mm2", "mm3", "mm4", "mm5", "mm6", "mm6",       \
+              "st", "st(1)", "st(2)", "st(3)", "st(4)", "st(5)", "st(6)", "st(7)" \
          );
+         if constexpr (!EnableBacktrace) {
+            ASM_CODE("", "");
+         } else {
+            ASM_CODE("movq %%rbp, 8(%[context]); ",
+                     "xor %[fun], %[fun]; "
+                     "mov %[fun], 8(%[context]); ");
+         }
+#undef ASM_CODE
          return result;
       }
 

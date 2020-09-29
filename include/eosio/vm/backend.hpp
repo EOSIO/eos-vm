@@ -29,6 +29,14 @@ namespace eosio { namespace vm {
       static constexpr bool is_jit = true;
    };
 
+   struct jit_profile {
+      template<typename Host>
+      using context = jit_execution_context<Host, true>;
+      template<typename Host, typename Options, typename DebugInfo>
+      using parser = binary_parser<machine_code_writer<jit_execution_context<Host>>, Options, DebugInfo>;
+      static constexpr bool is_jit = true;
+   };
+
    struct interpreter {
       template<typename Host>
       using context = execution_context<Host>;
