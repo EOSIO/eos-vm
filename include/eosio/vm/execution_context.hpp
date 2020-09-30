@@ -361,9 +361,13 @@ namespace eosio { namespace vm {
                if(rip >= code_base && rip < code_end && count > 1) {
                   // function prologue
                   if(*reinterpret_cast<const unsigned char*>(rip) == 0x55) {
-                     out[i++] = *static_cast<void**>(rsp);
-                  } else if(rip[0] == 0x48 && rip[1] == 0x89 && rip[2] == 0xe5) {
-                     out[i++] = static_cast<void**>(rsp)[1];
+                     if(rip != *static_cast<void**>(rsp)) { // Ignore fake frame set up for softfloat calls
+                        out[i++] = *static_cast<void**>(rsp);
+                     }
+                  } else if(rip[0] == 0x48 && rip[1] == 0x89 && (rip[2] == 0xe5 || rip[2] == 0x27)) {
+                     if((rip - 1) != static_cast<void**>(rsp)[1]) { // Ignore fake frame set up for softfloat calls
+                        out[i++] = static_cast<void**>(rsp)[1];
+                     }
                   }
                   // function epilogue
                   else if(rip[0] == 0xc3) {
