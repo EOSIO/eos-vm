@@ -264,8 +264,6 @@ inline void register_profile_signal_handler() {
    ignore_unused_variable_warning(init_helper);
 }
 
-#define get_backtrace_impl(data, count, uc) ptr->get_backtrace_fn(ptr->exec_context, data, count, uc)
-
 #if USE_POSIX_TIMERS
 
 inline void profile_handler(int sig, siginfo_t *info, void * uc) {
@@ -274,7 +272,7 @@ inline void profile_handler(int sig, siginfo_t *info, void * uc) {
    if(ptr) {
       int saved_errno = errno;
       void* data[profile_data::max_frames*2]; // Includes both wasm and native frames
-      int count = get_backtrace_impl(data, sizeof(data)/sizeof(data[0]), uc);
+      int count = ptr->get_backtrace_fn(ptr->exec_context, data, sizeof(data)/sizeof(data[0]), uc);
       ptr->handle_tick(data, count);
       errno = saved_errno;
    }
@@ -317,14 +315,18 @@ __attribute__((visibility("default")))
 inline std::unique_ptr<profile_manager> per_thread_profile_manager;
 
 struct scoped_profile {
-   explicit scoped_profile(profile_data& data) {
-      if(!per_thread_profile_manager) {
-         per_thread_profile_manager = std::make_unique<profile_manager>();
+   explicit scoped_profile(profile_data* data) {
+      if(data) {
+         if(!per_thread_profile_manager) {
+            per_thread_profile_manager = std::make_unique<profile_manager>();
+         }
+         per_thread_profile_manager->start(data);
       }
-      per_thread_profile_manager->start(&data);
    }
    ~scoped_profile() {
-      per_thread_profile_manager->stop();
+      if(per_thread_profile_manager) {
+         per_thread_profile_manager->stop();
+      }
    }
 };
 
@@ -339,7 +341,7 @@ inline void profile_handler(int sig, siginfo_t* info, void* uc) {
    if(ptr) {
       int saved_errno = errno;
       void* data[profile_data::max_frames*2]; // Includes both wasm and native frames
-      int count = get_backtrace_impl(data, sizeof(data)/sizeof(data[0]), uc);
+      int count = ptr->get_backtrace_fn(ptr->exec_context, data, sizeof(data)/sizeof(data[0]), uc);
       ptr->handle_tick(data, count);
       errno = saved_errno;
    }
