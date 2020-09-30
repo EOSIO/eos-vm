@@ -50,7 +50,7 @@ namespace eosio { namespace vm {
 
          // emit host functions
          const uint32_t num_imported = mod.get_imported_functions_size();
-         const std::size_t host_functions_size = (40 + 5 * Context::async_backtrace()) * num_imported;
+         const std::size_t host_functions_size = (40 + 10 * Context::async_backtrace()) * num_imported;
          _code_start = _mod.allocator.alloc<unsigned char>(host_functions_size);
          _code_end = _code_start + host_functions_size;
          // code already set
@@ -2629,6 +2629,7 @@ namespace eosio { namespace vm {
          // popq %rdi
          emit_bytes(0x5f);
          if constexpr (Context::async_backtrace()) {
+            emit_restore_backtrace_basic();
             // popq %rbp
             emit_bytes(0x5d);
          }

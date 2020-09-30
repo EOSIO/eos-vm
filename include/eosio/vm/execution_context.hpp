@@ -203,8 +203,8 @@ namespace eosio { namespace vm {
    struct frame_info_holder {};
    template<>
    struct frame_info_holder<true> {
-      void* _bottom_frame = nullptr;
-      void* _top_frame = nullptr;
+      void* volatile _bottom_frame = nullptr;
+      void* volatile _top_frame = nullptr;
    };
 
    template<typename Host, bool EnableBacktrace = false>
@@ -303,11 +303,15 @@ namespace eosio { namespace vm {
                   sigemptyset(&block_mask);
                   sigaddset(&block_mask, SIGPROF);
                   pthread_sigmask(SIG_BLOCK, &block_mask, nullptr);
-                  auto restore = scope_guard{[this, &block_mask] { pthread_sigmask(SIG_UNBLOCK, &block_mask, nullptr); } };
+                  auto restore = scope_guard{[this, &block_mask] {
+                     this->_top_frame = nullptr;
+                     this->_bottom_frame = nullptr;
+                     pthread_sigmask(SIG_UNBLOCK, &block_mask, nullptr);
+                  }};
 
                   vm::invoke_with_signal_handler([&]() {
                      result = execute<sizeof...(Args)>(args_raw, fn, this, base_type::linear_memory(), stack);
-                  }, [this](int sig){ this->_top_frame = nullptr; handle_signal(sig); });
+                  }, handle_signal);
                } else {
                   vm::invoke_with_signal_handler([&]() {
                      result = execute<sizeof...(Args)>(args_raw, fn, this, base_type::linear_memory(), stack);
