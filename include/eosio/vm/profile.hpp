@@ -15,6 +15,8 @@
 
 namespace eosio::vm {
 
+inline uint32_t profile_interval_us = 10000;
+
 struct profile_data {
    // buffer_size is the size of the I/O write buffer.  The buffer must be at least large enough for one item.
    // hash_table_size is the maximum number of unique traces that can be stored in memory.  It must be a power of 2.
@@ -58,7 +60,7 @@ struct profile_data {
          0,
          3,
          0,
-         10000,
+         profile_interval_us,
          0
       };
       write(reinterpret_cast<const char*>(header), sizeof(header));
@@ -264,6 +266,12 @@ inline void register_profile_signal_handler() {
    ignore_unused_variable_warning(init_helper);
 }
 
+// Sets the profile interval.  Should only be called before starting any profiler.
+// The interval should be between 1 and 999999.
+inline void set_profile_interval_us(uint32_t value) {
+   profile_interval_us = value;
+}
+
 #if USE_POSIX_TIMERS
 
 inline void profile_handler(int sig, siginfo_t *info, void * uc) {
@@ -290,9 +298,9 @@ struct profile_manager {
       EOS_VM_ASSERT(res == 0, profile_exception, "Failed to start timer");
       struct itimerspec spec;
       spec.it_interval.tv_sec = 0;
-      spec.it_interval.tv_nsec = 10000000;
+      spec.it_interval.tv_nsec = profile_interval_us * 1000;
       spec.it_value.tv_sec = 0;
-      spec.it_value.tv_nsec = 10000000;
+      spec.it_value.tv_nsec = profile_interval_us * 1000;
       res = timer_settime(timer, 0, &spec, nullptr);
       EOS_VM_ASSERT(res == 0, profile_exception, "Failed to start timer");
    }
@@ -352,7 +360,7 @@ struct profile_manager {
       register_profile_signal_handler();
       timer_thread = std::thread([this]{
          auto lock = std::unique_lock(mutex);
-         while(!timer_cond.wait_for(lock, std::chrono::milliseconds(10), [&]{ return done; })) {
+         while(!timer_cond.wait_for(lock, std::chrono::microseconds(profile_interval_us), [&]{ return done; })) {
             for(pthread_t notify : threads_to_notify) {
                pthread_kill(notify, SIGPROF);
             }
