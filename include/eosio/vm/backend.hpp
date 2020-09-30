@@ -33,7 +33,7 @@ namespace eosio { namespace vm {
       template<typename Host>
       using context = jit_execution_context<Host, true>;
       template<typename Host, typename Options, typename DebugInfo>
-      using parser = binary_parser<machine_code_writer<jit_execution_context<Host>>, Options, DebugInfo>;
+      using parser = binary_parser<machine_code_writer<context<Host>>, Options, DebugInfo>;
       static constexpr bool is_jit = true;
    };
 
