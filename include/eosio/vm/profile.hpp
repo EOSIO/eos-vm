@@ -320,7 +320,7 @@ struct profile_manager {
 };
 
 __attribute__((visibility("default")))
-inline std::unique_ptr<profile_manager> per_thread_profile_manager;
+inline thread_local std::unique_ptr<profile_manager> per_thread_profile_manager;
 
 struct scoped_profile {
    explicit scoped_profile(profile_data* data) {
