@@ -48,9 +48,9 @@ public:
          code_end = code_addr;
       }
 
-      const void* code_base;
-      const void* wasm_base;
-      const void* code_end;
+      const void* code_base = nullptr;
+      const void* wasm_base = nullptr;
+      const void* code_end = nullptr;
       std::vector<addr_entry> data;
    };
 
@@ -90,11 +90,11 @@ public:
       return offset_to_addr[lower].wasm_addr;
    }
 private:
-   const void* base_address;
-   std::size_t code_size;
+   const void* base_address = nullptr;
+   std::size_t code_size = 0;
 
-   addr_entry* offset_to_addr;
-   std::size_t offset_to_addr_len;
+   addr_entry* offset_to_addr = nullptr;
+   std::size_t offset_to_addr_len = 0;
 
    std::vector<addr_entry> data;
 };

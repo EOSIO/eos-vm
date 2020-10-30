@@ -380,7 +380,7 @@ struct profile_manager {
    }
    ~profile_manager() {
       {
-         auto lock = std::unique_lock(mutex);
+         auto lock = std::scoped_lock(mutex);
          done = true;
       }
       timer_cond.notify_one();

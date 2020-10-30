@@ -295,11 +295,11 @@ namespace eosio { namespace vm {
       }
 
       void finalize(function_body& body) {
-         fb.resize(op_index + 1);
-         body.code = fb.raw();
-         body.size = op_index + 1;
-         _base_offset += body.size;
          op_index++;
+         fb.resize(op_index);
+         body.code = fb.raw();
+         body.size = op_index;
+         _base_offset += body.size;
       }
 
       const void* get_addr() const { return fb.raw() + op_index; }

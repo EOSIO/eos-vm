@@ -24,6 +24,7 @@
 #include <system_error>
 #include <utility>
 
+// OSX requires _XOPEN_SOURCE to #include <ucontext.h>
 #ifdef __APPLE__
 #ifndef _XOPEN_SOURCE
 #define _XOPEN_SOURCE 700
