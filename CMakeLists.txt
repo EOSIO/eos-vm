@@ -72,7 +72,10 @@ endif()
 # ##################################################################################################
 if(ENABLE_SOFTFLOAT)
    if(NOT TARGET softfloat)
+      # Suppress warnings on 3rdParty Library
+      add_definitions( -w )
       add_subdirectory(external)
+      remove_definitions( -w )
    endif()
    target_compile_definitions(eos-vm INTERFACE -DEOS_VM_SOFTFLOAT)
    target_link_libraries(eos-vm INTERFACE softfloat)
