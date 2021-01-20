@@ -94,7 +94,7 @@ namespace eosio { namespace vm {
                return -1;
             _wasm_alloc->free<char>(-pages);
          } else {
-            if (!_mod.memories.size() || _max_pages - sz < pages ||
+            if (!_mod.memories.size() || _max_pages - sz < static_cast<uint32_t>(pages) ||
                 (_mod.memories[0].limits.flags && (static_cast<int32_t>(_mod.memories[0].limits.maximum) - sz < pages)))
                return -1;
             _wasm_alloc->alloc<char>(pages);

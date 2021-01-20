@@ -520,7 +520,7 @@ namespace eosio { namespace vm {
 
       void parse_elem_segment(wasm_code_ptr& code, elem_segment& es) {
          table_type* tt = nullptr;
-         for (int i = 0; i < _mod->tables.size(); i++) {
+         for (std::size_t i = 0; i < _mod->tables.size(); i++) {
             if (_mod->tables[i].element_type == types::anyfunc)
                tt = &(_mod->tables[i]);
          }
