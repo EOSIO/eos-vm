@@ -46,7 +46,7 @@ steps:
       - EOSIO/anka#v0.6.0:
           no-volume: true
           inherit-environment-vars: true
-          vm-name: 10.14.6_6C_14G_40G
+          vm-name: 10.14.6_6C_14G_80G
           vm-registry-tag: "clean::cicd::git-ssh::nas::brew::buildkite-agent"
           modify-cpu: 12
           modify-ram: 24
@@ -66,7 +66,7 @@ steps:
       - EOSIO/anka#v0.6.0:
           no-volume: true
           inherit-environment-vars: true
-          vm-name: 10.15.4_6C_14G_40G
+          vm-name: 10.15.5_6C_14G_80G
           vm-registry-tag: "clean::cicd::git-ssh::nas::brew::buildkite-agent"
           modify-cpu: 12
           modify-ram: 24
@@ -124,7 +124,7 @@ steps:
       - EOSIO/anka#v0.6.0:
           no-volume: true
           inherit-environment-vars: true
-          vm-name: 10.14.6_6C_14G_40G
+          vm-name: 10.14.6_6C_14G_80G
           vm-registry-tag: "clean::cicd::git-ssh::nas::brew::buildkite-agent"
           always-pull: true
           debug: true
@@ -142,7 +142,7 @@ steps:
       - EOSIO/anka#v0.6.0:
           no-volume: true
           inherit-environment-vars: true
-          vm-name: 10.15.4_6C_14G_40G
+          vm-name: 10.15.5_6C_14G_80G
           vm-registry-tag: "clean::cicd::git-ssh::nas::brew::buildkite-agent"
           always-pull: true
           debug: true
