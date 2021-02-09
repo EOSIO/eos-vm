@@ -453,11 +453,11 @@ namespace eosio { namespace vm {
                   std::string((char*)mod.imports[i].module_str.raw(), mod.imports[i].module_str.size());
             std::string fn_name = std::string((char*)mod.imports[i].field_str.raw(), mod.imports[i].field_str.size());
             EOS_VM_ASSERT(current_mappings.named_mapping.count({ mod_name, fn_name }), wasm_link_exception,
-                          "no mapping for imported function");
+                          std::string("no mapping for imported function ") + fn_name);
             imports[i] = current_mappings.named_mapping[{ mod_name, fn_name }];
             const import_entry& entry = mod.imports[i];
-            EOS_VM_ASSERT(entry.kind == Function, wasm_link_exception, "importing non-function");
-            EOS_VM_ASSERT(current_mappings.host_functions[imports[i]] == mod.types[entry.type.func_t], wasm_link_exception, "wrong type for imported function");
+            EOS_VM_ASSERT(entry.kind == Function, wasm_link_exception, std::string("importing non-function ") + fn_name);
+            EOS_VM_ASSERT(current_mappings.host_functions[imports[i]] == mod.types[entry.type.func_t], wasm_link_exception, std::string("wrong type for imported function ") + fn_name);
          }
       }
 
