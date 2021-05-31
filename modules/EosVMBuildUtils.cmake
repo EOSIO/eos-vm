@@ -28,7 +28,6 @@ endif()
 # Setup profile builds
 # ##################################################################################################
 option(ENABLE_PROFILE "enable profile build" OFF)
-option(ENABLE_GPERFTOOLS "enable gperftools" OFF)
 
 if(ENABLE_PROFILE)
    message(STATUS "Building with profiling information.")
@@ -39,10 +38,10 @@ endif()
 # Setup santized builds
 # ##################################################################################################
 cmake_dependent_option(ENABLE_ADDRESS_SANITIZER "build with address sanitization" OFF
-                       "NOT ENABLE_PROFILE;NOT ENABLE_GPERFTOOLS" OFF)
+                       "NOT ENABLE_PROFILE" OFF)
 cmake_dependent_option(ENABLE_UNDEFINED_BEHAVIOR_SANITIZER
 		       "build with undefined behavior sanitization" OFF
-                       "NOT ENABLE_PROFILE;NOT ENABLE_GPERFTOOLS" OFF)
+                       "NOT ENABLE_PROFILE" OFF)
 
 if(ENABLE_ADDRESS_SANITIZER)
    message(STATUS "Building with address sanitization.")
