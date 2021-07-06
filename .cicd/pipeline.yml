@@ -8,7 +8,7 @@ steps:
     agents: 
       queue: "automation-eks-eos-builder-fleet"
     timeout: $BUILD_TIMEOUT
-    skip: $SKIP_AMAZON_LINUX_2$SKIP_LINUX
+    skip: ${SKIP_AMAZON_LINUX_2}${SKIP_LINUX}
 
   - label: ":centos: CentOS 7.7 - Build"
     command: "./.cicd/build.sh"
@@ -17,7 +17,7 @@ steps:
     agents: 
       queue: "automation-eks-eos-builder-fleet"
     timeout: $BUILD_TIMEOUT
-    skip: $SKIP_CENTOS_7$SKIP_LINUX
+    skip: ${SKIP_CENTOS_7}${SKIP_LINUX}
 
   - label: ":ubuntu: Ubuntu 16.04 - Build"
     command: "./.cicd/build.sh"
@@ -26,7 +26,7 @@ steps:
     agents: 
       queue: "automation-eks-eos-builder-fleet"
     timeout: $BUILD_TIMEOUT
-    skip: $SKIP_UBUNTU_16$SKIP_LINUX
+    skip: ${SKIP_UBUNTU_16}${SKIP_LINUX}
 
   - label: ":ubuntu: Ubuntu 18.04 - Build"
     command: "./.cicd/build.sh"
@@ -35,7 +35,7 @@ steps:
     agents: 
       queue: "automation-eks-eos-builder-fleet"
     timeout: $BUILD_TIMEOUT
-    skip: $SKIP_UBUNTU_18$SKIP_LINUX
+    skip: ${SKIP_UBUNTU_18}${SKIP_LINUX}
 
   - label: ":darwin: macOS 10.14 - Build"
     command:
@@ -73,7 +73,7 @@ steps:
     timeout: ${TIMEOUT:-120}
     agents: "queue=mac-anka-large-node-fleet"
     timeout: $BUILD_TIMEOUT
-    skip: $SKIP_MACOS_10_14$SKIP_MAC
+    skip: ${SKIP_MACOS_10_14}${SKIP_MAC}
 
   - label: ":darwin: macOS 10.15 - Build"
     command:
@@ -111,7 +111,7 @@ steps:
     timeout: ${TIMEOUT:-120}
     agents: "queue=mac-anka-large-node-fleet"
     timeout: $BUILD_TIMEOUT
-    skip: $SKIP_MACOS_10_15$SKIP_MAC
+    skip: ${SKIP_MACOS_10_15}${SKIP_MAC}
 
   - wait
 
@@ -122,7 +122,7 @@ steps:
     agents: 
       queue: "automation-eks-eos-builder-fleet"
     timeout: $TEST_TIMEOUT
-    skip: $SKIP_AMAZON_LINUX_2$SKIP_LINUX
+    skip: ${SKIP_AMAZON_LINUX_2}${SKIP_LINUX}
 
   - label: ":centos: CentOS 7.7 - Test"
     command: "./.cicd/test.sh ':centos: CentOS 7.7 - Build'"
@@ -131,7 +131,7 @@ steps:
     agents: 
       queue: "automation-eks-eos-builder-fleet"
     timeout: $TEST_TIMEOUT
-    skip: $SKIP_CENTOS_7$SKIP_LINUX
+    skip: ${SKIP_CENTOS_7}${SKIP_LINUX}
 
   - label: ":ubuntu: Ubuntu 16.04 - Test"
     command: "./.cicd/test.sh ':ubuntu: Ubuntu 16.04 - Build'"
@@ -140,7 +140,7 @@ steps:
     agents: 
       queue: "automation-eks-eos-builder-fleet"
     timeout: $TEST_TIMEOUT
-    skip: $SKIP_UBUNTU_16$SKIP_LINUX
+    skip: ${SKIP_UBUNTU_16}${SKIP_LINUX}
 
   - label: ":ubuntu: Ubuntu 18.04 - Test"
     command: "./.cicd/test.sh ':ubuntu: Ubuntu 18.04 - Build'"
@@ -149,7 +149,7 @@ steps:
     agents: 
       queue: "automation-eks-eos-builder-fleet"
     timeout: $TEST_TIMEOUT
-    skip: $SKIP_UBUNTU_18$SKIP_LINUX
+    skip: ${SKIP_UBUNTU_18}${SKIP_LINUX}
 
   - label: ":darwin: macOS 10.14 - Test"
     command:
@@ -175,7 +175,7 @@ steps:
           cd: ~
     agents: "queue=mac-anka-node-fleet"
     timeout: $TEST_TIMEOUT
-    skip: $SKIP_MACOS_10_14$SKIP_MAC
+    skip: ${SKIP_MACOS_10_14}${SKIP_MAC}
 
   - label: ":darwin: macOS 10.15 - Test"
     command:
@@ -201,7 +201,7 @@ steps:
           cd: ~
     agents: "queue=mac-anka-node-fleet"
     timeout: $TEST_TIMEOUT
-    skip: $SKIP_MACOS_10_15$SKIP_MAC
+    skip: ${SKIP_MACOS_10_15}${SKIP_MAC}
 
   - wait:
     continue_on_failure: true
