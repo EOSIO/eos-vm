@@ -60,7 +60,7 @@ steps:
 
   - label: ":darwin: macOS 10.15 - Build"
     command:
-      - "brew update"
+      - "brew update && brew upgrade"
       - "brew install git cmake"
       - "git clone $BUILDKITE_REPO eos-vm && cd eos-vm && git checkout $BUILDKITE_COMMIT && git submodule update --init --recursive"
       - "cd eos-vm && ./.cicd/build.sh"
@@ -138,7 +138,7 @@ steps:
 
   - label: ":darwin: macOS 10.15 - Test"
     command:
-      - "brew update"
+      - "brew update && brew upgrade"
       - "brew install git cmake"
       - "git clone $BUILDKITE_REPO eos-vm && cd eos-vm && git checkout $BUILDKITE_COMMIT && git submodule update --init --recursive"
       - "cd eos-vm && ./.cicd/test.sh ':darwin: macOS 10.15 - Build'"
