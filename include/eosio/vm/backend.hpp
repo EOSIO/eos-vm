@@ -24,32 +24,40 @@ namespace eosio { namespace vm {
    struct jit {
       template<typename Host>
       using context = jit_execution_context<Host>;
-      template<typename Host, typename Options>
-      using parser = binary_parser<machine_code_writer<jit_execution_context<Host>>, Options>;
+      template<typename Host, typename Options, typename DebugInfo>
+      using parser = binary_parser<machine_code_writer<jit_execution_context<Host>>, Options, DebugInfo>;
+      static constexpr bool is_jit = true;
+   };
+
+   struct jit_profile {
+      template<typename Host>
+      using context = jit_execution_context<Host, true>;
+      template<typename Host, typename Options, typename DebugInfo>
+      using parser = binary_parser<machine_code_writer<context<Host>>, Options, DebugInfo>;
       static constexpr bool is_jit = true;
    };
 
    struct interpreter {
       template<typename Host>
       using context = execution_context<Host>;
-      template<typename Host, typename Options>
-      using parser = binary_parser<bitcode_writer, Options>;
+      template<typename Host, typename Options, typename DebugInfo>
+      using parser = binary_parser<bitcode_writer, Options, DebugInfo>;
       static constexpr bool is_jit = false;
    };
 
    struct null_backend {
       template<typename Host>
       using context = null_execution_context<Host>;
-      template<typename Host, typename Options>
-      using parser = binary_parser<null_writer, Options>;
+      template<typename Host, typename Options, typename DebugInfo>
+      using parser = binary_parser<null_writer, Options, DebugInfo>;
       static constexpr bool is_jit = false;
    };
 
-   template <typename HostFunctions = std::nullptr_t, typename Impl = interpreter, typename Options = default_options>
+   template <typename HostFunctions = std::nullptr_t, typename Impl = interpreter, typename Options = default_options, typename DebugInfo = null_debug_info>
    class backend {
       using host_t     = detail::host_type_t<HostFunctions>;
       using context_t  = typename Impl::template context<HostFunctions>;
-      using parser_t   = typename Impl::template parser<HostFunctions, Options>;
+      using parser_t   = typename Impl::template parser<HostFunctions, Options, DebugInfo>;
       void construct(host_t* host=nullptr) {
          mod.finalize();
          ctx.set_wasm_allocator(memory_alloc);
@@ -61,32 +69,32 @@ namespace eosio { namespace vm {
       }
     public:
       backend(wasm_code&& code, host_t& host, wasm_allocator* alloc, const Options& options = Options{})
-         : memory_alloc(alloc), ctx(parser_t{ mod.allocator, options }.parse_module(code, mod), detail::get_max_call_depth(options)) {
+         : memory_alloc(alloc), ctx(parser_t{ mod.allocator, options }.parse_module(code, mod, debug), detail::get_max_call_depth(options)) {
          ctx.set_max_pages(detail::get_max_pages(options));
          construct(&host);
       }
       backend(wasm_code&& code, wasm_allocator* alloc, const Options& options = Options{})
-         : memory_alloc(alloc), ctx(parser_t{ mod.allocator, options }.parse_module(code, mod), detail::get_max_call_depth(options)) {
+         : memory_alloc(alloc), ctx(parser_t{ mod.allocator, options }.parse_module(code, mod, debug), detail::get_max_call_depth(options)) {
          ctx.set_max_pages(detail::get_max_pages(options));
          construct();
       }
       backend(wasm_code& code, host_t& host, wasm_allocator* alloc, const Options& options = Options{})
-         : memory_alloc(alloc), ctx(parser_t{ mod.allocator, options }.parse_module(code, mod), detail::get_max_call_depth(options)) {
+         : memory_alloc(alloc), ctx(parser_t{ mod.allocator, options }.parse_module(code, mod, debug), detail::get_max_call_depth(options)) {
          ctx.set_max_pages(detail::get_max_pages(options));
          construct(&host);
       }
       backend(wasm_code& code, wasm_allocator* alloc, const Options& options = Options{})
-         : memory_alloc(alloc), ctx(parser_t{ mod.allocator, options }.parse_module(code, mod), detail::get_max_call_depth(options)) {
+         : memory_alloc(alloc), ctx(parser_t{ mod.allocator, options }.parse_module(code, mod, debug), detail::get_max_call_depth(options)) {
          ctx.set_max_pages(detail::get_max_pages(options));
          construct();
       }
       backend(wasm_code_ptr& ptr, size_t sz, host_t& host, wasm_allocator* alloc, const Options& options = Options{})
-         : memory_alloc(alloc), ctx(parser_t{ mod.allocator, options }.parse_module2(ptr, sz, mod), detail::get_max_call_depth(options)) {
+         : memory_alloc(alloc), ctx(parser_t{ mod.allocator, options }.parse_module2(ptr, sz, mod, debug), detail::get_max_call_depth(options)) {
          ctx.set_max_pages(detail::get_max_pages(options));
          construct(&host);
       }
       backend(wasm_code_ptr& ptr, size_t sz, wasm_allocator* alloc, const Options& options = Options{})
-         : memory_alloc(alloc), ctx(parser_t{ mod.allocator, options }.parse_module2(ptr, sz, mod), detail::get_max_call_depth(options)) {
+         : memory_alloc(alloc), ctx(parser_t{ mod.allocator, options }.parse_module2(ptr, sz, mod, debug), detail::get_max_call_depth(options)) {
          ctx.set_max_pages(detail::get_max_pages(options));
          construct();
       }
@@ -236,9 +244,12 @@ namespace eosio { namespace vm {
       inline void            exit(const std::error_code& ec) { ctx.exit(ec); }
       inline auto&           get_context() { return ctx; }
 
+      const DebugInfo& get_debug() const { return debug; }
+
     private:
       wasm_allocator* memory_alloc = nullptr; // non owning pointer
       module          mod;
+      DebugInfo       debug;
       context_t       ctx;
    };
 }} // namespace eosio::vm

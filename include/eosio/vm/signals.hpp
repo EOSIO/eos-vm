@@ -71,6 +71,10 @@ namespace eosio { namespace vm {
          caught_exception = true;
       }
       if (caught_exception) {
+         sigset_t block_mask;
+         sigemptyset(&block_mask);
+         sigaddset(&block_mask, SIGPROF);
+         pthread_sigmask(SIG_BLOCK, &block_mask, nullptr);
          sigjmp_buf* dest = std::atomic_load(&signal_dest);
          siglongjmp(*dest, -1);
       }
@@ -79,6 +83,10 @@ namespace eosio { namespace vm {
    template<typename E>
    [[noreturn]] inline void throw_(const char* msg) {
       saved_exception = std::make_exception_ptr(E{msg});
+      sigset_t block_mask;
+      sigemptyset(&block_mask);
+      sigaddset(&block_mask, SIGPROF);
+      pthread_sigmask(SIG_BLOCK, &block_mask, nullptr);
       sigjmp_buf* dest = std::atomic_load(&signal_dest);
       siglongjmp(*dest, -1);
    }
@@ -87,6 +95,7 @@ namespace eosio { namespace vm {
       struct sigaction sa;
       sa.sa_sigaction = &signal_handler;
       sigemptyset(&sa.sa_mask);
+      sigaddset(&sa.sa_mask, SIGPROF);
       sa.sa_flags = SA_NODEFER | SA_SIGINFO;
       sigaction(SIGSEGV, &sa, &prev_signal_handler<SIGSEGV>);
       sigaction(SIGBUS, &sa, &prev_signal_handler<SIGBUS>);
@@ -130,6 +139,7 @@ namespace eosio { namespace vm {
          sigaddset(&unblock_mask, SIGSEGV);
          sigaddset(&unblock_mask, SIGBUS);
          sigaddset(&unblock_mask, SIGFPE);
+         sigaddset(&unblock_mask, SIGPROF);
          pthread_sigmask(SIG_UNBLOCK, &unblock_mask, &old_sigmask);
          try {
             f();

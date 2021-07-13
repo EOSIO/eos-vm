@@ -201,6 +201,9 @@ class null_writer {
    void emit_prologue(const func_type& /*ft*/, const guarded_vector<local_entry>& /*locals*/, uint32_t /*idx*/) {}
    void emit_epilogue(const func_type& /*ft*/, const guarded_vector<local_entry>& /*locals*/, uint32_t /*idx*/) {}
    void finalize(function_body& /*body*/) {}
+
+   const void* get_addr() const { return nullptr; }
+   const void* get_base_addr() const { return nullptr; }
 };
 
 }}

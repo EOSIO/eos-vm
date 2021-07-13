@@ -316,6 +316,8 @@ namespace eosio { namespace vm {
          mprotect(_code_base, _code_size, PROT_NONE);
       }
 
+      const void* get_code_start() const { return _code_base; }
+
       /* different semantics than free,
        * the memory must be at the end of the most recently allocated block.
        */

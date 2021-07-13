@@ -50,7 +50,7 @@ namespace eosio { namespace vm {
 
          // emit host functions
          const uint32_t num_imported = mod.get_imported_functions_size();
-         const std::size_t host_functions_size = 40 * num_imported;
+         const std::size_t host_functions_size = (40 + 10 * Context::async_backtrace()) * num_imported;
          _code_start = _mod.allocator.alloc<unsigned char>(host_functions_size);
          _code_end = _code_start + host_functions_size;
          // code already set
@@ -103,7 +103,7 @@ namespace eosio { namespace vm {
       void emit_prologue(const func_type& /*ft*/, const guarded_vector<local_entry>& locals, uint32_t funcnum) {
          _ft = &_mod.types[_mod.functions[funcnum]];
          // FIXME: This is not a tight upper bound
-         const std::size_t instruction_size_ratio_upper_bound = use_softfloat?49:79;
+         const std::size_t instruction_size_ratio_upper_bound = use_softfloat?(Context::async_backtrace()?63:49):79;
          std::size_t code_size = max_prologue_size + _mod.code[funcnum].size * instruction_size_ratio_upper_bound + max_epilogue_size;
          _code_start = _mod.allocator.alloc<unsigned char>(code_size);
          _code_end = _code_start + code_size;
@@ -623,7 +623,8 @@ namespace eosio { namespace vm {
       }
 
       void emit_current_memory() {
-         auto icount = fixed_size_instr(17);
+         auto icount = variable_size_instr(17, 35);
+         emit_setup_backtrace();
          // pushq %rdi
          emit_bytes(0x57);
          // pushq %rsi
@@ -637,13 +638,15 @@ namespace eosio { namespace vm {
          emit_bytes(0x5e);
          // pop %rdi
          emit_bytes(0x5f);
+         emit_restore_backtrace();
          // push %rax
          emit_bytes(0x50);
       }
       void emit_grow_memory() {
-         auto icount = fixed_size_instr(21);
+         auto icount = variable_size_instr(21, 39);
          // popq %rax
          emit_bytes(0x58);
+         emit_setup_backtrace();
          // pushq %rdi
          emit_bytes(0x57);
          // pushq %rsi
@@ -659,6 +662,7 @@ namespace eosio { namespace vm {
          emit_bytes(0x5e);
          // pop %rdi
          emit_bytes(0x5f);
+         emit_restore_backtrace();
          // push %rax
          emit_bytes(0x50);
       }
@@ -974,63 +978,63 @@ namespace eosio { namespace vm {
 
       // --------------- f32 relops ----------------------
       void emit_f32_eq() {
-         auto icount = softfloat_instr(25,45);
+         auto icount = softfloat_instr(25,45,59);
          emit_f32_relop(0x00, CHOOSE_FN(_eosio_f32_eq), false, false);
       }
 
       void emit_f32_ne() {
-         auto icount = softfloat_instr(24,47);
+         auto icount = softfloat_instr(24,47,61);
          emit_f32_relop(0x00, CHOOSE_FN(_eosio_f32_eq), false, true);
       }
 
       void emit_f32_lt() {
-         auto icount = softfloat_instr(25,45);
+         auto icount = softfloat_instr(25,45,59);
          emit_f32_relop(0x01, CHOOSE_FN(_eosio_f32_lt), false, false);
       }
 
       void emit_f32_gt() {
-         auto icount = softfloat_instr(25,45);
+         auto icount = softfloat_instr(25,45,59);
          emit_f32_relop(0x01, CHOOSE_FN(_eosio_f32_lt), true, false);
       }
 
       void emit_f32_le() {
-         auto icount = softfloat_instr(25,45);
+         auto icount = softfloat_instr(25,45,59);
          emit_f32_relop(0x02, CHOOSE_FN(_eosio_f32_le), false, false);
       }
 
       void emit_f32_ge() {
-         auto icount = softfloat_instr(25,45);
+         auto icount = softfloat_instr(25,45,59);
          emit_f32_relop(0x02, CHOOSE_FN(_eosio_f32_le), true, false);
       }
 
       // --------------- f64 relops ----------------------
       void emit_f64_eq() {
-         auto icount = softfloat_instr(25,47);
+         auto icount = softfloat_instr(25,47,61);
          emit_f64_relop(0x00, CHOOSE_FN(_eosio_f64_eq), false, false);
       }
 
       void emit_f64_ne() {
-         auto icount = softfloat_instr(24,49);
+         auto icount = softfloat_instr(24,49,63);
          emit_f64_relop(0x00, CHOOSE_FN(_eosio_f64_eq), false, true);
       }
 
       void emit_f64_lt() {
-         auto icount = softfloat_instr(25,47);
+         auto icount = softfloat_instr(25,47,61);
          emit_f64_relop(0x01, CHOOSE_FN(_eosio_f64_lt), false, false);
       }
 
       void emit_f64_gt() {
-         auto icount = softfloat_instr(25,47);
+         auto icount = softfloat_instr(25,47,61);
          emit_f64_relop(0x01, CHOOSE_FN(_eosio_f64_lt), true, false);
       }
 
       void emit_f64_le() {
-         auto icount = softfloat_instr(25,47);
+         auto icount = softfloat_instr(25,47,61);
          emit_f64_relop(0x02, CHOOSE_FN(_eosio_f64_le), false, false);
       }
 
       void emit_f64_ge() {
-         auto icount = softfloat_instr(25,47);
+         auto icount = softfloat_instr(25,47,61);
          emit_f64_relop(0x02, CHOOSE_FN(_eosio_f64_le), true, false);
       }
 
@@ -1368,7 +1372,7 @@ namespace eosio { namespace vm {
       }
 
       void emit_f32_ceil() {
-         auto icount = softfloat_instr(12, 36);
+         auto icount = softfloat_instr(12, 36, 54);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_f32_ceil));
          }
@@ -1379,7 +1383,7 @@ namespace eosio { namespace vm {
       }
 
       void emit_f32_floor() {
-         auto icount = softfloat_instr(12, 36);
+         auto icount = softfloat_instr(12, 36, 54);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_f32_floor));
          }
@@ -1390,7 +1394,7 @@ namespace eosio { namespace vm {
       }
 
       void emit_f32_trunc() {
-         auto icount = softfloat_instr(12, 36);
+         auto icount = softfloat_instr(12, 36, 54);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_f32_trunc));
          }
@@ -1401,7 +1405,7 @@ namespace eosio { namespace vm {
       }
 
       void emit_f32_nearest() {
-         auto icount = softfloat_instr(12, 36);
+         auto icount = softfloat_instr(12, 36, 54);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_f32_nearest));
          }
@@ -1412,7 +1416,7 @@ namespace eosio { namespace vm {
       }
 
       void emit_f32_sqrt() {
-         auto icount = softfloat_instr(10, 36);
+         auto icount = softfloat_instr(10, 36, 54);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_f32_sqrt));
          }
@@ -1425,23 +1429,23 @@ namespace eosio { namespace vm {
       // --------------- f32 binops ----------------------
 
       void emit_f32_add() {
-         auto icount = softfloat_instr(21, 44);
+         auto icount = softfloat_instr(21, 44, 58);
          emit_f32_binop(0x58, CHOOSE_FN(_eosio_f32_add));
       }
       void emit_f32_sub() {
-         auto icount = softfloat_instr(21, 44);
+         auto icount = softfloat_instr(21, 44, 58);
          emit_f32_binop(0x5c, CHOOSE_FN(_eosio_f32_sub));
       }
       void emit_f32_mul() {
-         auto icount = softfloat_instr(21, 44);
+         auto icount = softfloat_instr(21, 44, 58);
          emit_f32_binop(0x59, CHOOSE_FN(_eosio_f32_mul));
       }
       void emit_f32_div() {
-         auto icount = softfloat_instr(21, 44);
+         auto icount = softfloat_instr(21, 44, 58);
          emit_f32_binop(0x5e, CHOOSE_FN(_eosio_f32_div));
       }
       void emit_f32_min() {
-         auto icount = softfloat_instr(47, 44);
+         auto icount = softfloat_instr(47, 44, 58);
         if constexpr(use_softfloat) {
            emit_f32_binop_softfloat(CHOOSE_FN(_eosio_f32_min));
            return;
@@ -1474,7 +1478,7 @@ namespace eosio { namespace vm {
         emit_bytes(0xf3, 0x0f, 0x11, 0x04, 0x24);
       }
       void emit_f32_max() {
-         auto icount = softfloat_instr(47, 44);
+         auto icount = softfloat_instr(47, 44, 58);
         if(use_softfloat) {
            emit_f32_binop_softfloat(CHOOSE_FN(_eosio_f32_max));
            return;
@@ -1554,7 +1558,7 @@ namespace eosio { namespace vm {
       }
 
       void emit_f64_ceil() {
-         auto icount = softfloat_instr(12, 38);
+         auto icount = softfloat_instr(12, 38, 56);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_f64_ceil));
          }
@@ -1565,7 +1569,7 @@ namespace eosio { namespace vm {
       }
 
       void emit_f64_floor() {
-         auto icount = softfloat_instr(12, 38);
+         auto icount = softfloat_instr(12, 38, 56);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_f64_floor));
          }
@@ -1576,7 +1580,7 @@ namespace eosio { namespace vm {
       }
 
       void emit_f64_trunc() {
-         auto icount = softfloat_instr(12, 38);
+         auto icount = softfloat_instr(12, 38, 56);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_f64_trunc));
          }
@@ -1587,7 +1591,7 @@ namespace eosio { namespace vm {
       }
 
       void emit_f64_nearest() {
-         auto icount = softfloat_instr(12, 38);
+         auto icount = softfloat_instr(12, 38, 56);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_f64_nearest));
          }
@@ -1598,7 +1602,7 @@ namespace eosio { namespace vm {
       }
 
       void emit_f64_sqrt() {
-         auto icount = softfloat_instr(10, 38);
+         auto icount = softfloat_instr(10, 38, 56);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_f64_sqrt));
          }
@@ -1611,23 +1615,23 @@ namespace eosio { namespace vm {
       // --------------- f64 binops ----------------------
 
       void emit_f64_add() {
-         auto icount = softfloat_instr(21, 47);
+         auto icount = softfloat_instr(21, 47, 61);
          emit_f64_binop(0x58, CHOOSE_FN(_eosio_f64_add));
       }
       void emit_f64_sub() {
-         auto icount = softfloat_instr(21, 47);
+         auto icount = softfloat_instr(21, 47, 61);
          emit_f64_binop(0x5c, CHOOSE_FN(_eosio_f64_sub));
       }
       void emit_f64_mul() {
-         auto icount = softfloat_instr(21, 47);
+         auto icount = softfloat_instr(21, 47, 61);
          emit_f64_binop(0x59, CHOOSE_FN(_eosio_f64_mul));
       }
       void emit_f64_div() {
-         auto icount = softfloat_instr(21, 47);
+         auto icount = softfloat_instr(21, 47, 61);
          emit_f64_binop(0x5e, CHOOSE_FN(_eosio_f64_div));
       }
       void emit_f64_min() {
-         auto icount = softfloat_instr(49, 47);
+         auto icount = softfloat_instr(49, 47, 61);
          if(use_softfloat) {
             emit_f64_binop_softfloat(CHOOSE_FN(_eosio_f64_min));
             return;
@@ -1660,7 +1664,7 @@ namespace eosio { namespace vm {
          emit_bytes(0xf2, 0x0f, 0x11, 0x04, 0x24);
       }
       void emit_f64_max() {
-         auto icount = softfloat_instr(49, 47);
+         auto icount = softfloat_instr(49, 47, 61);
          if(use_softfloat) {
             emit_f64_binop_softfloat(CHOOSE_FN(_eosio_f64_max));
             return;
@@ -1727,7 +1731,7 @@ namespace eosio { namespace vm {
       }
 
       void emit_i32_trunc_s_f32() {
-         auto icount = softfloat_instr(33, 36);
+         auto icount = softfloat_instr(33, 36, 54);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(softfloat_trap<&_eosio_f32_trunc_i32s>()));
          }
@@ -1738,7 +1742,7 @@ namespace eosio { namespace vm {
       }
 
       void emit_i32_trunc_u_f32() {
-         auto icount = softfloat_instr(46, 36);
+         auto icount = softfloat_instr(46, 36, 54);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(softfloat_trap<&_eosio_f32_trunc_i32u>()));
          }
@@ -1755,7 +1759,7 @@ namespace eosio { namespace vm {
          fix_branch(emit_branch_target32(), fpe_handler);
       }
       void emit_i32_trunc_s_f64() {
-         auto icount = softfloat_instr(34, 38);
+         auto icount = softfloat_instr(34, 38, 56);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(softfloat_trap<&_eosio_f64_trunc_i32s>()));
          }
@@ -1766,7 +1770,7 @@ namespace eosio { namespace vm {
       }
 
       void emit_i32_trunc_u_f64() {
-         auto icount = softfloat_instr(47, 38);
+         auto icount = softfloat_instr(47, 38, 56);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(softfloat_trap<&_eosio_f64_trunc_i32u>()));
          }
@@ -1794,7 +1798,7 @@ namespace eosio { namespace vm {
       void emit_i64_extend_u_i32() { /* Nothing to do */ }
       
       void emit_i64_trunc_s_f32() {
-         auto icount = softfloat_instr(35, 37);
+         auto icount = softfloat_instr(35, 37, 55);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(softfloat_trap<&_eosio_f32_trunc_i64s>()));
          }
@@ -1804,7 +1808,7 @@ namespace eosio { namespace vm {
          emit_bytes(0x48, 0x89, 0x04 ,0x24);
       }
       void emit_i64_trunc_u_f32() {
-         auto icount = softfloat_instr(101, 37);
+         auto icount = softfloat_instr(101, 37, 55);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(softfloat_trap<&_eosio_f32_trunc_i64u>()));
          }
@@ -1847,7 +1851,7 @@ namespace eosio { namespace vm {
          fix_branch(emit_branch_target32(), fpe_handler);
       }
       void emit_i64_trunc_s_f64() {
-         auto icount = softfloat_instr(35, 38);
+         auto icount = softfloat_instr(35, 38, 56);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(softfloat_trap<&_eosio_f64_trunc_i64s>()));
          }
@@ -1857,7 +1861,7 @@ namespace eosio { namespace vm {
          emit_bytes(0x48, 0x89, 0x04 ,0x24);
       }
       void emit_i64_trunc_u_f64() {
-         auto icount = softfloat_instr(109, 38);
+         auto icount = softfloat_instr(109, 38, 56);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(softfloat_trap<&_eosio_f64_trunc_i64u>()));
          }
@@ -1901,7 +1905,7 @@ namespace eosio { namespace vm {
       }
 
       void emit_f32_convert_s_i32() {
-         auto icount = softfloat_instr(10, 36);
+         auto icount = softfloat_instr(10, 36, 54);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_i32_to_f32));
          }
@@ -1911,7 +1915,7 @@ namespace eosio { namespace vm {
          emit_bytes(0xf3, 0x0f, 0x11, 0x04, 0x24);
       }
       void emit_f32_convert_u_i32() {
-         auto icount = softfloat_instr(11, 36);
+         auto icount = softfloat_instr(11, 36, 54);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_ui32_to_f32));
          }
@@ -1922,7 +1926,7 @@ namespace eosio { namespace vm {
          emit_bytes(0xf3, 0x0f, 0x11, 0x04, 0x24);
       }
       void emit_f32_convert_s_i64() {
-         auto icount = softfloat_instr(11, 38);
+         auto icount = softfloat_instr(11, 38, 56);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_i64_to_f32));
          }
@@ -1932,7 +1936,7 @@ namespace eosio { namespace vm {
          emit_bytes(0xf3, 0x0f, 0x11, 0x04, 0x24);
       }
       void emit_f32_convert_u_i64() {
-         auto icount = softfloat_instr(55, 38);
+         auto icount = softfloat_instr(55, 38, 56);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_ui64_to_f32));
          }
@@ -1972,7 +1976,7 @@ namespace eosio { namespace vm {
         emit_bytes(0xf3, 0x0f, 0x11, 0x04, 0x24);
       }
       void emit_f32_demote_f64() {
-         auto icount = softfloat_instr(16, 38);
+         auto icount = softfloat_instr(16, 38, 56);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_f64_demote));
          }
@@ -1987,7 +1991,7 @@ namespace eosio { namespace vm {
          emit_bytes(0x89, 0x44, 0x24, 0x04);
       }
       void emit_f64_convert_s_i32() {
-         auto icount = softfloat_instr(10, 37);
+         auto icount = softfloat_instr(10, 37, 55);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_i32_to_f64));
          }
@@ -1997,7 +2001,7 @@ namespace eosio { namespace vm {
          emit_bytes(0xf2, 0x0f, 0x11, 0x04, 0x24);
       }
       void emit_f64_convert_u_i32() {
-         auto icount = softfloat_instr(11, 37);
+         auto icount = softfloat_instr(11, 37, 55);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_ui32_to_f64));
          }
@@ -2007,7 +2011,7 @@ namespace eosio { namespace vm {
          emit_bytes(0xf2, 0x0f, 0x11, 0x04, 0x24);
       }
       void emit_f64_convert_s_i64() {
-         auto icount = softfloat_instr(11, 38);
+         auto icount = softfloat_instr(11, 38, 56);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_i64_to_f64));
          }
@@ -2017,7 +2021,7 @@ namespace eosio { namespace vm {
          emit_bytes(0xf2, 0x0f, 0x11, 0x04, 0x24);
       }
       void emit_f64_convert_u_i64() {
-         auto icount = softfloat_instr(49, 38);
+         auto icount = softfloat_instr(49, 38, 56);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_ui64_to_f64));
          }
@@ -2053,7 +2057,7 @@ namespace eosio { namespace vm {
         emit_bytes(0xf2, 0x0f, 0x11, 0x04, 0x24);
       }
       void emit_f64_promote_f32() {
-         auto icount = softfloat_instr(10, 37);
+         auto icount = softfloat_instr(10, 37, 55);
          if constexpr (use_softfloat) {
             return emit_softfloat_unop(CHOOSE_FN(_eosio_f32_promote));
          }
@@ -2094,6 +2098,13 @@ namespace eosio { namespace vm {
          body.jit_code_offset = _code_start - (unsigned char*)_code_segment_base;
       }
 
+      // returns the current write address
+      const void* get_addr() const {
+         return code;
+      }
+
+      const void* get_base_addr() const { return _code_segment_base; }
+
     private:
 
       auto fixed_size_instr(std::size_t expected_bytes) {
@@ -2112,8 +2123,8 @@ namespace eosio { namespace vm {
             ignore_unused_variable_warning(code, min_code, max_code);
          }};
       }
-      auto softfloat_instr(std::size_t hard_expected, std::size_t soft_expected) {
-        return fixed_size_instr(use_softfloat?soft_expected:hard_expected);
+      auto softfloat_instr(std::size_t hard_expected, std::size_t soft_expected, std::size_t softbt_expected) {
+         return fixed_size_instr(use_softfloat?(Context::async_backtrace()?softbt_expected:soft_expected):hard_expected);
       }
 
       module& _mod;
@@ -2266,16 +2277,17 @@ namespace eosio { namespace vm {
 
       template<typename T, typename U>
       void emit_softfloat_unop(T(*softfloatfun)(U)) {
+         auto extra = emit_setup_backtrace();
          // pushq %rdi
          emit_bytes(0x57);
          // pushq %rsi
          emit_bytes(0x56);
          if constexpr(sizeof(U) == 4) {
             // movq 16(%rsp), %edi
-            emit_bytes(0x8b, 0x7c, 0x24, 0x10);
+            emit_bytes(0x8b, 0x7c, 0x24, 0x10 + extra);
          } else {
             // movq 16(%rsp), %rdi
-            emit_bytes(0x48, 0x8b, 0x7c, 0x24, 0x10);
+            emit_bytes(0x48, 0x8b, 0x7c, 0x24, 0x10 + extra);
          }
          emit_align_stack();
          // movabsq $softfloatfun, %rax
@@ -2288,6 +2300,7 @@ namespace eosio { namespace vm {
          emit_bytes(0x5e);
          // popq %rdi
          emit_bytes(0x5f);
+         emit_restore_backtrace();
          if constexpr(sizeof(T) == 4) {
             static_assert(sizeof(U) == 4, "Can only push 4-byte item if the upper 4 bytes are already 0");
             // movq %eax, (%rsp)
@@ -2299,14 +2312,15 @@ namespace eosio { namespace vm {
       }
 
       void emit_f32_binop_softfloat(float32_t (*softfloatfun)(float32_t, float32_t)) {
+         auto extra = emit_setup_backtrace();
          // pushq %rdi
          emit_bytes(0x57);
          // pushq %rsi
          emit_bytes(0x56);
          // movq 16(%rsp), %esi
-         emit_bytes(0x8b, 0x74, 0x24, 0x10);
+         emit_bytes(0x8b, 0x74, 0x24, 0x10 + extra);
          // movq 24(%rsp), %edi
-         emit_bytes(0x8b, 0x7c, 0x24, 0x18);
+         emit_bytes(0x8b, 0x7c, 0x24, 0x18 + extra);
          emit_align_stack();
          // movabsq $softfloatfun, %rax
          emit_bytes(0x48, 0xb8);
@@ -2318,21 +2332,23 @@ namespace eosio { namespace vm {
          emit_bytes(0x5e);
          // popq %rdi
          emit_bytes(0x5f);
+         emit_restore_backtrace_basic();
          // addq $8, %rsp
-         emit_bytes(0x48, 0x83, 0xc4, 0x08);
+         emit_bytes(0x48, 0x83, 0xc4, 0x08 + extra);
          // movq %eax, (%rsp)
          emit_bytes(0x89, 0x04, 0x24);
       }
 
       void emit_f64_binop_softfloat(float64_t (*softfloatfun)(float64_t, float64_t)) {
+         auto extra = emit_setup_backtrace();
          // pushq %rdi
          emit_bytes(0x57);
          // pushq %rsi
          emit_bytes(0x56);
          // movq 16(%rsp), %rsi
-         emit_bytes(0x48, 0x8b, 0x74, 0x24, 0x10);
+         emit_bytes(0x48, 0x8b, 0x74, 0x24, 0x10 + extra);
          // movq 24(%rsp), %rdi
-         emit_bytes(0x48, 0x8b, 0x7c, 0x24, 0x18);
+         emit_bytes(0x48, 0x8b, 0x7c, 0x24, 0x18 + extra);
          emit_align_stack();
          // movabsq $softfloatfun, %rax
          emit_bytes(0x48, 0xb8);
@@ -2344,28 +2360,30 @@ namespace eosio { namespace vm {
          emit_bytes(0x5e);
          // popq %rdi
          emit_bytes(0x5f);
+         emit_restore_backtrace_basic();
          // addq $8, %rsp
-         emit_bytes(0x48, 0x83, 0xc4, 0x08);
+         emit_bytes(0x48, 0x83, 0xc4, 0x08 + extra);
          // movq %rax, (%rsp)
          emit_bytes(0x48, 0x89, 0x04, 0x24);
       }
 
       void emit_f32_relop(uint8_t opcode, uint64_t (*softfloatfun)(float32_t, float32_t), bool switch_params, bool flip_result) {
          if constexpr (use_softfloat) {
+            auto extra = emit_setup_backtrace();
             // pushq %rdi
             emit_bytes(0x57);
             // pushq %rsi
             emit_bytes(0x56);
             if(switch_params) {
                // movq 24(%rsp), %esi
-               emit_bytes(0x8b, 0x74, 0x24, 0x18);
+               emit_bytes(0x8b, 0x74, 0x24, 0x18 + extra);
                // movq 16(%rsp), %edi
-               emit_bytes(0x8b, 0x7c, 0x24, 0x10);
+               emit_bytes(0x8b, 0x7c, 0x24, 0x10 + extra);
             } else {
                // movq 16(%rsp), %esi
-               emit_bytes(0x8b, 0x74, 0x24, 0x10);
+               emit_bytes(0x8b, 0x74, 0x24, 0x10 + extra);
                // movq 24(%rsp), %edi
-               emit_bytes(0x8b, 0x7c, 0x24, 0x18);
+               emit_bytes(0x8b, 0x7c, 0x24, 0x18 + extra);
             }
             emit_align_stack();
             // movabsq $softfloatfun, %rax
@@ -2378,12 +2396,13 @@ namespace eosio { namespace vm {
             emit_bytes(0x5e);
             // popq %rdi
             emit_bytes(0x5f);
+            emit_restore_backtrace_basic();
             if (flip_result) {
                // xor $0x1, %al
                emit_bytes(0x34, 0x01);
             }
             // addq $8, %rsp
-            emit_bytes(0x48, 0x83, 0xc4, 0x08);
+            emit_bytes(0x48, 0x83, 0xc4, 0x08 + extra);
             // movq %rax, (%rsp)
             emit_bytes(0x48, 0x89, 0x04, 0x24);
          } else {
@@ -2417,20 +2436,21 @@ namespace eosio { namespace vm {
 
       void emit_f64_relop(uint8_t opcode, uint64_t (*softfloatfun)(float64_t, float64_t), bool switch_params, bool flip_result) {
          if constexpr (use_softfloat) {
+            auto extra = emit_setup_backtrace();
             // pushq %rdi
             emit_bytes(0x57);
             // pushq %rsi
             emit_bytes(0x56);
             if(switch_params) {
                // movq 24(%rsp), %rsi
-               emit_bytes(0x48, 0x8b, 0x74, 0x24, 0x18);
+               emit_bytes(0x48, 0x8b, 0x74, 0x24, 0x18 + extra);
                // movq 16(%rsp), %rdi
-               emit_bytes(0x48, 0x8b, 0x7c, 0x24, 0x10);
+               emit_bytes(0x48, 0x8b, 0x7c, 0x24, 0x10 + extra);
             } else {
                // movq 16(%rsp), %rsi
-               emit_bytes(0x48, 0x8b, 0x74, 0x24, 0x10);
+               emit_bytes(0x48, 0x8b, 0x74, 0x24, 0x10 + extra);
                // movq 24(%rsp), %rdi
-               emit_bytes(0x48, 0x8b, 0x7c, 0x24, 0x18);
+               emit_bytes(0x48, 0x8b, 0x7c, 0x24, 0x18 + extra);
             }
             emit_align_stack();
             // movabsq $softfloatfun, %rax
@@ -2443,12 +2463,13 @@ namespace eosio { namespace vm {
             emit_bytes(0x5e);
             // popq %rdi
             emit_bytes(0x5f);
+            emit_restore_backtrace_basic();
             if (flip_result) {
                // xor $0x1, %al
                emit_bytes(0x34, 0x01);
             }
             // addq $8, %rsp
-            emit_bytes(0x48, 0x83, 0xc4, 0x08);
+            emit_bytes(0x48, 0x83, 0xc4, 0x08 + extra);
             // movq %rax, (%rsp)
             emit_bytes(0x48, 0x89, 0x04, 0x24);
          } else {
@@ -2579,6 +2600,14 @@ namespace eosio { namespace vm {
       }
 
       void emit_host_call(uint32_t funcnum) {
+         uint32_t extra = 0;
+         if constexpr (Context::async_backtrace()) {
+            // pushq %rbp
+            emit_bytes(0x55);
+            // movq %rsp, (%rdi)
+            emit_bytes(0x48, 0x89, 0x27);
+            extra = 8;
+         }
          // mov $funcnum, %edx
          emit_bytes(0xba);
          emit_operand32(funcnum);
@@ -2587,7 +2616,7 @@ namespace eosio { namespace vm {
          // pushq %rsi
          emit_bytes(0x56);
          // lea 24(%rsp), %rsi
-         emit_bytes(0x48, 0x8d, 0x74, 0x24, 0x18);
+         emit_bytes(0x48, 0x8d, 0x74, 0x24, 0x18 + extra);
          emit_align_stack();
          // movabsq $call_host_function, %rax
          emit_bytes(0x48, 0xb8);
@@ -2599,8 +2628,47 @@ namespace eosio { namespace vm {
          emit_bytes(0x5e);
          // popq %rdi
          emit_bytes(0x5f);
+         if constexpr (Context::async_backtrace()) {
+            emit_restore_backtrace_basic();
+            // popq %rbp
+            emit_bytes(0x5d);
+         }
          // retq
          emit_bytes(0xc3);
+      }
+
+      // Needs to run before saving %rdi.  Returns the number of bytes pushed onto the stack.
+      uint32_t emit_setup_backtrace() {
+         if constexpr (Context::async_backtrace()) {
+            // callq next
+            emit_bytes(0xe8);
+            emit_operand32(0);
+            // next:
+            // pushq %rbp
+            emit_bytes(0x55);
+            // movq %rsp, (%rdi)
+            emit_bytes(0x48, 0x89, 0x27);
+            return 16;
+         } else {
+            return 0;
+         }
+      }
+      // Does not adjust the stack pointer.  Use this if the
+      // stack pointer adjustment is combined with another instruction.
+      void emit_restore_backtrace_basic() {
+         if constexpr (Context::async_backtrace()) {
+            // xorl %edx, %edx
+            emit_bytes(0x31, 0xd2);
+            // movq %rdx, (%rdi)
+            emit_bytes(0x48, 0x89, 0x17);
+         }
+      }
+      void emit_restore_backtrace() {
+         if constexpr (Context::async_backtrace()) {
+            emit_restore_backtrace_basic();
+            // addq $16, %rsp
+            emit_bytes(0x48, 0x83, 0xc4, 0x10);
+         }
       }
 
       bool is_host_function(uint32_t funcnum) { return funcnum < _mod.get_imported_functions_size(); }
