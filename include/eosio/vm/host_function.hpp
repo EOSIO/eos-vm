@@ -391,6 +391,7 @@ namespace eosio { namespace vm {
       host_function hf;
       hf.params.resize(detail::total_operands_v<Args, Type_Converter>);
       value_type* iter = hf.params.data();
+      (void)iter;
       (get_args<Type_Converter, std::tuple_element_t<Is, Args>>(iter), ...);
       if constexpr (to_wasm_type_v<Type_Converter, Ret> != types::ret_void) {
          hf.ret = { to_wasm_type_v<Type_Converter, Ret> };
