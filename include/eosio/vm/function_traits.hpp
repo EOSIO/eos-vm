@@ -102,7 +102,7 @@ namespace eosio { namespace vm {
                                                                std::tuple<std::conditional_t<Decay, std::decay_t<Args>, Args>...>>;
       template <bool Decay, typename F>
       constexpr auto get_types(F&& fn) {
-         if constexpr (is_callable_v<decltype(fn)>)
+         if constexpr (is_callable<decltype(fn)>())
             return get_types<Decay>(&F::operator());
          else
             return get_types<Decay>(fn);
@@ -144,7 +144,7 @@ namespace eosio { namespace vm {
       constexpr auto parameters_from_impl(R(Cls::*)(Args...)const &&) ->  pack_from_t<N, Args...>;
       template <std::size_t N, typename F>
       constexpr auto parameters_from_impl(F&& fn) {
-         if constexpr (is_callable_v<decltype(fn)>)
+         if constexpr (is_callable<decltype(fn)>())
             return parameters_from_impl<N>(&F::operator());
          else
             return parameters_from_impl<N>(fn);
