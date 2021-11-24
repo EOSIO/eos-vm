@@ -33,9 +33,13 @@ namespace eosio { namespace vm {
          other.original_ptr = nullptr;
       }
       inline ~argument_proxy() {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnonnull"
+         // `copy && original_ptr` is class invariant
          if constexpr (!std::is_const_v<T>)
             if (copy)
-               memcpy( original_ptr, std::addressof(*copy), sizeof(T) );
+               memcpy(original_ptr, std::addressof(*copy), sizeof(T));
+#pragma GCC diagnostic pop
       }
       constexpr operator T*() { return get(); }
       constexpr operator const T*() const { return get(); }
@@ -76,9 +80,13 @@ namespace eosio { namespace vm {
       inline constexpr argument_proxy(const argument_proxy&) = delete;
       inline constexpr argument_proxy(argument_proxy&&) = default;
       inline ~argument_proxy() {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnonnull"
+         // `copy && original_ptr` is class invariant
          if constexpr (!std::is_const_v<T>)
             if (copy)
-               memcpy( original_ptr, copy.get(), this->size_bytes() );
+               memcpy(original_ptr, copy.get(), this->size_bytes());
+#pragma GCC diagnostic pop
       }
       static constexpr bool is_legacy() { return LegacyAlign != 0; }
       constexpr const void* get_original_pointer() const { return original_ptr; }
