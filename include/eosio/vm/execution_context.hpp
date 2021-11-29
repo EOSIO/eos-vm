@@ -746,7 +746,8 @@ namespace eosio { namespace vm {
 
       template <typename... Args>
       void push_args(Args&&... args) {
-         auto tc = detail::type_converter_t<Host>{_host, get_interface()};
+         auto tc = detail::type_converter_t<Host>{ _host, get_interface() };
+         (void)tc;
          (... , push_operand(detail::resolve_result(tc, std::move(args))));
       }
 
