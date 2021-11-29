@@ -180,9 +180,17 @@ namespace eosio { namespace vm {
          _storage(static_cast<T&&>(alt)) {
       }
 
-      template <typename T, typename = std::enable_if_t<detail::is_valid_alternative_v<std::decay_t<T>, Alternatives...>>>
+      template <typename T,
+                typename = std::enable_if_t<detail::is_valid_alternative_v<std::decay_t<T>, Alternatives...>>>
       constexpr variant& operator=(T&& alt) {
+#if (defined(__GNUC__) && !defined(__clang__))
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
          _storage = static_cast<T&&>(alt);
+#pragma GCC diagnostic pop
+#else
+        _storage = static_cast<T&&>(alt);
+#endif
          _which = detail::get_alternatives_index_v<std::decay_t<T>, Alternatives...>;
          return *this;
       }

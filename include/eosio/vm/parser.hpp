@@ -895,7 +895,7 @@ namespace eosio { namespace vm {
                   check_in_bounds();
                   size_t table_size = parse_varuint32(code);
                   EOS_VM_ASSERT(table_size <= detail::get_max_br_table_elements(_options), wasm_parse_exception, "Too many labels in br_table");
-                  uint8_t result_type;
+                  uint8_t result_type = 0;
                   op_stack.pop(types::i32);
                   auto handler = code_writer.emit_br_table(table_size);
                   for (size_t i = 0; i < table_size; i++) {
