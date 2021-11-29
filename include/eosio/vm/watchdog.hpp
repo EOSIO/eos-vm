@@ -72,7 +72,7 @@ namespace eosio { namespace vm {
          std::mutex            _mutex;
          std::condition_variable _cond;
          std::function<void()> _callback;
-         bool                  _run_state = stopped;
+         state_t               _run_state = stopped;
          duration_type         _duration;
          time_point_type       _start;
       };
