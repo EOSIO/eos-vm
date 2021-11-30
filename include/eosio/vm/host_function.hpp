@@ -390,8 +390,16 @@ namespace eosio { namespace vm {
    host_function function_types_provider(std::index_sequence<Is...>) {
       host_function hf;
       hf.params.resize(detail::total_operands_v<Args, Type_Converter>);
+#if (defined(__GNUC__) && !defined(__clang__))
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"      
       value_type* iter = hf.params.data();
       (get_args<Type_Converter, std::tuple_element_t<Is, Args>>(iter), ...);
+#   pragma GCC diagnostic pop
+#else
+      value_type* iter = hf.params.data();
+      (get_args<Type_Converter, std::tuple_element_t<Is, Args>>(iter), ...);
+#endif
       if constexpr (to_wasm_type_v<Type_Converter, Ret> != types::ret_void) {
          hf.ret = { to_wasm_type_v<Type_Converter, Ret> };
       }

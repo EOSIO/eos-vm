@@ -202,7 +202,7 @@ struct profile_data {
    void handle_tick(void** data, int count) {
       item* entry = evict_oldest();
 
-      int out = 0;
+      std::size_t out = 0;
       // Translate addresses to wasm addresses; skip any frames that are outside wasm
       for(int i = 0; i < count && out < max_frames; ++i) {
          auto addr = addr_map.translate(data[i]);
