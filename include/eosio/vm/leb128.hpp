@@ -60,7 +60,7 @@ namespace eosio { namespace vm {
                EOS_VM_ASSERT( code.offset()+cnt < code.bounds(), wasm_interpreter_exception, "pointer out of bounds" );
                storage[cnt] = code[cnt];
                if ((storage[cnt] & 0x80) == 0) {
-                  if( cnt + 1 == bytes_needed<N>() ) {
+                  if( static_cast<size_t>(cnt + 1)  == bytes_needed<N>() ) {
                      uint8_t mask = static_cast<uint8_t>(~(uint32_t)0 << uint32_t(N - 7*(bytes_needed<N>()-1))) & 0x7F;
                      EOS_VM_ASSERT((mask & storage[cnt]) == 0, wasm_parse_exception, "unused bits of unsigned leb128 must be 0");
                   }
@@ -137,7 +137,7 @@ namespace eosio { namespace vm {
                EOS_VM_ASSERT( code.offset()+cnt < code.bounds(), wasm_interpreter_exception, "pointer out of bounds" );
                storage[cnt] = code[cnt];
                if ((storage[cnt] & 0x80) == 0) {
-                  if( cnt + 1 == bytes_needed<N>() ) {
+                  if( static_cast<size_t>(cnt + 1) == bytes_needed<N>() ) {
                     uint32_t offset = N - 7*(bytes_needed<N>()-1);
                      uint8_t mask = static_cast<uint8_t>(~(uint32_t)0 << offset) & 0x7F;
                      uint8_t expected = (storage[cnt] & (uint32_t(1) << uint32_t(offset - 1)))? mask : 0;
