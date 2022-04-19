@@ -208,6 +208,7 @@ namespace eosio { namespace vm {
       void* volatile _top_frame = nullptr;
    };
 
+#ifdef __x86_64__
    template<typename Host, bool EnableBacktrace = false>
    class jit_execution_context : public frame_info_holder<EnableBacktrace>, public execution_context_base<jit_execution_context<Host, EnableBacktrace>, Host> {
       using base_type = execution_context_base<jit_execution_context<Host, EnableBacktrace>, Host>;
@@ -472,6 +473,7 @@ namespace eosio { namespace vm {
       host_type * _host = nullptr;
       uint32_t _remaining_call_depth;
    };
+#endif
 
    template <typename Host>
    class execution_context : public execution_context_base<execution_context<Host>, Host> {
