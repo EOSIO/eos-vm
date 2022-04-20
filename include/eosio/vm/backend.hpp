@@ -9,7 +9,9 @@
 #include <eosio/vm/null_writer.hpp>
 #include <eosio/vm/parser.hpp>
 #include <eosio/vm/types.hpp>
+#ifdef __x86_64__
 #include <eosio/vm/x86_64.hpp>
+#endif 
 
 #include <atomic>
 #include <exception>
@@ -20,6 +22,7 @@
 #include <vector>
 
 namespace eosio { namespace vm {
+#ifdef __x86_64__
 
    struct jit {
       template<typename Host>
@@ -36,7 +39,7 @@ namespace eosio { namespace vm {
       using parser = binary_parser<machine_code_writer<context<Host>>, Options, DebugInfo>;
       static constexpr bool is_jit = true;
    };
-
+#endif
    struct interpreter {
       template<typename Host>
       using context = execution_context<Host>;
