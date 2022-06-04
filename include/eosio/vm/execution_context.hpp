@@ -270,7 +270,7 @@ namespace eosio { namespace vm {
                std::reverse(args_raw + 0, args_raw + sizeof...(Args));
                result = call_host_function(args_raw, func_index);
             } else {
-               constexpr std::size_t stack_cutoff = std::max(252144, SIGSTKSZ);
+               std::size_t stack_cutoff = std::max<long>(252144, SIGSTKSZ);
                std::size_t maximum_stack_usage =
                   (_mod.maximum_stack + 2 /*frame ptr + return ptr*/) * (constants::max_call_depth + 1) +
                  sizeof...(Args) + 4 /* scratch space */;
